@@ -24,6 +24,7 @@
 .DS_Store
 *.pem
 Brimdexto/
+Brimdex/
 
 # debug
 npm-debug.log*

@@ -27,7 +27,6 @@ if (hasWalletConnectProjectId) {
   createWeb3Modal({
     wagmiConfig,
     projectId,
-    chains,
     themeMode: "dark",
     themeVariables: {
       "--w3m-accent": "#7c3aed",
