@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AFTRMarket
 
-## Getting Started
+AFTRMarket is a prediction market app focused on fast market participation and clear outcome ownership.
 
-First, run the development server:
+Users connect a wallet, explore live market categories, and take positions on outcomes. Each position is represented by transferable outcome shares that can be held, traded, or redeemed after settlement.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## What Users Can Do
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Connect a wallet and sign in with a wallet signature.
+- Set a display name to participate in market activity.
+- Browse markets by category (Trending, Newest, Crypto, Politics, Finance, Tech, Economy, Sports, Gaming, Breaking).
+- View available balance and prepare deposits.
+- Navigate market features quickly on desktop and mobile.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How AFTRMarket Works (User View)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Markets are created with clear outcomes and an expiry time.
+- You choose an outcome and deposit collateral to receive outcome shares.
+- If your outcome wins at settlement, your shares can be redeemed for payout.
+- Shares are transferable, so users can exit or reposition before final settlement.
 
-## Learn More
+## Settlement Types
 
-To learn more about Next.js, take a look at the following resources:
+AFTRMarket supports two market styles:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Event markets: settle from verified real-world outcomes.
+- Price markets: settle from asset price conditions at expiry.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Design Goals
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Clear and simple participation flow.
+- Mobile-friendly navigation with fast access to key actions.
+- Transparent outcome and redemption behavior.
+- Fair market mechanics that avoid hidden complexity for users.
