@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { MarketClient } from "./market/market-client";
 
 export default function Home() {
-  redirect("/market");
+  return <MarketClient />;
 }
