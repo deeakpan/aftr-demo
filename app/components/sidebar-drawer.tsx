@@ -17,9 +17,11 @@ import {
 type SidebarDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
+  theme?: "dark" | "light";
 };
 
-export function SidebarDrawer({ isOpen, onClose }: SidebarDrawerProps) {
+export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawerProps) {
+  const logoSrc = theme === "light" ? "/light.png" : "/logo.png";
   useEffect(() => {
     if (!isOpen) return;
     const previousOverflow = document.body.style.overflow;
@@ -44,7 +46,15 @@ export function SidebarDrawer({ isOpen, onClose }: SidebarDrawerProps) {
       >
         <div className="mb-7 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="AFTRMarket logo" width={42} height={42} />
+            <span className="relative block h-20 w-20 shrink-0">
+              <Image
+                src={logoSrc}
+                alt="AFTRMarket logo"
+                fill
+                className="object-contain object-center"
+                sizes="80px"
+              />
+            </span>
             <p className="text-lg font-semibold">AFTRMarket</p>
           </div>
           <button

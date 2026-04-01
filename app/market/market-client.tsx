@@ -173,7 +173,11 @@ export function MarketClient() {
   }, []);
   return (
     <main className="mx-auto flex min-h-screen w-full py-4 pb-24 md:pb-4">
-      <SidebarDrawer isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <SidebarDrawer
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        theme={theme}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="mb-6 w-full px-4 md:px-6">
@@ -187,7 +191,16 @@ export function MarketClient() {
               >
                 <List size={24} weight="bold" />
               </button>
-              <Image src="/logo.png" alt="AFTRMarket logo" width={44} height={44} />
+              <span className="relative block h-24 w-24 shrink-0 md:h-28 md:w-28">
+                <Image
+                  src={theme === "light" ? "/light.png" : "/logo.png"}
+                  alt="AFTRMarket logo"
+                  fill
+                  className="object-contain object-center"
+                  sizes="(max-width: 768px) 96px, 112px"
+                  priority
+                />
+              </span>
               <input
                 ref={searchInputRef}
                 type="text"
