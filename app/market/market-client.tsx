@@ -420,11 +420,11 @@ export function MarketClient() {
             </div>
           </div>
 
-          <div className="mt-3 flex items-center gap-3">
+          <div className="mt-3 flex items-center justify-start gap-3 md:hidden">
             <input
               type="text"
               placeholder="Search markets... (Ctrl/Cmd + K)"
-              className="h-11 w-full rounded-full border border-[var(--border)] bg-[var(--surface)] px-5 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] md:hidden"
+              className="h-9 w-full max-w-[240px] rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 text-xs text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
             />
             <div className="hidden items-center gap-2 text-sm">
               <span className="flex h-5 w-5 items-center justify-center rounded-full border border-[var(--accent)] text-xs font-semibold text-[var(--accent)]">
