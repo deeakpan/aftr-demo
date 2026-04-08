@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, CaretDown } from "@phosphor-icons/react";
-import { formatUnits, parseAbi } from "viem";
-import { useAccount, usePublicClient } from "wagmi";
+import { decodeEventLog, formatUnits, keccak256, parseAbi, parseUnits, stringToHex, toBytes } from "viem";
+import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
+import { MarketPreviewModal } from "@/app/create/components/market-preview-modal";
 import deployment from "@/deployments/baseSepolia-84532.json";
 
 const fieldClass =
@@ -43,13 +44,35 @@ const CHAINLINK_ABI = parseAbi([
 const ERC20_ABI = parseAbi([
   "function balanceOf(address) view returns (uint256)",
   "function decimals() view returns (uint8)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+]);
+const FACTORY_ABI = parseAbi([
+  "function createEventMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,string umaAncillary,bytes32 umaIdentifier,uint64 umaLiveness,uint256 umaProposerBond,uint256 umaReward,address umaRewardCurrency,uint256 minBootstrapTotal) p) returns (address market)",
+  "function createPriceMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,address chainlinkFeed,uint256 priceThreshold,uint8 priceKind,uint256 priceUpperBound,uint256 maxPriceStaleness,uint256[] priceBinLower,uint256[] priceBinUpper,uint256 minBootstrapTotal) p) returns (address market)",
+  "event MarketCreated(address indexed market, uint8 indexed kind, address indexed collateralToken, address[] outcomeTokens, string[] outcomeLabels, uint256 stakeEndTimestamp, uint256 resolveAfterTimestamp, bytes32 metadataHash)",
+]);
+const MARKET_ABI = parseAbi([
+  "function bootstrapLiquidity(uint256 totalAmount, address shareRecipient) payable",
+  "function bootstrapped() view returns (bool)",
+  "function numOutcomes() view returns (uint8)",
 ]);
 
 const AFTR_USDC_BASE_SEPOLIA = deployment.contracts.AFTRUSDC as `0x${string}`;
+const FACTORY_ADDRESS = deployment.contracts.AFTRParimutuelMarketFactory as `0x${string}`;
+const DEFAULT_UMA_REWARD = BigInt(deployment.suggestedUmaReward ?? "0");
+const DEFAULT_UMA_REWARD_CURRENCY = deployment.external.umaBondCurrencyCircleUSDC as `0x${string}`;
 const DEPLOYMENT_CHAIN_ID = deployment.chainId;
 
 function numString(idx: number) {
   return String(idx);
+}
+
+function formatUsdcDisplay(value: number) {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function parseLocalDateTimeToMs(input: string): number {
@@ -72,7 +95,8 @@ function parseLocalDateTimeToMs(input: string): number {
 
 export function CreateClient() {
   const publicClient = usePublicClient({ chainId: DEPLOYMENT_CHAIN_ID });
-  const { address } = useAccount();
+  const { address, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const [marketKind, setMarketKind] = useState<"event" | "price">("event");
   const [eventMode, setEventMode] = useState<"binary" | "multiple">("binary");
   const [title, setTitle] = useState("");
@@ -102,6 +126,9 @@ export function CreateClient() {
   const [brokenLogoAddresses, setBrokenLogoAddresses] = useState<string[]>([]);
   const [timeValidationError, setTimeValidationError] = useState("");
   const [usdcBalanceLabel, setUsdcBalanceLabel] = useState("0.00");
+  const [isSubmittingMarket, setIsSubmittingMarket] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState("");
+  const [createdMarketAddress, setCreatedMarketAddress] = useState("");
 
   useEffect(() => {
     if (eventMode === "binary") {
@@ -132,7 +159,7 @@ export function CreateClient() {
           }),
         ]);
         const value = Number(formatUnits(rawBalance, decimals));
-        setUsdcBalanceLabel(value.toFixed(2));
+        setUsdcBalanceLabel(formatUsdcDisplay(value));
       } catch {
         setUsdcBalanceLabel("0.00");
       }
@@ -270,6 +297,209 @@ export function CreateClient() {
     }
     setSeedValidationError("");
     setIsPreviewOpen(true);
+  };
+
+  const handleCreateMarket = async () => {
+    if (!address || !publicClient || !walletClient) {
+      setSubmitStatus("Connect wallet first.");
+      return;
+    }
+    if (chainId !== DEPLOYMENT_CHAIN_ID) {
+      setSubmitStatus(`Switch wallet network to Base Sepolia (${DEPLOYMENT_CHAIN_ID}).`);
+      return;
+    }
+
+    const cleanedThreshold = threshold.replaceAll(",", "").trim();
+    const cleanOutcomes =
+      marketKind === "event"
+        ? (eventMode === "binary" ? ["Yes", "No"] : outcomes.map((o) => o.trim()).filter(Boolean))
+        : ["YES", "NO"];
+    if (cleanOutcomes.length < 2) {
+      setSubmitStatus("Add at least 2 outcomes.");
+      return;
+    }
+
+    try {
+      setIsSubmittingMarket(true);
+      setSubmitStatus("Preparing transaction...");
+      setCreatedMarketAddress("");
+
+      const seedUnits = parseUnits(seedAmount || "0", 6);
+      if (seedUnits < parseUnits("40", 6)) {
+        setSubmitStatus("Seed liquidity must be at least 40 USDC.");
+        return;
+      }
+
+      const stakeTs = BigInt(Math.floor(parseLocalDateTimeToMs(stakeEndAt) / 1000));
+      const resolveTs = BigInt(Math.floor(parseLocalDateTimeToMs(resolveAfterAt) / 1000));
+      const metadataHash = keccak256(toBytes(metadataUri || "ipfs://pending"));
+      const virtualReserve = parseUnits(seedAmount || "40", 6);
+      const minBootstrapTotal = parseUnits("40", 6);
+
+      setSubmitStatus("Creating market...");
+      const createHash =
+        marketKind === "event"
+          ? await walletClient.writeContract({
+              chain: walletClient.chain,
+              address: FACTORY_ADDRESS,
+              abi: FACTORY_ABI,
+              functionName: "createEventMarket",
+              args: [
+                {
+                  collateralToken: AFTR_USDC_BASE_SEPOLIA,
+                  collateralDecimals: 6,
+                  virtualReserve,
+                  stakeEndTimestamp: stakeTs,
+                  resolveAfterTimestamp: resolveTs,
+                  metadataHash,
+                  outcomeLabels: cleanOutcomes,
+                  metadataURI: metadataUri,
+                  umaAncillary,
+                  umaIdentifier: stringToHex("", { size: 32 }),
+                  umaLiveness: BigInt(7200),
+                  umaProposerBond: BigInt(0),
+                  umaReward: DEFAULT_UMA_REWARD,
+                  umaRewardCurrency: DEFAULT_UMA_REWARD_CURRENCY,
+                  minBootstrapTotal,
+                },
+              ],
+              account: address,
+            })
+          : await walletClient.writeContract({
+              chain: walletClient.chain,
+              address: FACTORY_ADDRESS,
+              abi: FACTORY_ABI,
+              functionName: "createPriceMarket",
+              args: [
+                {
+                  collateralToken: AFTR_USDC_BASE_SEPOLIA,
+                  collateralDecimals: 6,
+                  virtualReserve,
+                  stakeEndTimestamp: stakeTs,
+                  resolveAfterTimestamp: resolveTs,
+                  metadataHash,
+                  outcomeLabels: cleanOutcomes,
+                  chainlinkFeed: feed.address,
+                  priceThreshold: parseUnits(cleanedThreshold || "0", 8),
+                  priceKind: comparison === "ABOVE" ? 0 : 1,
+                  priceUpperBound: BigInt(0),
+                  maxPriceStaleness: BigInt(3600),
+                  priceBinLower: [],
+                  priceBinUpper: [],
+                  minBootstrapTotal,
+                },
+              ],
+              account: address,
+            });
+
+      const createReceipt = await publicClient.waitForTransactionReceipt({ hash: createHash });
+      let createdMarket = "";
+      for (const log of createReceipt.logs) {
+        try {
+          const parsed = decodeEventLog({
+            abi: FACTORY_ABI,
+            data: log.data,
+            topics: log.topics,
+            strict: false,
+          });
+          if (parsed.eventName === "MarketCreated") {
+            const market = (parsed.args.market ?? "") as string;
+            createdMarket = market;
+            setCreatedMarketAddress(market);
+            break;
+          }
+        } catch {
+          // ignore unrelated logs
+        }
+      }
+
+      if (!createdMarket) {
+        setSubmitStatus("Market created but address could not be parsed from logs.");
+        return;
+      }
+
+      setSubmitStatus("Checking market allowance...");
+      const alreadyBootstrapped = (await publicClient.readContract({
+        address: createdMarket as `0x${string}`,
+        abi: MARKET_ABI,
+        functionName: "bootstrapped",
+      })) as boolean;
+      if (alreadyBootstrapped) {
+        setSubmitStatus("Market created, but already bootstrapped by another wallet.");
+        return;
+      }
+
+      const nOutcomes = Number(
+        (await publicClient.readContract({
+          address: createdMarket as `0x${string}`,
+          abi: MARKET_ABI,
+          functionName: "numOutcomes",
+        })) as number,
+      );
+      if (nOutcomes > 0 && seedUnits % BigInt(nOutcomes) !== BigInt(0)) {
+        setSubmitStatus(`Seed amount must be divisible by ${nOutcomes} outcomes.`);
+        return;
+      }
+
+      const marketAllowance = (await publicClient.readContract({
+        address: AFTR_USDC_BASE_SEPOLIA,
+        abi: ERC20_ABI,
+        functionName: "allowance",
+        args: [address, createdMarket as `0x${string}`],
+      })) as bigint;
+
+      if (marketAllowance < seedUnits) {
+        setSubmitStatus("Approve USDC for bootstrap...");
+        const approveHash = await walletClient.writeContract({
+          chain: walletClient.chain,
+          address: AFTR_USDC_BASE_SEPOLIA,
+          abi: ERC20_ABI,
+          functionName: "approve",
+          args: [createdMarket as `0x${string}`, seedUnits],
+          account: address,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: approveHash });
+      }
+
+      setSubmitStatus("Bootstrapping market...");
+      const bootstrapHash = await walletClient.writeContract({
+        chain: walletClient.chain,
+        address: createdMarket as `0x${string}`,
+        abi: MARKET_ABI,
+        functionName: "bootstrapLiquidity",
+        args: [seedUnits, address],
+        account: address,
+        gas: BigInt(800_000),
+      });
+      await publicClient.waitForTransactionReceipt({ hash: bootstrapHash });
+
+      setSubmitStatus("Market created and bootstrapped successfully.");
+      void (async () => {
+        try {
+          const [rawBalance, decimals] = await Promise.all([
+            publicClient.readContract({
+              address: AFTR_USDC_BASE_SEPOLIA,
+              abi: ERC20_ABI,
+              functionName: "balanceOf",
+              args: [address],
+            }),
+            publicClient.readContract({
+              address: AFTR_USDC_BASE_SEPOLIA,
+              abi: ERC20_ABI,
+              functionName: "decimals",
+            }),
+          ]);
+          const value = Number(formatUnits(rawBalance as bigint, decimals as number));
+          setUsdcBalanceLabel(formatUsdcDisplay(value));
+        } catch {
+          // no-op
+        }
+      })();
+    } catch (error) {
+      setSubmitStatus(error instanceof Error ? error.message : "Transaction failed.");
+    } finally {
+      setIsSubmittingMarket(false);
+    }
   };
 
   const removeOutcome = (idx: number) => {
@@ -781,85 +1011,26 @@ export function CreateClient() {
           )}
         </div>
       </div>
-      {isPreviewOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-2xl">
-            <div className="relative h-36 w-full overflow-hidden border-b border-[var(--border)] bg-[var(--surface)] md:h-40">
-              {previewImageSrc ? (
-                <img src={previewImageSrc} alt="Market cover preview" className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full items-center justify-center text-sm text-[var(--muted)]">
-                  No cover image selected
-                </div>
-              )}
-              <div className="absolute left-3 top-3 inline-flex items-center rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
-                {marketKind === "event" ? `Event · ${eventMode}` : "Price"}
-              </div>
-            </div>
-
-            <div className="p-4 md:p-5">
-              <h3 className="text-base font-semibold leading-tight text-[var(--foreground)] md:text-lg">
-                {effectiveTitle || "Untitled market"}
-              </h3>
-              <p className="mt-1.5 text-xs leading-relaxed text-[var(--muted)] md:text-sm">
-                {description || "No description provided."}
-              </p>
-
-              {selectedCategories.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {selectedCategories.map((category) => (
-                    <span
-                      key={category}
-                      className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-[10px] text-[var(--muted)]"
-                    >
-                      {category}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <div className="mt-4 grid gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-xs md:grid-cols-2">
-                <p className="text-[var(--muted)]">
-                  Stake ends: <span className="text-[var(--foreground)]">{stakeEndAt || "-"}</span>
-                </p>
-                <p className="text-[var(--muted)]">
-                  Resolve after: <span className="text-[var(--foreground)]">{resolveAfterAt || "-"}</span>
-                </p>
-                <p className="text-[var(--muted)]">
-                  Seed liquidity: <span className="text-[var(--foreground)]">{seedAmount || "0"} USDC</span>
-                </p>
-                <p className="text-[var(--muted)]">
-                  Wallet balance: <span className="text-[var(--foreground)]">{usdcBalanceLabel} USDC</span>
-                </p>
-              </div>
-
-              {marketKind === "event" && (
-                <div className="mt-3">
-                  <p className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
-                    Ancillary data
-                  </p>
-                  <pre className="mt-1.5 max-h-28 overflow-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[10px] leading-relaxed text-[var(--muted)]">
-                    {umaAncillary}
-                  </pre>
-                </div>
-              )}
-
-              <div className="mt-4 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsPreviewOpen(false)}
-                  className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-1.5 text-xs font-semibold text-[var(--foreground)] hover:border-[var(--accent)]"
-                >
-                  Back
-                </button>
-              </div>
-            </div>
-            <div className="border-t border-[var(--border)] px-4 py-2 text-[10px] text-[var(--muted)] md:px-5">
-              {metadataUri ? `Metadata ready: ${metadataUri}` : "Metadata will appear after upload completes."}
-            </div>
-          </div>
-        </div>
-      )}
+      <MarketPreviewModal
+        isOpen={isPreviewOpen}
+        marketKind={marketKind}
+        eventMode={eventMode}
+        previewImageSrc={previewImageSrc}
+        effectiveTitle={effectiveTitle}
+        description={description}
+        selectedCategories={selectedCategories}
+        stakeEndAt={stakeEndAt}
+        resolveAfterAt={resolveAfterAt}
+        seedAmount={seedAmount}
+        usdcBalanceLabel={usdcBalanceLabel}
+        umaAncillary={umaAncillary}
+        metadataUri={metadataUri}
+        isSubmittingMarket={isSubmittingMarket}
+        submitStatus={submitStatus}
+        createdMarketAddress={createdMarketAddress}
+        onBack={() => setIsPreviewOpen(false)}
+        onCreateMarket={handleCreateMarket}
+      />
     </AppLayout>
   );
 }
