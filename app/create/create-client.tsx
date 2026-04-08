@@ -23,6 +23,7 @@ const FEEDS = [
   { label: "LINK/USD", asset: "LINK", logo: "https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png", address: "0xb113F5A928BCfF189C998ab20d753a47F9dE5A61" },
   { label: "USDC/USD", asset: "USDC", logo: "https://assets.coingecko.com/coins/images/6319/large/usdc.png", address: "0xd30e2101a97dcbAeBCBC04F14C3f624E67A35165" },
 ] as const;
+type Feed = (typeof FEEDS)[number];
 
 const CATEGORIES = [
   "Crypto",
@@ -78,7 +79,7 @@ export function CreateClient() {
   const [description, setDescription] = useState("");
   const [outcomes, setOutcomes] = useState(["Yes", "No"]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [feed, setFeed] = useState(FEEDS[0]);
+  const [feed, setFeed] = useState<Feed>(FEEDS[0]);
   const [comparison, setComparison] = useState<"ABOVE" | "BELOW">("ABOVE");
   const [threshold, setThreshold] = useState("");
   const [currentPriceLabel, setCurrentPriceLabel] = useState("—");
