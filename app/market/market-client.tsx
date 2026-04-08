@@ -485,10 +485,7 @@ export function MarketClient() {
 
         <section className="mx-6 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6">
           <h2 className="mb-3 text-lg font-semibold">Markets</h2>
-          <p className="text-sm text-[var(--muted)]">
-            UI foundation is ready. Next step is wiring live markets from your
-            contracts/factory once you are ready.
-          </p>
+          <p className="text-sm text-[var(--muted)]">No markets yet.</p>
           {!hasWalletConnectProjectId && (
             <p className="mt-3 text-sm text-red-700">
               Add `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` in `.env`, then restart

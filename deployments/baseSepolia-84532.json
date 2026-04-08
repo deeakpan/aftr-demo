@@ -1,0 +1,21 @@
+{
+  "chainId": 84532,
+  "deployer": "0x68ac96Ce64D62386b1A5E2DFf8f0F01fEEd46E09",
+  "feeRecipient": "0x68ac96Ce64D62386b1A5E2DFf8f0F01fEEd46E09",
+  "contracts": {
+    "AFTRUSDC": "0xB987C1e7575DAdEd76ce7892000dE4728e89d7F8",
+    "AFTRParimutuelMarketFactory": "0x0D51481e25b2e959E183d2Eba2c8371Bfcebff6F",
+    "AFTRParimutuelDeployer": "0x60456730bf76d3Da15d86E27724904b045Ef761A"
+  },
+  "external": {
+    "optimisticOracleV2": "0x99EC530a761E68a377593888D9504002Bd191717",
+    "umaBondCurrencyCircleUSDC": "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+  },
+  "suggestedUmaReward": "500000",
+  "notes": {
+    "tradingCollateral": "AFTRUSDC",
+    "umaRewardToken": "Circle Base Sepolia USDC when umaRewardCurrency is address(0) on factory"
+  },
+  "network": "baseSepolia",
+  "deployedAt": "2026-04-08T01:05:16.975Z"
+}

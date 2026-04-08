@@ -6,7 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "hh:compile": "hardhat compile",
+    "deploy:aftr-pari-factory": "hardhat run scripts/deploy-aftr-factory.cjs",
+    "uma:identifiers": "node scripts/uma-identifier-whitelist.cjs",
+    "uma:check-identifier": "node scripts/uma-identifier-whitelist.cjs check",
+    "uma:build-mcq-ancillary": "node scripts/build-mcq-ancillary.cjs",
+    "uma:check-collateral": "node scripts/uma-check-collateral.cjs",
+    "uma:list-collateral": "node scripts/uma-list-collateral.cjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
@@ -21,12 +28,16 @@
     "wagmi": "^3.6.0"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.2.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
+    "dotenv": "^16.4.7",
     "eslint-config-next": "16.2.1",
+    "hardhat": "^2.22.17",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

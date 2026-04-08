@@ -21,6 +21,7 @@
 /build
 
 # misc
+uma/
 .DS_Store
 *.pem
 Brimdexto/

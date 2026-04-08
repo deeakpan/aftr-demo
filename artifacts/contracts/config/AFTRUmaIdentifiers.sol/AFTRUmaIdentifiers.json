@@ -1,0 +1,10 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "AFTRUmaIdentifiers",
+  "sourceName": "contracts/config/AFTRUmaIdentifiers.sol",
+  "abi": [],
+  "bytecode": "0x60808060405234601757603a9081601d823930815050f35b600080fdfe600080fdfea2646970667358221220019f0ce315588bc8fe20100e0a9a140fa3090b8514f60925f801dcab8398056564736f6c63430008180033",
+  "deployedBytecode": "0x600080fdfea2646970667358221220019f0ce315588bc8fe20100e0a9a140fa3090b8514f60925f801dcab8398056564736f6c63430008180033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
