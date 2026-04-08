@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   CrownSimple,
   DiamondsFour,
@@ -21,7 +23,13 @@ type SidebarDrawerProps = {
 };
 
 export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawerProps) {
+  const pathname = usePathname();
   const logoSrc = theme === "light" ? "/light.png" : "/logo.png";
+
+  const navClass = (href: string) =>
+    `group flex w-full items-center gap-2 rounded-full px-3 py-3 text-left text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] ${
+      pathname === href ? "bg-[var(--surface-hover)]" : ""
+    }`;
   useEffect(() => {
     if (!isOpen) return;
     const previousOverflow = document.body.style.overflow;
@@ -69,20 +77,14 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
 
         <div className="mt-2 pr-1">
           <div className="space-y-1 text-base">
-            <button
-              type="button"
-              className="group flex w-full items-center gap-2 rounded-full px-3 py-3 text-left text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
-            >
+            <Link href="/" onClick={onClose} className={navClass("/")}>
               <Rows size={26} weight="fill" className="text-[#7fd0ff]" />
               <span>Range Markets</span>
-            </button>
-            <button
-              type="button"
-              className="group flex w-full items-center gap-2 rounded-full px-3 py-3 text-left text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
-            >
+            </Link>
+            <Link href="/create" onClick={onClose} className={navClass("/create")}>
               <DiamondsFour size={26} weight="fill" className="text-[#d8a3ff]" />
               <span>Create Market</span>
-            </button>
+            </Link>
             <button
               type="button"
               className="group flex w-full items-center gap-2 rounded-full px-3 py-3 text-left text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
