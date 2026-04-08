@@ -10,6 +10,7 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
+    "types": ["node", "react", "react-dom"],
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
@@ -30,5 +31,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "Brimdex"]
+  "exclude": ["node_modules", "Brimdex", "uma"]
 }
