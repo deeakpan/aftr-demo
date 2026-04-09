@@ -49,6 +49,10 @@ function shortenAddress(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
+function signedSessionKey(address: string) {
+  return `aftrmarket-signed:${address.toLowerCase()}`;
+}
+
 export type AppLayoutProps = {
   children: ReactNode;
   /** Trending / category strip above main content */
@@ -102,10 +106,14 @@ export function AppLayout({
 
     const runPostConnectFlow = async () => {
       try {
-        const nonce = Math.floor(Math.random() * 1_000_000);
-        await signMessageAsync({
-          message: `Sign in to AFTRMarket\nAddress: ${address}\nNonce: ${nonce}`,
-        });
+        const alreadySigned = window.localStorage.getItem(signedSessionKey(address)) === "1";
+        if (!alreadySigned) {
+          const nonce = Math.floor(Math.random() * 1_000_000);
+          await signMessageAsync({
+            message: `Sign in to AFTRMarket\nAddress: ${address}\nNonce: ${nonce}`,
+          });
+          window.localStorage.setItem(signedSessionKey(address), "1");
+        }
         const existingProfile = await getUserProfileByAddress(address);
         if (!existingProfile) {
           const suggested = createSuggestedUsername(address);

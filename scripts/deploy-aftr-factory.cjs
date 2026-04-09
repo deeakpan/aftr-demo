@@ -30,15 +30,35 @@ const BASE_SEPOLIA_CIRCLE_USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 /** 0.5 USDC (6 decimals) — suggested `umaReward` on testnet. */
 const UMA_REWARD_USDC = 500_000n;
 
+function tryReadDeployment(networkName, chainId) {
+  const outPath = path.join(__dirname, "..", "deployments", `${networkName}-${chainId}.json`);
+  if (!fs.existsSync(outPath)) return null;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(outPath, "utf8"));
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
   console.log("Deployer:", deployer.address);
+  const { chainId } = await hre.ethers.provider.getNetwork();
+  const previous = tryReadDeployment(hre.network.name, Number(chainId));
+  const previousUsdc = previous?.contracts?.AFTRUSDC;
 
-  const USDC = await hre.ethers.getContractFactory("AFTRUSDC");
-  const tradingToken = await USDC.deploy(deployer.address);
-  await tradingToken.waitForDeployment();
-  const tradingTokenAddress = await tradingToken.getAddress();
-  console.log("AFTRUSDC (trading collateral, 6 decimals, 100k minted to owner):", tradingTokenAddress);
+  let tradingTokenAddress;
+  if (previousUsdc && hre.ethers.isAddress(previousUsdc)) {
+    tradingTokenAddress = previousUsdc;
+    console.log("Reusing existing AFTRUSDC:", tradingTokenAddress);
+  } else {
+    const USDC = await hre.ethers.getContractFactory("AFTRUSDC");
+    const tradingToken = await USDC.deploy(deployer.address);
+    await tradingToken.waitForDeployment();
+    tradingTokenAddress = await tradingToken.getAddress();
+    console.log("AFTRUSDC (trading collateral, 6 decimals, 100k minted to owner):", tradingTokenAddress);
+  }
 
   const optimisticOracleV2 = "0x99EC530a761E68a377593888D9504002Bd191717";
   const feeRecipient = deployer.address;
@@ -74,7 +94,6 @@ async function main() {
   console.log("Suggested umaReward (testnet):", UMA_REWARD_USDC.toString(), "(0.5 USDC, 6 decimals)");
   console.log("Before requestEventResolution: hold Circle USDC on market + market.fundUmaBond(umaReward) (approve market).");
 
-  const { chainId } = await hre.ethers.provider.getNetwork();
   writeDeploymentJson(hre, {
     chainId: Number(chainId),
     deployer: deployer.address,

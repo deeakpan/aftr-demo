@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 type MarketPreviewModalProps = {
   isOpen: boolean;
   marketKind: "event" | "price";
@@ -11,12 +13,12 @@ type MarketPreviewModalProps = {
   stakeEndAt: string;
   resolveAfterAt: string;
   seedAmount: string;
-  usdcBalanceLabel: string;
   umaAncillary: string;
   metadataUri: string;
   isSubmittingMarket: boolean;
   submitStatus: string;
   createdMarketAddress: string;
+  isCreateComplete: boolean;
   onBack: () => void;
   onCreateMarket: () => void;
 };
@@ -32,12 +34,12 @@ export function MarketPreviewModal({
   stakeEndAt,
   resolveAfterAt,
   seedAmount,
-  usdcBalanceLabel,
   umaAncillary,
   metadataUri,
   isSubmittingMarket,
   submitStatus,
   createdMarketAddress,
+  isCreateComplete,
   onBack,
   onCreateMarket,
 }: MarketPreviewModalProps) {
@@ -45,8 +47,8 @@ export function MarketPreviewModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-2xl">
-        <div className="relative h-36 w-full overflow-hidden border-b border-[var(--border)] bg-[var(--surface)] md:h-40">
+      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-2xl">
+        <div className="relative h-28 w-full overflow-hidden border-b border-[var(--border)] bg-[var(--surface)] md:h-32">
           {previewImageSrc ? (
             <img src={previewImageSrc} alt="Market cover preview" className="h-full w-full object-cover" />
           ) : (
@@ -60,10 +62,10 @@ export function MarketPreviewModal({
         </div>
 
         <div className="p-4 md:p-5">
-          <h3 className="text-base font-semibold leading-tight text-[var(--foreground)] md:text-lg">
+          <h3 className="text-sm font-semibold leading-tight text-[var(--foreground)] md:text-base">
             {effectiveTitle || "Untitled market"}
           </h3>
-          <p className="mt-1.5 text-xs leading-relaxed text-[var(--muted)] md:text-sm">
+          <p className="mt-1 text-[11px] leading-relaxed text-[var(--muted)] md:text-xs">
             {description || "No description provided."}
           </p>
 
@@ -80,7 +82,7 @@ export function MarketPreviewModal({
             </div>
           )}
 
-          <div className="mt-4 grid gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-xs md:grid-cols-2">
+          <div className="mt-3 grid gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2.5 text-[11px] md:grid-cols-2">
             <p className="text-[var(--muted)]">
               Stake ends: <span className="text-[var(--foreground)]">{stakeEndAt || "-"}</span>
             </p>
@@ -89,9 +91,6 @@ export function MarketPreviewModal({
             </p>
             <p className="text-[var(--muted)]">
               Seed liquidity: <span className="text-[var(--foreground)]">{seedAmount || "0"} USDC</span>
-            </p>
-            <p className="text-[var(--muted)]">
-              Wallet balance: <span className="text-[var(--foreground)]">{usdcBalanceLabel} USDC</span>
             </p>
           </div>
 
@@ -114,14 +113,23 @@ export function MarketPreviewModal({
             >
               Back
             </button>
-            <button
-              type="button"
-              onClick={onCreateMarket}
-              disabled={isSubmittingMarket}
-              className="rounded-full bg-[var(--accent)] px-4 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSubmittingMarket ? "Processing..." : "Create market"}
-            </button>
+            {isCreateComplete ? (
+              <Link
+                href="/market"
+                className="rounded-full bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
+              >
+                Explore markets
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={onCreateMarket}
+                disabled={isSubmittingMarket}
+                className="rounded-full bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSubmittingMarket ? "Processing..." : "Create market"}
+              </button>
+            )}
           </div>
           {submitStatus && <p className="mt-2 text-xs text-[var(--muted)]">{submitStatus}</p>}
           {createdMarketAddress && (

@@ -167,6 +167,11 @@ contract AFTRParimutuelMarketFactory is Ownable2Step {
         return _marketOutcomeTokens[market];
     }
 
+    /// @notice Total number of created markets.
+    function marketsLength() external view returns (uint256) {
+        return markets.length;
+    }
+
     function _decimalsForCollateral(address token, uint8 templateDec) internal pure returns (uint8) {
         if (token == address(0)) return 18;
         return templateDec;

@@ -129,6 +129,7 @@ export function CreateClient() {
   const [isSubmittingMarket, setIsSubmittingMarket] = useState(false);
   const [submitStatus, setSubmitStatus] = useState("");
   const [createdMarketAddress, setCreatedMarketAddress] = useState("");
+  const [isCreateComplete, setIsCreateComplete] = useState(false);
 
   useEffect(() => {
     if (eventMode === "binary") {
@@ -296,6 +297,7 @@ export function CreateClient() {
       return;
     }
     setSeedValidationError("");
+    setIsCreateComplete(false);
     setIsPreviewOpen(true);
   };
 
@@ -323,6 +325,7 @@ export function CreateClient() {
       setIsSubmittingMarket(true);
       setSubmitStatus("Preparing transaction...");
       setCreatedMarketAddress("");
+      setIsCreateComplete(false);
 
       const seedUnits = parseUnits(seedAmount || "0", 6);
       if (seedUnits < parseUnits("40", 6)) {
@@ -395,12 +398,13 @@ export function CreateClient() {
       const createReceipt = await publicClient.waitForTransactionReceipt({ hash: createHash });
       let createdMarket = "";
       for (const log of createReceipt.logs) {
+        if (log.address.toLowerCase() !== FACTORY_ADDRESS.toLowerCase()) continue;
         try {
           const parsed = decodeEventLog({
             abi: FACTORY_ABI,
             data: log.data,
             topics: log.topics,
-            strict: false,
+            strict: true,
           });
           if (parsed.eventName === "MarketCreated") {
             const market = (parsed.args.market ?? "") as string;
@@ -414,7 +418,13 @@ export function CreateClient() {
       }
 
       if (!createdMarket) {
-        setSubmitStatus("Market created but address could not be parsed from logs.");
+        setSubmitStatus("Market created tx confirmed, but market address could not be parsed from factory logs.");
+        return;
+      }
+
+      const marketCode = await publicClient.getCode({ address: createdMarket as `0x${string}` });
+      if (!marketCode || marketCode === "0x") {
+        setSubmitStatus("Market address was emitted but no bytecode found at that address.");
         return;
       }
 
@@ -425,7 +435,7 @@ export function CreateClient() {
         functionName: "bootstrapped",
       })) as boolean;
       if (alreadyBootstrapped) {
-        setSubmitStatus("Market created, but already bootstrapped by another wallet.");
+        setSubmitStatus("Market created, but liquidity was already seeded by another wallet.");
         return;
       }
 
@@ -449,7 +459,7 @@ export function CreateClient() {
       })) as bigint;
 
       if (marketAllowance < seedUnits) {
-        setSubmitStatus("Approve USDC for bootstrap...");
+        setSubmitStatus("Approve USDC to seed liquidity...");
         const approveHash = await walletClient.writeContract({
           chain: walletClient.chain,
           address: AFTR_USDC_BASE_SEPOLIA,
@@ -461,7 +471,7 @@ export function CreateClient() {
         await publicClient.waitForTransactionReceipt({ hash: approveHash });
       }
 
-      setSubmitStatus("Bootstrapping market...");
+      setSubmitStatus("Seeding liquidity...");
       const bootstrapHash = await walletClient.writeContract({
         chain: walletClient.chain,
         address: createdMarket as `0x${string}`,
@@ -473,7 +483,8 @@ export function CreateClient() {
       });
       await publicClient.waitForTransactionReceipt({ hash: bootstrapHash });
 
-      setSubmitStatus("Market created and bootstrapped successfully.");
+      setSubmitStatus("Market created and liquidity seeded successfully.");
+      setIsCreateComplete(true);
       void (async () => {
         try {
           const [rawBalance, decimals] = await Promise.all([
@@ -889,8 +900,8 @@ export function CreateClient() {
             </div>
           </section>
 
-          <section className="grid gap-8 py-8 sm:grid-cols-2">
-            <div>
+          <section className="grid gap-4 py-8 sm:grid-cols-2 sm:gap-6">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:border-0 sm:bg-transparent sm:p-0">
               <label className={labelClass} htmlFor="stake-end">
                 Stake ends
               </label>
@@ -900,10 +911,10 @@ export function CreateClient() {
                 value={stakeEndAt}
                 onChange={(e) => setStakeEndAt(e.target.value)}
                 min={minDateTimeLocal}
-                className={fieldClass}
+                className={`${fieldClass} mt-2 h-11 py-2.5 text-sm sm:h-auto sm:py-3`}
               />
             </div>
-            <div>
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:border-0 sm:bg-transparent sm:p-0">
               <label className={labelClass} htmlFor="resolve-after">
                 Resolve after
               </label>
@@ -913,7 +924,7 @@ export function CreateClient() {
                 value={resolveAfterAt}
                 onChange={(e) => setResolveAfterAt(e.target.value)}
                 min={minDateTimeLocal}
-                className={fieldClass}
+                className={`${fieldClass} mt-2 h-11 py-2.5 text-sm sm:h-auto sm:py-3`}
               />
             </div>
           </section>
@@ -994,7 +1005,7 @@ export function CreateClient() {
                 </div>
               )}
               <p className="mt-3 text-xs text-[var(--muted)]">
-                Bootstrap funder receives 0.5% of losing-side collateral at settlement.
+                Seed-liquidity funder receives 0.5% of losing-side collateral at settlement.
               </p>
               <p className="mt-1 text-xs text-[var(--accent)]">Learn more</p>
               <button
@@ -1022,12 +1033,12 @@ export function CreateClient() {
         stakeEndAt={stakeEndAt}
         resolveAfterAt={resolveAfterAt}
         seedAmount={seedAmount}
-        usdcBalanceLabel={usdcBalanceLabel}
         umaAncillary={umaAncillary}
         metadataUri={metadataUri}
         isSubmittingMarket={isSubmittingMarket}
         submitStatus={submitStatus}
         createdMarketAddress={createdMarketAddress}
+        isCreateComplete={isCreateComplete}
         onBack={() => setIsPreviewOpen(false)}
         onCreateMarket={handleCreateMarket}
       />

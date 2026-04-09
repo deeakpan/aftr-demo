@@ -776,8 +776,8 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\factory\\AFTRParimutuelMarketFactory.sol": {
-      "lastModificationDate": 1775607487716,
-      "contentHash": "f125ce758163dd9b802afe315a17f40c",
+      "lastModificationDate": 1775662231353,
+      "contentHash": "f9af34cf2af3138d5fae461b23eb6494",
       "sourceName": "contracts/factory/AFTRParimutuelMarketFactory.sol",
       "solcConfig": {
         "version": "0.8.24",
