@@ -283,7 +283,7 @@ export function TradeModal({
                 Contract <code className="text-zinc-500">priceOf</code> (1e18)
               </summary>
               <p className="mt-1.5 font-mono text-[10px] tabular-nums text-zinc-500 break-all">
-                {priceOfRaw != null && priceOfRaw > 0n ? formatPriceOf(priceOfRaw) : "—"}
+                {priceOfRaw != null && priceOfRaw > BigInt(0) ? formatPriceOf(priceOfRaw) : "—"}
               </p>
             </details>
           </div>

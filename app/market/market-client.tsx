@@ -390,13 +390,13 @@ export function MarketClient() {
   const empty = useMemo(() => !isLoading && !loadError && markets.length === 0, [isLoading, loadError, markets.length]);
 
   const tradeSummary = useMemo(() => {
-    if (!selectedMarket || !tradePriceRaw || tradePriceRaw === 0n) return null;
+    if (!selectedMarket || !tradePriceRaw || tradePriceRaw === BigInt(0)) return null;
     const t = tradeAmount.trim();
     if (!t || !Number.isFinite(Number(t)) || Number(t) <= 0) return null;
     try {
       const amountWei = parseUnits(t, selectedMarket.collateralDecimals);
       const sharesWei = (amountWei * WAD) / tradePriceRaw;
-      if (sharesWei === 0n) return null;
+      if (sharesWei === BigInt(0)) return null;
       return {
         spend: formatUnits(amountWei, selectedMarket.collateralDecimals),
         tokens: formatUnits(sharesWei, selectedMarket.collateralDecimals),
@@ -409,7 +409,7 @@ export function MarketClient() {
   }, [selectedMarket, tradePriceRaw, tradeAmount]);
 
   const pricePerTokenLabel = useMemo(() => {
-    if (!tradeSummary || tradeSummary.sharesWei === 0n) return null;
+    if (!tradeSummary || tradeSummary.sharesWei === BigInt(0)) return null;
     const raw = (tradeSummary.amountWei * WAD) / tradeSummary.sharesWei;
     const s = formatUnits(raw, 18);
     const ticker =
@@ -510,7 +510,7 @@ export function MarketClient() {
       })) as bigint;
       const estShares = (amountUnits * WAD) / currentPrice;
       const slipBps = Math.min(5000, Math.max(1, tradeSlippageBps));
-      const minSharesOut = (estShares * BigInt(10_000 - slipBps)) / 10_000n;
+      const minSharesOut = (estShares * BigInt(10_000 - slipBps)) / BigInt(10000);
 
       const isNative = selectedMarket.collateralAddress.toLowerCase() === "0x0000000000000000000000000000000000000000";
       if (!isNative) {
