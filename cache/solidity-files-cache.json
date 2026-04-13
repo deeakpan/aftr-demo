@@ -456,8 +456,8 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\core\\AFTRVParimutuelMarket.sol": {
-      "lastModificationDate": 1775607495786,
-      "contentHash": "db1c9b86c5752cfe88b1b41dcd68ba17",
+      "lastModificationDate": 1776090274111,
+      "contentHash": "9d1c541ec130ebe17c9b3625b8e93641",
       "sourceName": "contracts/core/AFTRVParimutuelMarket.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -776,8 +776,8 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\factory\\AFTRParimutuelMarketFactory.sol": {
-      "lastModificationDate": 1775662231353,
-      "contentHash": "f9af34cf2af3138d5fae461b23eb6494",
+      "lastModificationDate": 1776088625047,
+      "contentHash": "15cd199c7defd3e90d426798ff589ec9",
       "sourceName": "contracts/factory/AFTRParimutuelMarketFactory.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1054,8 +1054,8 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\factory\\AFTRParimutuelBatchFactory.sol": {
-      "lastModificationDate": 1775601912707,
-      "contentHash": "1ce034d97183fb58ebd826dc789afa52",
+      "lastModificationDate": 1776088628830,
+      "contentHash": "a572d3be51f7a4017d2de93eb083d81b",
       "sourceName": "contracts/factory/AFTRParimutuelBatchFactory.sol",
       "solcConfig": {
         "version": "0.8.24",

@@ -195,19 +195,19 @@ export function AppLayout({
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="mb-4 w-full px-3 md:mb-6 md:px-6">
+        <header className="mb-3 w-full px-3 md:mb-4 md:px-6">
           <div className="flex items-center justify-between gap-2 md:flex-nowrap md:gap-3">
             <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
               <button
                 type="button"
                 aria-label="Open menu"
                 onClick={() => setIsSidebarOpen(true)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center text-[var(--foreground)] md:h-11 md:w-11"
+                className="flex h-8 w-8 shrink-0 items-center justify-center text-[var(--foreground)] md:h-9 md:w-9"
               >
                 <List size={20} weight="bold" className="md:hidden" />
                 <List size={24} weight="bold" className="hidden md:block" />
               </button>
-              <Link href="/" className="relative block h-16 w-16 shrink-0 md:h-28 md:w-28">
+              <Link href="/" className="relative block h-12 w-12 shrink-0 md:h-20 md:w-20">
                 <Image
                   src={theme === "light" ? "/light.png" : "/logo.png"}
                   alt="AFTRMarket home"
@@ -222,7 +222,7 @@ export function AppLayout({
                   ref={searchInputRef}
                   type="search"
                   placeholder={searchPlaceholder}
-                  className="hidden h-12 w-[380px] max-w-[52vw] rounded-full border border-[var(--border)] bg-[var(--surface)] px-5 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] md:block"
+                  className="hidden h-10 w-[380px] max-w-[52vw] rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] md:block"
                 />
               )}
               <div className="hidden items-center gap-2 text-sm md:flex">
@@ -450,7 +450,7 @@ export function AppLayout({
           </div>
 
           {showSearch && (
-            <div className="mt-3 flex items-center justify-start gap-3 md:hidden">
+            <div className="mt-2 flex items-center justify-start gap-3 md:hidden">
               <input
                 type="search"
                 placeholder={searchPlaceholder}
@@ -518,7 +518,7 @@ export function AppLayout({
             className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
           >
             <Rows size={18} weight="regular" />
-            <span>Range</span>
+            <span>Markets</span>
           </Link>
           <Link
             href="/create"
@@ -527,13 +527,13 @@ export function AppLayout({
             <DiamondsFour size={18} weight="regular" />
             <span>Create</span>
           </Link>
-          <button
-            type="button"
+          <Link
+            href="/trades"
             className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
           >
             <PlusMinus size={18} weight="regular" />
             <span>Trades</span>
-          </button>
+          </Link>
           <button
             type="button"
             className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"

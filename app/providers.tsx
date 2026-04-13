@@ -2,23 +2,9 @@
 
 import { ReactNode, useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createWeb3Modal, defaultWagmiConfig } from "@web3modal/wagmi/react";
-import { baseSepolia } from "wagmi/chains";
+import { createWeb3Modal } from "@web3modal/wagmi/react";
 import { WagmiProvider } from "wagmi";
-
-const envProjectId = (process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "").trim();
-export const hasWalletConnectProjectId = envProjectId.length > 0;
-const projectId = hasWalletConnectProjectId ? envProjectId : "demo-project-id";
-
-const metadata = {
-  name: "AFTRMarket",
-  description: "AFTRMarket prediction market UI",
-  url: "https://aftrmarket.local",
-  icons: [],
-};
-
-const chains = [baseSepolia] as const;
-const wagmiConfig = defaultWagmiConfig({ chains, projectId, metadata });
+import { wagmiConfig, walletConnectProjectId } from "./wagmi-config";
 
 declare global {
   interface Window {
@@ -31,7 +17,7 @@ function ensureWeb3ModalInitialized() {
   if (window.__aftr_w3m_initialized__) return true;
   createWeb3Modal({
     wagmiConfig,
-    projectId,
+    projectId: walletConnectProjectId,
     themeMode: "dark",
     themeVariables: {
       "--w3m-accent": "#7c3aed",
@@ -49,7 +35,11 @@ function ensureWeb3ModalInitialized() {
 
 const queryClient = new QueryClient();
 
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const [isModalReady, setIsModalReady] = useState(false);
 
   useEffect(() => {

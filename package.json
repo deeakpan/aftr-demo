@@ -13,7 +13,12 @@
     "uma:check-identifier": "node scripts/uma-identifier-whitelist.cjs check",
     "uma:build-mcq-ancillary": "node scripts/build-mcq-ancillary.cjs",
     "uma:check-collateral": "node scripts/uma-check-collateral.cjs",
-    "uma:list-collateral": "node scripts/uma-list-collateral.cjs"
+    "uma:list-collateral": "node scripts/uma-list-collateral.cjs",
+    "market:data": "node scripts/market-data.cjs",
+    "market:fund": "node scripts/fund-market.cjs",
+    "market:propose": "node scripts/propose-market.cjs",
+    "market:settle": "node scripts/settle-market.cjs",
+    "send:usdc": "node scripts/send-usdc.cjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

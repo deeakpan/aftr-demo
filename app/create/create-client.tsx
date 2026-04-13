@@ -49,7 +49,7 @@ const ERC20_ABI = parseAbi([
 ]);
 const FACTORY_ABI = parseAbi([
   "function createEventMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,string umaAncillary,bytes32 umaIdentifier,uint64 umaLiveness,uint256 umaProposerBond,uint256 umaReward,address umaRewardCurrency,uint256 minBootstrapTotal) p) returns (address market)",
-  "function createPriceMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,address chainlinkFeed,uint256 priceThreshold,uint8 priceKind,uint256 priceUpperBound,uint256 maxPriceStaleness,uint256[] priceBinLower,uint256[] priceBinUpper,uint256 minBootstrapTotal) p) returns (address market)",
+  "function createPriceMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,address chainlinkFeed,uint256 priceThreshold,uint8 priceKind,uint256 priceUpperBound,uint256 maxPriceStaleness,uint256[] priceBinLower,uint256[] priceBinUpper,uint256 minBootstrapTotal) p) returns (address market)",
   "event MarketCreated(address indexed market, uint8 indexed kind, address indexed collateralToken, address[] outcomeTokens, string[] outcomeLabels, uint256 stakeEndTimestamp, uint256 resolveAfterTimestamp, bytes32 metadataHash)",
 ]);
 const MARKET_ABI = parseAbi([
@@ -233,13 +233,23 @@ export function CreateClient() {
     if (!resolveAfterAt) return "the specified resolve time (UTC)";
     const d = new Date(resolveAfterAt);
     if (Number.isNaN(d.getTime())) return "the specified resolve time (UTC)";
-    return d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
+    const readableUtc = new Intl.DateTimeFormat(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: "UTC",
+    }).format(d);
+    return `${readableUtc} UTC`;
   }, [resolveAfterAt]);
 
   const generatedPricePrompt = useMemo(() => {
     if (marketKind !== "price") return "";
     const dir = comparison === "ABOVE" ? "above" : "below";
-    const t = threshold || "the selected threshold";
+    const cleanedThreshold = threshold.replaceAll(",", "").trim();
+    const t = cleanedThreshold ? `$${threshold}` : "the selected threshold";
     return `Will ${feed.asset} settle ${dir} ${t} at ${resolveUtcLabel}?`;
   }, [comparison, feed.asset, marketKind, resolveUtcLabel, threshold]);
 
@@ -332,6 +342,16 @@ export function CreateClient() {
         setSubmitStatus("Seed liquidity must be at least 40 USDC.");
         return;
       }
+      const walletUsdcBalance = (await publicClient.readContract({
+        address: AFTR_USDC_BASE_SEPOLIA,
+        abi: ERC20_ABI,
+        functionName: "balanceOf",
+        args: [address],
+      })) as bigint;
+      if (walletUsdcBalance < seedUnits) {
+        setSubmitStatus("Insufficient USDC balance for seed liquidity.");
+        return;
+      }
 
       const stakeTs = BigInt(Math.floor(parseLocalDateTimeToMs(stakeEndAt) / 1000));
       const resolveTs = BigInt(Math.floor(parseLocalDateTimeToMs(resolveAfterAt) / 1000));
@@ -359,7 +379,7 @@ export function CreateClient() {
                   metadataURI: metadataUri,
                   umaAncillary,
                   umaIdentifier: stringToHex("", { size: 32 }),
-                  umaLiveness: BigInt(7200),
+                  umaLiveness: BigInt(180),
                   umaProposerBond: BigInt(0),
                   umaReward: DEFAULT_UMA_REWARD,
                   umaRewardCurrency: DEFAULT_UMA_REWARD_CURRENCY,
@@ -382,6 +402,7 @@ export function CreateClient() {
                   resolveAfterTimestamp: resolveTs,
                   metadataHash,
                   outcomeLabels: cleanOutcomes,
+                  metadataURI: metadataUri,
                   chainlinkFeed: feed.address,
                   priceThreshold: parseUnits(cleanedThreshold || "0", 8),
                   priceKind: comparison === "ABOVE" ? 0 : 1,
@@ -419,12 +440,6 @@ export function CreateClient() {
 
       if (!createdMarket) {
         setSubmitStatus("Market created tx confirmed, but market address could not be parsed from factory logs.");
-        return;
-      }
-
-      const marketCode = await publicClient.getCode({ address: createdMarket as `0x${string}` });
-      if (!marketCode || marketCode === "0x") {
-        setSubmitStatus("Market address was emitted but no bytecode found at that address.");
         return;
       }
 
@@ -469,6 +484,16 @@ export function CreateClient() {
           account: address,
         });
         await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        const refreshedAllowance = (await publicClient.readContract({
+          address: AFTR_USDC_BASE_SEPOLIA,
+          abi: ERC20_ABI,
+          functionName: "allowance",
+          args: [address, createdMarket as `0x${string}`],
+        })) as bigint;
+        if (refreshedAllowance < seedUnits) {
+          setSubmitStatus("USDC approval not detected. Please approve again.");
+          return;
+        }
       }
 
       setSubmitStatus("Seeding liquidity...");
@@ -928,6 +953,9 @@ export function CreateClient() {
               />
             </div>
           </section>
+          <p className="pb-2 text-xs text-[var(--muted)]">
+            Times are entered in your local timezone and converted to UTC for onchain settlement.
+          </p>
 
           <section className="py-8">
             <label className={labelClass} htmlFor="image">

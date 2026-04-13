@@ -79,19 +79,16 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
           <div className="space-y-1 text-base">
             <Link href="/" onClick={onClose} className={navClass("/")}>
               <Rows size={26} weight="fill" className="text-[#7fd0ff]" />
-              <span>Range Markets</span>
+              <span>Markets</span>
             </Link>
             <Link href="/create" onClick={onClose} className={navClass("/create")}>
               <DiamondsFour size={26} weight="fill" className="text-[#d8a3ff]" />
               <span>Create Market</span>
             </Link>
-            <button
-              type="button"
-              className="group flex w-full items-center gap-2 rounded-full px-3 py-3 text-left text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
-            >
+            <Link href="/trades" onClick={onClose} className={navClass("/trades")}>
               <PlusMinus size={26} weight="fill" className="text-[#7fd0ff]" />
               <span>Trades</span>
-            </button>
+            </Link>
             <button
               type="button"
               className="group flex w-full items-center gap-2 rounded-full px-3 py-3 text-left text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
@@ -102,13 +99,10 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
           </div>
           <div className="my-4 border-t border-[var(--border)]" />
           <div className="space-y-1 text-base">
-            <button
-              type="button"
-              className="group flex w-full items-center gap-2 rounded-full px-3 py-3 text-left text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
-            >
+            <Link href="/trades" onClick={onClose} className={navClass("/trades")}>
               <PlusMinus size={26} weight="fill" className="text-[#7fd0ff]" />
               <span>Trades</span>
-            </button>
+            </Link>
             <button
               type="button"
               className="group flex w-full items-center gap-2 rounded-full px-3 py-3 text-left text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"

@@ -255,10 +255,11 @@ contract AFTRVParimutuelMarket is Ownable2Step, ReentrancyGuard {
             require(umaAncillaryData_.length == 0, "No UMA anc");
         }
 
+        metadataURI = metadataURI_;
+
         if (marketKind == MarketKind.EVENT) {
             require(umaAncillaryData_.length > 0, "UMA anc");
             require(umaAncillaryData_.length <= 8192, "Ancillary len");
-            metadataURI = metadataURI_;
             umaAncillaryData = umaAncillaryData_;
         }
 

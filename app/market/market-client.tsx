@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowsClockwise, BookmarkSimple, Gift, TrendUp } from "@phosphor-icons/react";
 import { formatUnits, parseAbi, parseUnits, zeroAddress } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
-import { hasWalletConnectProjectId } from "../providers";
+import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import { AppLayout } from "@/app/components/app-layout";
 import { TradeModal } from "@/app/market/components/trade-modal";
 import deployment from "@/deployments/baseSepolia-84532.json";
@@ -23,7 +24,7 @@ const MARKET_ABI = parseAbi([
   "function numOutcomes() view returns (uint8)",
   "function state() view returns (uint8)",
   "function collateralDecimals() view returns (uint8)",
-  "function virtualReserve() view returns (uint256)",
+  "function realPool(uint256 outcomeIndex) view returns (uint256)",
   "function priceOf(uint8 outcomeIndex) view returns (uint256)",
   "function deposit(uint8 outcomeIndex, uint256 amount, address recipient, uint256 minSharesOut) payable",
   "function collateralAddress() view returns (address)",
@@ -55,7 +56,8 @@ type UiMarket = {
   resolveAfterUnix: number;
   marketState: number;
   stateLabel: string;
-  virtualReserve: string;
+  /** Sum of `realPool` across outcomes — actual collateral in the market (TVL). */
+  poolTvl: string;
   chancePct: number;
   collateralAddress: `0x${string}`;
   collateralDecimals: number;
@@ -133,6 +135,7 @@ async function fetchIpfsMetadata(uri: string): Promise<IpfsMetadata | null> {
 }
 
 export function MarketClient() {
+  const router = useRouter();
   const publicClient = usePublicClient({ chainId: DEPLOYMENT_CHAIN_ID });
   const { address, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
@@ -150,6 +153,8 @@ export function MarketClient() {
   const [tradeSlippageBps, setTradeSlippageBps] = useState(200);
   /** Bumps on an interval while the trade modal is open so expiry / stake-end disables react to wall clock. */
   const [tradeModalClock, setTradeModalClock] = useState(0);
+  /** Bumps on an interval so expired markets disappear from the list without a manual refresh. */
+  const [marketListClock, setMarketListClock] = useState(0);
 
   useEffect(() => {
     const run = async () => {
@@ -178,7 +183,7 @@ export function MarketClient() {
 
         const rows = await Promise.all(
           addresses.map(async (marketAddress) => {
-            const [kind, uri, stake, resolveAfter, outcomes, state, collateralDecimals, reserve] = await Promise.all([
+            const [kind, uri, stake, resolveAfter, outcomes, state, collateralDecimals] = await Promise.all([
               publicClient.readContract({
                 address: marketAddress,
                 abi: MARKET_ABI,
@@ -214,15 +219,22 @@ export function MarketClient() {
                 abi: MARKET_ABI,
                 functionName: "collateralDecimals",
               }),
-              publicClient.readContract({
-                address: marketAddress,
-                abi: MARKET_ABI,
-                functionName: "virtualReserve",
-              }),
             ]);
             const metadataUri = String(uri || "");
             const md = await fetchIpfsMetadata(metadataUri);
             const outcomeCount = Number(outcomes);
+            const dec = Number(collateralDecimals);
+            const realPoolParts = await Promise.all(
+              Array.from({ length: outcomeCount }, (_, i) =>
+                publicClient.readContract({
+                  address: marketAddress,
+                  abi: MARKET_ABI,
+                  functionName: "realPool",
+                  args: [BigInt(i)],
+                }),
+              ),
+            );
+            const poolTvlRaw = realPoolParts.reduce((acc, v) => acc + (v as bigint), BigInt(0));
             const fallbackLabels = Array.from({ length: outcomeCount }, (_, i) => `Outcome ${i + 1}`);
             const labelsFromIpfs =
               md?.outcomes && md.outcomes.length > 0 ? md.outcomes.filter((x): x is string => typeof x === "string") : [];
@@ -285,17 +297,16 @@ export function MarketClient() {
               resolveAfterUnix: Number(resolveAfter as bigint),
               marketState: Number(state),
               stateLabel: stateLabel(Number(state)),
-              virtualReserve: Number(formatUnits(reserve as bigint, Number(collateralDecimals))).toLocaleString(
-                undefined,
-                { maximumFractionDigits: 2 },
-              ),
+              poolTvl: Number(formatUnits(poolTvlRaw, dec)).toLocaleString(undefined, {
+                maximumFractionDigits: 2,
+              }),
               chancePct: leftPct,
               collateralAddress: (await publicClient.readContract({
                 address: marketAddress,
                 abi: MARKET_ABI,
                 functionName: "collateralAddress",
               })) as `0x${string}`,
-              collateralDecimals: Number(collateralDecimals),
+              collateralDecimals: dec,
               priceBinByOutcome,
             } satisfies UiMarket;
           }),
@@ -315,6 +326,11 @@ export function MarketClient() {
     const id = setInterval(() => setTradeModalClock((n) => n + 1), 15_000);
     return () => clearInterval(id);
   }, [selectedMarket]);
+
+  useEffect(() => {
+    const id = setInterval(() => setMarketListClock((n) => n + 1), 15_000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!selectedMarket || !publicClient) {
@@ -387,7 +403,16 @@ export function MarketClient() {
     };
   }, [selectedMarket, address, publicClient, tradeBusy, tradeAmount, selectedOutcome]);
 
-  const empty = useMemo(() => !isLoading && !loadError && markets.length === 0, [isLoading, loadError, markets.length]);
+  const visibleMarkets = useMemo(() => {
+    void marketListClock;
+    const now = Math.floor(Date.now() / 1000);
+    return markets.filter((m) => m.stakeEndUnix > now);
+  }, [markets, marketListClock]);
+
+  const empty = useMemo(
+    () => !isLoading && !loadError && visibleMarkets.length === 0,
+    [isLoading, loadError, visibleMarkets.length],
+  );
 
   const tradeSummary = useMemo(() => {
     if (!selectedMarket || !tradePriceRaw || tradePriceRaw === BigInt(0)) return null;
@@ -566,48 +591,60 @@ export function MarketClient() {
         {isLoading && <p className="max-w-xl text-sm leading-relaxed text-[var(--muted)]">Loading markets...</p>}
         {loadError && <p className="max-w-xl text-sm leading-relaxed text-red-400">{loadError}</p>}
         {empty && <p className="max-w-xl text-sm leading-relaxed text-[var(--muted)]">No markets yet.</p>}
-        {markets.length > 0 && (
-          <div className="mt-5 grid max-w-[900px] gap-4 md:grid-cols-2">
-            {markets.map((m) => {
+        {visibleMarkets.length > 0 && (
+          <div className="mt-5 grid max-w-[760px] gap-3 md:grid-cols-2">
+            {visibleMarkets.map((m) => {
               const chance = Number.isFinite(m?.chancePct) ? m.chancePct : 50;
               return (
                 <article
                   key={m.address}
-                  className="overflow-hidden rounded-3xl border border-[#2a3243] bg-[#111827] p-0 shadow-[0_14px_40px_rgba(2,6,23,0.45)] transition hover:border-[#3a4761]"
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => router.push(`/market/${m.address}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      router.push(`/market/${m.address}`);
+                    }
+                  }}
+                  className="cursor-pointer overflow-hidden rounded-2xl border border-[#2a3243] bg-[#111827] p-0 shadow-[0_10px_28px_rgba(2,6,23,0.4)] transition hover:border-[#3a4761]"
                 >
-                <div className="h-28 w-full overflow-hidden border-b border-[#212a3a] bg-[#0d1422]">
+                <div className="h-[5.5rem] w-full overflow-hidden border-b border-[#212a3a] bg-[#0d1422]">
                   {m.imageUrl ? (
                     <img src={m.imageUrl} alt={m.title} className="h-full w-full object-cover" />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-xs text-slate-400">
+                    <div className="flex h-full w-full items-center justify-center text-[11px] text-slate-400">
                       No image
                     </div>
                   )}
                 </div>
 
-                <div className="p-3.5">
-                  <p className="line-clamp-2 text-xl leading-tight font-semibold text-white">
+                <div className="p-2.5">
+                  <p className="line-clamp-2 text-base leading-snug font-semibold text-white">
                     {m.title}
                   </p>
 
-                  <div className="mt-3 flex items-center justify-between text-sm font-semibold">
+                  <div className="mt-2 flex items-center justify-between text-xs font-semibold">
                     <span className="text-emerald-400">{chance.toFixed(0)}%</span>
                     <span className="text-rose-400">{(100 - chance).toFixed(0)}%</span>
                   </div>
-                  <div className="mt-1.5 h-2.5 rounded-full border border-[#445068] bg-[#1a2334] p-[2px]">
+                  <div className="mt-1 h-2 rounded-full border border-[#445068] bg-[#1a2334] p-[2px]">
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-emerald-500/70 to-rose-500/70"
                       style={{ width: `${chance}%` }}
                     />
                   </div>
 
-                  <div className="mt-3 grid grid-cols-2 gap-2.5">
+                  <div className="mt-2 grid grid-cols-2 gap-2">
                     {(m.outcomeLabels ?? []).slice(0, 2).map((label, idx) => (
                       <button
                         key={`${m.address}-${label}`}
                         type="button"
-                        onClick={() => openTrade(m, idx)}
-                        className={`rounded-xl border px-3 py-2.5 text-center text-lg font-semibold uppercase tracking-wide transition ${
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openTrade(m, idx);
+                        }}
+                        className={`rounded-lg border px-2 py-2 text-center text-sm font-semibold uppercase tracking-wide transition ${
                           idx === 0
                             ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200 hover:border-emerald-500 hover:bg-emerald-600 hover:text-white"
                             : "border-rose-500/40 bg-rose-500/10 text-rose-200 hover:border-rose-500 hover:bg-rose-600 hover:text-white"
@@ -619,19 +656,19 @@ export function MarketClient() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between border-t border-[#212a3a] bg-[#0f1727] px-3.5 py-2 text-xs text-slate-300">
-                  <div className="flex items-center gap-2 font-semibold">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-[#4f7cff] to-[#6dff8e]" />
-                    +${m.virtualReserve}
+                <div className="flex items-center justify-between border-t border-[#212a3a] bg-[#0f1727] px-2.5 py-1.5 text-[11px] text-slate-300">
+                  <div className="flex items-center gap-1.5 font-semibold">
+                    <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-[#4f7cff] to-[#6dff8e]" />
+                    +${m.poolTvl}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="inline-flex items-center gap-1">
-                      <ArrowsClockwise size={14} /> ${m.virtualReserve}
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-0.5">
+                      <ArrowsClockwise size={12} /> ${m.poolTvl}
                     </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Gift size={14} /> {m.resolveAfter}
+                    <span className="inline-flex items-center gap-0.5">
+                      <Gift size={12} /> {m.resolveAfter}
                     </span>
-                    <BookmarkSimple size={14} />
+                    <BookmarkSimple size={12} />
                   </div>
                 </div>
               </article>

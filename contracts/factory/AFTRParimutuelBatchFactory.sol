@@ -53,6 +53,7 @@ contract AFTRParimutuelBatchFactory is Ownable2Step {
         q.resolveAfterTimestamp = p.resolveAfterTimestamp;
         q.metadataHash = p.metadataHash;
         q.outcomeLabels = p.outcomeLabels;
+        q.metadataURI = p.metadataURI;
         q.chainlinkFeed = p.chainlinkFeed;
         q.priceThreshold = p.priceThreshold;
         q.priceKind = p.priceKind;

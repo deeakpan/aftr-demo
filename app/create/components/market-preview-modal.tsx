@@ -118,7 +118,7 @@ export function MarketPreviewModal({
                 href="/market"
                 className="rounded-full bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
               >
-                Explore markets
+                Markets
               </Link>
             ) : (
               <button
@@ -132,9 +132,6 @@ export function MarketPreviewModal({
             )}
           </div>
           {submitStatus && <p className="mt-2 text-xs text-[var(--muted)]">{submitStatus}</p>}
-          {createdMarketAddress && (
-            <p className="mt-1 text-xs text-[var(--accent)]">Market: {createdMarketAddress}</p>
-          )}
         </div>
 
         <div className="border-t border-[var(--border)] px-4 py-2 text-[10px] text-[var(--muted)] md:px-5">

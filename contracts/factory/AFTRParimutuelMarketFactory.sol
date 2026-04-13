@@ -121,6 +121,8 @@ contract AFTRParimutuelMarketFactory is Ownable2Step {
         uint256 resolveAfterTimestamp;
         bytes32 metadataHash;
         string[] outcomeLabels;
+        /// @notice UI / app metadata (e.g. `ipfs://...`), persisted for price markets too.
+        string metadataURI;
         address chainlinkFeed;
         uint256 priceThreshold;
         AFTRVParimutuelMarket.PriceThresholdKind priceKind;
@@ -218,7 +220,7 @@ contract AFTRParimutuelMarketFactory is Ownable2Step {
             p.outcomeLabels
         );
 
-        _wireMarket(market, tokens, "", new bytes(0), p.priceBinLower, p.priceBinUpper);
+        _wireMarket(market, tokens, p.metadataURI, new bytes(0), p.priceBinLower, p.priceBinUpper);
         _register(
             market,
             AFTRVParimutuelMarket.MarketKind.PRICE,
