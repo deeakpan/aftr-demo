@@ -4,8 +4,9 @@
   "feeRecipient": "0x68ac96Ce64D62386b1A5E2DFf8f0F01fEEd46E09",
   "contracts": {
     "AFTRUSDC": "0xB987C1e7575DAdEd76ce7892000dE4728e89d7F8",
-    "AFTRParimutuelMarketFactory": "0xE6c670CED4e06e088AEb7141E0A0a557da517DbB",
-    "AFTRParimutuelDeployer": "0xA70c28ef82d1427Fa68F65960FbfFb1198349593"
+    "AFTRParimutuelMarketFactory": "0x850321ed542bE14ce76a40Fd5BadFb7cD95F6857",
+    "AFTRParimutuelDeployer": "0xd05f48c54D12C8b5849c7D66F6055AcD67C41473",
+    "AFTROrderBook": "0xDDb45e666b3A822e9ACA8df641130604fab0819a"
   },
   "external": {
     "optimisticOracleV2": "0x99EC530a761E68a377593888D9504002Bd191717",
@@ -17,5 +18,5 @@
     "umaRewardToken": "Circle Base Sepolia USDC when umaRewardCurrency is address(0) on factory"
   },
   "network": "baseSepolia",
-  "deployedAt": "2026-04-13T14:26:47.115Z"
+  "deployedAt": "2026-04-17T15:39:27.075Z"
 }

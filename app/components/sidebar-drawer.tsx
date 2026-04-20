@@ -7,8 +7,6 @@ import { usePathname } from "next/navigation";
 import {
   CrownSimple,
   DiamondsFour,
-  GearSix,
-  IntersectThree,
   PlusMinus,
   Question,
   Rows,
@@ -95,27 +93,6 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
             >
               <CrownSimple size={26} weight="fill" className="text-[#ffbf47]" />
               <span>Leaderboard</span>
-            </button>
-          </div>
-          <div className="my-4 border-t border-[var(--border)]" />
-          <div className="space-y-1 text-base">
-            <Link href="/trades" onClick={onClose} className={navClass("/trades")}>
-              <PlusMinus size={26} weight="fill" className="text-[#7fd0ff]" />
-              <span>Trades</span>
-            </Link>
-            <button
-              type="button"
-              className="group flex w-full items-center gap-2 rounded-full px-3 py-3 text-left text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
-            >
-              <IntersectThree size={26} weight="fill" className="text-[#68e0a0]" />
-              <span>Interactions</span>
-            </button>
-            <button
-              type="button"
-              className="group flex w-full items-center gap-2 rounded-full px-3 py-3 text-left text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
-            >
-              <GearSix size={26} weight="fill" className="text-[#d8a3ff]" />
-              <span>Settings</span>
             </button>
           </div>
           <div className="my-4 border-t border-[var(--border)]" />

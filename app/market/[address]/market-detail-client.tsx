@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, TrendUp } from "@phosphor-icons/react";
+import { ArrowLeft } from "@phosphor-icons/react";
 import {
   formatUnits,
   getAddress,
@@ -13,7 +13,7 @@ import {
 } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
-import { TradeModal } from "@/app/market/components/trade-modal";
+import { LimitOrderParams, TradeModal } from "@/app/market/components/trade-modal";
 import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import deployment from "@/deployments/baseSepolia-84532.json";
 
@@ -21,6 +21,24 @@ const DEPLOYMENT_CHAIN_ID = deployment.chainId;
 const WAD = BigInt("1000000000000000000");
 const UMA_BINARY_YES = BigInt("1000000000000000000");
 const SLIPPAGE_PRESETS = [50, 100, 200, 300] as const;
+
+const ORDERBOOK_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
+  .AFTROrderBook as `0x${string}`;
+
+const ORDERBOOK_ABI = parseAbi([
+  "function placeSellOrder(address market, address token, uint256 price, uint256 amount) returns (bytes32)",
+  "function placeBuyOrder(address market, address token, uint256 price, uint256 amount) payable returns (bytes32)",
+  "function getOrderBookSnapshot(address market, address token) view returns (uint256[] bidPrices, uint256[] bidVolumes, uint256[] askPrices, uint256[] askVolumes)",
+  "function getUserSellOrders(address market, address token, address user) view returns ((bytes32 _orderId, uint256 _price, uint256 _volume)[])",
+  "function getUserBuyOrders(address market, address token, address user) view returns ((bytes32 _orderId, uint256 _price, uint256 _volume)[])",
+]);
+
+type ObSnapshot = {
+  bidPrices: bigint[];
+  bidVolumes: bigint[];
+  askPrices: bigint[];
+  askVolumes: bigint[];
+};
 
 const MARKET_ABI = parseAbi([
   "function marketKind() view returns (uint8)",
@@ -68,6 +86,7 @@ type IpfsMetadata = {
   description?: string;
   image?: string;
   outcomes?: string[];
+  slug?: string;
 };
 
 type DetailModel = {
@@ -100,6 +119,7 @@ type DetailModel = {
   feedDecimals: number;
   umaIdentifier: `0x${string}`;
   usesBins: boolean;
+  slug?: string;
 };
 
 function ipfsToHttp(uri: string) {
@@ -174,9 +194,37 @@ function priceKindName(kind: number): string {
   return `Kind ${kind}`;
 }
 
-function normalizedFromAnswer(answer: bigint, feedDec: number): bigint {
-  if (feedDec >= 6) return answer / BigInt(10 ** (feedDec - 6));
-  return answer * BigInt(10 ** (6 - feedDec));
+
+function TradingViewChart({ symbol }: { symbol: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const id = "tv_chart_detail";
+    let script: HTMLScriptElement | null = null;
+    function init() {
+      const tv = (window as unknown as { TradingView?: { widget: new (o: unknown) => void } }).TradingView;
+      if (!tv || !document.getElementById(id)) return;
+      new tv.widget({
+        container_id: id, symbol, interval: "60", timezone: "Etc/UTC",
+        theme: "dark", style: "1", locale: "en", autosize: true,
+        hide_top_toolbar: false, allow_symbol_change: false, save_image: false,
+        backgroundColor: "#050507", gridColor: "rgba(139,92,246,0.04)",
+      });
+    }
+    if ((window as unknown as { TradingView?: unknown }).TradingView) { init(); }
+    else {
+      script = document.createElement("script");
+      script.src = "https://s3.tradingview.com/tv.js";
+      script.async = true;
+      script.onload = init;
+      document.head.appendChild(script);
+    }
+    return () => { if (script && document.head.contains(script)) document.head.removeChild(script); };
+  }, [symbol]);
+  return (
+    <div ref={ref} className="h-[400px] w-full overflow-hidden rounded-xl border border-[var(--border)]">
+      <div id="tv_chart_detail" className="h-full w-full" />
+    </div>
+  );
 }
 
 type Props = { address: string };
@@ -201,11 +249,11 @@ export function MarketDetailClient({ address: addressProp }: Props) {
   const [tradeSlippageBps, setTradeSlippageBps] = useState(200);
   const [tradeModalClock, setTradeModalClock] = useState(0);
 
-  const [redeemShares, setRedeemShares] = useState("");
-  const [redeemStatus, setRedeemStatus] = useState("");
-  const [redeemBusy, setRedeemBusy] = useState(false);
-  const [shareBalance, setShareBalance] = useState<bigint | null>(null);
-  const [shareAllowance, setShareAllowance] = useState<bigint | null>(null);
+  // Limit order state (UI state is internal to TradeModal; parent only tracks refresh tick)
+  const [limitRefreshTick, setLimitRefreshTick] = useState(0);
+  const [outcomeTokens, setOutcomeTokens] = useState<Record<number, `0x${string}`>>({});
+  const [outcomeTokenBalance, setOutcomeTokenBalance] = useState<bigint | null>(null);
+  const [obSnapshot, setObSnapshot] = useState<ObSnapshot | null>(null);
 
   const marketAddress = useMemo(() => {
     const raw = (addressProp || "").trim();
@@ -360,6 +408,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
       setMarket({
         address: marketAddress,
         kind: isPrice ? "Price" : "Event",
+        slug: md?.slug?.trim() || undefined,
         title: md?.title?.trim() || `${isPrice ? "Price" : "Event"} market`,
         description: md?.description?.trim() || "",
         imageUrl: ipfsToHttp(md?.image?.trim() || ""),
@@ -401,10 +450,10 @@ export function MarketDetailClient({ address: addressProp }: Props) {
   }, [reload]);
 
   useEffect(() => {
-    if (!tradeOpen || !market) return;
+    if (!market) return;
     const id = setInterval(() => setTradeModalClock((n) => n + 1), 15_000);
     return () => clearInterval(id);
-  }, [tradeOpen, market]);
+  }, [market]);
 
   useEffect(() => {
     if (!market || !publicClient) {
@@ -476,53 +525,6 @@ export function MarketDetailClient({ address: addressProp }: Props) {
       cancelled = true;
     };
   }, [market, address, publicClient, tradeBusy, tradeAmount, selectedOutcome]);
-
-  useEffect(() => {
-    if (!market || !publicClient || !address || market.marketState !== 2) {
-      setShareBalance(null);
-      setShareAllowance(null);
-      return;
-    }
-    const w = market.winningOutcomeIndex;
-    if (w === null || w < 0) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const token = (await publicClient.readContract({
-          address: market.address,
-          abi: MARKET_ABI,
-          functionName: "outcomeToken",
-          args: [BigInt(w)],
-        })) as `0x${string}`;
-        const [bal, alw] = await Promise.all([
-          publicClient.readContract({
-            address: token,
-            abi: ERC20_ABI,
-            functionName: "balanceOf",
-            args: [address],
-          }) as Promise<bigint>,
-          publicClient.readContract({
-            address: token,
-            abi: ERC20_ABI,
-            functionName: "allowance",
-            args: [address, market.address],
-          }) as Promise<bigint>,
-        ]);
-        if (!cancelled) {
-          setShareBalance(bal);
-          setShareAllowance(alw);
-        }
-      } catch {
-        if (!cancelled) {
-          setShareBalance(null);
-          setShareAllowance(null);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [market, address, publicClient, redeemBusy, redeemShares]);
 
   const tradeSummary = useMemo(() => {
     if (!market || !tradePriceRaw || tradePriceRaw === BigInt(0)) return null;
@@ -665,6 +667,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
         args: [selectedOutcome, amountUnits, address, minSharesOut],
         account: address,
         value: isNative ? amountUnits : undefined,
+        gas: BigInt(500_000),
       });
       await publicClient.waitForTransactionReceipt({ hash: txHash });
       setTradeStatus("Trade successful.");
@@ -677,86 +680,110 @@ export function MarketDetailClient({ address: addressProp }: Props) {
     }
   };
 
-  const redeemableWei = useMemo(() => {
-    if (!redeemShares.trim() || !market) return null;
-    try {
-      return parseUnits(redeemShares.trim(), market.collateralDecimals);
-    } catch {
-      return null;
-    }
-  }, [redeemShares, market]);
+  // Fetch outcome token address for current selectedOutcome
+  useEffect(() => {
+    if (!market || !publicClient || outcomeTokens[selectedOutcome]) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = (await publicClient.readContract({
+          address: market.address,
+          abi: MARKET_ABI,
+          functionName: "outcomeToken",
+          args: [BigInt(selectedOutcome)],
+        })) as `0x${string}`;
+        if (!cancelled) setOutcomeTokens((prev) => ({ ...prev, [selectedOutcome]: token }));
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [market, publicClient, selectedOutcome, outcomeTokens]);
 
-  const submitRedeem = async () => {
-    if (!market || !publicClient || !walletClient || !address) {
-      setRedeemStatus("Connect wallet first.");
-      return;
-    }
-    if (market.marketState !== 2) {
-      setRedeemStatus("Market is not settled.");
-      return;
-    }
-    const w = market.winningOutcomeIndex;
-    if (w === null || w < 0) {
-      setRedeemStatus("No winner recorded.");
-      return;
-    }
-    if (!redeemableWei || redeemableWei <= BigInt(0)) {
-      setRedeemStatus("Enter a valid share amount.");
-      return;
-    }
-    if (shareBalance !== null && redeemableWei > shareBalance) {
-      setRedeemStatus("Amount exceeds your winning outcome balance.");
-      return;
-    }
-    if (chainId !== DEPLOYMENT_CHAIN_ID) {
-      setRedeemStatus(`Switch to Base Sepolia (${DEPLOYMENT_CHAIN_ID}).`);
-      return;
-    }
-    try {
-      setRedeemBusy(true);
-      setRedeemStatus("Preparing…");
-      const token = (await publicClient.readContract({
-        address: market.address,
-        abi: MARKET_ABI,
-        functionName: "outcomeToken",
-        args: [BigInt(w)],
-      })) as `0x${string}`;
-      const allowance = (await publicClient.readContract({
-        address: token,
-        abi: ERC20_ABI,
-        functionName: "allowance",
-        args: [address, market.address],
-      })) as bigint;
-      if (allowance < redeemableWei) {
-        setRedeemStatus("Approving market to redeem shares…");
-        const h = await walletClient.writeContract({
-          chain: walletClient.chain,
+  // Fetch outcome token balance (for sell orders)
+  useEffect(() => {
+    const token = outcomeTokens[selectedOutcome];
+    if (!market || !publicClient || !address || !token) { setOutcomeTokenBalance(null); return; }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const bal = (await publicClient.readContract({
           address: token,
           abi: ERC20_ABI,
-          functionName: "approve",
-          args: [market.address, redeemableWei],
-          account: address,
+          functionName: "balanceOf",
+          args: [address],
+        })) as bigint;
+        if (!cancelled) setOutcomeTokenBalance(bal);
+      } catch { if (!cancelled) setOutcomeTokenBalance(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [market, publicClient, address, selectedOutcome, outcomeTokens, limitRefreshTick]);
+
+  // Fetch orderbook snapshot for selected outcome
+  useEffect(() => {
+    const token = outcomeTokens[selectedOutcome];
+    if (!market || !publicClient || !token) { setObSnapshot(null); return; }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await publicClient.readContract({
+          address: ORDERBOOK_ADDRESS,
+          abi: ORDERBOOK_ABI,
+          functionName: "getOrderBookSnapshot",
+          args: [market.address, token],
+        }) as [bigint[], bigint[], bigint[], bigint[]];
+        if (!cancelled) setObSnapshot({ bidPrices: result[0], bidVolumes: result[1], askPrices: result[2], askVolumes: result[3] });
+      } catch { if (!cancelled) setObSnapshot(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [market, publicClient, selectedOutcome, outcomeTokens, limitRefreshTick]);
+
+  const submitLimitOrderFromParams = async (params: LimitOrderParams) => {
+    if (!market || !publicClient || !walletClient || !address) throw new Error("Connect wallet first.");
+    if (chainId !== DEPLOYMENT_CHAIN_ID) throw new Error(`Switch to Base Sepolia (${DEPLOYMENT_CHAIN_ID}).`);
+    const token = outcomeTokens[params.outcomeIndex];
+    if (!token) throw new Error("Fetching token address — try again.");
+    const priceNum = Number(params.price);
+    const amountNum = Number(params.amount);
+    if (!Number.isFinite(priceNum) || priceNum <= 0) throw new Error("Enter a valid price.");
+    if (!Number.isFinite(amountNum) || amountNum <= 0) throw new Error("Enter a valid amount.");
+    const dec = market.collateralDecimals;
+    const priceUnits = parseUnits(params.price, dec);
+    const amountUnits = parseUnits(params.amount, dec);
+    if (params.side === "sell") {
+      const allowance = (await publicClient.readContract({
+        address: token, abi: ERC20_ABI, functionName: "allowance", args: [address, ORDERBOOK_ADDRESS],
+      })) as bigint;
+      if (allowance < amountUnits) {
+        const h = await walletClient.writeContract({
+          chain: walletClient.chain, address: token, abi: ERC20_ABI,
+          functionName: "approve", args: [ORDERBOOK_ADDRESS, amountUnits], account: address,
         });
         await publicClient.waitForTransactionReceipt({ hash: h });
       }
-      setRedeemStatus("Redeeming…");
       const tx = await walletClient.writeContract({
-        chain: walletClient.chain,
-        address: market.address,
-        abi: MARKET_ABI,
-        functionName: "redeem",
-        args: [w, redeemableWei],
-        account: address,
+        chain: walletClient.chain, address: ORDERBOOK_ADDRESS, abi: ORDERBOOK_ABI,
+        functionName: "placeSellOrder", args: [market.address, token, priceUnits, amountUnits], account: address,
       });
       await publicClient.waitForTransactionReceipt({ hash: tx });
-      setRedeemStatus("Redeemed.");
-      setRedeemShares("");
-      void reload();
-    } catch (e) {
-      setRedeemStatus(e instanceof Error ? e.message : "Redeem failed.");
-    } finally {
-      setRedeemBusy(false);
+    } else {
+      const notional = (amountUnits * priceUnits) / BigInt(10 ** dec);
+      const escrow = notional + (notional * BigInt(50)) / BigInt(10000);
+      const allowance = (await publicClient.readContract({
+        address: market.collateralAddress, abi: ERC20_ABI, functionName: "allowance", args: [address, ORDERBOOK_ADDRESS],
+      })) as bigint;
+      if (allowance < escrow) {
+        const h = await walletClient.writeContract({
+          chain: walletClient.chain, address: market.collateralAddress, abi: ERC20_ABI,
+          functionName: "approve", args: [ORDERBOOK_ADDRESS, escrow], account: address,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: h });
+      }
+      const tx = await walletClient.writeContract({
+        chain: walletClient.chain, address: ORDERBOOK_ADDRESS, abi: ORDERBOOK_ABI,
+        functionName: "placeBuyOrder", args: [market.address, token, priceUnits, amountUnits], account: address,
+      });
+      await publicClient.waitForTransactionReceipt({ hash: tx });
     }
+    setLimitRefreshTick((n) => n + 1);
   };
 
   const settledPriceHuman = useMemo(() => {
@@ -789,217 +816,300 @@ export function MarketDetailClient({ address: addressProp }: Props) {
     return `UMA result (raw): ${p.toString()} → winning index ${market.winningOutcomeIndex ?? "—"}.`;
   }, [market]);
 
+  const tvSymbol = useMemo(() => {
+    if (!market || market.kind !== "Price") return null;
+    const t = market.title.toUpperCase();
+    if (t.includes("BTC") || t.includes("BITCOIN")) return "BINANCE:BTCUSDT";
+    if (t.includes("ETH") || t.includes("ETHEREUM")) return "BINANCE:ETHUSDT";
+    if (t.includes("SOL")) return "BINANCE:SOLUSDT";
+    if (t.includes("LINK")) return "BINANCE:LINKUSDT";
+    if (t.includes("BNB")) return "BINANCE:BNBUSDT";
+    if (t.includes("AVAX")) return "BINANCE:AVAXUSDT";
+    return "BINANCE:BTCUSDT";
+  }, [market]);
+
   if (!marketAddress) {
     return (
       <AppLayout showSearch={false}>
-        <section className="mx-4 pt-8 md:mx-6">
-          <p className="text-sm text-red-400">Invalid market address.</p>
-          <Link href="/market" className="mt-4 inline-block text-sm text-[var(--accent)]">
-            ← Back to markets
-          </Link>
-        </section>
+        <div className="flex min-h-[40vh] items-center justify-center px-4">
+          <div>
+            <p className="text-base font-semibold text-red-400">Invalid market address</p>
+            <Link href="/market" className="mt-3 inline-flex items-center gap-1.5 text-sm text-[var(--muted)] transition hover:text-[var(--foreground)]">
+              <ArrowLeft size={14} weight="bold" /> Back to markets
+            </Link>
+          </div>
+        </div>
       </AppLayout>
     );
   }
 
   return (
     <AppLayout showSearch={false}>
-      <section className="mx-4 pt-6 md:mx-6">
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <Link
-            href="/market"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--muted)] transition hover:text-[var(--foreground)]"
-          >
-            <ArrowLeft size={18} weight="bold" />
-            Markets
-          </Link>
+      {/* back */}
+      <div className="border-b border-[var(--border)] px-4 py-3 md:px-6">
+        <Link href="/market" className="inline-flex items-center gap-1.5 text-sm text-[var(--muted)] transition hover:text-[var(--foreground)]">
+          <ArrowLeft size={14} weight="bold" /> Markets
+        </Link>
+      </div>
+
+      {isLoading && (
+        <div className="space-y-4 px-4 py-6 md:px-6">
+          <div className="h-8 w-2/3 animate-pulse rounded-lg bg-[var(--card)]" />
+          <div className="h-5 w-1/3 animate-pulse rounded-lg bg-[var(--card)]" />
+          <div className="mt-6 h-[400px] animate-pulse rounded-xl bg-[var(--card)]" />
         </div>
+      )}
 
-        {isLoading && <p className="text-sm text-[var(--muted)]">Loading market…</p>}
-        {loadError && <p className="text-sm text-red-400">{loadError}</p>}
+      {loadError && (
+        <p className="px-4 py-6 text-sm text-red-400 md:px-6">{loadError}</p>
+      )}
 
-        {market && (
-          <div className="mx-auto max-w-[640px] space-y-5">
-            <div className="overflow-hidden rounded-2xl border border-[#2a3243] bg-[#111827] shadow-[0_10px_28px_rgba(2,6,23,0.4)]">
-              <div className="h-36 w-full overflow-hidden border-b border-[#212a3a] bg-[#0d1422]">
-                {market.imageUrl ? (
-                  <img src={market.imageUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-xs text-slate-500">No image</div>
-                )}
-              </div>
-              <div className="p-4">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{market.kind}</p>
-                    <h1 className="mt-1 text-xl font-semibold tracking-tight text-white">{market.title}</h1>
-                    <p className="mt-1 text-sm text-slate-400">{market.stateLabel}</p>
-                  </div>
-                  <TrendUp size={28} weight="bold" className="shrink-0 text-[var(--accent)]" />
-                </div>
-                {market.description ? (
-                  <p className="mt-3 text-sm leading-relaxed text-slate-300">{market.description}</p>
-                ) : null}
+      {market && (
+        <div className="flex flex-col gap-0 lg:flex-row lg:items-start">
 
-                <dl className="mt-4 grid gap-2 text-sm text-slate-300">
-                  <div className="flex justify-between gap-2 border-t border-[#2a3243] pt-3">
-                    <dt className="text-slate-500">TVL</dt>
-                    <dd className="font-medium text-white">${market.poolTvl}</dd>
-                  </div>
-                  <div className="flex justify-between gap-2">
-                    <dt className="text-slate-500">Stake ends</dt>
-                    <dd className="text-right text-white">{market.stakeEnds}</dd>
-                  </div>
-                  <div className="flex justify-between gap-2">
-                    <dt className="text-slate-500">Resolve after</dt>
-                    <dd className="text-right text-white">{market.resolveAfter}</dd>
-                  </div>
-                  <div className="flex justify-between gap-2">
-                    <dt className="text-slate-500">Contract</dt>
-                    <dd className="break-all font-mono text-[11px] text-slate-400">{market.address}</dd>
-                  </div>
-                </dl>
+          {/* ── Left ── */}
+          <div className="min-w-0 flex-1 border-b border-[var(--border)] px-4 py-6 pb-36 md:pb-24 md:px-6 lg:border-b-0 lg:border-r lg:pb-6">
 
-                {market.marketState === 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTradeOpen(true);
-                      setTradeStatus("");
-                    }}
-                    className="mt-4 w-full rounded-xl bg-[var(--accent)] py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(139,92,246,0.25)] transition hover:brightness-110"
-                  >
-                    Trade
-                  </button>
+            {/* Market header */}
+            <div className="mb-1 flex items-start gap-3">
+              {market.imageUrl && (
+                <img src={market.imageUrl} alt="" className="h-11 w-11 shrink-0 rounded-xl object-cover" />
+              )}
+              <div>
+                <h1 className="text-xl font-bold leading-snug text-[var(--foreground)] md:text-2xl">
+                  {market.title}
+                </h1>
+                {market.slug && (
+                  <p className="mt-0.5 font-mono text-[11px] text-[var(--muted)]">/{market.slug}</p>
                 )}
               </div>
             </div>
 
-            {market.marketState === 2 && (
-              <div className="rounded-2xl border border-[#2a3243] bg-[#0f1727] p-4">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Settlement</h2>
-                <dl className="mt-3 space-y-2 text-sm">
-                  <div className="flex justify-between gap-2">
-                    <dt className="text-slate-500">Resolved at</dt>
-                    <dd className="text-right text-white">{fmtTsFromUnix(market.settlementTimestamp)}</dd>
-                  </div>
-                  <div className="flex justify-between gap-2">
-                    <dt className="text-slate-500">Winning outcome</dt>
-                    <dd className="text-right font-medium text-emerald-300">
-                      #{market.winningOutcomeIndex ?? "—"}{" "}
-                      {market.winningOutcomeIndex != null
-                        ? `(${market.outcomeLabels[market.winningOutcomeIndex] ?? `Outcome ${market.winningOutcomeIndex + 1}`})`
-                        : ""}
-                    </dd>
-                  </div>
-                  {market.kind === "Price" && (
-                    <>
-                      <div className="flex justify-between gap-2">
-                        <dt className="text-slate-500">Oracle price (feed)</dt>
-                        <dd className="text-right font-mono text-white">
-                          {settledPriceHuman != null
-                            ? `$${Number(settledPriceHuman).toLocaleString(undefined, { maximumFractionDigits: 6 })}`
-                            : "—"}
-                        </dd>
-                      </div>
-                      {market.usesBins ? (
-                        <div className="flex justify-between gap-2">
-                          <dt className="text-slate-500">Bins</dt>
-                          <dd className="max-w-[60%] text-right text-xs text-slate-300">
-                            {market.priceBinByOutcome?.map((b, i) => (
-                              <div key={i}>
-                                {market.outcomeLabels[i]}: {b}
-                              </div>
-                            ))}
-                          </dd>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex justify-between gap-2">
-                            <dt className="text-slate-500">Rule</dt>
-                            <dd className="text-right text-white">{priceKindName(market.priceThresholdKind)}</dd>
-                          </div>
-                          <div className="flex justify-between gap-2">
-                            <dt className="text-slate-500">Threshold (8 decimals)</dt>
-                            <dd className="text-right font-mono text-white">
-                              ${Number(thresholdHuman ?? "0").toLocaleString(undefined, { maximumFractionDigits: 6 })}
-                            </dd>
-                          </div>
-                          {market.priceThresholdKind === 2 && (
-                            <div className="flex justify-between gap-2">
-                              <dt className="text-slate-500">Upper bound</dt>
-                              <dd className="text-right font-mono text-white">
-                                ${Number(formatUnits(market.priceUpperBound, 8)).toLocaleString(undefined, { maximumFractionDigits: 6 })}
-                              </dd>
-                            </div>
-                          )}
-                          <div className="flex justify-between gap-2">
-                            <dt className="text-slate-500">Settlement compare (6dp norm)</dt>
-                            <dd className="break-all font-mono text-[11px] text-slate-400">
-                              {market.settledOraclePrice > BigInt(0)
-                                ? normalizedFromAnswer(market.settledOraclePrice, market.feedDecimals).toString()
-                                : "—"}
-                            </dd>
-                          </div>
-                        </>
-                      )}
-                    </>
-                  )}
-                  {market.kind === "Event" && umaResultLine && (
-                    <div className="rounded-lg border border-[#2a3243] bg-[#111827] p-2 text-xs text-slate-300">
-                      {umaResultLine}
-                    </div>
-                  )}
-                  <div className="flex justify-between gap-2 border-t border-[#2a3243] pt-2">
-                    <dt className="text-slate-500">Redemption rate (1e18)</dt>
-                    <dd className="font-mono text-xs text-slate-300">{formatUnits(market.redemptionRate, 18)}</dd>
-                  </div>
-                </dl>
 
-                {address &&
-                  market.winningOutcomeIndex != null &&
-                  shareBalance !== null &&
-                  shareBalance > BigInt(0) && (
-                    <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
-                      <p className="text-xs font-semibold text-emerald-200">Redeem winning shares</p>
-                      <p className="mt-1 text-[11px] text-slate-400">
-                        Balance: {formatUnits(shareBalance, market.collateralDecimals)} shares
-                      </p>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={redeemShares}
-                        onChange={(e) => setRedeemShares(e.target.value)}
-                        placeholder="Share amount"
-                        className="mt-2 w-full rounded-lg border border-[#2a3243] bg-[#111827] px-3 py-2 text-sm text-white outline-none"
-                      />
-                      {shareAllowance !== null && redeemableWei !== null && (
-                        <p className="mt-1 text-[10px] text-slate-500">
-                          Allowance: {formatUnits(shareAllowance, market.collateralDecimals)}
-                        </p>
-                      )}
-                      {redeemStatus ? <p className="mt-2 text-xs text-slate-400">{redeemStatus}</p> : null}
-                      <button
-                        type="button"
-                        disabled={redeemBusy}
-                        onClick={() => void submitRedeem()}
-                        className="mt-3 w-full rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
-                      >
-                        {redeemBusy ? "Working…" : "Redeem"}
-                      </button>
+            {/* Outcome hero */}
+            <div className="mb-1 flex items-baseline gap-2">
+              <span className="text-3xl font-bold text-emerald-400">
+                {market.outcomeLabels[0] ?? "Yes"}
+              </span>
+              <span className="text-sm font-semibold text-emerald-400">
+                ↑ {market.chancePct.toFixed(1)}%
+              </span>
+            </div>
+            <p className="mb-5 text-sm text-[var(--muted)]">
+              {market.chancePct.toFixed(1)}% chance
+            </p>
+
+
+
+            {/* TradingView chart (price markets) */}
+            {tvSymbol && <TradingViewChart symbol={tvSymbol} />}
+
+            {/* Event market: outcome list (no chart) */}
+            {!tvSymbol && (
+              <div className="space-y-px">
+                {market.outcomeLabels.map((label, i) => {
+                  const pct = market.outcomes >= 2
+                    ? (i === 0 ? market.chancePct : 100 - market.chancePct)
+                    : Math.round(100 / market.outcomes);
+                  const isWinner = market.winningOutcomeIndex === i;
+                  const col = i === 0 ? "text-emerald-400" : "text-rose-400";
+                  return (
+                    <div key={i} className="flex cursor-default items-center justify-between py-3 transition hover:bg-[var(--surface-hover)]">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-[var(--foreground)]">{label}</span>
+                        {isWinner && (
+                          <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-300">Winner</span>
+                        )}
+                      </div>
+                      <span className={`text-base font-bold tabular-nums ${col}`}>{pct.toFixed(1)}%</span>
                     </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Order book */}
+            {market.marketState === 0 && outcomeTokens[selectedOutcome] && (
+              <div className="mt-8">
+                <div className="mb-3 border-t border-[var(--border)] pt-5 flex items-center justify-between">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">
+                    Order Book · {market.outcomeLabels[selectedOutcome] ?? `Outcome ${selectedOutcome}`}
+                  </p>
+                  <div className="flex gap-1">
+                    {market.outcomeLabels.slice(0, 2).map((label, i) => (
+                      <button key={i} type="button" onClick={() => setSelectedOutcome(i)}
+                        className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition ${selectedOutcome === i ? (i === 0 ? "bg-emerald-600 text-white" : "bg-rose-600 text-white") : "text-[var(--muted)] hover:text-white"}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {obSnapshot && (obSnapshot.bidPrices.length > 0 || obSnapshot.askPrices.length > 0) ? (
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-500">Bids</p>
+                      <div className="space-y-1">
+                        {[...obSnapshot.bidPrices.map((p, i) => ({ p, v: obSnapshot.bidVolumes[i]! }))]
+                          .sort((a, b) => Number(b.p - a.p))
+                          .slice(0, 8)
+                          .map(({ p, v }, i) => (
+                            <div key={i} className="flex items-center justify-between rounded-md bg-emerald-500/5 px-2.5 py-1.5">
+                              <span className="font-mono font-semibold text-emerald-400">
+                                ${formatUnits(p, market.collateralDecimals)}
+                              </span>
+                              <span className="font-mono text-[var(--muted)]">
+                                {Number(formatUnits(v, market.collateralDecimals)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-rose-500">Asks</p>
+                      <div className="space-y-1">
+                        {[...obSnapshot.askPrices.map((p, i) => ({ p, v: obSnapshot.askVolumes[i]! }))]
+                          .sort((a, b) => Number(a.p - b.p))
+                          .slice(0, 8)
+                          .map(({ p, v }, i) => (
+                            <div key={i} className="flex items-center justify-between rounded-md bg-rose-500/5 px-2.5 py-1.5">
+                              <span className="font-mono font-semibold text-rose-400">
+                                ${formatUnits(p, market.collateralDecimals)}
+                              </span>
+                              <span className="font-mono text-[var(--muted)]">
+                                {Number(formatUnits(v, market.collateralDecimals)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-[var(--muted)]">No open orders for this outcome yet.</p>
+                )}
+              </div>
+            )}
+
+            {/* Settlement */}
+            {market.marketState === 2 && (
+              <div className="mt-8">
+                <div className="mb-3 border-t border-[var(--border)] pt-5">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">Settlement</p>
+                </div>
+                <div className="space-y-px text-sm">
+                  {[
+                    { label: "Resolved at",    value: fmtTsFromUnix(market.settlementTimestamp) },
+                    { label: "Winning outcome", value: market.winningOutcomeIndex != null
+                        ? (market.outcomeLabels[market.winningOutcomeIndex] ?? `Outcome ${market.winningOutcomeIndex + 1}`)
+                        : "—",
+                      valueClass: "text-emerald-300 font-semibold" },
+                    ...(market.kind === "Price" && settledPriceHuman != null
+                      ? [{ label: "Oracle price", value: `$${Number(settledPriceHuman).toLocaleString(undefined, { maximumFractionDigits: 6 })}`, mono: true }]
+                      : []),
+                    ...(market.kind === "Price" && !market.usesBins && thresholdHuman
+                      ? [
+                          { label: "Rule",      value: priceKindName(market.priceThresholdKind) },
+                          { label: "Threshold", value: `$${Number(thresholdHuman).toLocaleString(undefined, { maximumFractionDigits: 6 })}`, mono: true },
+                          ...(market.priceThresholdKind === 2
+                            ? [{ label: "Upper bound", value: `$${Number(formatUnits(market.priceUpperBound, 8)).toLocaleString(undefined, { maximumFractionDigits: 6 })}`, mono: true }]
+                            : []),
+                        ]
+                      : []),
+                  ].map(({ label, value, valueClass, mono }) => (
+                    <div key={label} className="flex cursor-default items-center justify-between py-2.5 transition hover:bg-[var(--surface-hover)]">
+                      <span className="text-[var(--muted)]">{label}</span>
+                      <span className={`text-right ${mono ? "font-mono" : ""} ${valueClass ?? "text-[var(--foreground)]"}`}>{value}</span>
+                    </div>
+                  ))}
+                  {market.kind === "Event" && umaResultLine && (
+                    <p className="pt-2 text-xs text-[var(--muted)]">{umaResultLine}</p>
                   )}
+                </div>
+
               </div>
             )}
           </div>
-        )}
 
-        {!hasWalletConnectProjectId && (
-          <p className="mt-4 text-sm text-red-400">
-            Add NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID in .env for full wallet support.
-          </p>
-        )}
-      </section>
+          {/* ── Right: trade panel (desktop only, active markets) ── */}
+          {market.marketState !== 2 && (
+            <div className="hidden w-full shrink-0 lg:block lg:w-[380px]">
+              <div className="sticky top-4 m-4 overflow-hidden rounded-2xl border border-[#2d1b5e] bg-[#0d0920] shadow-[0_8px_40px_rgba(0,0,0,0.6)]">
+                <TradeModal
+                  inline
+                  open={false}
+                  onClose={() => {}}
+                  marketTitle={market.title}
+                  priceRangeLine={market.priceBinByOutcome?.[selectedOutcome] ?? null}
+                  stakeEnds={market.stakeEnds}
+                  resolveAfter={market.resolveAfter}
+                  outcomeLabels={market.outcomeLabels}
+                  selectedOutcomeIndex={selectedOutcome}
+                  onSelectOutcome={setSelectedOutcome}
+                  collateralDecimals={market.collateralDecimals}
+                  collateralTicker={isNativeCollateral ? "ETH" : "USDC"}
+                  amount={tradeAmount}
+                  setAmount={setTradeAmount}
+                  priceOfRaw={tradePriceRaw}
+                  walletBalanceWei={collateralBalance}
+                  tokensFormatted={tradeSummary?.tokens ?? null}
+                  pricePerTokenLabel={pricePerTokenLabel}
+                  slippageBps={tradeSlippageBps}
+                  onCycleSlippage={cycleSlippage}
+                  isNativeCollateral={isNativeCollateral}
+                  needsApproval={needsApproval}
+                  approvalIcon={approvalIcon}
+                  approvalLine={approvalLine}
+                  tradeDisabled={tradeDisabled}
+                  status={tradeStatus}
+                  busy={tradeBusy}
+                  onSubmit={() => void submitTrade()}
+                  onSubmitLimit={submitLimitOrderFromParams}
+                />
+              </div>
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* ── Mobile bottom bar ── */}
+      {market && market.marketState === 0 && (
+        <div className="fixed bottom-[64px] left-0 right-0 z-50 border-t border-[#2d1b5e] bg-[#0b0718]/95 px-4 py-3 backdrop-blur-md md:bottom-0 lg:hidden">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setSelectedOutcome(0); setTradeOpen(true); setTradeStatus(""); }}
+              className="group flex flex-1 items-center justify-between rounded-full border border-emerald-600 bg-emerald-700 px-4 py-3 transition hover:bg-emerald-600 active:scale-[0.97]"
+            >
+              <span className="text-xs font-bold uppercase tracking-widest text-emerald-200">
+                {market.outcomeLabels[0] ?? "Yes"}
+              </span>
+              <span className="text-sm font-bold text-white tabular-nums">
+                ${(market.chancePct / 100).toFixed(2)}
+              </span>
+            </button>
+            {market.outcomes >= 2 && (
+              <button
+                type="button"
+                onClick={() => { setSelectedOutcome(1); setTradeOpen(true); setTradeStatus(""); }}
+                className="group flex flex-1 items-center justify-between rounded-full border border-rose-600 bg-rose-700 px-4 py-3 transition hover:bg-rose-600 active:scale-[0.97]"
+              >
+                <span className="text-xs font-bold uppercase tracking-widest text-rose-200">
+                  {market.outcomeLabels[1] ?? "No"}
+                </span>
+                <span className="text-sm font-bold text-white tabular-nums">
+                  ${((100 - market.chancePct) / 100).toFixed(2)}
+                </span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!hasWalletConnectProjectId && (
+        <p className="px-4 py-3 text-sm text-red-400 md:px-6">
+          Add NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID in .env for full wallet support.
+        </p>
+      )}
 
       {market && (
         <TradeModal
@@ -1036,6 +1146,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
           onSubmit={() => {
             void submitTrade();
           }}
+          onSubmitLimit={submitLimitOrderFromParams}
         />
       )}
     </AppLayout>

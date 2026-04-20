@@ -980,8 +980,8 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\libraries\\OrderBookLinkedList.sol": {
-      "lastModificationDate": 1775213979119,
-      "contentHash": "9553b0d06edecbeb74cb2c01729fc2a6",
+      "lastModificationDate": 1776356172320,
+      "contentHash": "19be5a635abeae8cb05f886dc7d9fd64",
       "sourceName": "contracts/libraries/OrderBookLinkedList.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1017,8 +1017,8 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\libraries\\OrderPriceVolumeSet.sol": {
-      "lastModificationDate": 1775213986165,
-      "contentHash": "b8685f03e5416f24581490d3a3a2a36d",
+      "lastModificationDate": 1776356173432,
+      "contentHash": "f558d33fbef85dec757c41fcc78efbc6",
       "sourceName": "contracts/libraries/OrderPriceVolumeSet.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1208,6 +1208,54 @@
       ],
       "artifacts": [
         "AFTRUSDC"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\orderbook\\AFTROrderBook.sol": {
+      "lastModificationDate": 1776356247338,
+      "contentHash": "85c8ffa4375fb067cf9162c6748ac236",
+      "sourceName": "contracts/orderbook/AFTROrderBook.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts/utils/Address.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+        "../libraries/OrderBookLinkedList.sol",
+        "../libraries/OrderPriceVolumeSet.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "AFTROrderBook",
+        "IAFTRMarketCollateral",
+        "IAFTROrderBookFactory"
       ]
     }
   }

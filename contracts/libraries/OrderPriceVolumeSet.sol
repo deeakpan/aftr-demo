@@ -6,7 +6,7 @@ pragma solidity ^0.8.24;
 library OrderPriceVolumeSet {
     struct OPVnode {
         bytes32 _orderId;
-        uint256 _price;
+        uint256 _price;  // Price in collateral units per full outcome token
         uint256 _volume;
     }
 
@@ -15,18 +15,29 @@ library OrderPriceVolumeSet {
         mapping(bytes32 => uint256) _indexes;
     }
 
-    function _contains(OPVset storage set, bytes32 orderId) internal view returns (bool) {
+    function _contains(OPVset storage set, bytes32 orderId)
+        internal
+        view
+        returns (bool)
+    {
         return set._indexes[orderId] != 0;
     }
 
-    function _at(OPVset storage set, address userAddress, uint256 index) internal view returns (OPVnode memory) {
+    function _at(
+        OPVset storage set,
+        address userAddress,
+        uint256 index
+    ) internal view returns (OPVnode memory) {
         return set._orders[userAddress][index];
     }
 
-    function _add(OPVset storage set, address userAddress, bytes32 orderId, uint256 price, uint256 volume)
-        internal
-        returns (bool)
-    {
+    function _add(
+        OPVset storage set,
+        address userAddress,
+        bytes32 orderId,
+        uint256 price,
+        uint256 volume
+    ) internal returns (bool) {
         if (!_contains(set, orderId)) {
             set._orders[userAddress].push(OPVnode(orderId, price, volume));
             set._indexes[orderId] = set._orders[userAddress].length;
@@ -36,7 +47,11 @@ library OrderPriceVolumeSet {
         }
     }
 
-    function _remove(OPVset storage set, address userAddress, bytes32 orderId) internal returns (bool) {
+    function _remove(
+        OPVset storage set,
+        address userAddress,
+        bytes32 orderId
+    ) internal returns (bool) {
         uint256 orderIdIndex = set._indexes[orderId];
 
         if (orderIdIndex != 0) {
@@ -44,7 +59,9 @@ library OrderPriceVolumeSet {
             uint256 lastIndex = set._orders[userAddress].length - 1;
 
             if (lastIndex != toDeleteIndex) {
-                OPVnode memory lastOPVnode = set._orders[userAddress][lastIndex];
+                OPVnode memory lastOPVnode = set._orders[userAddress][
+                    lastIndex
+                ];
 
                 set._orders[userAddress][toDeleteIndex] = lastOPVnode;
                 set._indexes[lastOPVnode._orderId] = orderIdIndex;
@@ -59,10 +76,12 @@ library OrderPriceVolumeSet {
         }
     }
 
-    function _addVolume(OPVset storage set, address userAddress, bytes32 orderId, uint256 volume)
-        internal
-        returns (bool)
-    {
+    function _addVolume(
+        OPVset storage set,
+        address userAddress,
+        bytes32 orderId,
+        uint256 volume
+    ) internal returns (bool) {
         uint256 orderIdIndex = set._indexes[orderId];
 
         if (orderIdIndex != 0) {
@@ -73,10 +92,12 @@ library OrderPriceVolumeSet {
         }
     }
 
-    function _subVolume(OPVset storage set, address userAddress, bytes32 orderId, uint256 volume)
-        internal
-        returns (bool)
-    {
+    function _subVolume(
+        OPVset storage set,
+        address userAddress,
+        bytes32 orderId,
+        uint256 volume
+    ) internal returns (bool) {
         uint256 orderIdIndex = set._indexes[orderId];
 
         if (orderIdIndex != 0) {

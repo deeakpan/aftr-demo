@@ -68,6 +68,16 @@ function numString(idx: number) {
   return String(idx);
 }
 
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 60);
+}
+
 function formatUsdcDisplay(value: number) {
   return value.toLocaleString(undefined, {
     minimumFractionDigits: 2,
@@ -108,6 +118,8 @@ export function CreateClient() {
   const [threshold, setThreshold] = useState("");
   const [currentPriceLabel, setCurrentPriceLabel] = useState("—");
   const [isFetchingPrice, setIsFetchingPrice] = useState(false);
+  const [slug, setSlug] = useState("");
+  const [slugManual, setSlugManual] = useState(false);
   const [imageUri, setImageUri] = useState("");
   const [metadataUri, setMetadataUri] = useState("");
   const [uploadState, setUploadState] = useState("");
@@ -132,12 +144,12 @@ export function CreateClient() {
   const [isCreateComplete, setIsCreateComplete] = useState(false);
 
   useEffect(() => {
-    if (eventMode === "binary") {
+    if (eventMode === "binary" && outcomes.length !== 2) {
       setOutcomes(["Yes", "No"]);
-    } else if (outcomes.length < 3) {
-      setOutcomes(["Option 1", "Option 2", "Option 3"]);
+    } else if (eventMode === "multiple" && outcomes.length < 3) {
+      setOutcomes((prev) => prev.length >= 3 ? prev : ["Option 1", "Option 2", "Option 3"]);
     }
-  }, [eventMode, outcomes.length]);
+  }, [eventMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const readUsdcBalance = async () => {
@@ -258,6 +270,11 @@ export function CreateClient() {
     [generatedPricePrompt, marketKind, title],
   );
 
+  // Auto-generate slug from title/prompt unless user has manually edited it
+  useEffect(() => {
+    if (!slugManual) setSlug(slugify(marketKind === "price" ? generatedPricePrompt : title));
+  }, [title, generatedPricePrompt, marketKind, slugManual]);
+
   const umaAncillary = useMemo(() => {
     if (marketKind !== "event") return "";
     if (eventMode === "binary") {
@@ -300,6 +317,32 @@ export function CreateClient() {
     setOutcomes((prev) => [...prev, `Option ${prev.length + 1}`]);
   };
 
+  const [detailsValidationError, setDetailsValidationError] = useState("");
+
+  const openDetailsPreview = () => {
+    const errors: string[] = [];
+    if (marketKind === "event" && !title.trim()) errors.push("Title is required.");
+    if (!description.trim()) errors.push("Description is required.");
+    const filledOutcomes = outcomes.map((o) => o.trim()).filter(Boolean);
+    if (filledOutcomes.length < 2) errors.push("At least 2 outcome labels are required.");
+    if (outcomes.some((o) => !o.trim())) errors.push("All outcome labels must be filled in.");
+    if (!stakeEndAt) errors.push("Stake end time is required.");
+    if (!resolveAfterAt) errors.push("Resolve after time is required.");
+    if (stakeEndAt && resolveAfterAt) {
+      const stakeTs = parseLocalDateTimeToMs(stakeEndAt);
+      const resolveTs = parseLocalDateTimeToMs(resolveAfterAt);
+      if (resolveTs <= stakeTs) errors.push("Resolve after must be later than stake end.");
+    }
+    if (!imageFile) errors.push("Cover image is required.");
+    if (!slug.trim()) errors.push("Vanity slug is required.");
+    if (errors.length > 0) {
+      setDetailsValidationError(errors[0]!);
+      return;
+    }
+    setDetailsValidationError("");
+    setIsPreviewOpen(true);
+  };
+
   const openPreview = () => {
     const seed = Number(seedAmount);
     if (!Number.isFinite(seed) || seed < 40) {
@@ -324,7 +367,7 @@ export function CreateClient() {
     const cleanedThreshold = threshold.replaceAll(",", "").trim();
     const cleanOutcomes =
       marketKind === "event"
-        ? (eventMode === "binary" ? ["Yes", "No"] : outcomes.map((o) => o.trim()).filter(Boolean))
+        ? outcomes.map((o) => o.trim()).filter(Boolean)
         : ["YES", "NO"];
     if (cleanOutcomes.length < 2) {
       setSubmitStatus("Add at least 2 outcomes.");
@@ -443,15 +486,22 @@ export function CreateClient() {
         return;
       }
 
-      setSubmitStatus("Checking market allowance...");
-      const alreadyBootstrapped = (await publicClient.readContract({
-        address: createdMarket as `0x${string}`,
-        abi: MARKET_ABI,
-        functionName: "bootstrapped",
-      })) as boolean;
-      if (alreadyBootstrapped) {
-        setSubmitStatus("Market created, but liquidity was already seeded by another wallet.");
-        return;
+      // Brief wait for RPC to index the newly-deployed contract before reading state.
+      await new Promise((r) => setTimeout(r, 2000));
+
+      // Check if already bootstrapped — may transiently fail on fresh deployments; treat errors as "not yet bootstrapped".
+      try {
+        const alreadyBootstrapped = (await publicClient.readContract({
+          address: createdMarket as `0x${string}`,
+          abi: MARKET_ABI,
+          functionName: "bootstrapped",
+        })) as boolean;
+        if (alreadyBootstrapped) {
+          setSubmitStatus("Market created, but liquidity was already seeded by another wallet.");
+          return;
+        }
+      } catch {
+        // RPC hasn't indexed the new contract yet — safe to proceed with bootstrap.
       }
 
       const nOutcomes = Number(
@@ -532,7 +582,10 @@ export function CreateClient() {
         }
       })();
     } catch (error) {
-      setSubmitStatus(error instanceof Error ? error.message : "Transaction failed.");
+      const raw = error instanceof Error ? error.message : String(error);
+      // Strip verbose viem contract-call dumps — show only the first sentence.
+      const clean = raw.split("\n")[0]?.split("Contract Call:")[0]?.trim() ?? "Transaction failed.";
+      setSubmitStatus(`Error: ${clean}`);
     } finally {
       setIsSubmittingMarket(false);
     }
@@ -566,6 +619,7 @@ export function CreateClient() {
       eventMode: marketKind === "event" ? eventMode : null,
       question: marketKind === "price" ? generatedPricePrompt : title,
       categories: selectedCategories,
+      slug: slug || slugify(effectiveTitle),
       outcomes,
       image: imageToUse || null,
       priceConfig:
@@ -679,6 +733,7 @@ export function CreateClient() {
           </section>
 
           {marketKind === "event" ? (
+            <>
             <section className="py-8">
               <label className={labelClass} htmlFor="title">
                 Title
@@ -691,6 +746,23 @@ export function CreateClient() {
                 placeholder="Short market title"
               />
             </section>
+            <section className="py-8">
+              <label className={labelClass} htmlFor="slug">Vanity URL slug</label>
+              <div className="mt-2 flex overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] focus-within:border-[var(--accent)]">
+                <span className="flex items-center border-r border-[var(--border)] bg-[var(--card)] px-3 text-xs text-[var(--muted)] whitespace-nowrap select-none">
+                  aftrmarket.markets/m/
+                </span>
+                <input
+                  id="slug"
+                  value={slug}
+                  onChange={(e) => { setSlug(slugify(e.target.value)); setSlugManual(true); }}
+                  className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm font-mono text-[var(--foreground)] outline-none placeholder:text-[var(--muted)]"
+                  placeholder="my-market-slug"
+                />
+              </div>
+              <p className="mt-1.5 text-[11px] text-[var(--muted)]">Auto-generated from title. Edit to customise.</p>
+            </section>
+            </>
           ) : (
             <section className="py-8">
               <label className={labelClass}>Generated title</label>
@@ -741,6 +813,39 @@ export function CreateClient() {
                   </button>
                 ))}
               </div>
+            </section>
+          )}
+
+          {marketKind === "event" && (
+            <section className="py-8">
+              <label className={labelClass}>{eventMode === "binary" ? "Outcome labels" : "Options"}</label>
+              <div className="mt-3 space-y-3">
+                {(eventMode === "binary" ? outcomes.slice(0, 2) : outcomes).map((option, idx) => (
+                  <div key={idx} className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2">
+                    <span className="w-8 shrink-0 text-center text-xs font-semibold text-[var(--muted)]">
+                      {idx + 1}
+                    </span>
+                    <input
+                      className="w-full border-0 bg-transparent px-2 py-2 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)]"
+                      value={option}
+                      onChange={(e) => onChangeOutcome(idx, e.target.value)}
+                      placeholder={idx === 0 ? "Yes" : idx === 1 ? "No" : `Option ${idx + 1}`}
+                    />
+                    {eventMode === "multiple" && outcomes.length > 2 && (
+                      <button type="button" onClick={() => removeOutcome(idx)}
+                        className="h-8 w-8 shrink-0 rounded-lg border border-[var(--border)] text-lg leading-none text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--foreground)]">
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {eventMode === "multiple" && (
+                <button type="button" onClick={addOutcome}
+                  className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--muted)] hover:text-[var(--foreground)]">
+                  Add option
+                </button>
+              )}
             </section>
           )}
 
@@ -857,50 +962,7 @@ export function CreateClient() {
                 </p>
               </section>
             </>
-          ) : (
-            <>
-              {eventMode === "multiple" && (
-                <section className="py-8">
-                  <label className={labelClass}>Options</label>
-                  <div className="mt-3 space-y-3">
-                    {outcomes.map((option, idx) => (
-                      <div
-                        key={`${idx}-${option}`}
-                        className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2"
-                      >
-                        <span className="w-8 shrink-0 text-center text-xs font-semibold text-[var(--muted)]">
-                          {idx + 1}
-                        </span>
-                        <input
-                          className="w-full border-0 bg-transparent px-2 py-2 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)]"
-                          value={option}
-                          onChange={(e) => onChangeOutcome(idx, e.target.value)}
-                          placeholder={`Option ${idx + 1}`}
-                        />
-                        {outcomes.length > 2 && (
-                          <button
-                            type="button"
-                            onClick={() => removeOutcome(idx)}
-                            className="h-8 w-8 shrink-0 rounded-lg border border-[var(--border)] text-lg leading-none text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--foreground)]"
-                            aria-label={`Remove option ${idx + 1}`}
-                          >
-                            ×
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={addOutcome}
-                    className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
-                  >
-                    Add option
-                  </button>
-                </section>
-              )}
-            </>
-          )}
+          ) : null}
 
           <section className="py-8">
             <label className={labelClass}>Categories</label>
@@ -972,21 +1034,33 @@ export function CreateClient() {
           </section>
 
           <section className="py-10">
-            <button
-              type="button"
-              onClick={goToSeedStep}
-              disabled={isNextLoading}
-              className="mt-6 w-full rounded-full bg-[var(--accent)] py-3.5 text-sm font-semibold text-white transition hover:opacity-90 sm:w-auto sm:px-10"
-            >
-              {isNextLoading ? (
-                <span className="inline-flex items-center gap-2">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />
-                  Preparing...
-                </span>
-              ) : (
-                "Next"
-              )}
-            </button>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={goToSeedStep}
+                disabled={isNextLoading}
+                className="rounded-full bg-[var(--accent)] py-3.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60 sm:px-10 w-full sm:w-auto"
+              >
+                {isNextLoading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />
+                    Uploading...
+                  </span>
+                ) : (
+                  "Next"
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={openDetailsPreview}
+                className="rounded-full border border-[var(--border)] bg-[var(--surface)] py-3.5 text-sm font-semibold text-[var(--foreground)] transition hover:border-[var(--accent)] sm:px-8 w-full sm:w-auto"
+              >
+                Preview
+              </button>
+            </div>
+            {detailsValidationError && (
+              <p className="mt-3 text-xs text-red-400">{detailsValidationError}</p>
+            )}
             {timeValidationError && (
               <p className="mt-3 text-xs text-red-400">{timeValidationError}</p>
             )}
@@ -1058,11 +1132,14 @@ export function CreateClient() {
         effectiveTitle={effectiveTitle}
         description={description}
         selectedCategories={selectedCategories}
+        outcomes={outcomes}
+        slug={slug}
         stakeEndAt={stakeEndAt}
         resolveAfterAt={resolveAfterAt}
         seedAmount={seedAmount}
         umaAncillary={umaAncillary}
         metadataUri={metadataUri}
+        isReadOnly={!metadataUri}
         isSubmittingMarket={isSubmittingMarket}
         submitStatus={submitStatus}
         createdMarketAddress={createdMarketAddress}

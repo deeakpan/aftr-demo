@@ -1,17 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowsClockwise, BookmarkSimple, Gift, TrendUp } from "@phosphor-icons/react";
 import { formatUnits, parseAbi, parseUnits, zeroAddress } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import { AppLayout } from "@/app/components/app-layout";
-import { TradeModal } from "@/app/market/components/trade-modal";
+import { LimitOrderParams, TradeModal } from "@/app/market/components/trade-modal";
 import deployment from "@/deployments/baseSepolia-84532.json";
 
 const DEPLOYMENT_CHAIN_ID = deployment.chainId;
 const FACTORY_ADDRESS = deployment.contracts.AFTRParimutuelMarketFactory as `0x${string}`;
+const ORDERBOOK_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts.AFTROrderBook as `0x${string}`;
+const ORDERBOOK_ABI = parseAbi([
+  "function placeSellOrder(address market, address token, uint256 price, uint256 amount) returns (bytes32)",
+  "function placeBuyOrder(address market, address token, uint256 price, uint256 amount) payable returns (bytes32)",
+]);
 const FACTORY_ABI = parseAbi([
   "function marketsLength() view returns (uint256)",
   "function markets(uint256) view returns (address)",
@@ -30,6 +35,7 @@ const MARKET_ABI = parseAbi([
   "function collateralAddress() view returns (address)",
   "function priceBinLower(uint256) view returns (uint256)",
   "function priceBinUpper(uint256) view returns (uint256)",
+  "function outcomeToken(uint256) view returns (address)",
 ]);
 const ERC20_ABI = parseAbi([
   "function allowance(address owner, address spender) view returns (uint256)",
@@ -63,6 +69,7 @@ type UiMarket = {
   collateralDecimals: number;
   /** Formatted bin strings per outcome for price markets (Chainlink-style 8-decimal bounds). */
   priceBinByOutcome?: string[];
+  slug?: string;
 };
 
 type IpfsMetadata = {
@@ -70,6 +77,7 @@ type IpfsMetadata = {
   description?: string;
   image?: string;
   outcomes?: string[];
+  slug?: string;
 };
 
 function fmtTs(value: bigint) {
@@ -96,6 +104,17 @@ function stateLabel(state: number) {
 function clampPct(v: number) {
   if (!Number.isFinite(v)) return 50;
   return Math.max(0, Math.min(100, v));
+}
+
+function Tip({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <span className="group/tip relative inline-flex">
+      {children}
+      <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 rounded-md border border-white/10 bg-[#1a1a2e] px-2.5 py-1 text-[10px] font-medium tracking-wide text-zinc-200 opacity-0 shadow-lg transition-opacity duration-150 group-hover/tip:opacity-100 whitespace-nowrap">
+        {label}
+      </span>
+    </span>
+  );
 }
 
 function ipfsToHttp(uri: string) {
@@ -140,6 +159,25 @@ export function MarketClient() {
   const { address, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
   const [markets, setMarkets] = useState<UiMarket[]>([]);
+  const [tvlOverrides, setTvlOverrides] = useState<Record<string, string>>({});
+  const [tvlRefreshing, setTvlRefreshing] = useState<Record<string, boolean>>({});
+
+  const refreshTvl = async (m: UiMarket) => {
+    if (!publicClient || tvlRefreshing[m.address]) return;
+    setTvlRefreshing((p) => ({ ...p, [m.address]: true }));
+    try {
+      const pools = await Promise.all(
+        Array.from({ length: m.outcomes }, (_, i) =>
+          publicClient.readContract({ address: m.address as `0x${string}`, abi: MARKET_ABI, functionName: "realPool", args: [BigInt(i)] }) as Promise<bigint>
+        )
+      );
+      const total = pools.reduce((acc, v) => acc + v, BigInt(0));
+      const formatted = Number(formatUnits(total, m.collateralDecimals)).toLocaleString(undefined, { maximumFractionDigits: 2 });
+      setTvlOverrides((p) => ({ ...p, [m.address]: formatted }));
+    } catch { /* ignore */ } finally {
+      setTvlRefreshing((p) => ({ ...p, [m.address]: false }));
+    }
+  };
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [selectedMarket, setSelectedMarket] = useState<UiMarket | null>(null);
@@ -151,6 +189,7 @@ export function MarketClient() {
   const [collateralBalance, setCollateralBalance] = useState<bigint | null>(null);
   const [collateralAllowance, setCollateralAllowance] = useState<bigint | null>(null);
   const [tradeSlippageBps, setTradeSlippageBps] = useState(200);
+  const [outcomeTokenForTrade, setOutcomeTokenForTrade] = useState<`0x${string}` | null>(null);
   /** Bumps on an interval while the trade modal is open so expiry / stake-end disables react to wall clock. */
   const [tradeModalClock, setTradeModalClock] = useState(0);
   /** Bumps on an interval so expired markets disappear from the list without a manual refresh. */
@@ -288,6 +327,7 @@ export function MarketClient() {
               kind: isPrice ? "Price" : "Event",
               outcomes: outcomeCount,
               outcomeLabels: safeOutcomeLabels,
+              slug: md?.slug?.trim() || undefined,
               title: md?.title?.trim() || `${isPrice ? "Price" : "Event"} market`,
               description: md?.description?.trim() || "No description provided.",
               imageUrl: ipfsToHttp(md?.image?.trim() || ""),
@@ -320,6 +360,24 @@ export function MarketClient() {
     };
     void run();
   }, [publicClient]);
+
+  // Fetch outcome token address when selected market/outcome changes (needed for limit orders)
+  useEffect(() => {
+    if (!selectedMarket || !publicClient) { setOutcomeTokenForTrade(null); return; }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = (await publicClient.readContract({
+          address: selectedMarket.address,
+          abi: MARKET_ABI,
+          functionName: "outcomeToken",
+          args: [BigInt(selectedOutcome)],
+        })) as `0x${string}`;
+        if (!cancelled) setOutcomeTokenForTrade(token);
+      } catch { if (!cancelled) setOutcomeTokenForTrade(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedMarket, selectedOutcome, publicClient]);
 
   useEffect(() => {
     if (!selectedMarket) return;
@@ -493,6 +551,54 @@ export function MarketClient() {
       : `Approve first · ${cur} ${tick} allowance, need ${req} ${tick}`;
   }, [selectedMarket, address, collateralAllowance, tradeSummary, isNativeCollateral]);
 
+  const submitLimitOrderFromParams = async (params: LimitOrderParams) => {
+    if (!selectedMarket || !publicClient || !walletClient || !address) throw new Error("Connect wallet first.");
+    if (chainId !== DEPLOYMENT_CHAIN_ID) throw new Error(`Switch to Base Sepolia (${DEPLOYMENT_CHAIN_ID}).`);
+    if (!outcomeTokenForTrade) throw new Error("Fetching token address — try again.");
+    const priceNum = Number(params.price);
+    const amountNum = Number(params.amount);
+    if (!Number.isFinite(priceNum) || priceNum <= 0) throw new Error("Enter a valid price.");
+    if (!Number.isFinite(amountNum) || amountNum <= 0) throw new Error("Enter a valid amount.");
+    const dec = selectedMarket.collateralDecimals;
+    const priceUnits = parseUnits(params.price, dec);
+    const amountUnits = parseUnits(params.amount, dec);
+    if (params.side === "sell") {
+      const allowance = (await publicClient.readContract({
+        address: outcomeTokenForTrade, abi: ERC20_ABI, functionName: "allowance", args: [address, ORDERBOOK_ADDRESS],
+      })) as bigint;
+      if (allowance < amountUnits) {
+        const h = await walletClient.writeContract({
+          chain: walletClient.chain, address: outcomeTokenForTrade, abi: ERC20_ABI,
+          functionName: "approve", args: [ORDERBOOK_ADDRESS, amountUnits], account: address,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: h });
+      }
+      const tx = await walletClient.writeContract({
+        chain: walletClient.chain, address: ORDERBOOK_ADDRESS, abi: ORDERBOOK_ABI,
+        functionName: "placeSellOrder", args: [selectedMarket.address, outcomeTokenForTrade, priceUnits, amountUnits], account: address,
+      });
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+    } else {
+      const notional = (amountUnits * priceUnits) / BigInt(10 ** dec);
+      const escrow = notional + (notional * BigInt(50)) / BigInt(10000);
+      const allowance = (await publicClient.readContract({
+        address: selectedMarket.collateralAddress, abi: ERC20_ABI, functionName: "allowance", args: [address, ORDERBOOK_ADDRESS],
+      })) as bigint;
+      if (allowance < escrow) {
+        const h = await walletClient.writeContract({
+          chain: walletClient.chain, address: selectedMarket.collateralAddress, abi: ERC20_ABI,
+          functionName: "approve", args: [ORDERBOOK_ADDRESS, escrow], account: address,
+        });
+        await publicClient.waitForTransactionReceipt({ hash: h });
+      }
+      const tx = await walletClient.writeContract({
+        chain: walletClient.chain, address: ORDERBOOK_ADDRESS, abi: ORDERBOOK_ABI,
+        functionName: "placeBuyOrder", args: [selectedMarket.address, outcomeTokenForTrade, priceUnits, amountUnits], account: address,
+      });
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+    }
+  };
+
   const openTrade = (market: UiMarket, outcomeIndex: number) => {
     setSelectedMarket(market);
     setSelectedOutcome(outcomeIndex);
@@ -598,20 +704,11 @@ export function MarketClient() {
               return (
                 <article
                   key={m.address}
-                  role="link"
-                  tabIndex={0}
-                  onClick={() => router.push(`/market/${m.address}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      router.push(`/market/${m.address}`);
-                    }
-                  }}
-                  className="cursor-pointer overflow-hidden rounded-2xl border border-[#2a3243] bg-[#111827] p-0 shadow-[0_10px_28px_rgba(2,6,23,0.4)] transition hover:border-[#3a4761]"
+                  className="overflow-hidden rounded-2xl border border-[#2a3243] bg-[#111827] p-0 shadow-[0_10px_28px_rgba(2,6,23,0.4)] transition hover:border-[#3a4761]"
                 >
-                <div className="h-[5.5rem] w-full overflow-hidden border-b border-[#212a3a] bg-[#0d1422]">
+                <div className="aspect-[16/7] w-full overflow-hidden border-b border-[#212a3a] bg-[#0d1422]">
                   {m.imageUrl ? (
-                    <img src={m.imageUrl} alt={m.title} className="h-full w-full object-cover" />
+                    <img src={m.imageUrl} alt={m.title} className="h-full w-full object-cover object-center" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-[11px] text-slate-400">
                       No image
@@ -620,9 +717,15 @@ export function MarketClient() {
                 </div>
 
                 <div className="p-2.5">
-                  <p className="line-clamp-2 text-base leading-snug font-semibold text-white">
+                  <p
+                    className="line-clamp-2 cursor-pointer text-base leading-snug font-semibold text-white underline-offset-2 hover:underline"
+                    onClick={() => router.push(`/market/${m.address}`)}
+                  >
                     {m.title}
                   </p>
+                  {m.slug && (
+                    <p className="mt-0.5 font-mono text-[10px] text-slate-600">/{m.slug}</p>
+                  )}
 
                   <div className="mt-2 flex items-center justify-between text-xs font-semibold">
                     <span className="text-emerald-400">{chance.toFixed(0)}%</span>
@@ -657,17 +760,22 @@ export function MarketClient() {
                 </div>
 
                 <div className="flex items-center justify-between border-t border-[#212a3a] bg-[#0f1727] px-2.5 py-1.5 text-[11px] text-slate-300">
-                  <div className="flex items-center gap-1.5 font-semibold">
-                    <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-[#4f7cff] to-[#6dff8e]" />
-                    +${m.poolTvl}
-                  </div>
+                  <Tip label="Total Value Locked">
+                    <div className="inline-flex items-center gap-1.5 font-semibold">
+                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-[#4f7cff] to-[#6dff8e]" />
+                      ${m.poolTvl}
+                    </div>
+                  </Tip>
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-0.5">
-                      <ArrowsClockwise size={12} /> ${m.poolTvl}
-                    </span>
-                    <span className="inline-flex items-center gap-0.5">
-                      <Gift size={12} /> {m.resolveAfter}
-                    </span>
+                    <Tip label="Refresh TVL">
+                      <button type="button" onClick={(e) => { e.stopPropagation(); void refreshTvl(m); }}
+                        className="inline-flex items-center transition hover:text-white">
+                        <ArrowsClockwise size={12} className={tvlRefreshing[m.address] ? "animate-spin" : ""} />
+                      </button>
+                    </Tip>
+                    <Tip label="Resolves after">
+                      <span className="inline-flex items-center gap-0.5"><Gift size={12} /> {m.resolveAfter}</span>
+                    </Tip>
                     <BookmarkSimple size={12} />
                   </div>
                 </div>
@@ -719,6 +827,7 @@ export function MarketClient() {
         onSubmit={() => {
           void submitTrade();
         }}
+        onSubmitLimit={submitLimitOrderFromParams}
       />
     </AppLayout>
   );

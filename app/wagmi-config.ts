@@ -1,5 +1,6 @@
 import { defaultWagmiConfig } from "@web3modal/wagmi/react/config";
 import { cookieStorage, createStorage } from "wagmi";
+import { http } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 
 const envProjectId = (process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "").trim();
@@ -14,6 +15,8 @@ const metadata = {
   url: appUrl,
   icons: [] as string[],
 };
+
+const customRpc = (process.env.NEXT_PUBLIC_RPC_URL ?? "").trim();
 
 const chains = [baseSepolia] as const;
 
@@ -32,4 +35,5 @@ export const wagmiConfig = defaultWagmiConfig({
     key: "aftr-wagmi",
   }),
   auth: { email: false, socials: [] },
+  ...(customRpc ? { transports: { [baseSepolia.id]: http(customRpc) } } : {}),
 });

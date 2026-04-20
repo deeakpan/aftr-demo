@@ -88,6 +88,12 @@ async function main() {
   await (await factory.addSupportedCollateral(tradingTokenAddress)).wait();
   console.log("Enabled trading collateral (AFTRUSDC):", tradingTokenAddress);
 
+  const OrderBook = await hre.ethers.getContractFactory("AFTROrderBook");
+  const orderBook = await OrderBook.deploy(factoryAddress, deployer.address, deployer.address);
+  await orderBook.waitForDeployment();
+  const orderBookAddress = await orderBook.getAddress();
+  console.log("AFTROrderBook:", orderBookAddress);
+
   console.log("\n--- Event markets ---");
   console.log("Trading / pool collateral: AFTRUSDC at", tradingTokenAddress);
   console.log("UMA: fund with Circle USDC; umaRewardCurrency=0 uses factory default →", BASE_SEPOLIA_CIRCLE_USDC);
@@ -102,6 +108,7 @@ async function main() {
       AFTRUSDC: tradingTokenAddress,
       AFTRParimutuelMarketFactory: factoryAddress,
       AFTRParimutuelDeployer: marketDeployerAddress,
+      AFTROrderBook: orderBookAddress,
     },
     external: {
       optimisticOracleV2,

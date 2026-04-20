@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 /// @title OrderBookLinkedList
 /// @notice Linked list library for managing order queues in the order book
+/// @dev All functions are internal — inlined into the caller, no DELEGATECALL.
 library OrderBookLinkedList {
     struct Order {
         address seller;
@@ -21,11 +22,17 @@ library OrderBookLinkedList {
         mapping(bytes32 => OrderBookLinkedList.Node) nodes;
     }
 
-    function initHead(LinkedList storage self, address _seller, uint256 _amount) public returns (bytes32) {
+    function initHead(
+        LinkedList storage self,
+        address _seller,
+        uint256 _amount
+    ) internal returns (bytes32) {
         Order memory o = Order(_seller, _amount);
         Node memory n = Node(0, o);
 
-        bytes32 id = keccak256(abi.encodePacked(_seller, _amount, self.length, block.timestamp, block.prevrandao));
+        bytes32 id = keccak256(
+            abi.encodePacked(_seller, _amount, self.length, block.timestamp, block.prevrandao)
+        );
 
         self.nodes[id] = n;
         self.head = id;
@@ -35,19 +42,29 @@ library OrderBookLinkedList {
         return id;
     }
 
-    function getNode(LinkedList storage self, bytes32 _id) public view returns (Node memory) {
+    function getNode(LinkedList storage self, bytes32 _id)
+        internal
+        view
+        returns (Node memory)
+    {
         return self.nodes[_id];
     }
 
-    function getLength(LinkedList storage self) public view returns (uint256) {
+    function getLength(LinkedList storage self) internal view returns (uint256) {
         return self.length;
     }
 
-    function addNode(LinkedList storage self, address _seller, uint256 _amount) public returns (bytes32) {
+    function addNode(
+        LinkedList storage self,
+        address _seller,
+        uint256 _amount
+    ) internal returns (bytes32) {
         Order memory o = Order(_seller, _amount);
         Node memory n = Node(0, o);
 
-        bytes32 id = keccak256(abi.encodePacked(_seller, _amount, self.length, block.timestamp, block.prevrandao));
+        bytes32 id = keccak256(
+            abi.encodePacked(_seller, _amount, self.length, block.timestamp, block.prevrandao)
+        );
 
         self.nodes[id] = n;
         self.nodes[self.tail].next = id;
@@ -56,7 +73,7 @@ library OrderBookLinkedList {
         return id;
     }
 
-    function popHead(LinkedList storage self) public returns (bool) {
+    function popHead(LinkedList storage self) internal returns (bool) {
         bytes32 currHead = self.head;
 
         self.head = self.nodes[currHead].next;
@@ -66,9 +83,15 @@ library OrderBookLinkedList {
         return true;
     }
 
-    function deleteNode(LinkedList storage self, bytes32 _id) public returns (bool) {
+    function deleteNode(LinkedList storage self, bytes32 _id)
+        internal
+        returns (bool)
+    {
         if (self.head == _id) {
-            require(self.nodes[_id].order.seller == msg.sender, "Unauthorised to delete this order.");
+            require(
+                self.nodes[_id].order.seller == msg.sender,
+                "Unauthorised to delete this order."
+            );
             popHead(self);
             return true;
         }
@@ -78,7 +101,10 @@ library OrderBookLinkedList {
 
         for (uint256 i = 1; i < self.length; i++) {
             if (curr == _id) {
-                require(self.nodes[_id].order.seller == msg.sender, "Unauthorised to delete this order.");
+                require(
+                    self.nodes[_id].order.seller == msg.sender,
+                    "Unauthorised to delete this order."
+                );
                 self.nodes[prev].next = self.nodes[curr].next;
                 delete self.nodes[curr];
                 self.length -= 1;
