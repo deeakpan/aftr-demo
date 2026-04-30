@@ -11,6 +11,11 @@ import "../interfaces/IAFTRAggregatorV3.sol";
 import "../interfaces/IAFTROptimisticOracleV2.sol";
 import "../config/AFTRUmaIdentifiers.sol";
 
+interface IDRPDebtRepay {
+    function usdead() external view returns (address);
+    function repayDebt(address user, address token, uint256 amountDebtToBurn) external;
+}
+
 /// @title AFTRVParimutuelMarket
 /// @notice vPari: virtual + real pricing; native ETH (collateral address(0)) or ERC20; multi-outcome PRICE via bins.
 contract AFTRVParimutuelMarket is Ownable2Step, ReentrancyGuard {
@@ -105,6 +110,15 @@ contract AFTRVParimutuelMarket is Ownable2Step, ReentrancyGuard {
     );
     event MarketSettled(uint256 winningOutcomeIndex, uint256 feeFromLosers, uint256 distributableToWinners);
     event TokensRedeemed(address indexed user, uint8 indexed outcomeIndex, uint256 shares, uint256 payout);
+    event TokensRedeemedAndDebtRepayAttempted(
+        address indexed user,
+        uint8 indexed outcomeIndex,
+        uint256 shares,
+        uint256 payout,
+        address indexed drp,
+        address vaultCollateralToken,
+        uint256 debtRequestedToBurn
+    );
     event UmaResolutionRequested(uint256 timestamp, bytes ancillaryData, uint256 reward);
     event UmaBondFunded(address indexed from, address indexed currency, uint256 amount);
     event LiquidityBootstrapped(
@@ -134,6 +148,8 @@ contract AFTRVParimutuelMarket is Ownable2Step, ReentrancyGuard {
     error InvalidShareRecipient();
     /// @notice UMA settled to type(int256).min (too early) or type(int256).max (no answer) per UMIP-181 / OO conventions.
     error UmaInvalidResolution();
+    error InvalidDrp();
+    error InvalidDebtRepayToken();
 
     modifier onlyFactory() {
         if (msg.sender != factory) revert OnlyFactory();
@@ -431,6 +447,49 @@ contract AFTRVParimutuelMarket is Ownable2Step, ReentrancyGuard {
 
         _outcomeTokens[outcomeIndex].burnFrom(msg.sender, shareAmount);
         _sendCollateral(msg.sender, payout);
+
+        emit TokensRedeemed(msg.sender, outcomeIndex, shareAmount, payout);
+    }
+
+    /// @notice Redeem winning shares, then attempt DRP debt repayment in the same tx.
+    /// @dev Requires market collateral to be USDeAD and DRP manager permissions configured for this market.
+    function redeemAndRepayDebt(
+        uint8 outcomeIndex,
+        uint256 shareAmount,
+        address drp,
+        address vaultCollateralToken,
+        uint256 debtToBurn
+    ) external nonReentrant {
+        if (!initialized) revert NotInitialized();
+        if (state != MarketState.SETTLED) revert InvalidState();
+        if (shareAmount == 0) revert ZeroShares();
+        if (outcomeIndex >= numOutcomes) revert InvalidOutcome();
+        if (outcomeIndex != uint8(winningOutcomeIndex)) revert InvalidOutcome();
+        if (redemptionRate == 0) revert NoRedemption();
+        if (drp == address(0)) revert InvalidDrp();
+
+        if (collateralAddress == address(0) || collateralAddress != IDRPDebtRepay(drp).usdead()) {
+            revert InvalidDebtRepayToken();
+        }
+
+        uint256 payout = (shareAmount * redemptionRate) / 1e18;
+        require(payout > 0, "Payout");
+
+        _outcomeTokens[outcomeIndex].burnFrom(msg.sender, shareAmount);
+        _sendCollateral(msg.sender, payout);
+
+        IDRPDebtRepay(drp).repayDebt(msg.sender, vaultCollateralToken, debtToBurn);
+
+        emit TokensRedeemed(msg.sender, outcomeIndex, shareAmount, payout);
+        emit TokensRedeemedAndDebtRepayAttempted(
+            msg.sender,
+            outcomeIndex,
+            shareAmount,
+            payout,
+            drp,
+            vaultCollateralToken,
+            debtToBurn
+        );
     }
 
     function _sendCollateral(address to, uint256 amount) private {

@@ -9,6 +9,9 @@
     "lint": "eslint",
     "hh:compile": "hardhat compile",
     "deploy:aftr-pari-factory": "hardhat run scripts/deploy-aftr-factory.cjs",
+    "deploy:aftr-router": "hardhat run scripts/deploy-aftr-router.cjs",
+    "deploy:drp-stack": "hardhat run scripts/deploy-drp-stack.cjs",
+    "drp:borrow-two-wallets": "hardhat run scripts/drp-borrow-two-wallets.cjs --network baseSepolia",
     "uma:identifiers": "node scripts/uma-identifier-whitelist.cjs",
     "uma:check-identifier": "node scripts/uma-identifier-whitelist.cjs check",
     "uma:build-mcq-ancillary": "node scripts/build-mcq-ancillary.cjs",
@@ -18,7 +21,11 @@
     "market:fund": "node scripts/fund-market.cjs",
     "market:propose": "node scripts/propose-market.cjs",
     "market:settle": "node scripts/settle-market.cjs",
-    "send:usdc": "node scripts/send-usdc.cjs"
+    "send:usdc": "node scripts/send-usdc.cjs",
+    "indexer:dev": "npm run dev --prefix indexer",
+    "indexer:build": "npm run build --prefix indexer",
+    "subgraph:codegen": "npm run codegen --prefix subgraph",
+    "subgraph:build": "npm run build --prefix subgraph"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

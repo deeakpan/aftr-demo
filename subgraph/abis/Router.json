@@ -1,0 +1,43 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "user", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "market", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "collateralToken", "type": "address" },
+      { "indexed": false, "internalType": "uint8", "name": "outcomeIndex", "type": "uint8" },
+      { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "minSharesOut", "type": "uint256" }
+    ],
+    "name": "RouterDeposited",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "user", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "market", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "collateralToken", "type": "address" },
+      { "indexed": false, "internalType": "uint8", "name": "outcomeIndex", "type": "uint8" },
+      { "indexed": false, "internalType": "uint256", "name": "shareAmount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "payoutAmount", "type": "uint256" }
+    ],
+    "name": "RouterRedeemed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "user", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "market", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "drp", "type": "address" },
+      { "indexed": false, "internalType": "uint8", "name": "outcomeIndex", "type": "uint8" },
+      { "indexed": false, "internalType": "uint256", "name": "shareAmount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "payoutAmount", "type": "uint256" },
+      { "indexed": false, "internalType": "address", "name": "vaultCollateralToken", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "debtToBurn", "type": "uint256" }
+    ],
+    "name": "RouterRedeemedAndRepaid",
+    "type": "event"
+  }
+]

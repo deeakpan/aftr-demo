@@ -3,10 +3,12 @@
   "deployer": "0x68ac96Ce64D62386b1A5E2DFf8f0F01fEEd46E09",
   "feeRecipient": "0x68ac96Ce64D62386b1A5E2DFf8f0F01fEEd46E09",
   "contracts": {
-    "AFTRUSDC": "0xB987C1e7575DAdEd76ce7892000dE4728e89d7F8",
-    "AFTRParimutuelMarketFactory": "0x850321ed542bE14ce76a40Fd5BadFb7cD95F6857",
-    "AFTRParimutuelDeployer": "0xd05f48c54D12C8b5849c7D66F6055AcD67C41473",
-    "AFTROrderBook": "0xDDb45e666b3A822e9ACA8df641130604fab0819a"
+    "AFTRUSDC": "0x0869734879BD58aE45aD59430Ed42996934f5A6F",
+    "AFTRParimutuelMarketFactory": "0x94F39b3765a03f3e59b5eB1f4d9aE6Bc7Cc31Fba",
+    "AFTRParimutuelDeployer": "0x73FE3823DbdFA4Bf264129955A3E043A27320D64",
+    "AFTROrderBook": "0x547A29cB21de35dC910D2Ba4ACe5E3d789630e93",
+    "AFTRMarketDebtRouter": "0xf48e02Bf6CFCFFE0EC1Ec489dcc11555073679b4",
+    "DRP": "0x34a31ccc2bc660d17Ea91eBc5868397dd732fA64"
   },
   "external": {
     "optimisticOracleV2": "0x99EC530a761E68a377593888D9504002Bd191717",
@@ -14,9 +16,9 @@
   },
   "suggestedUmaReward": "500000",
   "notes": {
-    "tradingCollateral": "AFTRUSDC",
+    "tradingCollateral": "USDeAD",
     "umaRewardToken": "Circle Base Sepolia USDC when umaRewardCurrency is address(0) on factory"
   },
   "network": "baseSepolia",
-  "deployedAt": "2026-04-17T15:39:27.075Z"
+  "deployedAt": "2026-04-29T12:28:29.946Z"
 }

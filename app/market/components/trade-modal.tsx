@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { CheckCircle, PencilSimple, WarningCircle, X } from "@phosphor-icons/react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowsClockwise, CheckCircle, PencilSimple, WarningCircle, X } from "@phosphor-icons/react";
 import { formatUnits } from "viem";
 
 export type LimitOrderParams = {
@@ -28,6 +28,7 @@ type TradeModalProps = {
   amount: string;
   setAmount: (v: string) => void;
   walletBalanceWei: bigint | null;
+  outcomeTokenBalanceWei?: bigint | null;
   priceOfRaw: bigint | null;
   tokensFormatted: string | null;
   pricePerTokenLabel: string | null;
@@ -46,6 +47,7 @@ type TradeModalProps = {
 };
 
 const QUICK_AMOUNTS = ["10", "25", "50", "100"] as const;
+const ORDERBOOK_FEE_BPS = 50; // 0.5% per side, matches AFTROrderBook default.
 
 export function TradeModal({
   open,
@@ -63,6 +65,7 @@ export function TradeModal({
   amount,
   setAmount,
   walletBalanceWei,
+  outcomeTokenBalanceWei = null,
   priceOfRaw,
   tokensFormatted,
   pricePerTokenLabel,
@@ -82,15 +85,20 @@ export function TradeModal({
   const [limitSide, setLimitSide] = useState<"buy" | "sell">("buy");
   const [limitPrice, setLimitPrice] = useState("");
   const [limitAmount, setLimitAmount] = useState("");
+  const [limitAmountUnit, setLimitAmountUnit] = useState<"tokens" | "quote">("tokens");
   const [limitStatus, setLimitStatus] = useState("");
   const [limitBusy, setLimitBusy] = useState(false);
-
-  if (!inline && !open) return null;
 
   const labels = outcomeLabels.length > 0 ? outcomeLabels : ["Outcome 0"];
   const balanceNum = walletBalanceWei != null ? Number(formatUnits(walletBalanceWei, collateralDecimals)) : null;
   const balanceFormatted = balanceNum != null
     ? balanceNum.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    : null;
+  const tokenBalanceNum = outcomeTokenBalanceWei != null
+    ? Number(formatUnits(outcomeTokenBalanceWei, collateralDecimals))
+    : null;
+  const tokenBalanceFormatted = tokenBalanceNum != null
+    ? tokenBalanceNum.toLocaleString(undefined, { maximumFractionDigits: 4 })
     : null;
   const selectedLabel = labels[selectedOutcomeIndex] ?? labels[0] ?? "Outcome";
   const hasTradeAmount = Boolean(tokensFormatted);
@@ -100,16 +108,97 @@ export function TradeModal({
       ? `Approve & Buy ${selectedLabel}`
       : `Buy ${selectedLabel}`;
 
-  const limitTotal = limitPrice && limitAmount && Number(limitPrice) > 0 && Number(limitAmount) > 0
-    ? (Number(limitPrice) * Number(limitAmount)).toFixed(2)
-    : null;
+  const limitDerived = useMemo(() => {
+    const p = Number(limitPrice);
+    const a = Number(limitAmount);
+    if (!Number.isFinite(p) || !Number.isFinite(a) || p <= 0 || a <= 0) {
+      return { notionalUsdc: null as string | null, tokens: null as string | null };
+    }
+    if (limitAmountUnit === "tokens") {
+      return {
+        notionalUsdc: (p * a).toFixed(2),
+        tokens: a.toFixed(4),
+      };
+    }
+    return {
+      notionalUsdc: a.toFixed(2),
+      tokens: (a / p).toFixed(4),
+    };
+  }, [limitAmount, limitAmountUnit, limitPrice]);
+  const minReceive = useMemo(() => {
+    if (!limitDerived.notionalUsdc || !limitDerived.tokens) return null;
+    const notional = Number(limitDerived.notionalUsdc);
+    const tokens = Number(limitDerived.tokens);
+    if (!Number.isFinite(notional) || !Number.isFinite(tokens) || notional <= 0 || tokens <= 0) return null;
+    if (limitSide === "sell") {
+      const netUsdc = notional * (1 - ORDERBOOK_FEE_BPS / 10000);
+      return {
+        label: "Min receive",
+        value: collateralTicker === "USDC" ? `$${netUsdc.toFixed(2)} USDC` : `${netUsdc.toFixed(2)} ${collateralTicker}`,
+      };
+    }
+    return {
+      label: "Min receive",
+      value: `${tokens.toFixed(4)} tokens`,
+    };
+  }, [limitDerived.notionalUsdc, limitDerived.tokens, limitSide]);
+  const sellValidationMessage = useMemo(() => {
+    if (limitSide !== "sell") return "";
+    const p = Number(limitPrice);
+    const a = Number(limitAmount);
+    const tokenBal = tokenBalanceNum;
+    if (!Number.isFinite(p) || !Number.isFinite(a) || p <= 0 || a <= 0 || tokenBal === null) return "";
+    const sellTokens = limitAmountUnit === "tokens" ? a : a / p;
+    if (!Number.isFinite(sellTokens) || sellTokens <= 0) return "";
+    if (sellTokens > tokenBal) {
+      if (limitAmountUnit === "tokens") {
+        return `Insufficient ${selectedLabel} balance. Max: ${tokenBal.toFixed(4)} tokens.`;
+      }
+      const maxUsdc = tokenBal * p;
+      return collateralTicker === "USDC"
+        ? `Insufficient ${selectedLabel} balance. Max sell value at this price: $${maxUsdc.toFixed(2)} USDC.`
+        : `Insufficient ${selectedLabel} balance. Max sell value at this price: ${maxUsdc.toFixed(2)} ${collateralTicker}.`;
+    }
+    return "";
+  }, [limitSide, limitPrice, limitAmount, limitAmountUnit, tokenBalanceNum, selectedLabel]);
+  const marketPrice = useMemo(() => {
+    if (!priceOfRaw || priceOfRaw <= BigInt(0)) return null;
+    const n = Number(formatUnits(priceOfRaw, 18));
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return n;
+  }, [priceOfRaw]);
+
+  useEffect(() => {
+    if (!marketPrice) return;
+    const base = limitSide === "sell" ? marketPrice * 0.99 : marketPrice;
+    setLimitPrice(base.toFixed(4));
+    // Prefill when side/outcome/price context changes; field stays editable.
+  }, [limitSide, selectedOutcomeIndex, marketPrice]);
+
+  if (!inline && !open) return null;
 
   const handleLimitSubmit = async () => {
     if (!onSubmitLimit || limitBusy) return;
     setLimitBusy(true);
     setLimitStatus("");
     try {
-      await onSubmitLimit({ side: limitSide, outcomeIndex: selectedOutcomeIndex, price: limitPrice, amount: limitAmount });
+      const priceNum = Number(limitPrice);
+      const amountNum = Number(limitAmount);
+      const tokensAmount =
+        limitAmountUnit === "tokens" ? amountNum : amountNum / priceNum;
+      if (limitSide === "sell" && tokenBalanceNum !== null && tokensAmount > tokenBalanceNum) {
+        throw new Error(
+          limitAmountUnit === "tokens"
+            ? `Amount exceeds token balance (${tokenBalanceNum.toFixed(4)}).`
+            : `Amount exceeds sellable value at this price.`,
+        );
+      }
+      await onSubmitLimit({
+        side: limitSide,
+        outcomeIndex: selectedOutcomeIndex,
+        price: limitPrice,
+        amount: tokensAmount.toString(),
+      });
       setLimitStatus("Order placed.");
       setLimitPrice("");
       setLimitAmount("");
@@ -186,14 +275,14 @@ export function TradeModal({
         <>
           {/* Amount input */}
           <div>
-            <div className="flex overflow-hidden rounded-lg border border-white/[0.08] bg-zinc-800/40 transition focus-within:border-[var(--accent)]/35">
+            <div className="flex overflow-hidden rounded-xl border border-white/10 bg-transparent transition focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/20">
               <input
                 type="text" inputMode="decimal" autoComplete="off"
                 value={amount} onChange={(e) => setAmount(e.target.value)}
                 placeholder="0"
-                className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm font-semibold tabular-nums text-white outline-none placeholder:text-zinc-700"
+                className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm font-semibold tabular-nums text-white outline-none placeholder:text-zinc-600"
               />
-              <div className="flex items-center border-l border-white/[0.07] bg-zinc-800/30 px-3 text-[10px] font-semibold uppercase tracking-wide text-zinc-600">
+              <div className="flex items-center border-l border-white/10 bg-transparent px-3 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
                 {collateralTicker}
               </div>
             </div>
@@ -266,42 +355,81 @@ export function TradeModal({
               <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
                 Price per token
               </label>
-              <div className="flex overflow-hidden rounded-lg border border-white/[0.08] bg-zinc-800/40 transition focus-within:border-[var(--accent)]/35">
+              <div className="flex overflow-hidden rounded-xl border border-white/10 bg-transparent transition focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/20">
                 <input type="text" inputMode="decimal" value={limitPrice} onChange={(e) => setLimitPrice(e.target.value)}
                   placeholder="0.50"
-                  className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm font-semibold text-white outline-none placeholder:text-zinc-700" />
-                <div className="flex items-center border-l border-white/[0.07] bg-zinc-800/30 px-3 text-[10px] font-semibold uppercase tracking-wide text-zinc-600">
-                  USDC
+                  className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm font-semibold text-white outline-none placeholder:text-zinc-600" />
+                <div className="flex items-center border-l border-white/10 bg-transparent px-3 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                  {collateralTicker}
                 </div>
               </div>
+              <p className="mt-1 text-[10px] text-zinc-700">
+                Market: <span className="font-mono text-zinc-500">{marketPrice != null ? (collateralTicker === "USDC" ? `$${marketPrice.toFixed(4)} USDC` : `${marketPrice.toFixed(4)} ${collateralTicker}`) : "—"}</span>
+              </p>
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
-                Amount
-              </label>
-              <div className="flex overflow-hidden rounded-lg border border-white/[0.08] bg-zinc-800/40 transition focus-within:border-[var(--accent)]/35">
+              <div className="mb-1 flex items-center justify-between">
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+                  Amount
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setLimitAmountUnit((u) => (u === "tokens" ? "quote" : "tokens"))}
+                  className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 transition hover:text-zinc-300"
+                  title="Switch amount unit"
+                >
+                  <ArrowsClockwise size={11} weight="bold" />
+                  {limitAmountUnit === "tokens" ? "TOKENS" : collateralTicker}
+                </button>
+              </div>
+              <div className="flex overflow-hidden rounded-xl border border-white/10 bg-transparent transition focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/20">
                 <input type="text" inputMode="decimal" value={limitAmount} onChange={(e) => setLimitAmount(e.target.value)}
-                  placeholder="100"
-                  className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm font-semibold text-white outline-none placeholder:text-zinc-700" />
-                <div className="flex items-center border-l border-white/[0.07] bg-zinc-800/30 px-3 text-[10px] font-semibold uppercase tracking-wide text-zinc-600">
-                  TOKENS
+                  placeholder={limitAmountUnit === "tokens" ? "100" : "50"}
+                  className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm font-semibold text-white outline-none placeholder:text-zinc-600" />
+                <div className="flex items-center border-l border-white/10 bg-transparent px-3 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                  {limitAmountUnit === "tokens" ? "TOKENS" : collateralTicker}
                 </div>
               </div>
+              <p className="mt-1 text-[10px] text-zinc-700">
+                Balance:{" "}
+                <span className="font-mono text-zinc-500">
+                  {limitAmountUnit === "tokens"
+                    ? (tokenBalanceFormatted ?? "—")
+                    : collateralTicker === "USDC"
+                      ? `$${balanceFormatted ?? "—"}`
+                      : `${balanceFormatted ?? "—"} ${collateralTicker}`}
+                </span>
+              </p>
+              {limitSide === "sell" && sellValidationMessage && (
+                <p className="mt-1 text-[10px] text-rose-400">{sellValidationMessage}</p>
+              )}
             </div>
-            {limitTotal && (
+            {limitDerived.notionalUsdc && (
               <div className="flex items-center justify-between text-[10px]">
                 <span className="text-zinc-600">Total</span>
                 <span className="font-mono text-zinc-400">
-                  ${limitTotal}{" "}
+                  {collateralTicker === "USDC" ? `$${limitDerived.notionalUsdc}` : `${limitDerived.notionalUsdc} ${collateralTicker}`}{" "}
                   <span className="text-zinc-700">+ 0.5% fee</span>
                 </span>
+              </div>
+            )}
+            {limitDerived.tokens && (
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-zinc-600">Est. tokens</span>
+                <span className="font-mono text-zinc-400">{limitDerived.tokens}</span>
+              </div>
+            )}
+            {minReceive && (
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-zinc-600">{minReceive.label}</span>
+                <span className="font-mono text-zinc-400">{minReceive.value}</span>
               </div>
             )}
           </div>
 
           {limitStatus && <p className="text-center text-[10px] text-zinc-600">{limitStatus}</p>}
 
-          <button type="button" disabled={limitBusy || !onSubmitLimit} onClick={() => void handleLimitSubmit()}
+          <button type="button" disabled={limitBusy || !onSubmitLimit || Boolean(sellValidationMessage)} onClick={() => void handleLimitSubmit()}
             className={`w-full rounded-lg py-2.5 text-xs font-bold text-white transition disabled:opacity-40
               ${limitSide === "buy"
                 ? "bg-emerald-600 shadow-[0_0_16px_rgba(16,185,129,0.22)] hover:bg-emerald-500"

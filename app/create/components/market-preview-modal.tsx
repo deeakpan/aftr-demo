@@ -15,6 +15,7 @@ type MarketPreviewModalProps = {
   stakeEndAt: string;
   resolveAfterAt: string;
   seedAmount: string;
+  seedSymbol: string;
   umaAncillary: string;
   metadataUri: string;
   isSubmittingMarket: boolean;
@@ -40,6 +41,7 @@ export function MarketPreviewModal({
   stakeEndAt,
   resolveAfterAt,
   seedAmount,
+  seedSymbol,
   umaAncillary,
   metadataUri,
   isSubmittingMarket,
@@ -53,7 +55,7 @@ export function MarketPreviewModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onBack(); }}>
       <div className="w-full max-w-md overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-2xl"
         onClick={(e) => e.stopPropagation()}>
@@ -124,7 +126,7 @@ export function MarketPreviewModal({
             </p>
             {!isReadOnly && (
               <p className="text-[var(--muted)]">
-                Seed liquidity: <span className="text-[var(--foreground)]">{seedAmount || "0"} USDC</span>
+                Seed liquidity: <span className="text-[var(--foreground)]">{seedAmount || "0"} {seedSymbol}</span>
               </p>
             )}
           </div>

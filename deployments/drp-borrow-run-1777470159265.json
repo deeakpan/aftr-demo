@@ -1,0 +1,101 @@
+{
+  "chainId": 84532,
+  "drpAddress": "0x34a31ccc2bc660d17Ea91eBc5868397dd732fA64",
+  "wethAddress": "0x4200000000000000000000000000000000000006",
+  "ethUsd": 2294.27,
+  "executedAt": "2026-04-29T13:47:48.133Z",
+  "results": [
+    {
+      "wallet": "0x75B51D8Bd0c99201Eee9C0E0954B788fF0fD9B38",
+      "txHash": "0x185922aa24e5f9d5820abd6ea61fce764c20f7ae3f69b73767ce677958985925",
+      "collateral": {
+        "token": "WETH",
+        "targetUsd": 10,
+        "targetWei": "4358684897592699",
+        "wethWalletBefore": "4358684897592699",
+        "wethWalletAfter": "4358684897592699",
+        "vaultCollateralBefore": "4353713064186792",
+        "vaultCollateralAfter": "8712397961779491"
+      },
+      "borrow": {
+        "token": "USDeAD",
+        "targetUsd": 5,
+        "targetWei": "5000000000000000000",
+        "walletBefore": "6000000000000000000",
+        "walletAfter": "12000000000000000000",
+        "walletDelta": "6000000000000000000"
+      },
+      "debt": {
+        "before": "6000000000000000000",
+        "after": "12000000000000000000",
+        "delta": "6000000000000000000"
+      },
+      "success": true,
+      "txStatus": "1",
+      "wrapTxStatus": "1",
+      "approveTxStatus": "1"
+    }
+  ],
+  "wallet2Attempts": [
+    {
+      "wallet": "0x75B51D8Bd0c99201Eee9C0E0954B788fF0fD9B38",
+      "txHash": "0x09335593d489ade960f5fc051dce204fb6a68da498c649c5edcbfb8e99ed7782",
+      "collateral": {
+        "token": "WETH",
+        "targetUsd": 10,
+        "targetWei": "4358684897592699",
+        "wethWalletBefore": "0",
+        "wethWalletAfter": "4358684897592699",
+        "vaultCollateralBefore": "4353713064186792",
+        "vaultCollateralAfter": "4353713064186792"
+      },
+      "borrow": {
+        "token": "USDeAD",
+        "targetUsd": 6,
+        "targetWei": "6000000000000000000",
+        "walletBefore": "6000000000000000000",
+        "walletAfter": "6000000000000000000",
+        "walletDelta": "0"
+      },
+      "debt": {
+        "before": "6000000000000000000",
+        "after": "6000000000000000000",
+        "delta": "0"
+      },
+      "success": false,
+      "txStatus": "1",
+      "wrapTxStatus": "1",
+      "approveTxStatus": "1"
+    },
+    {
+      "wallet": "0x75B51D8Bd0c99201Eee9C0E0954B788fF0fD9B38",
+      "txHash": "0x185922aa24e5f9d5820abd6ea61fce764c20f7ae3f69b73767ce677958985925",
+      "collateral": {
+        "token": "WETH",
+        "targetUsd": 10,
+        "targetWei": "4358684897592699",
+        "wethWalletBefore": "4358684897592699",
+        "wethWalletAfter": "4358684897592699",
+        "vaultCollateralBefore": "4353713064186792",
+        "vaultCollateralAfter": "8712397961779491"
+      },
+      "borrow": {
+        "token": "USDeAD",
+        "targetUsd": 5,
+        "targetWei": "5000000000000000000",
+        "walletBefore": "6000000000000000000",
+        "walletAfter": "12000000000000000000",
+        "walletDelta": "6000000000000000000"
+      },
+      "debt": {
+        "before": "6000000000000000000",
+        "after": "12000000000000000000",
+        "delta": "6000000000000000000"
+      },
+      "success": true,
+      "txStatus": "1",
+      "wrapTxStatus": "1",
+      "approveTxStatus": "1"
+    }
+  ]
+}

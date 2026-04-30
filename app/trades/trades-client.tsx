@@ -3,18 +3,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowsClockwise, BookmarkSimple, PlusMinus } from "@phosphor-icons/react";
-import { formatUnits, parseAbi, parseUnits } from "viem";
+import { formatUnits, parseAbi } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import deployment from "@/deployments/baseSepolia-84532.json";
 
-const FACTORY_ADDRESS = deployment.contracts.AFTRParimutuelMarketFactory as `0x${string}`;
+const ROUTER_ADDRESS = deployment.contracts.AFTRMarketDebtRouter as `0x${string}`;
 const DEPLOYMENT_CHAIN_ID = deployment.chainId;
-
-const FACTORY_ABI = parseAbi([
-  "function marketsLength() view returns (uint256)",
-  "function markets(uint256) view returns (address)",
-]);
 
 const MARKET_ABI = parseAbi([
   "function marketKind() view returns (uint8)",
@@ -30,6 +25,9 @@ const MARKET_ABI = parseAbi([
   "function priceOf(uint8 outcomeIndex) view returns (uint256)",
   "function realPool(uint256 outcomeIndex) view returns (uint256)",
   "function redeem(uint8 outcomeIndex, uint256 shareAmount)",
+]);
+const ROUTER_ABI = parseAbi([
+  "function redeemForSelf(address market, uint8 outcomeIndex, uint256 shareAmount)",
 ]);
 
 const ERC20_ABI = parseAbi([
@@ -57,12 +55,6 @@ type PositionRow = {
   imageUrl: string;
 };
 
-type IpfsMetadata = {
-  title?: string;
-  description?: string;
-  image?: string;
-  outcomes?: string[];
-};
 
 type MarketPositionGroup = {
   marketAddress: `0x${string}`;
@@ -81,26 +73,6 @@ type MarketPositionGroup = {
   /** One entry per outcome the wallet holds with balance &gt; 0 */
   positions: { outcomeIndex: number; outcomeLabel: string; balance: bigint }[];
 };
-
-function ipfsToHttp(uri: string) {
-  if (!uri) return "";
-  if (uri.startsWith("ipfs://")) {
-    return `https://gateway.lighthouse.storage/ipfs/${uri.replace("ipfs://", "")}`;
-  }
-  return uri;
-}
-
-async function fetchMetadata(uri: string): Promise<IpfsMetadata | null> {
-  const url = ipfsToHttp(uri);
-  if (!url) return null;
-  try {
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return null;
-    return (await res.json()) as IpfsMetadata;
-  } catch {
-    return null;
-  }
-}
 
 function clampPct(v: number) {
   if (!Number.isFinite(v)) return 50;
@@ -219,8 +191,12 @@ function ClaimWinningsButton({
       }
       setStatus("Claiming…");
       const tx = await walletClient.writeContract({
-        chain: walletClient.chain, address: marketAddress, abi: MARKET_ABI,
-        functionName: "redeem", args: [winningOutcomeIndex, maxShares], account: address,
+        chain: walletClient.chain,
+        address: ROUTER_ADDRESS,
+        abi: ROUTER_ABI,
+        functionName: "redeemForSelf",
+        args: [marketAddress, winningOutcomeIndex, maxShares],
+        account: address,
       });
       await publicClient.waitForTransactionReceipt({ hash: tx });
       setStatus("Claimed!");
@@ -237,7 +213,7 @@ function ClaimWinningsButton({
       <p className="mb-1 text-xs font-semibold text-emerald-400">
         {formatShareAmount(maxShares, shareDecimals)}
       </p>
-      <p className="mb-1 text-[11px] text-slate-300">Est. payout: {maxPayout} USDC</p>
+      <p className="mb-1 text-[11px] text-slate-300">Est. payout: {maxPayout}</p>
       {status && <p className="mb-1.5 text-[11px] text-emerald-300">{status}</p>}
       <button
         type="button"
@@ -306,141 +282,50 @@ export function TradesClient() {
       setIsLoading(true);
       setError("");
       try {
-        const total = Number(
-          await publicClient.readContract({
-            address: FACTORY_ADDRESS,
-            abi: FACTORY_ABI,
-            functionName: "marketsLength",
-          }),
-        );
-        const marketAddresses = await Promise.all(
-          Array.from({ length: total }, (_, i) =>
-            publicClient.readContract({
-              address: FACTORY_ADDRESS,
-              abi: FACTORY_ABI,
-              functionName: "markets",
-              args: [BigInt(total - 1 - i)],
-            }) as Promise<`0x${string}`>,
-          ),
-        );
-
-        const allRows: PositionRow[] = [];
-        for (const marketAddress of marketAddresses) {
-          const [
-            kindRaw,
-            stateRaw,
-            stakeEndRaw,
-            outcomesRaw,
-            collateralDecimalsRaw,
-            winningRaw,
-            redemptionRate,
-            metadataUri,
-          ] = await Promise.all([
-            publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "marketKind" }),
-            publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "state" }),
-            publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "stakeEndTimestamp" }),
-            publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "numOutcomes" }),
-            publicClient.readContract({
-              address: marketAddress,
-              abi: MARKET_ABI,
-              functionName: "collateralDecimals",
-            }),
-            publicClient.readContract({
-              address: marketAddress,
-              abi: MARKET_ABI,
-              functionName: "winningOutcomeIndex",
-            }),
-            publicClient.readContract({
-              address: marketAddress,
-              abi: MARKET_ABI,
-              functionName: "redemptionRate",
-            }),
-            publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "metadataURI" }),
-          ]);
-
-          const numOutcomes = Number(outcomesRaw);
-          const collateralDecimals = Number(collateralDecimalsRaw);
-          const state = Number(stateRaw);
-          const kind = Number(kindRaw) === 0 ? "Price" : "Event";
-          const metadata = await fetchMetadata(String(metadataUri || ""));
-          const marketTitle = metadata?.title?.trim() || `${kind} market`;
-          const labels = metadata?.outcomes?.filter((x): x is string => typeof x === "string") ?? [];
-          const fallbackLabels = Array.from({ length: numOutcomes }, (_, i) => `Outcome ${i + 1}`);
-          const outcomeLabels = labels.length > 0 ? labels : fallbackLabels;
-
-          let chancePct = numOutcomes >= 2 ? 50 : Math.max(1, Math.round(100 / Math.max(1, numOutcomes)));
-          try {
-            const p0 = await publicClient.readContract({
-              address: marketAddress,
-              abi: MARKET_ABI,
-              functionName: "priceOf",
-              args: [0],
-            });
-            chancePct = clampPct(Number(formatUnits(p0 as bigint, 18)) * 100);
-          } catch {
-            // keep fallback
-          }
-
-          const realPoolParts = await Promise.all(
-            Array.from({ length: numOutcomes }, (_, i) =>
-              publicClient.readContract({
-                address: marketAddress,
-                abi: MARKET_ABI,
-                functionName: "realPool",
-                args: [BigInt(i)],
-              }),
-            ),
-          );
-          const poolTvlRaw = realPoolParts.reduce((acc, v) => acc + (v as bigint), BigInt(0));
-          const poolTvlDisplay = Number(formatUnits(poolTvlRaw, collateralDecimals)).toLocaleString(undefined, {
-            maximumFractionDigits: 2,
-          });
-          const stakeEndUnix = Number(stakeEndRaw);
-          const stakeEndsLabel = fmtTs(stakeEndUnix);
-          const imageUrl = ipfsToHttp(metadata?.image?.trim() || "");
-
-          const winningOutcomeIndex = state === 2 ? Number(winningRaw) : null;
-          const outcomeTokens = await Promise.all(
-            Array.from({ length: numOutcomes }, (_, i) =>
-              publicClient.readContract({
-                address: marketAddress,
-                abi: MARKET_ABI,
-                functionName: "outcomeToken",
-                args: [BigInt(i)],
-              }) as Promise<`0x${string}`>,
-            ),
-          );
-
-          for (let i = 0; i < outcomeTokens.length; i += 1) {
-            const bal = (await publicClient.readContract({
-              address: outcomeTokens[i]!,
-              abi: ERC20_ABI,
-              functionName: "balanceOf",
-              args: [address],
-            })) as bigint;
-            if (bal <= BigInt(0)) continue;
-            allRows.push({
-              marketAddress,
-              marketTitle,
-              marketKind: kind,
-              marketState: state,
-              stakeEndUnix,
-              winningOutcomeIndex,
-              redemptionRate: redemptionRate as bigint,
-              outcomeIndex: i,
-              outcomeLabel: outcomeLabels[i] ?? `Outcome ${i + 1}`,
-              outcomeLabels,
-              balance: bal,
-              collateralDecimals,
-              chancePct,
-              poolTvlDisplay,
-              stakeEndsLabel,
-              imageUrl,
-            });
-          }
+        const res = await fetch(`/api/trades/positions?wallet=${address}`, { cache: "no-store" });
+        const json = (await res.json()) as {
+          rows?: Array<{
+            marketAddress: `0x${string}`;
+            marketTitle: string;
+            marketKind: "Event" | "Price";
+            marketState: number;
+            stakeEndUnix: number;
+            winningOutcomeIndex: number | null;
+            redemptionRate: string;
+            outcomeIndex: number;
+            outcomeLabel: string;
+            outcomeLabels: string[];
+            balance: string;
+            collateralDecimals: number;
+            chancePct: number;
+            poolTvlDisplay: string;
+            stakeEndsLabel: string;
+            imageUrl: string;
+          }>;
+          error?: string;
+        };
+        if (!res.ok) {
+          throw new Error(json.error || "Could not load trades.");
         }
-
-        setRows(allRows);
+        const parsed: PositionRow[] = (json.rows ?? []).map((r) => ({
+          marketAddress: r.marketAddress,
+          marketTitle: r.marketTitle,
+          marketKind: r.marketKind,
+          marketState: r.marketState,
+          stakeEndUnix: r.stakeEndUnix,
+          winningOutcomeIndex: r.winningOutcomeIndex,
+          redemptionRate: BigInt(r.redemptionRate),
+          outcomeIndex: r.outcomeIndex,
+          outcomeLabel: r.outcomeLabel,
+          outcomeLabels: r.outcomeLabels,
+          balance: BigInt(r.balance),
+          collateralDecimals: r.collateralDecimals,
+          chancePct: clampPct(r.chancePct),
+          poolTvlDisplay: r.poolTvlDisplay,
+          stakeEndsLabel: r.stakeEndsLabel || fmtTs(r.stakeEndUnix),
+          imageUrl: r.imageUrl,
+        }));
+        setRows(parsed);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not load trades.");
       } finally {
@@ -458,7 +343,10 @@ export function TradesClient() {
   const groups = useMemo(() => groupRows(sortedRows), [sortedRows]);
 
   return (
-    <AppLayout showSearch={false}>
+    <AppLayout
+      showSearch={false}
+      pageBackgroundClassName="bg-gradient-to-t from-[#2a0f4a] via-[#130a24] to-[#050308]"
+    >
       <section className="mx-4 pt-8 md:mx-6">
         <div className="mb-2 flex items-center gap-2">
           <PlusMinus size={22} weight="bold" className="text-[var(--accent)]" />

@@ -29,6 +29,7 @@ const BASE_SEPOLIA_CIRCLE_USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
 /** 0.5 USDC (6 decimals) — suggested `umaReward` on testnet. */
 const UMA_REWARD_USDC = 500_000n;
+const DEFAULT_USDEAD = "0x0869734879BD58aE45aD59430Ed42996934f5A6F";
 
 function tryReadDeployment(networkName, chainId) {
   const outPath = path.join(__dirname, "..", "deployments", `${networkName}-${chainId}.json`);
@@ -47,9 +48,17 @@ async function main() {
   const { chainId } = await hre.ethers.provider.getNetwork();
   const previous = tryReadDeployment(hre.network.name, Number(chainId));
   const previousUsdc = previous?.contracts?.AFTRUSDC;
+  const configuredCollateral = process.env.PREDICTION_COLLATERAL?.trim();
+  const useCollateral =
+    configuredCollateral && hre.ethers.isAddress(configuredCollateral)
+      ? configuredCollateral
+      : undefined;
 
   let tradingTokenAddress;
-  if (previousUsdc && hre.ethers.isAddress(previousUsdc)) {
+  if (useCollateral) {
+    tradingTokenAddress = useCollateral;
+    console.log("Using configured prediction collateral:", tradingTokenAddress);
+  } else if (previousUsdc && hre.ethers.isAddress(previousUsdc)) {
     tradingTokenAddress = previousUsdc;
     console.log("Reusing existing AFTRUSDC:", tradingTokenAddress);
   } else {
@@ -95,7 +104,7 @@ async function main() {
   console.log("AFTROrderBook:", orderBookAddress);
 
   console.log("\n--- Event markets ---");
-  console.log("Trading / pool collateral: AFTRUSDC at", tradingTokenAddress);
+  console.log("Trading / pool collateral token:", tradingTokenAddress);
   console.log("UMA: fund with Circle USDC; umaRewardCurrency=0 uses factory default →", BASE_SEPOLIA_CIRCLE_USDC);
   console.log("Suggested umaReward (testnet):", UMA_REWARD_USDC.toString(), "(0.5 USDC, 6 decimals)");
   console.log("Before requestEventResolution: hold Circle USDC on market + market.fundUmaBond(umaReward) (approve market).");
@@ -116,7 +125,7 @@ async function main() {
     },
     suggestedUmaReward: UMA_REWARD_USDC.toString(),
     notes: {
-      tradingCollateral: "AFTRUSDC",
+      tradingCollateral: tradingTokenAddress.toLowerCase() === DEFAULT_USDEAD.toLowerCase() ? "USDeAD" : "AFTRUSDC/custom",
       umaRewardToken: "Circle Base Sepolia USDC when umaRewardCurrency is address(0) on factory",
     },
   });

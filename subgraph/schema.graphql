@@ -1,0 +1,31 @@
+"""One row per deployed market (from factory `MarketCreated`)."""
+type Market @entity(immutable: false) {
+  id: ID!
+  kind: Int!
+  collateralToken: String!
+  stakeEndTimestamp: BigInt!
+  resolveAfterTimestamp: BigInt!
+  metadataHash: String!
+  createdAt: BigInt!
+  createdAtBlock: BigInt!
+  positions: [TraderMarketPosition!]! @derivedFrom(field: "market")
+}
+
+"""Wallet-level aggregates for leaderboards (e.g. orderBy totalDeposited)."""
+type Trader @entity(immutable: false) {
+  id: ID!
+  totalDeposited: BigInt!
+  totalRedeemed: BigInt!
+  positions: [TraderMarketPosition!]! @derivedFrom(field: "trader")
+}
+
+"""Per-trader per-market collateral in/out (same grain as your Supabase indexer)."""
+type TraderMarketPosition @entity(immutable: false) {
+  id: ID!
+  market: Market!
+  trader: Trader!
+  collateralIn: BigInt!
+  collateralOut: BigInt!
+  sharesIn: BigInt!
+  sharesOut: BigInt!
+}

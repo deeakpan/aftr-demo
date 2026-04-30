@@ -18,12 +18,18 @@ import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import deployment from "@/deployments/baseSepolia-84532.json";
 
 const DEPLOYMENT_CHAIN_ID = deployment.chainId;
+const USDEAD_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
+  .AFTRUSDC?.toLowerCase();
+const CIRCLE_USDC_ADDRESS = (deployment as unknown as { external: Record<string, string> }).external
+  .umaBondCurrencyCircleUSDC?.toLowerCase();
 const WAD = BigInt("1000000000000000000");
 const UMA_BINARY_YES = BigInt("1000000000000000000");
 const SLIPPAGE_PRESETS = [50, 100, 200, 300] as const;
 
 const ORDERBOOK_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
   .AFTROrderBook as `0x${string}`;
+const ROUTER_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
+  .AFTRMarketDebtRouter as `0x${string}`;
 
 const ORDERBOOK_ABI = parseAbi([
   "function placeSellOrder(address market, address token, uint256 price, uint256 amount) returns (bytes32)",
@@ -65,6 +71,10 @@ const MARKET_ABI = parseAbi([
   "function outcomeToken(uint256) view returns (address)",
   "function redeem(uint8 outcomeIndex, uint256 shareAmount)",
   "function umaIdentifier() view returns (bytes32)",
+]);
+const ROUTER_ABI = parseAbi([
+  "function depositForSelf(address market, uint8 outcomeIndex, uint256 amount, uint256 minSharesOut)",
+  "function depositForSelfNative(address market, uint8 outcomeIndex, uint256 minSharesOut) payable",
 ]);
 
 const FEED_ABI = parseAbi(["function decimals() view returns (uint8)"]);
@@ -192,6 +202,14 @@ function priceKindName(kind: number): string {
   if (kind === 1) return "Below threshold";
   if (kind === 2) return "In range";
   return `Kind ${kind}`;
+}
+
+function collateralTickerFor(address: `0x${string}`): string {
+  const lower = address.toLowerCase();
+  if (lower === zeroAddress.toLowerCase()) return "ETH";
+  if (USDEAD_ADDRESS && lower === USDEAD_ADDRESS) return "USDeAD";
+  if (CIRCLE_USDC_ADDRESS && lower === CIRCLE_USDC_ADDRESS) return "USDC";
+  return "TOKEN";
 }
 
 
@@ -507,7 +525,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
             address: market.collateralAddress,
             abi: ERC20_ABI,
             functionName: "allowance",
-            args: [address, market.address],
+            args: [address, ROUTER_ADDRESS],
           }) as Promise<bigint>,
         ]);
         if (!cancelled) {
@@ -549,7 +567,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
     if (!tradeSummary || tradeSummary.sharesWei === BigInt(0) || !market) return null;
     const raw = (tradeSummary.amountWei * WAD) / tradeSummary.sharesWei;
     const s = formatUnits(raw, 18);
-    const ticker = market.collateralAddress.toLowerCase() === zeroAddress.toLowerCase() ? "ETH" : "USDC";
+    const ticker = collateralTickerFor(market.collateralAddress);
     return formatMoneyAmount(s, ticker);
   }, [tradeSummary, market?.collateralAddress]);
 
@@ -582,7 +600,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
 
   const approvalLine = useMemo(() => {
     if (!market) return "";
-    const tick = isNativeCollateral ? "ETH" : "USDC";
+    const tick = collateralTickerFor(market.collateralAddress);
     if (isNativeCollateral) return "Native collateral — no token approval.";
     if (!address || !tradeSummary) return "";
     if (collateralAllowance === null) return "Loading allowance…";
@@ -643,7 +661,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
           address: market.collateralAddress,
           abi: ERC20_ABI,
           functionName: "allowance",
-          args: [address, market.address],
+          args: [address, ROUTER_ADDRESS],
         })) as bigint;
         if (allowance < amountUnits) {
           setTradeStatus("Approve collateral...");
@@ -652,7 +670,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
             address: market.collateralAddress,
             abi: ERC20_ABI,
             functionName: "approve",
-            args: [market.address, amountUnits],
+            args: [ROUTER_ADDRESS, amountUnits],
             account: address,
           });
           await publicClient.waitForTransactionReceipt({ hash: approveHash });
@@ -661,10 +679,12 @@ export function MarketDetailClient({ address: addressProp }: Props) {
       setTradeStatus("Submitting trade...");
       const txHash = await walletClient.writeContract({
         chain: walletClient.chain,
-        address: market.address,
-        abi: MARKET_ABI,
-        functionName: "deposit",
-        args: [selectedOutcome, amountUnits, address, minSharesOut],
+        address: ROUTER_ADDRESS,
+        abi: ROUTER_ABI,
+        functionName: isNative ? "depositForSelfNative" : "depositForSelf",
+        args: isNative
+          ? [market.address, selectedOutcome, minSharesOut]
+          : [market.address, selectedOutcome, amountUnits, minSharesOut],
         account: address,
         value: isNative ? amountUnits : undefined,
         gas: BigInt(500_000),
@@ -1045,11 +1065,12 @@ export function MarketDetailClient({ address: addressProp }: Props) {
                   selectedOutcomeIndex={selectedOutcome}
                   onSelectOutcome={setSelectedOutcome}
                   collateralDecimals={market.collateralDecimals}
-                  collateralTicker={isNativeCollateral ? "ETH" : "USDC"}
+                  collateralTicker={collateralTickerFor(market.collateralAddress)}
                   amount={tradeAmount}
                   setAmount={setTradeAmount}
                   priceOfRaw={tradePriceRaw}
                   walletBalanceWei={collateralBalance}
+                  outcomeTokenBalanceWei={outcomeTokenBalance}
                   tokensFormatted={tradeSummary?.tokens ?? null}
                   pricePerTokenLabel={pricePerTokenLabel}
                   slippageBps={tradeSlippageBps}
@@ -1127,11 +1148,12 @@ export function MarketDetailClient({ address: addressProp }: Props) {
           selectedOutcomeIndex={selectedOutcome}
           onSelectOutcome={setSelectedOutcome}
           collateralDecimals={market.collateralDecimals}
-          collateralTicker={isNativeCollateral ? "ETH" : "USDC"}
+          collateralTicker={collateralTickerFor(market.collateralAddress)}
           amount={tradeAmount}
           setAmount={setTradeAmount}
           priceOfRaw={tradePriceRaw}
           walletBalanceWei={collateralBalance}
+          outcomeTokenBalanceWei={outcomeTokenBalance}
           tokensFormatted={tradeSummary?.tokens ?? null}
           pricePerTokenLabel={pricePerTokenLabel}
           slippageBps={tradeSlippageBps}

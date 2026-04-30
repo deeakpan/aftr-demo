@@ -456,8 +456,8 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\core\\AFTRVParimutuelMarket.sol": {
-      "lastModificationDate": 1776090274111,
-      "contentHash": "9d1c541ec130ebe17c9b3625b8e93641",
+      "lastModificationDate": 1777463022088,
+      "contentHash": "876415ef3b374b1f7dd4c46487c95d79",
       "sourceName": "contracts/core/AFTRVParimutuelMarket.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -499,7 +499,8 @@
         "^0.8.24"
       ],
       "artifacts": [
-        "AFTRVParimutuelMarket"
+        "AFTRVParimutuelMarket",
+        "IDRPDebtRepay"
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\token\\AFTROutcomeToken.sol": {
@@ -1256,6 +1257,292 @@
         "AFTROrderBook",
         "IAFTRMarketCollateral",
         "IAFTROrderBookFactory"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\drp\\DeaderalReserveProtocol.sol": {
+      "lastModificationDate": 1777459464139,
+      "contentHash": "653a2ab771f1d42c890366a99d880d24",
+      "sourceName": "contracts/drp/DeaderalReserveProtocol.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+        "../interfaces/IAFTRAggregatorV3.sol",
+        "../interfaces/IUSDeAD.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "DeaderalReserveProtocol",
+        "IStabilityPool",
+        "ITreasurySplitter"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\interfaces\\IUSDeAD.sol": {
+      "lastModificationDate": 1777458595513,
+      "contentHash": "62a3ebf28e180ac752162eb5aa4e56bb",
+      "sourceName": "contracts/interfaces/IUSDeAD.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "IUSDeAD"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\interfaces\\IOracleManager.sol": {
+      "lastModificationDate": 1777458598658,
+      "contentHash": "619b1180207d7c33fe5c2ec56a96bf93",
+      "sourceName": "contracts/interfaces/IOracleManager.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "IOracleManager"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\drp\\USDeAD.sol": {
+      "lastModificationDate": 1777458602340,
+      "contentHash": "a85057506c31fe215bebe763a9297b52",
+      "sourceName": "contracts/drp/USDeAD.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "../interfaces/IUSDeAD.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "USDeAD"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\drp\\MockStabilityPool.sol": {
+      "lastModificationDate": 1777460308854,
+      "contentHash": "71e2858471dc7d104cd4d8556b269e23",
+      "sourceName": "contracts/drp/MockStabilityPool.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts/access/Ownable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "MockStabilityPool"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\drp\\MockTreasurySplitter.sol": {
+      "lastModificationDate": 1777460292715,
+      "contentHash": "28b4fe976dd7102d42a2de1090fca189",
+      "sourceName": "contracts/drp/MockTreasurySplitter.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "MockTreasurySplitter"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\core\\AFTRMarketDebtRouter.sol": {
+      "lastModificationDate": 1777464579886,
+      "contentHash": "2891ee7bc354a03bdec32aad4e2f27a6",
+      "sourceName": "contracts/core/AFTRMarketDebtRouter.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "AFTRMarketDebtRouter",
+        "IAFTRFactoryLike",
+        "IAFTRMarketLike",
+        "IDRPLike"
       ]
     }
   }

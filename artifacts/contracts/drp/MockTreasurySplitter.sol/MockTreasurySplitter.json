@@ -1,0 +1,24 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "MockTreasurySplitter",
+  "sourceName": "contracts/drp/MockTreasurySplitter.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "distribute",
+      "outputs": [],
+      "stateMutability": "pure",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x60808060405234601457607d908161001a8239f35b600080fdfe6004361015600c57600080fd5b6000803560e01c6363453ae114602157600080fd5b3460445760203660031901126044576004356001600160a01b0381160360445780f35b80fdfea2646970667358221220669a4b06397ff7a700eca7e8049809a79651dab550ec033a73852d884cb690ee64736f6c63430008180033",
+  "deployedBytecode": "0x6004361015600c57600080fd5b6000803560e01c6363453ae114602157600080fd5b3460445760203660031901126044576004356001600160a01b0381160360445780f35b80fdfea2646970667358221220669a4b06397ff7a700eca7e8049809a79651dab550ec033a73852d884cb690ee64736f6c63430008180033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

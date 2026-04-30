@@ -59,6 +59,7 @@ export type AppLayoutProps = {
   showFilterStrip?: boolean;
   searchPlaceholder?: string;
   showSearch?: boolean;
+  pageBackgroundClassName?: string;
 };
 
 export function AppLayout({
@@ -66,6 +67,7 @@ export function AppLayout({
   showFilterStrip = false,
   searchPlaceholder = "Search markets... (Ctrl/Cmd + K)",
   showSearch = true,
+  pageBackgroundClassName,
 }: AppLayoutProps) {
   const { open } = useWeb3Modal();
   const { address, isConnected } = useAccount();
@@ -187,7 +189,9 @@ export function AppLayout({
   }, []);
 
   return (
-    <main className="mx-auto flex min-h-screen w-full bg-[var(--background)] py-4 pb-24 md:pb-4">
+    <main
+      className={`mx-auto flex min-h-screen w-full py-4 pb-24 md:pb-4 ${pageBackgroundClassName ?? "bg-[var(--background)]"}`}
+    >
       <SidebarDrawer
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}

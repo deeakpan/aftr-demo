@@ -1,0 +1,17 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "market", "type": "address" },
+      { "indexed": true, "internalType": "uint8", "name": "kind", "type": "uint8" },
+      { "indexed": true, "internalType": "address", "name": "collateralToken", "type": "address" },
+      { "indexed": false, "internalType": "address[]", "name": "outcomeTokens", "type": "address[]" },
+      { "indexed": false, "internalType": "string[]", "name": "outcomeLabels", "type": "string[]" },
+      { "indexed": false, "internalType": "uint256", "name": "stakeEndTimestamp", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "resolveAfterTimestamp", "type": "uint256" },
+      { "indexed": false, "internalType": "bytes32", "name": "metadataHash", "type": "bytes32" }
+    ],
+    "name": "MarketCreated",
+    "type": "event"
+  }
+]

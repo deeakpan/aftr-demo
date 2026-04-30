@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, CaretDown } from "@phosphor-icons/react";
-import { decodeEventLog, formatUnits, keccak256, parseAbi, parseUnits, stringToHex, toBytes } from "viem";
+import { decodeEventLog, formatUnits, keccak256, parseAbi, parseUnits, stringToHex, toBytes, zeroAddress } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import { MarketPreviewModal } from "@/app/create/components/market-preview-modal";
@@ -58,11 +58,50 @@ const MARKET_ABI = parseAbi([
   "function numOutcomes() view returns (uint8)",
 ]);
 
-const AFTR_USDC_BASE_SEPOLIA = deployment.contracts.AFTRUSDC as `0x${string}`;
+const USDEAD_BASE_SEPOLIA = deployment.contracts.AFTRUSDC as `0x${string}`;
+const CIRCLE_USDC_BASE_SEPOLIA = deployment.external.umaBondCurrencyCircleUSDC as `0x${string}`;
 const FACTORY_ADDRESS = deployment.contracts.AFTRParimutuelMarketFactory as `0x${string}`;
 const DEFAULT_UMA_REWARD = BigInt(deployment.suggestedUmaReward ?? "0");
 const DEFAULT_UMA_REWARD_CURRENCY = deployment.external.umaBondCurrencyCircleUSDC as `0x${string}`;
 const DEPLOYMENT_CHAIN_ID = deployment.chainId;
+
+type CollateralOption = {
+  id: "eth" | "usdc" | "usdead";
+  label: string;
+  symbol: string;
+  address: `0x${string}`;
+  decimals: number;
+  image: string;
+  isNative?: boolean;
+};
+
+const COLLATERAL_OPTIONS: CollateralOption[] = [
+  {
+    id: "eth",
+    label: "Ethereum",
+    symbol: "ETH",
+    address: zeroAddress,
+    decimals: 18,
+    image: "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
+    isNative: true,
+  },
+  {
+    id: "usdc",
+    label: "USD Coin",
+    symbol: "USDC",
+    address: CIRCLE_USDC_BASE_SEPOLIA,
+    decimals: 6,
+    image: "https://assets.coingecko.com/coins/images/6319/large/usdc.png",
+  },
+  {
+    id: "usdead",
+    label: "USDeAD",
+    symbol: "USDeAD",
+    address: USDEAD_BASE_SEPOLIA,
+    decimals: 18,
+    image: "/usdead.jpg",
+  },
+];
 
 function numString(idx: number) {
   return String(idx);
@@ -76,13 +115,6 @@ function slugify(text: string): string {
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
     .slice(0, 60);
-}
-
-function formatUsdcDisplay(value: number) {
-  return value.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
 }
 
 function parseLocalDateTimeToMs(input: string): number {
@@ -124,20 +156,24 @@ export function CreateClient() {
   const [metadataUri, setMetadataUri] = useState("");
   const [uploadState, setUploadState] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [seedAmount, setSeedAmount] = useState("40");
+  const [seedAmount, setSeedAmount] = useState("10");
   const [stakeEndAt, setStakeEndAt] = useState("");
   const [resolveAfterAt, setResolveAfterAt] = useState("");
   const [step, setStep] = useState<"details" | "seed">("details");
   const [isNextLoading, setIsNextLoading] = useState(false);
   const [isAssetDropdownOpen, setIsAssetDropdownOpen] = useState(false);
+  const [isCollateralDropdownOpen, setIsCollateralDropdownOpen] = useState(false);
   const [isAncillaryOpen, setIsAncillaryOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [seedValidationError, setSeedValidationError] = useState("");
   const [previewImageSrc, setPreviewImageSrc] = useState("");
   const assetDropdownRef = useRef<HTMLDivElement>(null);
+  const collateralDropdownRef = useRef<HTMLDivElement>(null);
   const [brokenLogoAddresses, setBrokenLogoAddresses] = useState<string[]>([]);
   const [timeValidationError, setTimeValidationError] = useState("");
-  const [usdcBalanceLabel, setUsdcBalanceLabel] = useState("0.00");
+  const [collateral, setCollateral] = useState<CollateralOption>(COLLATERAL_OPTIONS[2]!);
+  const [ethUsdPrice, setEthUsdPrice] = useState<number | null>(null);
+  const [collateralBalanceLabel, setCollateralBalanceLabel] = useState("0.00");
   const [isSubmittingMarket, setIsSubmittingMarket] = useState(false);
   const [submitStatus, setSubmitStatus] = useState("");
   const [createdMarketAddress, setCreatedMarketAddress] = useState("");
@@ -152,33 +188,49 @@ export function CreateClient() {
   }, [eventMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const readUsdcBalance = async () => {
+    const readBalance = async () => {
       if (!publicClient || !address) {
-        setUsdcBalanceLabel("0.00");
+        setCollateralBalanceLabel("0.00");
         return;
       }
       try {
-        const [rawBalance, decimals] = await Promise.all([
-          publicClient.readContract({
-            address: AFTR_USDC_BASE_SEPOLIA,
-            abi: ERC20_ABI,
-            functionName: "balanceOf",
-            args: [address],
-          }),
-          publicClient.readContract({
-            address: AFTR_USDC_BASE_SEPOLIA,
-            abi: ERC20_ABI,
-            functionName: "decimals",
-          }),
-        ]);
-        const value = Number(formatUnits(rawBalance, decimals));
-        setUsdcBalanceLabel(formatUsdcDisplay(value));
+        if (collateral.isNative) {
+          const raw = await publicClient.getBalance({ address });
+          const n = Number(formatUnits(raw, collateral.decimals));
+          setCollateralBalanceLabel(n.toLocaleString(undefined, { maximumFractionDigits: 6 }));
+          return;
+        }
+        const rawBalance = (await publicClient.readContract({
+          address: collateral.address,
+          abi: ERC20_ABI,
+          functionName: "balanceOf",
+          args: [address],
+        })) as bigint;
+        const value = Number(formatUnits(rawBalance, collateral.decimals));
+        setCollateralBalanceLabel(value.toLocaleString(undefined, { maximumFractionDigits: 6 }));
       } catch {
-        setUsdcBalanceLabel("0.00");
+        setCollateralBalanceLabel("0.00");
       }
     };
-    void readUsdcBalance();
-  }, [address, publicClient]);
+    void readBalance();
+  }, [address, publicClient, collateral]);
+
+  useEffect(() => {
+    const fetchEthPrice = async () => {
+      try {
+        const res = await fetch(
+          "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd",
+          { cache: "no-store" },
+        );
+        const json = (await res.json()) as { ethereum?: { usd?: number } };
+        const v = json?.ethereum?.usd;
+        setEthUsdPrice(typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null);
+      } catch {
+        setEthUsdPrice(null);
+      }
+    };
+    void fetchEthPrice();
+  }, []);
 
   useEffect(() => {
     if (imageFile) {
@@ -232,9 +284,14 @@ export function CreateClient() {
 
   useEffect(() => {
     const onDocClick = (event: MouseEvent) => {
-      if (!assetDropdownRef.current) return;
-      if (!assetDropdownRef.current.contains(event.target as Node)) {
+      if (assetDropdownRef.current && !assetDropdownRef.current.contains(event.target as Node)) {
         setIsAssetDropdownOpen(false);
+      }
+      if (
+        collateralDropdownRef.current &&
+        !collateralDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsCollateralDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", onDocClick);
@@ -264,6 +321,14 @@ export function CreateClient() {
     const t = cleanedThreshold ? `$${threshold}` : "the selected threshold";
     return `Will ${feed.asset} settle ${dir} ${t} at ${resolveUtcLabel}?`;
   }, [comparison, feed.asset, marketKind, resolveUtcLabel, threshold]);
+
+  const minSeedAmount = useMemo(() => {
+    if (collateral.isNative) {
+      if (!ethUsdPrice || ethUsdPrice <= 0) return Number.POSITIVE_INFINITY;
+      return 10 / ethUsdPrice;
+    }
+    return 10;
+  }, [collateral.isNative, ethUsdPrice]);
 
   const effectiveTitle = useMemo(
     () => (marketKind === "price" ? generatedPricePrompt : title),
@@ -345,8 +410,12 @@ export function CreateClient() {
 
   const openPreview = () => {
     const seed = Number(seedAmount);
-    if (!Number.isFinite(seed) || seed < 40) {
-      setSeedValidationError("Seed liquidity must be at least 40 USDC.");
+    if (!Number.isFinite(seed) || seed < minSeedAmount) {
+      setSeedValidationError(
+        collateral.isNative
+          ? `Seed liquidity must be at least $10 worth of ETH (~${minSeedAmount.toFixed(6)} ETH).`
+          : `Seed liquidity must be at least 10 ${collateral.symbol}.`,
+      );
       return;
     }
     setSeedValidationError("");
@@ -380,27 +449,37 @@ export function CreateClient() {
       setCreatedMarketAddress("");
       setIsCreateComplete(false);
 
-      const seedUnits = parseUnits(seedAmount || "0", 6);
-      if (seedUnits < parseUnits("40", 6)) {
-        setSubmitStatus("Seed liquidity must be at least 40 USDC.");
+      const seedUnits = parseUnits(seedAmount || "0", collateral.decimals);
+      const minSeedUnits = parseUnits(
+        minSeedAmount === Number.POSITIVE_INFINITY ? "999999999" : minSeedAmount.toFixed(collateral.isNative ? 8 : 2),
+        collateral.decimals,
+      );
+      if (seedUnits < minSeedUnits) {
+        setSubmitStatus(
+          collateral.isNative
+            ? `Seed liquidity must be at least $10 worth of ETH (~${minSeedAmount.toFixed(6)} ETH).`
+            : `Seed liquidity must be at least 10 ${collateral.symbol}.`,
+        );
         return;
       }
-      const walletUsdcBalance = (await publicClient.readContract({
-        address: AFTR_USDC_BASE_SEPOLIA,
-        abi: ERC20_ABI,
-        functionName: "balanceOf",
-        args: [address],
-      })) as bigint;
-      if (walletUsdcBalance < seedUnits) {
-        setSubmitStatus("Insufficient USDC balance for seed liquidity.");
+      const walletBalance = collateral.isNative
+        ? await publicClient.getBalance({ address })
+        : ((await publicClient.readContract({
+            address: collateral.address,
+            abi: ERC20_ABI,
+            functionName: "balanceOf",
+            args: [address],
+          })) as bigint);
+      if (walletBalance < seedUnits) {
+        setSubmitStatus(`Insufficient ${collateral.symbol} balance for seed liquidity.`);
         return;
       }
 
       const stakeTs = BigInt(Math.floor(parseLocalDateTimeToMs(stakeEndAt) / 1000));
       const resolveTs = BigInt(Math.floor(parseLocalDateTimeToMs(resolveAfterAt) / 1000));
       const metadataHash = keccak256(toBytes(metadataUri || "ipfs://pending"));
-      const virtualReserve = parseUnits(seedAmount || "40", 6);
-      const minBootstrapTotal = parseUnits("40", 6);
+      const virtualReserve = seedUnits;
+      const minBootstrapTotal = minSeedUnits;
 
       setSubmitStatus("Creating market...");
       const createHash =
@@ -412,8 +491,8 @@ export function CreateClient() {
               functionName: "createEventMarket",
               args: [
                 {
-                  collateralToken: AFTR_USDC_BASE_SEPOLIA,
-                  collateralDecimals: 6,
+                  collateralToken: collateral.address,
+                  collateralDecimals: collateral.decimals,
                   virtualReserve,
                   stakeEndTimestamp: stakeTs,
                   resolveAfterTimestamp: resolveTs,
@@ -438,8 +517,8 @@ export function CreateClient() {
               functionName: "createPriceMarket",
               args: [
                 {
-                  collateralToken: AFTR_USDC_BASE_SEPOLIA,
-                  collateralDecimals: 6,
+                  collateralToken: collateral.address,
+                  collateralDecimals: collateral.decimals,
                   virtualReserve,
                   stakeEndTimestamp: stakeTs,
                   resolveAfterTimestamp: resolveTs,
@@ -516,33 +595,25 @@ export function CreateClient() {
         return;
       }
 
-      const marketAllowance = (await publicClient.readContract({
-        address: AFTR_USDC_BASE_SEPOLIA,
-        abi: ERC20_ABI,
-        functionName: "allowance",
-        args: [address, createdMarket as `0x${string}`],
-      })) as bigint;
-
-      if (marketAllowance < seedUnits) {
-        setSubmitStatus("Approve USDC to seed liquidity...");
-        const approveHash = await walletClient.writeContract({
-          chain: walletClient.chain,
-          address: AFTR_USDC_BASE_SEPOLIA,
-          abi: ERC20_ABI,
-          functionName: "approve",
-          args: [createdMarket as `0x${string}`, seedUnits],
-          account: address,
-        });
-        await publicClient.waitForTransactionReceipt({ hash: approveHash });
-        const refreshedAllowance = (await publicClient.readContract({
-          address: AFTR_USDC_BASE_SEPOLIA,
+      if (!collateral.isNative) {
+        const marketAllowance = (await publicClient.readContract({
+          address: collateral.address,
           abi: ERC20_ABI,
           functionName: "allowance",
           args: [address, createdMarket as `0x${string}`],
         })) as bigint;
-        if (refreshedAllowance < seedUnits) {
-          setSubmitStatus("USDC approval not detected. Please approve again.");
-          return;
+
+        if (marketAllowance < seedUnits) {
+          setSubmitStatus(`Approve ${collateral.symbol} to seed liquidity...`);
+          const approveHash = await walletClient.writeContract({
+            chain: walletClient.chain,
+            address: collateral.address,
+            abi: ERC20_ABI,
+            functionName: "approve",
+            args: [createdMarket as `0x${string}`, seedUnits],
+            account: address,
+          });
+          await publicClient.waitForTransactionReceipt({ hash: approveHash });
         }
       }
 
@@ -554,6 +625,7 @@ export function CreateClient() {
         functionName: "bootstrapLiquidity",
         args: [seedUnits, address],
         account: address,
+        value: collateral.isNative ? seedUnits : undefined,
         gas: BigInt(800_000),
       });
       await publicClient.waitForTransactionReceipt({ hash: bootstrapHash });
@@ -562,21 +634,21 @@ export function CreateClient() {
       setIsCreateComplete(true);
       void (async () => {
         try {
-          const [rawBalance, decimals] = await Promise.all([
-            publicClient.readContract({
-              address: AFTR_USDC_BASE_SEPOLIA,
+          if (collateral.isNative) {
+            const raw = await publicClient.getBalance({ address });
+            setCollateralBalanceLabel(
+              Number(formatUnits(raw, collateral.decimals)).toLocaleString(undefined, { maximumFractionDigits: 6 }),
+            );
+          } else {
+            const rawBalance = (await publicClient.readContract({
+              address: collateral.address,
               abi: ERC20_ABI,
               functionName: "balanceOf",
               args: [address],
-            }),
-            publicClient.readContract({
-              address: AFTR_USDC_BASE_SEPOLIA,
-              abi: ERC20_ABI,
-              functionName: "decimals",
-            }),
-          ]);
-          const value = Number(formatUnits(rawBalance as bigint, decimals as number));
-          setUsdcBalanceLabel(formatUsdcDisplay(value));
+            })) as bigint;
+            const value = Number(formatUnits(rawBalance, collateral.decimals));
+            setCollateralBalanceLabel(value.toLocaleString(undefined, { maximumFractionDigits: 6 }));
+          }
         } catch {
           // no-op
         }
@@ -1069,21 +1141,61 @@ export function CreateClient() {
             </>
           ) : (
             <section className="py-10">
+              <label className={labelClass}>Collateral</label>
+              <div ref={collateralDropdownRef} className="relative mt-2 max-w-[360px]">
+                <button
+                  type="button"
+                  onClick={() => setIsCollateralDropdownOpen((v) => !v)}
+                  className="flex w-full items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-left text-sm text-[var(--foreground)]"
+                >
+                  <span className="inline-flex items-center gap-3">
+                    <img src={collateral.image} alt={collateral.symbol} className="h-5 w-5 rounded-full object-cover" />
+                    <span>{collateral.symbol}</span>
+                  </span>
+                  <CaretDown size={16} weight="bold" className="text-[var(--muted)]" />
+                </button>
+                {isCollateralDropdownOpen && (
+                  <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] p-1 shadow-xl">
+                    {COLLATERAL_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setCollateral(opt);
+                          setIsCollateralDropdownOpen(false);
+                        }}
+                        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[var(--surface-hover)] ${
+                          opt.id === collateral.id ? "bg-[var(--surface)]" : ""
+                        }`}
+                      >
+                        <img src={opt.image} alt={opt.symbol} className="h-5 w-5 rounded-full object-cover" />
+                        <span className="text-[var(--foreground)]">{opt.symbol}</span>
+                        <span className="text-xs text-[var(--muted)]">{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <label className={labelClass} htmlFor="seed-amount">
-                Seed liquidity (USDC)
+                Seed liquidity ({collateral.symbol})
               </label>
               <input
                 id="seed-amount"
                 type="number"
-                min={40}
+                min={Number.isFinite(minSeedAmount) ? minSeedAmount : 10}
                 step="0.01"
                 value={seedAmount}
                 onChange={(e) => setSeedAmount(e.target.value)}
                 className={fieldClass}
-                placeholder="Minimum 40 USDC"
+                placeholder={
+                  collateral.isNative
+                    ? `Minimum ${Number.isFinite(minSeedAmount) ? minSeedAmount.toFixed(6) : "0.005"} ETH (~$10)`
+                    : `Minimum 10 ${collateral.symbol}`
+                }
               />
               <p className="mt-2 text-xs text-[var(--muted)]">
-                Wallet balance: {usdcBalanceLabel} USDC
+                Wallet balance: {collateralBalanceLabel} {collateral.symbol}
               </p>
               {marketKind === "event" && (
                 <div className="mt-3">
@@ -1137,6 +1249,7 @@ export function CreateClient() {
         stakeEndAt={stakeEndAt}
         resolveAfterAt={resolveAfterAt}
         seedAmount={seedAmount}
+        seedSymbol={collateral.symbol}
         umaAncillary={umaAncillary}
         metadataUri={metadataUri}
         isReadOnly={!metadataUri}

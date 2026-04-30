@@ -13,9 +13,15 @@ import deployment from "@/deployments/baseSepolia-84532.json";
 const DEPLOYMENT_CHAIN_ID = deployment.chainId;
 const FACTORY_ADDRESS = deployment.contracts.AFTRParimutuelMarketFactory as `0x${string}`;
 const ORDERBOOK_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts.AFTROrderBook as `0x${string}`;
+const ROUTER_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
+  .AFTRMarketDebtRouter as `0x${string}`;
 const ORDERBOOK_ABI = parseAbi([
   "function placeSellOrder(address market, address token, uint256 price, uint256 amount) returns (bytes32)",
   "function placeBuyOrder(address market, address token, uint256 price, uint256 amount) payable returns (bytes32)",
+]);
+const ROUTER_ABI = parseAbi([
+  "function depositForSelf(address market, uint8 outcomeIndex, uint256 amount, uint256 minSharesOut)",
+  "function depositForSelfNative(address market, uint8 outcomeIndex, uint256 minSharesOut) payable",
 ]);
 const FACTORY_ABI = parseAbi([
   "function marketsLength() view returns (uint256)",
@@ -45,6 +51,10 @@ const ERC20_ABI = parseAbi([
 
 const WAD = BigInt("1000000000000000000");
 const SLIPPAGE_PRESETS = [50, 100, 200, 300] as const;
+const USDEAD_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
+  .AFTRUSDC?.toLowerCase();
+const CIRCLE_USDC_ADDRESS = (deployment as unknown as { external: Record<string, string> }).external
+  .umaBondCurrencyCircleUSDC?.toLowerCase();
 
 type UiMarket = {
   address: `0x${string}`;
@@ -140,6 +150,14 @@ function formatMoneyAmount(unformatted: string, ticker: string): string {
   return `${compact} ${ticker}`;
 }
 
+function collateralTickerFor(address: `0x${string}`): string {
+  const lower = address.toLowerCase();
+  if (lower === zeroAddress.toLowerCase()) return "ETH";
+  if (USDEAD_ADDRESS && lower === USDEAD_ADDRESS) return "USDeAD";
+  if (CIRCLE_USDC_ADDRESS && lower === CIRCLE_USDC_ADDRESS) return "USDC";
+  return "TOKEN";
+}
+
 async function fetchIpfsMetadata(uri: string): Promise<IpfsMetadata | null> {
   const httpUrl = ipfsToHttp(uri);
   if (!httpUrl) return null;
@@ -190,6 +208,7 @@ export function MarketClient() {
   const [collateralAllowance, setCollateralAllowance] = useState<bigint | null>(null);
   const [tradeSlippageBps, setTradeSlippageBps] = useState(200);
   const [outcomeTokenForTrade, setOutcomeTokenForTrade] = useState<`0x${string}` | null>(null);
+  const [outcomeTokenBalance, setOutcomeTokenBalance] = useState<bigint | null>(null);
   /** Bumps on an interval while the trade modal is open so expiry / stake-end disables react to wall clock. */
   const [tradeModalClock, setTradeModalClock] = useState(0);
   /** Bumps on an interval so expired markets disappear from the list without a manual refresh. */
@@ -380,6 +399,30 @@ export function MarketClient() {
   }, [selectedMarket, selectedOutcome, publicClient]);
 
   useEffect(() => {
+    if (!selectedMarket || !publicClient || !address || !outcomeTokenForTrade) {
+      setOutcomeTokenBalance(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const bal = (await publicClient.readContract({
+          address: outcomeTokenForTrade,
+          abi: ERC20_ABI,
+          functionName: "balanceOf",
+          args: [address],
+        })) as bigint;
+        if (!cancelled) setOutcomeTokenBalance(bal);
+      } catch {
+        if (!cancelled) setOutcomeTokenBalance(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedMarket, publicClient, address, outcomeTokenForTrade, selectedOutcome, tradeBusy]);
+
+  useEffect(() => {
     if (!selectedMarket) return;
     const id = setInterval(() => setTradeModalClock((n) => n + 1), 15_000);
     return () => clearInterval(id);
@@ -442,7 +485,7 @@ export function MarketClient() {
             address: selectedMarket.collateralAddress,
             abi: ERC20_ABI,
             functionName: "allowance",
-            args: [address, selectedMarket.address],
+            args: [address, ROUTER_ADDRESS],
           }) as Promise<bigint>,
         ]);
         if (!cancelled) {
@@ -495,8 +538,7 @@ export function MarketClient() {
     if (!tradeSummary || tradeSummary.sharesWei === BigInt(0)) return null;
     const raw = (tradeSummary.amountWei * WAD) / tradeSummary.sharesWei;
     const s = formatUnits(raw, 18);
-    const ticker =
-      selectedMarket?.collateralAddress?.toLowerCase() === zeroAddress ? "ETH" : "USDC";
+    const ticker = selectedMarket ? collateralTickerFor(selectedMarket.collateralAddress) : "TOKEN";
     return formatMoneyAmount(s, ticker);
   }, [tradeSummary, selectedMarket?.collateralAddress]);
 
@@ -539,7 +581,7 @@ export function MarketClient() {
 
   const approvalLine = useMemo(() => {
     if (!selectedMarket) return "";
-    const tick = isNativeCollateral ? "ETH" : "USDC";
+    const tick = collateralTickerFor(selectedMarket.collateralAddress);
     if (isNativeCollateral) return "Native collateral — no token approval.";
     if (!address || !tradeSummary) return "";
     if (collateralAllowance === null) return "Loading allowance…";
@@ -649,7 +691,7 @@ export function MarketClient() {
           address: selectedMarket.collateralAddress,
           abi: ERC20_ABI,
           functionName: "allowance",
-          args: [address, selectedMarket.address],
+          args: [address, ROUTER_ADDRESS],
         })) as bigint;
         if (allowance < amountUnits) {
           setTradeStatus("Approve collateral...");
@@ -658,7 +700,7 @@ export function MarketClient() {
             address: selectedMarket.collateralAddress,
             abi: ERC20_ABI,
             functionName: "approve",
-            args: [selectedMarket.address, amountUnits],
+            args: [ROUTER_ADDRESS, amountUnits],
             account: address,
           });
           await publicClient.waitForTransactionReceipt({ hash: approveHash });
@@ -668,12 +710,15 @@ export function MarketClient() {
       setTradeStatus("Submitting trade...");
       const txHash = await walletClient.writeContract({
         chain: walletClient.chain,
-        address: selectedMarket.address,
-        abi: MARKET_ABI,
-        functionName: "deposit",
-        args: [selectedOutcome, amountUnits, address, minSharesOut],
+        address: ROUTER_ADDRESS,
+        abi: ROUTER_ABI,
+        functionName: isNative ? "depositForSelfNative" : "depositForSelf",
+        args: isNative
+          ? [selectedMarket.address, selectedOutcome, minSharesOut]
+          : [selectedMarket.address, selectedOutcome, amountUnits, minSharesOut],
         account: address,
         value: isNative ? amountUnits : undefined,
+        gas: BigInt(500_000),
       });
       await publicClient.waitForTransactionReceipt({ hash: txHash });
       setTradeStatus("Trade successful.");
@@ -797,6 +842,7 @@ export function MarketClient() {
           setSelectedMarket(null);
           setTradeStatus("");
           setTradeAmount("");
+        setOutcomeTokenBalance(null);
         }}
         marketTitle={selectedMarket?.title ?? "Trade"}
         priceRangeLine={selectedMarket?.priceBinByOutcome?.[selectedOutcome] ?? null}
@@ -806,13 +852,12 @@ export function MarketClient() {
         selectedOutcomeIndex={selectedOutcome}
         onSelectOutcome={setSelectedOutcome}
         collateralDecimals={selectedMarket?.collateralDecimals ?? 6}
-        collateralTicker={
-          selectedMarket?.collateralAddress?.toLowerCase() === zeroAddress ? "ETH" : "USDC"
-        }
+        collateralTicker={selectedMarket ? collateralTickerFor(selectedMarket.collateralAddress) : "TOKEN"}
         amount={tradeAmount}
         setAmount={setTradeAmount}
         priceOfRaw={tradePriceRaw}
         walletBalanceWei={collateralBalance}
+        outcomeTokenBalanceWei={outcomeTokenBalance}
         tokensFormatted={tradeSummary?.tokens ?? null}
         pricePerTokenLabel={pricePerTokenLabel}
         slippageBps={tradeSlippageBps}
