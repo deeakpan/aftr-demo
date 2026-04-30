@@ -62,7 +62,7 @@ export async function fetchFactoryMarkets(
   })) as bigint;
 
   const out: Address[] = [];
-  for (let i = 0n; i < len; i += 1n) {
+  for (let i = BigInt(0); i < len; i += BigInt(1)) {
     const m = (await client.readContract({
       address: factory,
       abi: FACTORY_ABI,

@@ -2,14 +2,20 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowsClockwise, BookmarkSimple, PlusMinus } from "@phosphor-icons/react";
-import { formatUnits, parseAbi } from "viem";
+import { ArrowsClockwise, BookmarkSimple, Copy, PlusMinus, X } from "@phosphor-icons/react";
+import { formatUnits, parseAbi, zeroAddress } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import deployment from "@/deployments/baseSepolia-84532.json";
 
 const ROUTER_ADDRESS = deployment.contracts.AFTRMarketDebtRouter as `0x${string}`;
+const DRP_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
+  .DRP as `0x${string}`;
 const DEPLOYMENT_CHAIN_ID = deployment.chainId;
+const USDEAD_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
+  .AFTRUSDC?.toLowerCase();
+const CIRCLE_USDC_ADDRESS = (deployment as unknown as { external: Record<string, string> }).external
+  .umaBondCurrencyCircleUSDC?.toLowerCase();
 
 const MARKET_ABI = parseAbi([
   "function marketKind() view returns (uint8)",
@@ -28,7 +34,24 @@ const MARKET_ABI = parseAbi([
 ]);
 const ROUTER_ABI = parseAbi([
   "function redeemForSelf(address market, uint8 outcomeIndex, uint256 shareAmount)",
+  "function redeemAndRepayForSelf(address market, uint8 outcomeIndex, uint256 shareAmount, address vaultCollateralToken, uint256 debtToBurn)",
 ]);
+const DRP_ABI = parseAbi([
+  "function getUserVaultDetails(address _user, address _token) view returns (uint256 collateral,uint256 debt,uint256 pendingWithdrawalAmount,uint256 unlockTimestamp,bool isClosing,bool isLiquidated)",
+]);
+
+type VaultCollateralOption = {
+  label: string;
+  address: `0x${string}`;
+};
+const VAULT_COLLATERAL_OPTIONS =
+  (deployment as unknown as { external?: { vaultCollateralOptions?: VaultCollateralOption[] } })
+    .external?.vaultCollateralOptions ?? [
+    {
+      label: "WETH",
+      address: "0x4200000000000000000000000000000000000006" as `0x${string}`,
+    },
+  ];
 
 const ERC20_ABI = parseAbi([
   "function balanceOf(address account) view returns (uint256)",
@@ -38,6 +61,7 @@ const ERC20_ABI = parseAbi([
 
 type PositionRow = {
   marketAddress: `0x${string}`;
+  collateralAddress: `0x${string}`;
   marketTitle: string;
   marketKind: "Event" | "Price";
   marketState: number;
@@ -58,6 +82,7 @@ type PositionRow = {
 
 type MarketPositionGroup = {
   marketAddress: `0x${string}`;
+  collateralAddress: `0x${string}`;
   marketTitle: string;
   marketKind: "Event" | "Price";
   marketState: number;
@@ -91,6 +116,14 @@ function fmtTs(seconds: number) {
   return new Date(seconds * 1000).toLocaleString();
 }
 
+function collateralTickerFor(address: `0x${string}`): string {
+  const lower = address.toLowerCase();
+  if (lower === zeroAddress.toLowerCase()) return "ETH";
+  if (USDEAD_ADDRESS && lower === USDEAD_ADDRESS) return "USDeAD";
+  if (CIRCLE_USDC_ADDRESS && lower === CIRCLE_USDC_ADDRESS) return "USDC";
+  return "TOKEN";
+}
+
 function stateLabel(state: number, stakeEndUnix: number) {
   if (state === 2) return "Settled";
   if (state === 1) return "Resolving (UMA)";
@@ -112,6 +145,7 @@ function groupRows(rows: PositionRow[]): MarketPositionGroup[] {
     const head = list[0]!;
     groups.push({
       marketAddress: head.marketAddress,
+      collateralAddress: head.collateralAddress,
       marketTitle: head.marketTitle,
       marketKind: head.marketKind,
       marketState: head.marketState,
@@ -148,6 +182,8 @@ function ClaimWinningsButton({
   maxShares,
   shareDecimals,
   redemptionRate,
+  collateralTicker,
+  collateralAddress,
   onDone,
 }: {
   marketAddress: `0x${string}`;
@@ -155,6 +191,8 @@ function ClaimWinningsButton({
   maxShares: bigint;
   shareDecimals: number;
   redemptionRate: bigint;
+  collateralTicker: string;
+  collateralAddress: `0x${string}`;
   onDone: () => void;
 }) {
   const publicClient = usePublicClient({ chainId: DEPLOYMENT_CHAIN_ID });
@@ -162,12 +200,129 @@ function ClaimWinningsButton({
   const { address, chainId } = useAccount();
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [repayMode, setRepayMode] = useState(false);
+  const [selectedVaultCollateral, setSelectedVaultCollateral] = useState<`0x${string}`>(
+    VAULT_COLLATERAL_OPTIONS[0]!.address,
+  );
+  const [debtWei, setDebtWei] = useState<bigint>(BigInt(0));
+  const [debtLoading, setDebtLoading] = useState(false);
+  const [debtError, setDebtError] = useState("");
+  const [copiedVaultAddress, setCopiedVaultAddress] = useState(false);
+  const [shareApprovalReady, setShareApprovalReady] = useState(false);
+  const [drpApprovalReady, setDrpApprovalReady] = useState(false);
+  const isUsdeadMarket = Boolean(
+    USDEAD_ADDRESS && collateralAddress.toLowerCase() === USDEAD_ADDRESS,
+  );
+  const estPayoutWei = useMemo(
+    () => (redemptionRate <= BigInt(0) || maxShares <= BigInt(0) ? BigInt(0) : (maxShares * redemptionRate) / BigInt(10 ** 18)),
+    [maxShares, redemptionRate],
+  );
   const maxPayout = useMemo(() => {
-    if (redemptionRate <= BigInt(0) || maxShares <= BigInt(0)) return "0";
-    return formatUnits((maxShares * redemptionRate) / BigInt(10 ** 18), shareDecimals);
-  }, [redemptionRate, maxShares, shareDecimals]);
+    if (estPayoutWei <= BigInt(0)) return "0";
+    const raw = formatUnits(estPayoutWei, shareDecimals);
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return raw;
+    return n.toLocaleString(undefined, { maximumFractionDigits: 6 });
+  }, [estPayoutWei, shareDecimals]);
 
-  const redeem = async () => {
+  useEffect(() => {
+    if (!modalOpen || !isUsdeadMarket || !publicClient || !address) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        setDebtLoading(true);
+        setDebtError("");
+        const details = (await publicClient.readContract({
+          address: DRP_ADDRESS,
+          abi: DRP_ABI,
+          functionName: "getUserVaultDetails",
+          args: [address, selectedVaultCollateral],
+        })) as [bigint, bigint, bigint, bigint, boolean, boolean];
+        if (!cancelled) setDebtWei(details[1]);
+      } catch (e) {
+        if (!cancelled) {
+          setDebtWei(BigInt(0));
+          setDebtError(e instanceof Error ? e.message : "Could not fetch debt.");
+        }
+      } finally {
+        if (!cancelled) setDebtLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [modalOpen, repayMode, isUsdeadMarket, publicClient, address, selectedVaultCollateral]);
+
+  // DRP charges 1% fee on burnAmount; with payout budget P, max burn ≈ P * 10000 / 10100.
+  const maxDebtBurnFromWinningsWei = useMemo(
+    () => (estPayoutWei * BigInt(10_000)) / BigInt(10_100),
+    [estPayoutWei],
+  );
+  const debtToBurnWei = useMemo(
+    () => (debtWei < maxDebtBurnFromWinningsWei ? debtWei : maxDebtBurnFromWinningsWei),
+    [debtWei, maxDebtBurnFromWinningsWei],
+  );
+  const debtLeftAfterWei = useMemo(
+    () => (debtWei > debtToBurnWei ? debtWei - debtToBurnWei : BigInt(0)),
+    [debtWei, debtToBurnWei],
+  );
+  const fmtCollateral = (v: bigint) =>
+    Number(formatUnits(v, shareDecimals)).toLocaleString(undefined, { maximumFractionDigits: 6 });
+
+  useEffect(() => {
+    if (!modalOpen || !isUsdeadMarket || !publicClient || !address) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = (await publicClient.readContract({
+          address: marketAddress,
+          abi: MARKET_ABI,
+          functionName: "outcomeToken",
+          args: [BigInt(winningOutcomeIndex)],
+        })) as `0x${string}`;
+        const [shareAllowance, drpAllowance] = (await Promise.all([
+          publicClient.readContract({
+            address: token,
+            abi: ERC20_ABI,
+            functionName: "allowance",
+            args: [address, ROUTER_ADDRESS],
+          }),
+          publicClient.readContract({
+            address: collateralAddress,
+            abi: ERC20_ABI,
+            functionName: "allowance",
+            args: [address, DRP_ADDRESS],
+          }),
+        ])) as [bigint, bigint];
+        const requiredWithFee = debtToBurnWei + (debtToBurnWei * BigInt(100)) / BigInt(10_000);
+        if (!cancelled) {
+          setShareApprovalReady(shareAllowance >= maxShares);
+          setDrpApprovalReady(drpAllowance >= requiredWithFee);
+        }
+      } catch {
+        if (!cancelled) {
+          setShareApprovalReady(false);
+          setDrpApprovalReady(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    modalOpen,
+    isUsdeadMarket,
+    publicClient,
+    address,
+    marketAddress,
+    winningOutcomeIndex,
+    collateralAddress,
+    maxShares,
+    debtToBurnWei,
+  ]);
+
+  const redeem = async (withRepay: boolean) => {
     if (!publicClient || !walletClient || !address) { setStatus("Connect wallet."); return; }
     if (chainId !== DEPLOYMENT_CHAIN_ID) { setStatus(`Switch to Base Sepolia.`); return; }
     try {
@@ -179,27 +334,66 @@ function ClaimWinningsButton({
       })) as `0x${string}`;
       const allowance = (await publicClient.readContract({
         address: token, abi: ERC20_ABI, functionName: "allowance",
-        args: [address, marketAddress],
+        args: [address, ROUTER_ADDRESS],
       })) as bigint;
       if (allowance < maxShares) {
         setStatus("Approving…");
         const h = await walletClient.writeContract({
           chain: walletClient.chain, address: token, abi: ERC20_ABI,
-          functionName: "approve", args: [marketAddress, maxShares], account: address,
+          functionName: "approve", args: [ROUTER_ADDRESS, maxShares], account: address,
         });
         await publicClient.waitForTransactionReceipt({ hash: h });
       }
-      setStatus("Claiming…");
+      let liveDebtToBurn = debtToBurnWei;
+      if (withRepay) {
+        // Re-read debt at submit time so we don't use stale modal state.
+        const details = (await publicClient.readContract({
+          address: DRP_ADDRESS,
+          abi: DRP_ABI,
+          functionName: "getUserVaultDetails",
+          args: [address, selectedVaultCollateral],
+        })) as [bigint, bigint, bigint, bigint, boolean, boolean];
+        const liveDebt = details[1];
+        const maxBurnNow = (estPayoutWei * BigInt(10_000)) / BigInt(10_100);
+        liveDebtToBurn = liveDebt < maxBurnNow ? liveDebt : maxBurnNow;
+
+        // DRP pulls USDeAD from user directly for burn + 1% fee.
+        const requiredWithFee = liveDebtToBurn + (liveDebtToBurn * BigInt(100)) / BigInt(10_000);
+        const drpAllowance = (await publicClient.readContract({
+          address: collateralAddress,
+          abi: ERC20_ABI,
+          functionName: "allowance",
+          args: [address, DRP_ADDRESS],
+        })) as bigint;
+        if (drpAllowance < requiredWithFee) {
+          setStatus("Approving DRP for repay…");
+          const approveDrp = await walletClient.writeContract({
+            chain: walletClient.chain,
+            address: collateralAddress,
+            abi: ERC20_ABI,
+            functionName: "approve",
+            args: [DRP_ADDRESS, requiredWithFee],
+            account: address,
+          });
+          await publicClient.waitForTransactionReceipt({ hash: approveDrp });
+        }
+      }
+
+      setStatus(withRepay ? "Claiming + repaying…" : "Claiming…");
       const tx = await walletClient.writeContract({
         chain: walletClient.chain,
         address: ROUTER_ADDRESS,
         abi: ROUTER_ABI,
-        functionName: "redeemForSelf",
-        args: [marketAddress, winningOutcomeIndex, maxShares],
+        functionName: withRepay ? "redeemAndRepayForSelf" : "redeemForSelf",
+        args: withRepay
+          ? [marketAddress, winningOutcomeIndex, maxShares, selectedVaultCollateral, liveDebtToBurn]
+          : [marketAddress, winningOutcomeIndex, maxShares],
         account: address,
+        gas: withRepay ? BigInt(900_000) : BigInt(500_000),
       });
       await publicClient.waitForTransactionReceipt({ hash: tx });
       setStatus("Claimed!");
+      setModalOpen(false);
       onDone();
     } catch (e) {
       setStatus(e instanceof Error ? e.message : "Failed.");
@@ -213,16 +407,155 @@ function ClaimWinningsButton({
       <p className="mb-1 text-xs font-semibold text-emerald-400">
         {formatShareAmount(maxShares, shareDecimals)}
       </p>
-      <p className="mb-1 text-[11px] text-slate-300">Est. payout: {maxPayout}</p>
+      <p className="mb-1 text-[11px] text-slate-300">Est. payout: {maxPayout} {collateralTicker}</p>
       {status && <p className="mb-1.5 text-[11px] text-emerald-300">{status}</p>}
       <button
         type="button"
         disabled={busy}
-        onClick={() => void redeem()}
+        onClick={() => {
+          if (isUsdeadMarket) {
+            setRepayMode(false);
+            setModalOpen(true);
+            return;
+          }
+          void redeem(false);
+        }}
         className="w-full rounded-xl bg-emerald-500 py-2.5 text-sm font-bold text-white shadow-[0_0_16px_rgba(16,185,129,0.3)] transition hover:bg-emerald-400 active:scale-[0.98] disabled:opacity-60"
       >
-        {busy ? "Claiming…" : "Claim Winnings"}
+        {busy ? "Claiming…" : isUsdeadMarket ? "Claim / Repay" : "Claim Winnings"}
       </button>
+      {isUsdeadMarket && modalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-3 backdrop-blur-[2px] md:items-center"
+          onClick={() => setModalOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-[420px] overflow-hidden rounded-2xl border border-white/10 bg-[#0d1422] p-4 text-left"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              className="absolute right-2 top-2 rounded-full p-1 text-slate-400 transition hover:bg-white/10 hover:text-white"
+              aria-label="Close"
+            >
+              <X size={16} weight="bold" />
+            </button>
+            <p className="text-sm font-semibold text-white">Claim Winnings (USDeAD)</p>
+            <p className="mt-1 text-xs text-slate-400">
+              Choose to claim only, or claim and repay DRP debt in one transaction.
+            </p>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setRepayMode(false);
+                }}
+                className={`rounded-lg border px-3 py-2 text-xs font-semibold ${
+                  !repayMode ? "border-emerald-500 bg-emerald-600 text-white" : "border-white/10 text-slate-300"
+                }`}
+              >
+                Claim only
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setRepayMode(true);
+                }}
+                className={`rounded-lg border px-3 py-2 text-xs font-semibold ${
+                  repayMode ? "border-indigo-500 bg-indigo-600 text-white" : "border-white/10 text-slate-300"
+                }`}
+              >
+                Claim + Repay
+              </button>
+            </div>
+
+            <div className="mt-3 space-y-2 rounded-lg border border-white/10 bg-black/30 p-3 text-xs">
+              <label className="block text-slate-400">Vault collateral token</label>
+              <div className="group flex items-center justify-between rounded-md border border-white/10 bg-black px-2 py-1.5 text-white">
+                <button
+                  type="button"
+                  onClick={() => setSelectedVaultCollateral(VAULT_COLLATERAL_OPTIONS[0]!.address)}
+                  className="text-left"
+                  title="Vault collateral token"
+                >
+                  {VAULT_COLLATERAL_OPTIONS[0]!.label}
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(selectedVaultCollateral);
+                    setCopiedVaultAddress(true);
+                    setTimeout(() => setCopiedVaultAddress(false), 1200);
+                  }}
+                  className="opacity-0 transition group-hover:opacity-100 hover:text-emerald-300"
+                  title="Copy vault collateral address"
+                >
+                  <Copy size={14} weight="bold" />
+                </button>
+              </div>
+              {copiedVaultAddress && (
+                <p className="text-[11px] text-emerald-300">Vault token address copied</p>
+              )}
+              {debtLoading ? (
+                <p className="text-slate-400">Loading debt…</p>
+              ) : (
+                <>
+                  <p className="text-slate-300">Current debt: <span className="font-semibold text-white">{fmtCollateral(debtWei)} USDeAD</span></p>
+                  <p className="text-slate-300">Est. repayable from winnings: <span className="font-semibold text-white">{fmtCollateral(debtToBurnWei)} USDeAD</span></p>
+                  <p className="text-slate-300">Est. debt left: <span className="font-semibold text-white">{fmtCollateral(debtLeftAfterWei)} USDeAD</span></p>
+                  <p className="text-[11px] text-slate-500">Repay uses DRP 1% fee; estimates account for that.</p>
+                </>
+              )}
+              {debtError && <p className="text-rose-400">{debtError}</p>}
+            </div>
+
+            <p className="mt-3 text-[11px] text-slate-400">
+              Aftrmarkets is in partnership with{" "}
+              <a
+                href="https://dead.box"
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-emerald-300 underline underline-offset-2"
+              >
+                DRP
+              </a>{" "}
+              as a vault manager. Learn more.
+            </p>
+            <div className="mt-3 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-[11px] text-slate-400">
+              {repayMode ? (
+                <>
+                  This action may require multiple confirmations:
+                  <div className="mt-1 space-y-0.5 text-slate-300">
+                    <p>1) {shareApprovalReady ? "✓ " : ""}Approve winning shares to router</p>
+                    <p>2) {drpApprovalReady ? "✓ " : ""}Approve DRP USDeAD spend</p>
+                    <p>3) Execute claim + repay</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  This action may require up to two confirmations:
+                  <div className="mt-1 space-y-0.5 text-slate-300">
+                    <p>1) Approve winning shares to router</p>
+                    <p>2) Execute claim</p>
+                  </div>
+                </>
+              )}
+            </div>
+            <button
+              type="button"
+              disabled={busy || (repayMode && debtLoading)}
+              onClick={() => void redeem(repayMode)}
+              className="mt-3 w-full rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+            >
+              {busy ? "Processing…" : repayMode ? "Confirm Claim + Repay" : "Confirm Claim"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -286,6 +619,7 @@ export function TradesClient() {
         const json = (await res.json()) as {
           rows?: Array<{
             marketAddress: `0x${string}`;
+            collateralAddress: `0x${string}`;
             marketTitle: string;
             marketKind: "Event" | "Price";
             marketState: number;
@@ -309,6 +643,7 @@ export function TradesClient() {
         }
         const parsed: PositionRow[] = (json.rows ?? []).map((r) => ({
           marketAddress: r.marketAddress,
+          collateralAddress: r.collateralAddress,
           marketTitle: r.marketTitle,
           marketKind: r.marketKind,
           marketState: r.marketState,
@@ -425,6 +760,8 @@ export function TradesClient() {
                             maxShares={winBal}
                             shareDecimals={g.collateralDecimals}
                             redemptionRate={g.redemptionRate}
+                            collateralTicker={collateralTickerFor(g.collateralAddress)}
+                            collateralAddress={g.collateralAddress}
                             onDone={() => setRefreshKey((k) => k + 1)}
                           />
                         </div>

@@ -348,7 +348,9 @@ contract DeaderalReserveProtocol is Ownable, ReentrancyGuard {
             _addr = address(VaultDistributor);
         }
 
-        uint256 validAt = block.timestamp + TIMELOCK_DELAY;
+        uint256 validAt = _op == TimelockOp.SetVaultManager
+            ? block.timestamp
+            : block.timestamp + TIMELOCK_DELAY;
         pendingOps[_op] = PendingOp({
             addr: _addr,
             value: _value,

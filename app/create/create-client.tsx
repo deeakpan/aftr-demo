@@ -14,17 +14,21 @@ const fieldClass =
 
 const labelClass = "text-xs font-medium uppercase tracking-wider text-[var(--muted)]";
 
-const FEEDS = [
-  { label: "BTC/USD", asset: "BTC", logo: "https://assets.coingecko.com/coins/images/1/large/bitcoin.png", address: "0x0FB99723Aee6f420beAD13e6bBB79b7E6F034298" },
-  { label: "CBETH/ETH", asset: "cbETH", logo: "https://assets.coingecko.com/coins/images/27008/large/cbeth.png", address: "0x91b21900E91CD302EBeD05E45D8f270ddAED944d" },
-  { label: "CBETH/USD", asset: "cbETH", logo: "https://assets.coingecko.com/coins/images/27008/large/cbeth.png", address: "0x3c65e28D357a37589e1C7C86044a9f44dDC17134" },
-  { label: "DAI/USD", asset: "DAI", logo: "https://assets.coingecko.com/coins/images/9956/large/Badge_Dai.png", address: "0xD1092a65338d049DB68D7Be6bD89d17a0929945e" },
-  { label: "ETH/USD", asset: "ETH", logo: "https://assets.coingecko.com/coins/images/279/large/ethereum.png", address: "0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1" },
-  { label: "LINK/ETH", asset: "LINK", logo: "https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png", address: "0x56a43EB56Da12C0dc1D972ACb089c06a5dEF8e69" },
-  { label: "LINK/USD", asset: "LINK", logo: "https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png", address: "0xb113F5A928BCfF189C998ab20d753a47F9dE5A61" },
-  { label: "USDC/USD", asset: "USDC", logo: "https://assets.coingecko.com/coins/images/6319/large/usdc.png", address: "0xd30e2101a97dcbAeBCBC04F14C3f624E67A35165" },
-] as const;
-type Feed = (typeof FEEDS)[number];
+type Feed = {
+  label: string;
+  asset: string;
+  logo: string;
+  address: `0x${string}`;
+};
+const DEFAULT_FEED: Feed = {
+  label: "ETH/USD",
+  asset: "ETH",
+  logo: "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
+  address: "0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1",
+};
+const FEEDS =
+  (deployment as unknown as { external?: { chainlinkFeeds?: Feed[] } }).external?.chainlinkFeeds ??
+  [DEFAULT_FEED];
 
 const CATEGORIES = [
   "Crypto",

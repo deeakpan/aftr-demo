@@ -135,6 +135,8 @@ contract AFTRMarketDebtRouter is ReentrancyGuard {
 
         address outToken = IAFTRMarketLike(market).outcomeToken(uint256(outcomeIndex));
         IERC20(outToken).safeTransferFrom(msg.sender, address(this), shareAmount);
+        // Market burns shares from router in redeem(), so router must approve market for outcome token spend.
+        IERC20(outToken).forceApprove(market, shareAmount);
 
         address collateral = IAFTRMarketLike(market).collateralAddress();
         uint256 payout;
@@ -180,6 +182,8 @@ contract AFTRMarketDebtRouter is ReentrancyGuard {
 
         address outToken = IAFTRMarketLike(market).outcomeToken(uint256(outcomeIndex));
         IERC20(outToken).safeTransferFrom(msg.sender, address(this), shareAmount);
+        // Market burns shares from router in redeem(), so router must approve market for outcome token spend.
+        IERC20(outToken).forceApprove(market, shareAmount);
 
         uint256 balBefore = IERC20(usdead).balanceOf(address(this));
         IAFTRMarketLike(market).redeem(outcomeIndex, shareAmount);

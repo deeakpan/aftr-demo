@@ -21,6 +21,7 @@
     "market:fund": "node scripts/fund-market.cjs",
     "market:propose": "node scripts/propose-market.cjs",
     "market:settle": "node scripts/settle-market.cjs",
+    "drp:enable-router-manager": "hardhat run scripts/drp-enable-router-manager.cjs",
     "send:usdc": "node scripts/send-usdc.cjs",
     "indexer:dev": "npm run dev --prefix indexer",
     "indexer:build": "npm run build --prefix indexer",

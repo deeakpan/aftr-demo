@@ -9,6 +9,10 @@ import {
 } from "./chain.js";
 import { createIndexerSupabase } from "./supabase-client.js";
 
+const ZERO = BigInt(0);
+const ONE = BigInt(1);
+const NEG_ONE = BigInt(-1);
+
 function sleep(ms: number) {
   return new Promise<void>((resolve) => {
     setTimeout(resolve, ms);
@@ -35,14 +39,14 @@ function batches<T>(items: readonly T[], size: number): T[][] {
 }
 
 function spansInclusive(fromBlock: bigint, toBlockInclusive: bigint, chunk: bigint): [bigint, bigint][] {
-  if (chunk < 1n) throw new Error("BLOCK_CHUNK must be >= 1");
+  if (chunk < ONE) throw new Error("BLOCK_CHUNK must be >= 1");
   const out: [bigint, bigint][] = [];
   let cur = fromBlock;
   while (cur <= toBlockInclusive) {
     const spanEnd =
-      cur + chunk - 1n <= toBlockInclusive ? cur + chunk - 1n : toBlockInclusive;
+      cur + chunk - ONE <= toBlockInclusive ? cur + chunk - ONE : toBlockInclusive;
     out.push([cur, spanEnd]);
-    cur = spanEnd + 1n;
+    cur = spanEnd + ONE;
   }
   return out;
 }
@@ -171,7 +175,7 @@ export async function runTick(cfg: IndexerConfig) {
   const supabase = createIndexerSupabase(cfg);
 
   const initialCursor =
-    cfg.scanFromBlock > 0n ? cfg.scanFromBlock - 1n : (-1n as bigint);
+    cfg.scanFromBlock > ZERO ? cfg.scanFromBlock - ONE : NEG_ONE;
 
   let cursorInclusive = await ensureCheckpoint(cfg, initialCursor);
 
@@ -183,11 +187,11 @@ export async function runTick(cfg: IndexerConfig) {
   const overlap = cfg.overlapBlocks;
 
   let safeInclusive = latest - confirmations;
-  if (safeInclusive < 0n) safeInclusive = 0n;
+  if (safeInclusive < ZERO) safeInclusive = ZERO;
 
-  const fromExclusiveNext = cursorInclusive + 1n - overlap;
+  const fromExclusiveNext = cursorInclusive + ONE - overlap;
   let fromInclusive = cfg.scanFromBlock > fromExclusiveNext ? cfg.scanFromBlock : fromExclusiveNext;
-  if (fromInclusive < 0n) fromInclusive = 0n;
+  if (fromInclusive < ZERO) fromInclusive = ZERO;
 
   if (fromInclusive > safeInclusive) {
     return {
@@ -211,9 +215,9 @@ export async function runTick(cfg: IndexerConfig) {
     const logGroups = await Promise.all(logTasks);
     const merged = logGroups.flat();
     merged.sort((a, b) => {
-      const bn = (a.blockNumber ?? 0n) - (b.blockNumber ?? 0n);
-      if (bn < 0n) return -1;
-      if (bn > 0n) return 1;
+      const bn = (a.blockNumber ?? ZERO) - (b.blockNumber ?? ZERO);
+      if (bn < ZERO) return -1;
+      if (bn > ZERO) return 1;
       const tn = Number(a.transactionIndex ?? 0) - Number(b.transactionIndex ?? 0);
       if (tn !== 0) return tn;
       return (a.logIndex ?? 0) - (b.logIndex ?? 0);

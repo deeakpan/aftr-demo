@@ -31,5 +31,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "Brimdex", "uma"]
+  "exclude": ["node_modules", "Brimdex", "uma", "indexer", "subgraph"]
 }
