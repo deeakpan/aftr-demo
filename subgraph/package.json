@@ -1,6 +1,6 @@
 {
   "name": "aftr-subgraph",
-  "version": "0.1.0",
+  "version": "0.05.0",
   "private": true,
   "scripts": {
     "codegen": "graph codegen",

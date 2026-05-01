@@ -1,4 +1,5 @@
 /* eslint-disable no-console */
+/** @deprecated Prefer `deploy-aftr-full-stack.cjs` when you want fresh AFTRUSDC + USDeAD + DRP + router + factory with all collaterals. */
 const fs = require("fs");
 const path = require("path");
 const hre = require("hardhat");

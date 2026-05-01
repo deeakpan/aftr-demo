@@ -12,9 +12,12 @@ async function main() {
   const deployment = JSON.parse(fs.readFileSync(deploymentPath, "utf8"));
 
   const factory = deployment?.contracts?.AFTRParimutuelMarketFactory;
-  const drp = process.env.DRP_ADDRESS?.trim() || "0x34a31ccc2bc660d17Ea91eBc5868397dd732fA64";
+  const drp =
+    process.env.DRP_ADDRESS?.trim() ||
+    deployment?.contracts?.DRP ||
+    deployment?.contracts?.DeaderalReserveProtocol;
   if (!factory || !hre.ethers.isAddress(factory)) throw new Error("Invalid AFTRParimutuelMarketFactory in deployment json");
-  if (!drp || !hre.ethers.isAddress(drp)) throw new Error("Invalid DRP address");
+  if (!drp || !hre.ethers.isAddress(String(drp))) throw new Error("Invalid DRP: set contracts.DRP in deployment json or pass DRP_ADDRESS");
 
   console.log("Deployer:", deployer.address);
   console.log("Factory:", factory);

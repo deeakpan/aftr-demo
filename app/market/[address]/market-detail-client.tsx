@@ -15,15 +15,10 @@ import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import { LimitOrderParams, TradeModal } from "@/app/market/components/trade-modal";
 import { hasWalletConnectProjectId } from "@/app/wagmi-config";
+import { collateralTickerFromDeployment, isUsdStyledCollateralTicker } from "@/lib/deployment-collateral";
 import deployment from "@/deployments/baseSepolia-84532.json";
 
 const DEPLOYMENT_CHAIN_ID = deployment.chainId;
-const USDEAD_ADDRESS = (
-  (deployment as unknown as { contracts: Record<string, string> }).contracts.USDeAD ??
-  (deployment as unknown as { contracts: Record<string, string> }).contracts.AFTRUSDC
-)?.toLowerCase();
-const CIRCLE_USDC_ADDRESS = (deployment as unknown as { external: Record<string, string> }).external
-  .umaBondCurrencyCircleUSDC?.toLowerCase();
 const WAD = BigInt("1000000000000000000");
 const UMA_BINARY_YES = BigInt("1000000000000000000");
 const SLIPPAGE_PRESETS = [50, 100, 200, 300] as const;
@@ -195,7 +190,7 @@ function formatMoneyAmount(unformatted: string, ticker: string): string {
   const n = Number(unformatted);
   if (!Number.isFinite(n)) return unformatted;
   const compact = n.toLocaleString(undefined, { maximumFractionDigits: 6 });
-  if (ticker === "USDC") return `$${compact}`;
+  if (isUsdStyledCollateralTicker(ticker)) return `$${compact}`;
   return `${compact} ${ticker}`;
 }
 
@@ -205,15 +200,6 @@ function priceKindName(kind: number): string {
   if (kind === 2) return "In range";
   return `Kind ${kind}`;
 }
-
-function collateralTickerFor(address: `0x${string}`): string {
-  const lower = address.toLowerCase();
-  if (lower === zeroAddress.toLowerCase()) return "ETH";
-  if (USDEAD_ADDRESS && lower === USDEAD_ADDRESS) return "USDeAD";
-  if (CIRCLE_USDC_ADDRESS && lower === CIRCLE_USDC_ADDRESS) return "USDC";
-  return "TOKEN";
-}
-
 
 function TradingViewChart({ symbol }: { symbol: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -569,7 +555,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
     if (!tradeSummary || tradeSummary.sharesWei === BigInt(0) || !market) return null;
     const raw = (tradeSummary.amountWei * WAD) / tradeSummary.sharesWei;
     const s = formatUnits(raw, 18);
-    const ticker = collateralTickerFor(market.collateralAddress);
+    const ticker = collateralTickerFromDeployment(market.collateralAddress);
     return formatMoneyAmount(s, ticker);
   }, [tradeSummary, market?.collateralAddress]);
 
@@ -602,7 +588,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
 
   const approvalLine = useMemo(() => {
     if (!market) return "";
-    const tick = collateralTickerFor(market.collateralAddress);
+    const tick = collateralTickerFromDeployment(market.collateralAddress);
     if (isNativeCollateral) return "Native collateral — no token approval.";
     if (!address || !tradeSummary) return "";
     if (collateralAllowance === null) return "Loading allowance…";
@@ -1067,7 +1053,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
                   selectedOutcomeIndex={selectedOutcome}
                   onSelectOutcome={setSelectedOutcome}
                   collateralDecimals={market.collateralDecimals}
-                  collateralTicker={collateralTickerFor(market.collateralAddress)}
+                  collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
                   amount={tradeAmount}
                   setAmount={setTradeAmount}
                   priceOfRaw={tradePriceRaw}
@@ -1150,7 +1136,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
           selectedOutcomeIndex={selectedOutcome}
           onSelectOutcome={setSelectedOutcome}
           collateralDecimals={market.collateralDecimals}
-          collateralTicker={collateralTickerFor(market.collateralAddress)}
+          collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
           amount={tradeAmount}
           setAmount={setTradeAmount}
           priceOfRaw={tradePriceRaw}

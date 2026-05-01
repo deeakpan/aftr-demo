@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "hh:compile": "hardhat compile",
+    "deploy:aftr-full-stack": "hardhat run scripts/deploy-aftr-full-stack.cjs",
     "deploy:aftr-pari-factory": "hardhat run scripts/deploy-aftr-factory.cjs",
     "deploy:aftr-router": "hardhat run scripts/deploy-aftr-router.cjs",
     "deploy:drp-stack": "hardhat run scripts/deploy-drp-stack.cjs",
@@ -26,7 +27,8 @@
     "indexer:dev": "npm run dev --prefix indexer",
     "indexer:build": "npm run build --prefix indexer",
     "subgraph:codegen": "npm run codegen --prefix subgraph",
-    "subgraph:build": "npm run build --prefix subgraph"
+    "subgraph:build": "npm run build --prefix subgraph",
+    "subgraph:deploy-studio": "node scripts/subgraph-studio-deploy.cjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

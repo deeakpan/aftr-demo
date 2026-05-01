@@ -7,17 +7,15 @@ import { formatUnits, parseAbi, zeroAddress } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import deployment from "@/deployments/baseSepolia-84532.json";
+import { collateralTickerFromDeployment } from "@/lib/deployment-collateral";
 
 const ROUTER_ADDRESS = deployment.contracts.AFTRMarketDebtRouter as `0x${string}`;
 const DRP_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
   .DRP as `0x${string}`;
 const DEPLOYMENT_CHAIN_ID = deployment.chainId;
 const USDEAD_ADDRESS = (
-  (deployment as unknown as { contracts: Record<string, string> }).contracts.USDeAD ??
-  (deployment as unknown as { contracts: Record<string, string> }).contracts.AFTRUSDC
+  (deployment as unknown as { contracts: Record<string, string> }).contracts.USDeAD ?? ""
 )?.toLowerCase();
-const CIRCLE_USDC_ADDRESS = (deployment as unknown as { external: Record<string, string> }).external
-  .umaBondCurrencyCircleUSDC?.toLowerCase();
 
 const MARKET_ABI = parseAbi([
   "function marketKind() view returns (uint8)",
@@ -126,14 +124,6 @@ function formatShareAmount(raw: bigint, decimals: number): string {
 function fmtTs(seconds: number) {
   if (!Number.isFinite(seconds) || seconds <= 0) return "—";
   return new Date(seconds * 1000).toLocaleString();
-}
-
-function collateralTickerFor(address: `0x${string}`): string {
-  const lower = address.toLowerCase();
-  if (lower === zeroAddress.toLowerCase()) return "ETH";
-  if (USDEAD_ADDRESS && lower === USDEAD_ADDRESS) return "USDeAD";
-  if (CIRCLE_USDC_ADDRESS && lower === CIRCLE_USDC_ADDRESS) return "USDC";
-  return "TOKEN";
 }
 
 function stateLabel(state: number, stakeEndUnix: number) {
@@ -918,7 +908,7 @@ export function TradesClient() {
               const winIdx = g.winningOutcomeIndex;
               const winBal =
                 g.marketState === 2 && winIdx !== null ? balanceForOutcome(g.positions, winIdx) : BigInt(0);
-              const tick = collateralTickerFor(g.collateralAddress);
+              const tick = collateralTickerFromDeployment(g.collateralAddress);
               const fmtIndexed = (v: bigint) =>
                 Number(formatUnits(v, g.collateralDecimals)).toLocaleString(undefined, {
                   maximumFractionDigits: 6,

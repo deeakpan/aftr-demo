@@ -51,15 +51,21 @@ function shortenAddress(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
+function formatGroupedAmount(value: number, minimumFractionDigits: number, maximumFractionDigits: number) {
+  if (!Number.isFinite(value)) return (0).toLocaleString(undefined, { minimumFractionDigits, maximumFractionDigits });
+  return value.toLocaleString(undefined, { minimumFractionDigits, maximumFractionDigits });
+}
+
 function signedSessionKey(address: string) {
   return `aftrmarket-signed:${address.toLowerCase()}`;
 }
 
+/** Profile “USDC” row reads minted AFTRUSDC (`symbol()` on-chain is still USDC). */
 const PROFILE_USDC_ADDRESS = (
-  deployment as unknown as { external?: { umaBondCurrencyCircleUSDC?: string } }
-).external?.umaBondCurrencyCircleUSDC as `0x${string}` | undefined;
+  deployment as unknown as { contracts?: { AFTRUSDC?: string } }
+).contracts?.AFTRUSDC as `0x${string}` | undefined;
 const PROFILE_USDEAD_ADDRESS = (
-  deployment as unknown as { contracts?: { USDeAD?: string; AFTRUSDC?: string } }
+  deployment as unknown as { contracts?: { USDeAD?: string } }
 ).contracts?.USDeAD as `0x${string}` | undefined;
 const ERC20_ABI = parseAbi([
   "function balanceOf(address account) view returns (uint256)",
@@ -245,9 +251,9 @@ export function AppLayout({
 
   const isWalletConnected = mounted && isConnected && Boolean(address);
   const availableBalanceLabel = useMemo(() => {
-    if (!nativeBalance) return "0.00";
+    if (!nativeBalance) return formatGroupedAmount(0, 4, 4);
     const value = Number(formatUnits(nativeBalance.value, nativeBalance.decimals));
-    return value.toFixed(4);
+    return formatGroupedAmount(value, 4, 4);
   }, [nativeBalance]);
   const profileBalance = useMemo(() => {
     if (balanceView === "usdc") {
@@ -255,19 +261,19 @@ export function AppLayout({
       const decimals = Number(usdcDecimalsRaw ?? 6);
       const symbol = typeof usdcSymbolRaw === "string" ? usdcSymbolRaw : "USDC";
       const value = Number(formatUnits(bal, decimals));
-      return { amount: Number.isFinite(value) ? value.toFixed(2) : "0.00", symbol };
+      return { amount: formatGroupedAmount(value, 2, 2), symbol };
     }
     if (balanceView === "usdead") {
       const bal = (usdeadBalanceRaw as bigint | undefined) ?? BigInt(0);
       const decimals = Number(usdeadDecimalsRaw ?? 18);
       const symbol = typeof usdeadSymbolRaw === "string" ? usdeadSymbolRaw : "USDeAD";
       const value = Number(formatUnits(bal, decimals));
-      return { amount: Number.isFinite(value) ? value.toFixed(4) : "0.00", symbol };
+      return { amount: formatGroupedAmount(value, 4, 4), symbol };
     }
-    if (!nativeBalance) return { amount: "0.00", symbol: "ETH" };
+    if (!nativeBalance) return { amount: formatGroupedAmount(0, 4, 4), symbol: "ETH" };
     const value = Number(formatUnits(nativeBalance.value, nativeBalance.decimals));
     return {
-      amount: Number.isFinite(value) ? value.toFixed(4) : "0.00",
+      amount: formatGroupedAmount(value, 4, 4),
       symbol: nativeBalance.symbol ?? "ETH",
     };
   }, [
@@ -546,7 +552,7 @@ export function AppLayout({
                               setBalanceView((v) => (v === "eth" ? "usdc" : v === "usdc" ? "usdead" : "eth"))
                             }
                             className="mb-1 rounded-md px-1 py-0.5 text-xs text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
-                            title="Tap to switch ETH / USDC / USDeAD"
+                            title="Tap to switch ETH / AFTR USDC / USDeAD"
                           >
                             {profileBalance.amount} {profileBalance.symbol}
                           </button>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowsClockwise, CheckCircle, PencilSimple, WarningCircle, X } from "@phosphor-icons/react";
 import { formatUnits } from "viem";
+import { isUsdStyledCollateralTicker } from "@/lib/deployment-collateral";
 
 export type LimitOrderParams = {
   side: "buy" | "sell";
@@ -134,14 +135,16 @@ export function TradeModal({
       const netUsdc = notional * (1 - ORDERBOOK_FEE_BPS / 10000);
       return {
         label: "Min receive",
-        value: collateralTicker === "USDC" ? `$${netUsdc.toFixed(2)} USDC` : `${netUsdc.toFixed(2)} ${collateralTicker}`,
+        value: isUsdStyledCollateralTicker(collateralTicker)
+          ? `$${netUsdc.toFixed(2)} ${collateralTicker}`
+          : `${netUsdc.toFixed(2)} ${collateralTicker}`,
       };
     }
     return {
       label: "Min receive",
       value: `${tokens.toFixed(4)} tokens`,
     };
-  }, [limitDerived.notionalUsdc, limitDerived.tokens, limitSide]);
+  }, [limitDerived.notionalUsdc, limitDerived.tokens, limitSide, collateralTicker]);
   const sellValidationMessage = useMemo(() => {
     if (limitSide !== "sell") return "";
     const p = Number(limitPrice);
@@ -155,12 +158,20 @@ export function TradeModal({
         return `Insufficient ${selectedLabel} balance. Max: ${tokenBal.toFixed(4)} tokens.`;
       }
       const maxUsdc = tokenBal * p;
-      return collateralTicker === "USDC"
-        ? `Insufficient ${selectedLabel} balance. Max sell value at this price: $${maxUsdc.toFixed(2)} USDC.`
+      return isUsdStyledCollateralTicker(collateralTicker)
+        ? `Insufficient ${selectedLabel} balance. Max sell value at this price: $${maxUsdc.toFixed(2)} ${collateralTicker}.`
         : `Insufficient ${selectedLabel} balance. Max sell value at this price: ${maxUsdc.toFixed(2)} ${collateralTicker}.`;
     }
     return "";
-  }, [limitSide, limitPrice, limitAmount, limitAmountUnit, tokenBalanceNum, selectedLabel]);
+  }, [
+    limitSide,
+    limitPrice,
+    limitAmount,
+    limitAmountUnit,
+    tokenBalanceNum,
+    selectedLabel,
+    collateralTicker,
+  ]);
   const marketPrice = useMemo(() => {
     if (!priceOfRaw || priceOfRaw <= BigInt(0)) return null;
     const n = Number(formatUnits(priceOfRaw, 18));
@@ -291,8 +302,8 @@ export function TradeModal({
               <p className="mt-1 text-[10px] text-zinc-700">
                 Balance{" "}
                 <span className="font-mono text-zinc-500">
-                  {collateralTicker === "USDC" ? "$" : ""}{balanceFormatted}
-                  {collateralTicker !== "USDC" ? ` ${collateralTicker}` : ""}
+                  {isUsdStyledCollateralTicker(collateralTicker) ? "$" : ""}{balanceFormatted}
+                  {!isUsdStyledCollateralTicker(collateralTicker) ? ` ${collateralTicker}` : ""}
                 </span>
               </p>
             )}
@@ -301,7 +312,7 @@ export function TradeModal({
               {QUICK_AMOUNTS.map((q) => (
                 <button key={q} type="button" onClick={() => setAmount(q)}
                   className="flex-1 rounded-md border border-white/[0.07] bg-zinc-900/40 py-1.5 text-[10px] font-semibold text-zinc-600 transition hover:border-[var(--accent)]/30 hover:text-[var(--accent)]">
-                  {collateralTicker === "USDC" ? `$${q}` : q}
+                  {isUsdStyledCollateralTicker(collateralTicker) ? `$${q}` : q}
                 </button>
               ))}
             </div>
@@ -364,7 +375,7 @@ export function TradeModal({
                 </div>
               </div>
               <p className="mt-1 text-[10px] text-zinc-700">
-                Market: <span className="font-mono text-zinc-500">{marketPrice != null ? (collateralTicker === "USDC" ? `$${marketPrice.toFixed(4)} USDC` : `${marketPrice.toFixed(4)} ${collateralTicker}`) : "—"}</span>
+                Market: <span className="font-mono text-zinc-500">{marketPrice != null ? (isUsdStyledCollateralTicker(collateralTicker) ? `$${marketPrice.toFixed(4)} ${collateralTicker}` : `${marketPrice.toFixed(4)} ${collateralTicker}`) : "—"}</span>
               </p>
             </div>
             <div>
@@ -395,7 +406,7 @@ export function TradeModal({
                 <span className="font-mono text-zinc-500">
                   {limitAmountUnit === "tokens"
                     ? (tokenBalanceFormatted ?? "—")
-                    : collateralTicker === "USDC"
+                    : isUsdStyledCollateralTicker(collateralTicker)
                       ? `$${balanceFormatted ?? "—"}`
                       : `${balanceFormatted ?? "—"} ${collateralTicker}`}
                 </span>
@@ -408,7 +419,7 @@ export function TradeModal({
               <div className="flex items-center justify-between text-[10px]">
                 <span className="text-zinc-600">Total</span>
                 <span className="font-mono text-zinc-400">
-                  {collateralTicker === "USDC" ? `$${limitDerived.notionalUsdc}` : `${limitDerived.notionalUsdc} ${collateralTicker}`}{" "}
+                  {isUsdStyledCollateralTicker(collateralTicker) ? `$${limitDerived.notionalUsdc}` : `${limitDerived.notionalUsdc} ${collateralTicker}`}{" "}
                   <span className="text-zinc-700">+ 0.5% fee</span>
                 </span>
               </div>

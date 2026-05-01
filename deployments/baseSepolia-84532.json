@@ -3,13 +3,13 @@
   "deployer": "0x68ac96Ce64D62386b1A5E2DFf8f0F01fEEd46E09",
   "feeRecipient": "0x68ac96Ce64D62386b1A5E2DFf8f0F01fEEd46E09",
   "contracts": {
-    "AFTRUSDC": "0x0869734879BD58aE45aD59430Ed42996934f5A6F",
-    "USDeAD": "0x681c832Fa16877C3949196a764a04e8DE84c3381",
-    "AFTRParimutuelMarketFactory": "0x9B75f3f0aeAF6B5E61A4Cd8E4E1e8F968d28B923",
-    "AFTRParimutuelDeployer": "0x1F12F7c6D7a6099455722E9F28385D649d904B01",
-    "AFTROrderBook": "0x87e88cE02c1822229b46117b4AEEe91708A97405",
-    "AFTRMarketDebtRouter": "0x9bE33AdE92C489c0daa339989BD827eb6dD84a13",
-    "DRP": "0x6E4F07b39AD94dc67769efBa05aaACF46E1CCCa5"
+    "AFTRUSDC": "0xc7d08673038E1F8fD4963E38F493048155C740a2",
+    "USDeAD": "0x05E6171016d01340302dcB5004Ab47a57d3C8f9a",
+    "DRP": "0xf6eb40f38e2F71b54d7721a4727AC56a70f59A01",
+    "AFTRParimutuelMarketFactory": "0x4521Bb1CDb50Ba00DdF5f866dC86de21AE1Bc4A5",
+    "AFTRParimutuelDeployer": "0x4896dEA02B5aC18D69Eac1e642C621499c453bB4",
+    "AFTROrderBook": "0x6c78811e8b9deA3580cbeDE2Fd4C1C985863aE5D",
+    "AFTRMarketDebtRouter": "0xb959325D396d9b88a1A9D68A986F7462E83d7D68"
   },
   "external": {
     "optimisticOracleV2": "0x99EC530a761E68a377593888D9504002Bd191717",
@@ -73,9 +73,13 @@
   },
   "suggestedUmaReward": "500000",
   "notes": {
-    "tradingCollateral": "USDeAD",
+    "tradingCollaterals": [
+      "AFTRUSDC",
+      "USDeAD",
+      "Circle_Base_Sepolia_USDC"
+    ],
     "umaRewardToken": "Circle Base Sepolia USDC when umaRewardCurrency is address(0) on factory"
   },
   "network": "baseSepolia",
-  "deployedAt": "2026-04-30T15:45:17.113Z"
+  "deployedAt": "2026-05-01T20:43:45.000Z"
 }

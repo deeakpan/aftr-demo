@@ -3,7 +3,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, CaretDown } from "@phosphor-icons/react";
-import { decodeEventLog, formatUnits, keccak256, parseAbi, parseUnits, stringToHex, toBytes, zeroAddress } from "viem";
+import {
+  decodeEventLog,
+  formatUnits,
+  isAddress,
+  keccak256,
+  parseAbi,
+  parseUnits,
+  stringToHex,
+  toBytes,
+  zeroAddress,
+} from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import { MarketPreviewModal } from "@/app/create/components/market-preview-modal";
@@ -62,9 +72,6 @@ const MARKET_ABI = parseAbi([
   "function numOutcomes() view returns (uint8)",
 ]);
 
-const USDEAD_BASE_SEPOLIA = ((deployment as unknown as { contracts: Record<string, string> }).contracts
-  .USDeAD ??
-  (deployment as unknown as { contracts: Record<string, string> }).contracts.AFTRUSDC) as `0x${string}`;
 const CIRCLE_USDC_BASE_SEPOLIA = deployment.external.umaBondCurrencyCircleUSDC as `0x${string}`;
 const FACTORY_ADDRESS = deployment.contracts.AFTRParimutuelMarketFactory as `0x${string}`;
 const DEFAULT_UMA_REWARD = BigInt(deployment.suggestedUmaReward ?? "0");
@@ -72,7 +79,7 @@ const DEFAULT_UMA_REWARD_CURRENCY = deployment.external.umaBondCurrencyCircleUSD
 const DEPLOYMENT_CHAIN_ID = deployment.chainId;
 
 type CollateralOption = {
-  id: "eth" | "usdc" | "usdead";
+  id: "eth" | "usdc" | "usdead" | "aftr_usdc";
   label: string;
   symbol: string;
   address: `0x${string}`;
@@ -81,33 +88,60 @@ type CollateralOption = {
   isNative?: boolean;
 };
 
-const COLLATERAL_OPTIONS: CollateralOption[] = [
-  {
-    id: "eth",
-    label: "Ethereum",
-    symbol: "ETH",
-    address: zeroAddress,
-    decimals: 18,
-    image: "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
-    isNative: true,
-  },
-  {
-    id: "usdc",
-    label: "USD Coin",
-    symbol: "USDC",
-    address: CIRCLE_USDC_BASE_SEPOLIA,
-    decimals: 6,
-    image: "https://assets.coingecko.com/coins/images/6319/large/usdc.png",
-  },
-  {
-    id: "usdead",
-    label: "USDeAD",
-    symbol: "USDeAD",
-    address: USDEAD_BASE_SEPOLIA,
-    decimals: 18,
-    image: "/usdead.jpg",
-  },
-];
+function buildCollateralOptions(): CollateralOption[] {
+  const c = deployment.contracts as Record<string, string>;
+  const circle = CIRCLE_USDC_BASE_SEPOLIA;
+  const aftrAddr = (c.AFTRUSDC || "").trim() as `0x${string}`;
+  const usdeadAddr = (c.USDeAD || "").trim() as `0x${string}`;
+  const list: CollateralOption[] = [
+    {
+      id: "eth",
+      label: "Ethereum",
+      symbol: "ETH",
+      address: zeroAddress,
+      decimals: 18,
+      image: "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
+      isNative: true,
+    },
+    {
+      id: "usdc",
+      label: "USD Coin",
+      symbol: "USDC",
+      address: circle,
+      decimals: 6,
+      image: "https://assets.coingecko.com/coins/images/6319/large/usdc.png",
+    },
+  ];
+  if (
+    isAddress(aftrAddr, { strict: false }) &&
+    aftrAddr.toLowerCase() !== circle.toLowerCase()
+  ) {
+    list.push({
+      id: "aftr_usdc",
+      label: "AFTR test USDC",
+      symbol: "AFTR USDC",
+      address: aftrAddr,
+      decimals: 6,
+      image: "https://assets.coingecko.com/coins/images/6319/large/usdc.png",
+    });
+  }
+  if (isAddress(usdeadAddr, { strict: false })) {
+    list.push({
+      id: "usdead",
+      label: "USDeAD",
+      symbol: "USDeAD",
+      address: usdeadAddr,
+      decimals: 18,
+      image: "/usdead.jpg",
+    });
+  }
+  return list;
+}
+
+const COLLATERAL_OPTIONS = buildCollateralOptions();
+
+const defaultCollateralOpt =
+  COLLATERAL_OPTIONS.find((o) => o.id === "usdead") ?? COLLATERAL_OPTIONS[0];
 
 function numString(idx: number) {
   return String(idx);
@@ -177,7 +211,7 @@ export function CreateClient() {
   const collateralDropdownRef = useRef<HTMLDivElement>(null);
   const [brokenLogoAddresses, setBrokenLogoAddresses] = useState<string[]>([]);
   const [timeValidationError, setTimeValidationError] = useState("");
-  const [collateral, setCollateral] = useState<CollateralOption>(COLLATERAL_OPTIONS[2]!);
+  const [collateral, setCollateral] = useState<CollateralOption>(defaultCollateralOpt!);
   const [ethUsdPrice, setEthUsdPrice] = useState<number | null>(null);
   const [collateralBalanceLabel, setCollateralBalanceLabel] = useState("0.00");
   const [isSubmittingMarket, setIsSubmittingMarket] = useState(false);
