@@ -826,7 +826,11 @@ export function CreateClient() {
   };
 
   return (
-    <AppLayout searchPlaceholder="Search markets... (Ctrl/Cmd + K)" showSearch={false}>
+    <AppLayout
+      searchPlaceholder="Search markets... (Ctrl/Cmd + K)"
+      showSearch={false}
+      pageBackgroundClassName="aftr-page-bg-gradient"
+    >
       <div className="mx-auto max-w-3xl px-3 pb-14 md:px-6 md:pb-16">
         {step === "seed" ? (
           <button
@@ -1027,7 +1031,7 @@ export function CreateClient() {
                               prev.includes(feed.address) ? prev : [...prev, feed.address],
                             )
                           }
-                          className="h-5 w-5 rounded-full bg-white/10 object-cover"
+                          className="h-5 w-5 rounded-full bg-[var(--surface-hover)] object-cover"
                         />
                       )}
                       <span>
@@ -1064,7 +1068,7 @@ export function CreateClient() {
                                   prev.includes(f.address) ? prev : [...prev, f.address],
                                 )
                               }
-                              className="h-5 w-5 rounded-full bg-white/10 object-cover"
+                              className="h-5 w-5 rounded-full bg-[var(--surface-hover)] object-cover"
                             />
                           )}
                           <span className="min-w-0">

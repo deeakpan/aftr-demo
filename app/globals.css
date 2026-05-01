@@ -9,6 +9,7 @@
   --muted: #a09ab8;
   --surface: #100a1f;
   --surface-hover: #1a1230;
+  --elevated-card-shadow: 0 10px 28px rgb(2 6 23 / 0.45);
 }
 
 :root[data-theme="light"] {
@@ -20,6 +21,7 @@
   --muted: #6e6790;
   --surface: #f2f0ff;
   --surface-hover: #ece7ff;
+  --elevated-card-shadow: 0 10px 28px rgb(23 18 42 / 0.1);
 }
 
 @theme inline {
@@ -33,6 +35,27 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/** Page shell gradient — dark / light (used by leaderboard & trades AppLayout). */
+.aftr-page-bg-gradient {
+  background-image: linear-gradient(to top, #2a0f4a, #130a24, #050308);
+}
+
+:root[data-theme="light"] .aftr-page-bg-gradient {
+  background-image: linear-gradient(
+    to top,
+    #e8e2ff 0%,
+    #f2efff 38%,
+    var(--background) 100%
+  );
+}
+
+:root {
+  --overlay-scrim: rgb(8 6 20 / 0.58);
+}
+:root[data-theme="light"] {
+  --overlay-scrim: rgb(23 18 42 / 0.22);
 }
 
 .deposit-ring::before {

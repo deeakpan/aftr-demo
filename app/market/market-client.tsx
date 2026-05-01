@@ -796,6 +796,7 @@ export function MarketClient() {
               const outcomeAccent = (
                 idx: number,
               ): { ring: string; soft: string } => {
+                const lt = "[html[data-theme=light]_&]:";
                 const rings = [
                   "border-emerald-500/40 hover:border-emerald-500",
                   "border-rose-500/40 hover:border-rose-500",
@@ -804,24 +805,24 @@ export function MarketClient() {
                   "border-violet-500/40 hover:border-violet-500",
                 ];
                 const softs = [
-                  "bg-emerald-500/10 text-emerald-200 hover:bg-emerald-600 hover:text-white",
-                  "bg-rose-500/10 text-rose-200 hover:bg-rose-600 hover:text-white",
-                  "bg-amber-500/10 text-amber-200 hover:bg-amber-600 hover:text-white",
-                  "bg-sky-500/10 text-sky-200 hover:bg-sky-600 hover:text-white",
-                  "bg-violet-500/10 text-violet-200 hover:bg-violet-600 hover:text-white",
+                  `bg-emerald-500/10 text-emerald-200 hover:bg-emerald-600 hover:text-white ${lt}bg-emerald-100 ${lt}text-emerald-900 ${lt}hover:bg-emerald-600 ${lt}hover:text-white`,
+                  `bg-rose-500/10 text-rose-200 hover:bg-rose-600 hover:text-white ${lt}bg-rose-100 ${lt}text-rose-900 ${lt}hover:bg-rose-600 ${lt}hover:text-white`,
+                  `bg-amber-500/10 text-amber-200 hover:bg-amber-600 hover:text-white ${lt}bg-amber-100 ${lt}text-amber-900 ${lt}hover:bg-amber-600 ${lt}hover:text-white`,
+                  `bg-sky-500/10 text-sky-200 hover:bg-sky-600 hover:text-white ${lt}bg-sky-100 ${lt}text-sky-900 ${lt}hover:bg-sky-600 ${lt}hover:text-white`,
+                  `bg-violet-500/10 text-violet-200 hover:bg-violet-600 hover:text-white ${lt}bg-violet-100 ${lt}text-violet-900 ${lt}hover:bg-violet-600 ${lt}hover:text-white`,
                 ];
                 return { ring: rings[idx % 5]!, soft: softs[idx % 5]! };
               };
               return (
                 <article
                   key={m.address}
-                  className="overflow-hidden rounded-2xl border border-[#2a3243] bg-[#111827] p-0 shadow-[0_10px_28px_rgba(2,6,23,0.4)] transition hover:border-[#3a4761]"
+                  className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] p-0 shadow-[var(--elevated-card-shadow)] transition hover:border-[var(--accent)]/35"
                 >
-                <div className="aspect-[16/7] w-full overflow-hidden border-b border-[#212a3a] bg-[#0d1422]">
+                <div className="aspect-[16/7] w-full overflow-hidden border-b border-[var(--border)] bg-[var(--surface)]">
                   {m.imageUrl ? (
                     <img src={m.imageUrl} alt={m.title} className="h-full w-full object-cover object-center" />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-[11px] text-slate-400">
+                    <div className="flex h-full w-full items-center justify-center text-[11px] text-[var(--muted)]">
                       No image
                     </div>
                   )}
@@ -829,22 +830,26 @@ export function MarketClient() {
 
                 <div className="p-2.5">
                   <p
-                    className="line-clamp-2 cursor-pointer text-base leading-snug font-semibold text-white underline-offset-2 hover:underline"
+                    className="line-clamp-2 cursor-pointer text-base leading-snug font-semibold text-[var(--foreground)] underline-offset-2 hover:underline"
                     onClick={() => router.push(`/market/${m.address}`)}
                   >
                     {m.title}
                   </p>
                   {m.slug && (
-                    <p className="mt-0.5 font-mono text-[10px] text-slate-600">/{m.slug}</p>
+                    <p className="mt-0.5 font-mono text-[10px] text-[var(--muted)]">/{m.slug}</p>
                   )}
 
                   {m.outcomes <= 2 ? (
                     <>
                       <div className="mt-2 flex items-center justify-between text-xs font-semibold">
-                        <span className="text-emerald-400">{chance.toFixed(0)}%</span>
-                        <span className="text-rose-400">{(100 - chance).toFixed(0)}%</span>
+                        <span className="text-emerald-400 [html[data-theme=light]_&]:text-emerald-700">
+                          {chance.toFixed(0)}%
+                        </span>
+                        <span className="text-rose-400 [html[data-theme=light]_&]:text-rose-700">
+                          {(100 - chance).toFixed(0)}%
+                        </span>
                       </div>
-                      <div className="mt-1 h-2 rounded-full border border-[#445068] bg-[#1a2334] p-[2px]">
+                      <div className="mt-1 h-2 rounded-full border border-[var(--border)] bg-[var(--surface)] p-[2px]">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-emerald-500/70 to-rose-500/70"
                           style={{ width: `${chance}%` }}
@@ -872,7 +877,7 @@ export function MarketClient() {
                       </div>
                     </>
                   ) : (
-                    <div className="mt-2 flex max-h-[7.75rem] flex-col gap-0.5 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#334155]">
+                    <div className="mt-2 flex max-h-[7.75rem] flex-col gap-0.5 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[var(--border)]">
                       {Array.from({ length: m.outcomes }, (_, idx) => {
                         const label = rowLabels[idx]?.trim() || `Outcome ${idx + 1}`;
                         const pct = Number.isFinite(pcts[idx])
@@ -894,10 +899,14 @@ export function MarketClient() {
                               e.stopPropagation();
                               openTrade(m, idx);
                             }}
-                            className={`flex w-full items-center justify-between gap-2 rounded-md border border-[#243044] bg-[#0f172a]/70 px-2 py-1.5 text-left transition hover:border-[#3a4761] hover:bg-[#1a2638]/90 ${borderL}`}
+                            className={`flex w-full items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-left transition hover:border-[var(--accent)]/30 hover:bg-[var(--surface-hover)] ${borderL}`}
                           >
-                            <span className="min-w-0 truncate text-[11px] font-semibold leading-tight text-white">{label}</span>
-                            <span className="shrink-0 text-xs font-bold tabular-nums text-[#94d064]">{pct.toFixed(1)}%</span>
+                            <span className="min-w-0 truncate text-[11px] font-semibold leading-tight text-[var(--foreground)]">
+                              {label}
+                            </span>
+                            <span className="shrink-0 text-xs font-bold tabular-nums text-emerald-400 [html[data-theme=light]_&]:text-emerald-700">
+                              {pct.toFixed(1)}%
+                            </span>
                           </button>
                         );
                       })}
@@ -905,9 +914,9 @@ export function MarketClient() {
                   )}
                 </div>
 
-                <div className="flex items-center justify-between border-t border-[#212a3a] bg-[#0f1727] px-2.5 py-1.5 text-[11px] text-slate-300">
+                <div className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[11px] text-[var(--muted)]">
                   <Tip label="Total Value Locked">
-                    <div className="inline-flex items-center gap-1.5 font-semibold">
+                    <div className="inline-flex items-center gap-1.5 font-semibold text-[var(--foreground)]">
                       <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-[#4f7cff] to-[#6dff8e]" />
                       ${m.poolTvl}
                     </div>
@@ -915,7 +924,7 @@ export function MarketClient() {
                   <div className="flex items-center gap-2">
                     <Tip label="Refresh TVL">
                       <button type="button" onClick={(e) => { e.stopPropagation(); void refreshTvl(m); }}
-                        className="inline-flex items-center transition hover:text-white">
+                        className="inline-flex items-center transition hover:text-[var(--foreground)]">
                         <ArrowsClockwise size={12} className={tvlRefreshing[m.address] ? "animate-spin" : ""} />
                       </button>
                     </Tip>

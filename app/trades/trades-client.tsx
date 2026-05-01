@@ -546,7 +546,7 @@ function ClaimWinningsButton({
       <p className="mb-1 text-xs font-semibold text-emerald-400">
         {formatShareAmount(maxShares, shareDecimals)}
       </p>
-      <p className="mb-1 text-[11px] text-slate-300">Est. payout: {maxPayout} {collateralTicker}</p>
+      <p className="mb-1 text-[11px] text-[var(--muted)]">Est. payout: {maxPayout} {collateralTicker}</p>
       {status && (
         <p className={`mb-1.5 text-[11px] ${statusIsError ? "text-rose-300" : "text-emerald-300"}`}>{status}</p>
       )}
@@ -569,28 +569,28 @@ function ClaimWinningsButton({
       </button>
       {isUsdeadMarket && modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-3 backdrop-blur-[2px] md:items-center"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-[var(--overlay-scrim)] p-3 backdrop-blur-[2px] md:items-center"
           onClick={() => setModalOpen(false)}
         >
           <div
-            className="relative w-full max-w-[420px] overflow-hidden rounded-2xl border border-white/10 bg-[#0d1422] p-4 text-left"
+            className="relative w-full max-w-[420px] overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 text-left shadow-[var(--elevated-card-shadow)]"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="absolute right-2 top-2 rounded-full p-1 text-slate-400 transition hover:bg-white/10 hover:text-white"
+              className="absolute right-2 top-2 rounded-full p-1 text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
               aria-label="Close"
             >
               <X size={16} weight="bold" />
             </button>
-            <p className="text-sm font-semibold text-white">Claim Winnings (USDeAD)</p>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="text-sm font-semibold text-[var(--foreground)]">Claim Winnings (USDeAD)</p>
+            <p className="mt-1 text-xs text-[var(--muted)]">
               Choose to claim only, or claim and repay DRP debt in one transaction.
             </p>
-            <p className="mt-1 text-xs text-slate-300">
+            <p className="mt-1 text-xs text-[var(--muted)]">
               Collateral put in (indexed):{" "}
-              <span className="font-semibold text-white">
+              <span className="font-semibold text-[var(--foreground)]">
                 {collateralInLabel} {collateralTicker}
               </span>
             </p>
@@ -603,7 +603,7 @@ function ClaimWinningsButton({
                   setRepayMode(false);
                 }}
                 className={`rounded-lg border px-3 py-2 text-xs font-semibold ${
-                  !repayMode ? "border-emerald-500 bg-emerald-600 text-white" : "border-white/10 text-slate-300"
+                  !repayMode ? "border-emerald-500 bg-emerald-600 text-white" : "border-[var(--border)] text-[var(--muted)] bg-[var(--surface)]"
                 }`}
               >
                 Claim only
@@ -615,7 +615,7 @@ function ClaimWinningsButton({
                   setRepayMode(true);
                 }}
                 className={`rounded-lg border px-3 py-2 text-xs font-semibold ${
-                  repayMode ? "border-indigo-500 bg-indigo-600 text-white" : "border-white/10 text-slate-300"
+                  repayMode ? "border-indigo-500 bg-indigo-600 text-white" : "border-[var(--border)] text-[var(--muted)] bg-[var(--surface)]"
                 }`}
               >
                 Claim + Repay
@@ -623,8 +623,8 @@ function ClaimWinningsButton({
             </div>
 
             <div className="mt-3 space-y-2 text-xs">
-              <label className="block text-slate-400">Vault collateral token</label>
-              <div className="group flex items-center justify-between border-b border-white/10 pb-1.5 text-white">
+              <label className="block text-[var(--muted)]">Vault collateral token</label>
+              <div className="group flex items-center justify-between border-b border-[var(--border)] pb-1.5 text-[var(--foreground)]">
                 <button
                   type="button"
                   onClick={() => setSelectedVaultCollateral(VAULT_COLLATERAL_OPTIONS[0]!.address)}
@@ -640,53 +640,53 @@ function ClaimWinningsButton({
                     setCopiedVaultAddress(true);
                     setTimeout(() => setCopiedVaultAddress(false), 1200);
                   }}
-                  className="opacity-0 transition group-hover:opacity-100 hover:text-emerald-300"
+                  className="opacity-0 transition group-hover:opacity-100 hover:text-emerald-500"
                   title="Copy vault collateral address"
                 >
                   <Copy size={14} weight="bold" />
                 </button>
               </div>
               {copiedVaultAddress && (
-                <p className="text-[11px] text-emerald-300">Vault token address copied</p>
+                <p className="text-[11px] text-emerald-600 [html[data-theme=dark]_&]:text-emerald-300">Vault token address copied</p>
               )}
               {debtLoading ? (
-                <p className="text-slate-400">Loading debt…</p>
+                <p className="text-[var(--muted)]">Loading debt…</p>
               ) : (
                 <>
-                  <p className="text-slate-300">Current debt: <span className="font-semibold text-white">{fmtCollateral(debtWei)} USDeAD</span></p>
-                  <p className="text-slate-300">Est. repayable from winnings: <span className="font-semibold text-white">{fmtCollateral(debtToBurnWei)} USDeAD</span></p>
-                  <p className="text-slate-300">Est. debt left: <span className="font-semibold text-white">{fmtCollateral(debtLeftAfterWei)} USDeAD</span></p>
-                  <p className="text-[11px] text-slate-500">Repay uses DRP 1% fee; estimates account for that.</p>
+                  <p className="text-[var(--muted)]">Current debt: <span className="font-semibold text-[var(--foreground)]">{fmtCollateral(debtWei)} USDeAD</span></p>
+                  <p className="text-[var(--muted)]">Est. repayable from winnings: <span className="font-semibold text-[var(--foreground)]">{fmtCollateral(debtToBurnWei)} USDeAD</span></p>
+                  <p className="text-[var(--muted)]">Est. debt left: <span className="font-semibold text-[var(--foreground)]">{fmtCollateral(debtLeftAfterWei)} USDeAD</span></p>
+                  <p className="text-[11px] text-[var(--muted)] opacity-90">Repay uses DRP 1% fee; estimates account for that.</p>
                 </>
               )}
               {debtError && <p className="text-rose-400">{debtError}</p>}
             </div>
 
-            <p className="mt-3 text-[11px] text-slate-400">
+            <p className="mt-3 text-[11px] text-[var(--muted)]">
               Aftrmarkets uses the{" "}
-              <span className="font-semibold text-slate-200">AFTR router</span> with{" "}
+              <span className="font-semibold text-[var(--foreground)]">AFTR router</span> with{" "}
               <a
                 href="https://dead.box"
                 target="_blank"
                 rel="noreferrer"
-                className="font-semibold text-emerald-300 underline underline-offset-2"
+                className="font-semibold text-emerald-600 underline underline-offset-2 [html[data-theme=dark]_&]:text-emerald-300"
               >
                 DRP
               </a>
               . The protocol trusts this router globally;{" "}
-              <span className="text-slate-300">
+              <span className="text-[var(--muted)]">
                 each wallet still approves it once per account as{" "}
-                <span className="font-semibold text-white">your</span> vault manager to use Claim + Repay.
+                <span className="font-semibold text-[var(--foreground)]">your</span> vault manager to use Claim + Repay.
               </span>
             </p>
             {repayMode && routerTrustedByDrp === false && (
-              <p className="mt-2 rounded-lg border border-amber-500/40 bg-amber-950/40 px-2 py-1.5 text-[11px] text-amber-200">
+              <p className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/15 px-2 py-1.5 text-[11px] text-amber-900 [html[data-theme=dark]_&]:bg-amber-950/40 [html[data-theme=dark]_&]:text-amber-200">
                 This deployment’s router is not marked trusted in DRP — Claim + repay may revert. Claim-only should still work.
               </p>
             )}
             {repayMode && vaultManagerApproved === false && routerTrustedByDrp !== false && (
-              <div className="mt-2 rounded-lg border border-indigo-500/30 bg-indigo-950/30 p-2">
-                <p className="text-[11px] text-indigo-100">
+              <div className="mt-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-2 [html[data-theme=dark]_&]:bg-indigo-950/30">
+                <p className="text-[11px] text-indigo-950 [html[data-theme=dark]_&]:text-indigo-100">
                   One-time setup: allow the AFTR router to act as your vault manager in DRP so it can repay from your claim.
                 </p>
                 <button
@@ -702,11 +702,11 @@ function ClaimWinningsButton({
             {repayMode && vaultManagerApproved === true && (
               <p className="mt-2 text-[11px] text-emerald-400/90">✓ This wallet has approved the router as its DRP vault manager.</p>
             )}
-            <div className="mt-3 border-t border-white/10 pt-2 text-[11px] text-slate-400">
+            <div className="mt-3 border-t border-[var(--border)] pt-2 text-[11px] text-[var(--muted)]">
               {repayMode ? (
                 <>
                   This action may require multiple confirmations:
-                  <div className="mt-1 space-y-0.5 text-slate-300">
+                  <div className="mt-1 space-y-0.5 text-[var(--muted)]">
                     <p>
                       0) {vaultManagerApproved ? "✓ " : ""}Allow router as your DRP vault manager (Claim + Repay only)
                     </p>
@@ -718,7 +718,7 @@ function ClaimWinningsButton({
               ) : (
                 <>
                   This action may require up to two confirmations:
-                  <div className="mt-1 space-y-0.5 text-slate-300">
+                  <div className="mt-1 space-y-0.5 text-[var(--muted)]">
                     <p>1) Approve winning shares to router</p>
                     <p>2) Execute claim</p>
                   </div>
@@ -748,7 +748,7 @@ function Tip({ label, children }: { label: string; children: React.ReactNode }) 
   return (
     <span className="group/tip relative inline-flex">
       {children}
-      <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 rounded-md border border-white/10 bg-[#1a1a2e] px-2.5 py-1 text-[10px] font-medium tracking-wide text-zinc-200 opacity-0 shadow-lg transition-opacity duration-150 group-hover/tip:opacity-100 whitespace-nowrap">
+      <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 rounded-md border border-[var(--border)] bg-[var(--card)] px-2.5 py-1 text-[10px] font-medium tracking-wide text-[var(--foreground)] opacity-0 shadow-lg transition-opacity duration-150 group-hover/tip:opacity-100 whitespace-nowrap">
         {label}
       </span>
     </span>
@@ -870,7 +870,7 @@ export function TradesClient() {
   return (
     <AppLayout
       showSearch={false}
-      pageBackgroundClassName="bg-gradient-to-t from-[#2a0f4a] via-[#130a24] to-[#050308]"
+      pageBackgroundClassName="aftr-page-bg-gradient"
     >
       <section className="mx-4 pt-8 md:mx-6">
         <div className="mb-2 flex items-center gap-2">
@@ -917,29 +917,29 @@ export function TradesClient() {
               return (
                 <article
                   key={g.marketAddress}
-                  className="overflow-hidden rounded-2xl border border-[#2a3243] bg-[#111827] p-0 shadow-[0_10px_28px_rgba(2,6,23,0.4)] transition hover:border-[#3a4761]"
+                  className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] p-0 shadow-[var(--elevated-card-shadow)] transition hover:border-[var(--accent)]/35"
                 >
-                  <div className="aspect-[16/7] w-full overflow-hidden border-b border-[#212a3a] bg-[#0d1422]">
+                  <div className="aspect-[16/7] w-full overflow-hidden border-b border-[var(--border)] bg-[var(--surface)]">
                     {g.imageUrl ? (
                       <img src={g.imageUrl} alt={g.marketTitle} className="h-full w-full object-cover object-center" />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-[11px] text-slate-400">
+                      <div className="flex h-full w-full items-center justify-center text-[11px] text-[var(--muted)]">
                         No image
                       </div>
                     )}
                   </div>
 
                   <div className="p-2.5">
-                    <p className="line-clamp-2 cursor-pointer text-base leading-snug font-semibold text-white underline-offset-2 hover:underline" onClick={() => router.push(`/market/${g.marketAddress}`)}>{g.marketTitle}</p>
-                    <p className="mt-0.5 text-[11px] text-slate-400">
+                    <p className="line-clamp-2 cursor-pointer text-base leading-snug font-semibold text-[var(--foreground)] underline-offset-2 hover:underline" onClick={() => router.push(`/market/${g.marketAddress}`)}>{g.marketTitle}</p>
+                    <p className="mt-0.5 text-[11px] text-[var(--muted)]">
                       {g.marketKind} · {stateLabel(g.marketState, g.stakeEndUnix)}
                     </p>
 
                     <div className="mt-2 flex items-center justify-between text-xs font-semibold">
-                      <span className="text-emerald-400">{chance.toFixed(0)}%</span>
-                      <span className="text-rose-400">{(100 - chance).toFixed(0)}%</span>
+                      <span className="text-emerald-400 [html[data-theme=light]_&]:text-emerald-700">{chance.toFixed(0)}%</span>
+                      <span className="text-rose-400 [html[data-theme=light]_&]:text-rose-700">{(100 - chance).toFixed(0)}%</span>
                     </div>
-                    <div className="mt-1 h-2 rounded-full border border-[#445068] bg-[#1a2334] p-[2px]">
+                    <div className="mt-1 h-2 rounded-full border border-[var(--border)] bg-[var(--surface)] p-[2px]">
                       <div
                         className="h-full rounded-full bg-gradient-to-r from-emerald-500/70 to-rose-500/70"
                         style={{ width: `${chance}%` }}
@@ -964,14 +964,14 @@ export function TradesClient() {
                       ) : g.settlementDisplay === "claimed" ? (
                         <div className="mt-2 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-2 py-1.5">
                           <p className="text-sm font-bold text-emerald-400">Claimed</p>
-                          <p className="mt-0.5 text-[11px] font-semibold text-slate-200">
+                          <p className="mt-0.5 text-[11px] font-semibold text-[var(--foreground)]">
                             {fmtIndexed(g.indexedCollateralOut)} {tick}
                           </p>
                         </div>
                       ) : g.settlementDisplay === "settled_no_shares" ? (
-                        <div className="mt-2 rounded-lg border border-white/10 bg-[#0f1727] px-2 py-1.5">
-                          <p className="text-sm font-semibold text-slate-300">Settled</p>
-                          <p className="mt-0.5 text-[11px] text-slate-500">No outcome tokens held on-chain anymore.</p>
+                        <div className="mt-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5">
+                          <p className="text-sm font-semibold text-[var(--foreground)]">Settled</p>
+                          <p className="mt-0.5 text-[11px] text-[var(--muted)]">No outcome tokens held on-chain anymore.</p>
                         </div>
                       ) : (
                         <p className="mt-2 text-sm font-bold text-rose-400">You lost</p>
@@ -987,14 +987,14 @@ export function TradesClient() {
                                 key={`${g.marketAddress}-${label}`}
                                 className={`rounded-md border px-1.5 py-1 text-center ${
                                   idx === 0
-                                    ? "border-emerald-500/40 bg-emerald-500/10"
-                                    : "border-rose-500/40 bg-rose-500/10"
+                                    ? "border-emerald-500/40 bg-emerald-500/10 [html[data-theme=light]_&]:bg-emerald-50"
+                                    : "border-rose-500/40 bg-rose-500/10 [html[data-theme=light]_&]:bg-rose-50"
                                 }`}
                               >
-                                <p className={`text-[11px] font-semibold uppercase tracking-wide ${idx === 0 ? "text-emerald-200" : "text-rose-200"}`}>
+                                <p className={`text-[11px] font-semibold uppercase tracking-wide ${idx === 0 ? "text-emerald-200 [html[data-theme=light]_&]:text-emerald-800" : "text-rose-200 [html[data-theme=light]_&]:text-rose-800"}`}>
                                   {label}
                                 </p>
-                                <p className={`mt-0.5 text-[10px] font-medium leading-tight ${has ? "text-white" : "text-slate-500"}`}>
+                                <p className={`mt-0.5 text-[10px] font-medium leading-tight ${has ? "text-[var(--foreground)]" : "text-[var(--muted)] opacity-80"}`}>
                                   {has ? formatShareAmount(bal, g.collateralDecimals) : "—"}
                                 </p>
                               </div>
@@ -1002,11 +1002,11 @@ export function TradesClient() {
                           })}
                         </div>
                         {nOutcomes > 2 && extraPositions.length > 0 && (
-                          <div className="mt-2 space-y-1 rounded-lg border border-[#2a3243] bg-[#0f1727] px-2 py-1.5">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Other outcomes</p>
+                          <div className="mt-2 space-y-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Other outcomes</p>
                             {extraPositions.map((p) => (
-                              <p key={p.outcomeIndex} className="text-xs text-slate-200">
-                                <span className="text-slate-400">{g.outcomeLabels[p.outcomeIndex] ?? `Outcome ${p.outcomeIndex + 1}`}:</span>{" "}
+                              <p key={p.outcomeIndex} className="text-xs text-[var(--foreground)]">
+                                <span className="text-[var(--muted)]">{g.outcomeLabels[p.outcomeIndex] ?? `Outcome ${p.outcomeIndex + 1}`}:</span>{" "}
                                 {formatShareAmount(p.balance, g.collateralDecimals)}
                               </p>
                             ))}
@@ -1016,9 +1016,9 @@ export function TradesClient() {
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between border-t border-[#212a3a] bg-[#0f1727] px-2.5 py-1.5 text-[11px] text-slate-300">
+                  <div className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[11px] text-[var(--muted)]">
                     <Tip label="Total Value Locked">
-                      <div className="inline-flex items-center gap-1.5 font-semibold">
+                      <div className="inline-flex items-center gap-1.5 font-semibold text-[var(--foreground)]">
                         <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-[#4f7cff] to-[#6dff8e]" />
                         {`$${tvlOverrides[g.marketAddress] ?? g.poolTvlDisplay}`}
                       </div>
@@ -1026,7 +1026,7 @@ export function TradesClient() {
                     <div className="flex items-center gap-2">
                       <Tip label="Refresh TVL">
                         <button type="button" onClick={(e) => { e.stopPropagation(); void refreshTvl(g); }}
-                          className="inline-flex items-center transition hover:text-white">
+                          className="inline-flex items-center transition hover:text-[var(--foreground)]">
                           <ArrowsClockwise size={12} className={tvlRefreshing[g.marketAddress] ? "animate-spin" : ""} />
                         </button>
                       </Tip>

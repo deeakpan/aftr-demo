@@ -55,7 +55,7 @@ export function MarketPreviewModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-scrim)] p-4 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onBack(); }}>
       <div className="w-full max-w-md overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-2xl"
         onClick={(e) => e.stopPropagation()}>
@@ -95,8 +95,8 @@ export function MarketPreviewModal({
             <div className="mt-3 flex flex-wrap gap-1.5">
               {outcomes.slice(0, 6).map((label, i) => (
                 <span key={i} className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold
-                  ${i === 0 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                    : i === 1 ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
+                  ${i === 0 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 [html[data-theme=light]_&]:text-emerald-800 [html[data-theme=light]_&]:bg-emerald-50"
+                    : i === 1 ? "border-rose-500/30 bg-rose-500/10 text-rose-300 [html[data-theme=light]_&]:text-rose-800 [html[data-theme=light]_&]:bg-rose-50"
                     : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]"}`}>
                   {label}
                 </span>
