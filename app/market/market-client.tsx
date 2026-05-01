@@ -79,6 +79,8 @@ type UiMarket = {
   collateralDecimals: number;
   /** Formatted bin strings per outcome for price markets (Chainlink-style 8-decimal bounds). */
   priceBinByOutcome?: string[];
+  /** Implied probability % per outcome (from `priceOf`, 18-dec WAD → same order as outcomeLabels). */
+  outcomeChancePcts: number[];
   slug?: string;
   categories?: string[];
 };
@@ -325,16 +327,26 @@ export function MarketClient() {
               }
             }
             let leftPct = outcomeCount >= 2 ? 50 : Math.max(1, Math.round(100 / Math.max(1, outcomeCount)));
+            let outcomeChancePcts: number[] = Array.from({
+              length: outcomeCount,
+            }, (_, i) => (i === 0 ? leftPct : Math.round((100 - leftPct) / Math.max(1, outcomeCount - 1))));
             try {
-              const p0 = await publicClient.readContract({
-                address: marketAddress,
-                abi: MARKET_ABI,
-                functionName: "priceOf",
-                args: [0],
-              });
-              leftPct = clampPct(Number(formatUnits(p0 as bigint, 18)) * 100);
+              const preds = await Promise.all(
+                Array.from({ length: outcomeCount }, (_, i) =>
+                  publicClient.readContract({
+                    address: marketAddress,
+                    abi: MARKET_ABI,
+                    functionName: "priceOf",
+                    args: [i],
+                  }),
+                ),
+              );
+              outcomeChancePcts = preds.map((p) =>
+                clampPct(Number(formatUnits(p as bigint, 18)) * 100),
+              );
+              leftPct = outcomeChancePcts[0] ?? leftPct;
             } catch {
-              // keep fallback percentage
+              // keep fallback
             }
             return {
               address: marketAddress,
@@ -355,6 +367,7 @@ export function MarketClient() {
                 maximumFractionDigits: 2,
               }),
               chancePct: leftPct,
+              outcomeChancePcts,
               categories:
                 md?.categories?.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean) ??
                 [],
@@ -778,6 +791,27 @@ export function MarketClient() {
           <div className="mt-5 grid max-w-[760px] gap-3 md:grid-cols-2">
             {visibleMarkets.map((m) => {
               const chance = Number.isFinite(m?.chancePct) ? m.chancePct : 50;
+              const rowLabels = (m.outcomeLabels ?? []).slice(0, m.outcomes);
+              const pcts = m.outcomeChancePcts ?? [];
+              const outcomeAccent = (
+                idx: number,
+              ): { ring: string; soft: string } => {
+                const rings = [
+                  "border-emerald-500/40 hover:border-emerald-500",
+                  "border-rose-500/40 hover:border-rose-500",
+                  "border-amber-500/40 hover:border-amber-500",
+                  "border-sky-500/40 hover:border-sky-500",
+                  "border-violet-500/40 hover:border-violet-500",
+                ];
+                const softs = [
+                  "bg-emerald-500/10 text-emerald-200 hover:bg-emerald-600 hover:text-white",
+                  "bg-rose-500/10 text-rose-200 hover:bg-rose-600 hover:text-white",
+                  "bg-amber-500/10 text-amber-200 hover:bg-amber-600 hover:text-white",
+                  "bg-sky-500/10 text-sky-200 hover:bg-sky-600 hover:text-white",
+                  "bg-violet-500/10 text-violet-200 hover:bg-violet-600 hover:text-white",
+                ];
+                return { ring: rings[idx % 5]!, soft: softs[idx % 5]! };
+              };
               return (
                 <article
                   key={m.address}
@@ -804,36 +838,71 @@ export function MarketClient() {
                     <p className="mt-0.5 font-mono text-[10px] text-slate-600">/{m.slug}</p>
                   )}
 
-                  <div className="mt-2 flex items-center justify-between text-xs font-semibold">
-                    <span className="text-emerald-400">{chance.toFixed(0)}%</span>
-                    <span className="text-rose-400">{(100 - chance).toFixed(0)}%</span>
-                  </div>
-                  <div className="mt-1 h-2 rounded-full border border-[#445068] bg-[#1a2334] p-[2px]">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-emerald-500/70 to-rose-500/70"
-                      style={{ width: `${chance}%` }}
-                    />
-                  </div>
-
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    {(m.outcomeLabels ?? []).slice(0, 2).map((label, idx) => (
-                      <button
-                        key={`${m.address}-${label}`}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openTrade(m, idx);
-                        }}
-                        className={`rounded-lg border px-2 py-2 text-center text-sm font-semibold uppercase tracking-wide transition ${
-                          idx === 0
-                            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200 hover:border-emerald-500 hover:bg-emerald-600 hover:text-white"
-                            : "border-rose-500/40 bg-rose-500/10 text-rose-200 hover:border-rose-500 hover:bg-rose-600 hover:text-white"
-                        }`}
-                      >
-                        {label.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
+                  {m.outcomes <= 2 ? (
+                    <>
+                      <div className="mt-2 flex items-center justify-between text-xs font-semibold">
+                        <span className="text-emerald-400">{chance.toFixed(0)}%</span>
+                        <span className="text-rose-400">{(100 - chance).toFixed(0)}%</span>
+                      </div>
+                      <div className="mt-1 h-2 rounded-full border border-[#445068] bg-[#1a2334] p-[2px]">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-emerald-500/70 to-rose-500/70"
+                          style={{ width: `${chance}%` }}
+                        />
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        {Array.from({ length: Math.min(2, m.outcomes) }, (_, idx) => {
+                          const label =
+                            rowLabels[idx]?.trim() || (idx === 0 ? "Yes" : "No");
+                          const { ring, soft } = outcomeAccent(idx);
+                          return (
+                            <button
+                              key={`${m.address}-${label}`}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openTrade(m, idx);
+                              }}
+                              className={`rounded-lg border px-2 py-2 text-center text-sm font-semibold uppercase tracking-wide transition ${ring} ${soft}`}
+                            >
+                              {label.toUpperCase()}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="mt-2 flex max-h-[7.75rem] flex-col gap-0.5 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#334155]">
+                      {Array.from({ length: m.outcomes }, (_, idx) => {
+                        const label = rowLabels[idx]?.trim() || `Outcome ${idx + 1}`;
+                        const pct = Number.isFinite(pcts[idx])
+                          ? (pcts[idx] as number)
+                          : Math.round(100 / Math.max(1, m.outcomes));
+                        const borderL = [
+                          "border-l-[3px] border-l-emerald-500/70",
+                          "border-l-[3px] border-l-rose-500/70",
+                          "border-l-[3px] border-l-amber-500/70",
+                          "border-l-[3px] border-l-sky-500/70",
+                          "border-l-[3px] border-l-violet-500/70",
+                        ][idx % 5]!;
+                        return (
+                          <button
+                            key={`${m.address}-oc-${idx}`}
+                            type="button"
+                            aria-label={`Trade ${label}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openTrade(m, idx);
+                            }}
+                            className={`flex w-full items-center justify-between gap-2 rounded-md border border-[#243044] bg-[#0f172a]/70 px-2 py-1.5 text-left transition hover:border-[#3a4761] hover:bg-[#1a2638]/90 ${borderL}`}
+                          >
+                            <span className="min-w-0 truncate text-[11px] font-semibold leading-tight text-white">{label}</span>
+                            <span className="shrink-0 text-xs font-bold tabular-nums text-[#94d064]">{pct.toFixed(1)}%</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between border-t border-[#212a3a] bg-[#0f1727] px-2.5 py-1.5 text-[11px] text-slate-300">

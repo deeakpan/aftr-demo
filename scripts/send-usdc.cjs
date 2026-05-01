@@ -51,7 +51,8 @@ async function main() {
   }
 
   const recipient = (process.env.SEND_USDC_TO || DEFAULT_RECIPIENT).trim();
-  const rpcUrl = process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org";
+  const rpcUrl =
+    process.env.BASE_SEPOLIA_RPC_URL || process.env.RPC_URL || "https://sepolia.base.org";
   const tokenAddress = (process.env.SEND_USDC_TOKEN || readDefaultTokenAddress()).trim();
 
   const account = privateKeyToAccount(pk);

@@ -24,6 +24,15 @@ const fieldClass =
 
 const labelClass = "text-xs font-medium uppercase tracking-wider text-[var(--muted)]";
 
+/** Bootstrap splits `totalAmount` evenly per outcome; contract requires `totalAmount % numOutcomes == 0` in token base units. */
+function nextDivisibleTotal(seedUnits: bigint, nOutcomes: number): bigint {
+  if (nOutcomes <= 0) return seedUnits;
+  const n = BigInt(nOutcomes);
+  const rem = seedUnits % n;
+  if (rem === 0n) return seedUnits;
+  return seedUnits + (n - rem);
+}
+
 type Feed = {
   label: string;
   asset: string;
@@ -458,6 +467,24 @@ export function CreateClient() {
       );
       return;
     }
+    const nOutcomes =
+      marketKind === "event" ? outcomes.map((o) => o.trim()).filter(Boolean).length : 2;
+    let seedUnits: bigint;
+    try {
+      seedUnits = parseUnits(seedAmount || "0", collateral.decimals);
+    } catch {
+      setSeedValidationError("Enter a valid seed amount.");
+      return;
+    }
+    if (nOutcomes > 0 && seedUnits % BigInt(nOutcomes) !== 0n) {
+      const fix = nextDivisibleTotal(seedUnits, nOutcomes);
+      const fixLabel = formatUnits(fix, collateral.decimals);
+      setSeedValidationError(
+        `Seeding splits collateral evenly across ${nOutcomes} outcomes, so the total (in token units) must divide by ${nOutcomes}. ` +
+          `Try ${fixLabel} ${collateral.symbol} or another amount where the raw total is a multiple of ${nOutcomes}.`,
+      );
+      return;
+    }
     setSeedValidationError("");
     setIsCreateComplete(false);
     setIsPreviewOpen(true);
@@ -631,7 +658,11 @@ export function CreateClient() {
         })) as number,
       );
       if (nOutcomes > 0 && seedUnits % BigInt(nOutcomes) !== BigInt(0)) {
-        setSubmitStatus(`Seed amount must be divisible by ${nOutcomes} outcomes.`);
+        const fix = nextDivisibleTotal(seedUnits, nOutcomes);
+        const fixLabel = formatUnits(fix, collateral.decimals);
+        setSubmitStatus(
+          `Seed must divide evenly by ${nOutcomes} outcomes (contract splits integer token units per outcome). Try ${fixLabel} ${collateral.symbol}.`,
+        );
         return;
       }
 

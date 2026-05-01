@@ -1,32 +1,25 @@
 /* eslint-disable no-console */
 /**
- * Send fixed native ETH + AFTRUSDC to a recipient from PRIVATE_KEY (Base Sepolia).
+ * Send AFTRUSDC (deployment `contracts.AFTRUSDC`; on-chain symbol is USDC) from PRIVATE_KEY → recipient (Base Sepolia).
  *
  * Env:
  *   PRIVATE_KEY or DEPLOYER_PRIVATE_KEY
- *   BASE_SEPOLIA_RPC_URL — optional, defaults to https://sepolia.base.org
- *   SEND_RECIPIENT — optional (default hardcoded test recipient)
- *   SEND_ETH_AMOUNT — optional ether string; default "0.01"
- *   SEND_AFTR_AMOUNT — optional; default "10000" (human, 6 decimals)
+ *   BASE_SEPOLIA_RPC_URL / RPC_URL — optional
+ *   SEND_RECIPIENT — optional override (checksum not required)
+ *   SEND_AMOUNT — optional human amount; default "10000"
  */
 const fs = require("fs");
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
-const {
-  createPublicClient,
-  createWalletClient,
-  http,
-  parseAbi,
-  parseEther,
-  parseUnits,
-} = require("viem");
+const { createPublicClient, createWalletClient, http, parseAbi, parseEther, parseUnits } = require("viem");
 const { privateKeyToAccount } = require("viem/accounts");
 const { baseSepolia } = require("viem/chains");
 
-const DEFAULT_RECIPIENT = "0x48Cc6C8FD526dBa669c54F7cC674C3237Ba8Fb4A";
-const ETH_SEND = "0.01";
-const AFTR_HUMAN = "10000";
+const DEFAULT_RECIPIENT = "0x68ac96Ce64D62386b1A5E2DFf8f0F01fEEd46E09";
+const DEFAULT_SEND_AMOUNT = "10000";
+/** Enough for one erc20 tx on Sepolia-ish L2. */
+const MIN_NATIVE_FOR_GAS = parseEther("0.000002");
 
 const ERC20_ABI = parseAbi([
   "function decimals() view returns (uint8)",
@@ -53,15 +46,15 @@ async function main() {
   const pk = normalizePrivateKey(process.env.PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY);
   if (!pk) throw new Error("Set PRIVATE_KEY or DEPLOYER_PRIVATE_KEY in .env");
 
-  const recipient = (process.env.SEND_RECIPIENT || DEFAULT_RECIPIENT).trim().toLowerCase();
+  const recipientRaw = (process.env.SEND_RECIPIENT || DEFAULT_RECIPIENT).trim();
+  const recipient = recipientRaw.toLowerCase();
   if (!recipient.startsWith("0x") || recipient.length !== 42) {
     throw new Error(`Invalid recipient: ${recipient}`);
   }
   const recipientAddr = /** @type {`0x${string}`} */ (recipient);
 
   const rpcUrl = process.env.BASE_SEPOLIA_RPC_URL || process.env.RPC_URL || "https://sepolia.base.org";
-  const ethAmount = parseEther(process.env.SEND_ETH_AMOUNT || ETH_SEND);
-  const aftrHuman = process.env.SEND_AFTR_AMOUNT || AFTR_HUMAN;
+  const amountHuman = process.env.SEND_AMOUNT || DEFAULT_SEND_AMOUNT;
   const tokenAddress = readAftrAddress();
 
   const account = privateKeyToAccount(pk);
@@ -78,7 +71,7 @@ async function main() {
   const symbol = await publicClient
     .readContract({ address: tokenAddress, abi: ERC20_ABI, functionName: "symbol" })
     .catch(() => "USDC");
-  const aftrWei = parseUnits(aftrHuman, Number(decimals));
+  const tokenWei = parseUnits(amountHuman, Number(decimals));
   const tokenBal = await publicClient.readContract({
     address: tokenAddress,
     abi: ERC20_ABI,
@@ -88,40 +81,29 @@ async function main() {
 
   console.log(`From:       ${account.address}`);
   console.log(`Recipient:  ${recipientAddr}`);
+  console.log(`Token:      ${symbol} (${tokenAddress})`);
   console.log(`RPC:        ${rpcUrl}`);
   console.log(`Native bal: ${nativeBal.toString()} wei`);
-  console.log(`Will send:  ${ETH_SEND} ETH + ${aftrHuman} ${symbol} (${tokenAddress})`);
+  console.log(`Send:       ${amountHuman} ${symbol}`);
 
-  /** Leave headroom for gas on the second tx (rough). */
-  const minNative = ethAmount + parseEther("0.00005");
-  if (nativeBal < minNative) {
-    throw new Error(`Insufficient ETH: need at least ~${minNative.toString()} wei, have ${nativeBal.toString()}.`);
+  if (nativeBal < MIN_NATIVE_FOR_GAS) {
+    throw new Error(`Need at least ~${MIN_NATIVE_FOR_GAS} wei ETH for gas, have ${nativeBal}.`);
   }
-  if (tokenBal < aftrWei) {
-    throw new Error(`Insufficient ${symbol}: need ${aftrWei.toString()} raw, have ${tokenBal.toString()}.`);
+  if (tokenBal < tokenWei) {
+    throw new Error(`Insufficient balance: need ${tokenWei.toString()} raw, have ${tokenBal.toString()}.`);
   }
 
-  const ethHash = await walletClient.sendTransaction({
-    to: recipientAddr,
-    value: ethAmount,
-    account,
-    chain: baseSepolia,
-  });
-  console.log(`ETH tx:     ${ethHash}`);
-  const ethReceipt = await publicClient.waitForTransactionReceipt({ hash: ethHash });
-  console.log(`ETH done:   block ${ethReceipt.blockNumber} status ${ethReceipt.status}`);
-
-  const erc20Hash = await walletClient.writeContract({
+  const hash = await walletClient.writeContract({
     address: tokenAddress,
     abi: ERC20_ABI,
     functionName: "transfer",
-    args: [recipientAddr, aftrWei],
+    args: [recipientAddr, tokenWei],
     account,
     chain: baseSepolia,
   });
-  console.log(`${symbol} tx:  ${erc20Hash}`);
-  const erc20Receipt = await publicClient.waitForTransactionReceipt({ hash: erc20Hash });
-  console.log(`${symbol} done:  block ${erc20Receipt.blockNumber} status ${erc20Receipt.status}`);
+  console.log(`TX: ${hash}`);
+  const receipt = await publicClient.waitForTransactionReceipt({ hash });
+  console.log(`Done — block ${receipt.blockNumber} status ${receipt.status}`);
 }
 
 main().catch((e) => {
