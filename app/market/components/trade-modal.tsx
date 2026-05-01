@@ -227,12 +227,16 @@ export function TradeModal({
         const active = idx === selectedOutcomeIndex;
         const isNo = idx === 1;
         const isYesNo = idx <= 1;
-        const baseYes = "border-emerald-500/25 bg-emerald-500/[0.06] text-emerald-300/80 hover:border-emerald-500/60 hover:bg-emerald-600 hover:text-white";
+        const baseYes =
+          "border-emerald-500/25 bg-emerald-500/[0.06] text-emerald-300/80 hover:border-emerald-500/60 hover:bg-emerald-600 hover:text-white [html[data-theme=light]_&]:bg-emerald-50 [html[data-theme=light]_&]:text-emerald-800 [html[data-theme=light]_&]:hover:bg-emerald-600 [html[data-theme=light]_&]:hover:text-white";
         const activeYes = "border-emerald-500 bg-emerald-600 text-white";
-        const baseNo = "border-rose-500/25 bg-rose-500/[0.06] text-rose-300/80 hover:border-rose-500/60 hover:bg-rose-600 hover:text-white";
+        const baseNo =
+          "border-rose-500/25 bg-rose-500/[0.06] text-rose-300/80 hover:border-rose-500/60 hover:bg-rose-600 hover:text-white [html[data-theme=light]_&]:bg-rose-50 [html[data-theme=light]_&]:text-rose-800 [html[data-theme=light]_&]:hover:bg-rose-600 [html[data-theme=light]_&]:hover:text-white";
         const activeNo = "border-rose-500 bg-rose-600 text-white";
-        const neutralBase = "border-white/[0.06] bg-zinc-900/50 text-zinc-500 hover:text-zinc-200";
-        const neutralActive = "border-zinc-500 bg-zinc-800 text-white";
+        const neutralBase =
+          "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--foreground)]";
+        const neutralActive =
+          "border-[var(--accent)]/50 bg-[var(--surface-hover)] text-[var(--foreground)]";
         let cls = "rounded-lg border py-2 text-center text-[11px] font-semibold uppercase tracking-wider transition ";
         if (isYesNo) cls += isNo ? (active ? activeNo : baseNo) : (active ? activeYes : baseYes);
         else cls += active ? neutralActive : neutralBase;
@@ -247,16 +251,20 @@ export function TradeModal({
 
   // ── Panel content (shared between modal + inline) ────────────────────────
   const panelContent = (
-    <div className={inline ? "space-y-3.5 px-4 py-4" : "space-y-3.5 bg-black px-4 py-4"}>
+    <div
+      className={
+        inline ? "space-y-3.5 px-4 py-4" : "space-y-3.5 bg-[var(--card)] px-4 py-4"
+      }
+    >
 
       {/* Mode tabs — text style, underline active */}
-      <div className="flex border-b border-white/[0.06]">
+      <div className="flex border-b border-[var(--border)]">
         {(["market", "limit"] as const).map((m) => (
           <button key={m} type="button" onClick={() => setOrderMode(m)}
             className={`-mb-px border-b-2 pb-2.5 pr-5 text-[11px] font-semibold capitalize tracking-wide transition
               ${orderMode === m
-                ? "border-[var(--accent)] text-white"
-                : "border-transparent text-zinc-600 hover:text-zinc-300"}`}>
+                ? "border-[var(--accent)] text-[var(--foreground)]"
+                : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"}`}>
             {m}
           </button>
         ))}
@@ -264,15 +272,15 @@ export function TradeModal({
 
       {/* Buy / Sell sub-tabs — only in limit mode */}
       {orderMode === "limit" && (
-        <div className="flex border-b border-white/[0.04]">
+        <div className="flex border-b border-[var(--border)]/70">
           {(["buy", "sell"] as const).map((s) => (
             <button key={s} type="button" onClick={() => setLimitSide(s)}
               className={`-mb-px border-b-2 pb-2 pr-4 text-[10px] font-semibold capitalize tracking-wide transition
                 ${limitSide === s
                   ? s === "buy"
-                    ? "border-emerald-500 text-emerald-400"
-                    : "border-rose-500 text-rose-400"
-                  : "border-transparent text-zinc-600 hover:text-zinc-400"}`}>
+                    ? "border-emerald-500 text-emerald-600 [html[data-theme=dark]_&]:text-emerald-400"
+                    : "border-rose-500 text-rose-600 [html[data-theme=dark]_&]:text-rose-400"
+                  : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"}`}>
               {s}
             </button>
           ))}
@@ -286,22 +294,22 @@ export function TradeModal({
         <>
           {/* Amount input */}
           <div>
-            <div className="flex overflow-hidden rounded-xl border border-white/10 bg-transparent transition focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/20">
+            <div className="flex overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] transition focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/20">
               <input
                 type="text" inputMode="decimal" autoComplete="off"
                 value={amount} onChange={(e) => setAmount(e.target.value)}
                 placeholder="0"
-                className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm font-semibold tabular-nums text-white outline-none placeholder:text-zinc-600"
+                className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm font-semibold tabular-nums text-[var(--foreground)] outline-none placeholder:text-[var(--muted)]"
               />
-              <div className="flex items-center border-l border-white/10 bg-transparent px-3 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+              <div className="flex items-center border-l border-[var(--border)] bg-transparent px-3 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
                 {collateralTicker}
               </div>
             </div>
             {/* Balance below input */}
             {balanceFormatted != null && (
-              <p className="mt-1 text-[10px] text-zinc-700">
+              <p className="mt-1 text-[10px] text-[var(--muted)]">
                 Balance{" "}
-                <span className="font-mono text-zinc-500">
+                <span className="font-mono text-[var(--foreground)]/80">
                   {isUsdStyledCollateralTicker(collateralTicker) ? "$" : ""}{balanceFormatted}
                   {!isUsdStyledCollateralTicker(collateralTicker) ? ` ${collateralTicker}` : ""}
                 </span>
@@ -311,7 +319,7 @@ export function TradeModal({
             <div className="mt-2 flex gap-1">
               {QUICK_AMOUNTS.map((q) => (
                 <button key={q} type="button" onClick={() => setAmount(q)}
-                  className="flex-1 rounded-md border border-white/[0.07] bg-zinc-900/40 py-1.5 text-[10px] font-semibold text-zinc-600 transition hover:border-[var(--accent)]/30 hover:text-[var(--accent)]">
+                  className="flex-1 rounded-md border border-[var(--border)] bg-[var(--surface)] py-1.5 text-[10px] font-semibold text-[var(--muted)] transition hover:border-[var(--accent)]/30 hover:text-[var(--accent)]">
                   {isUsdStyledCollateralTicker(collateralTicker) ? `$${q}` : q}
                 </button>
               ))}
@@ -320,10 +328,10 @@ export function TradeModal({
 
           {/* Approval notice */}
           {approvalLine ? (
-            <div className={`flex items-start gap-2 rounded-lg border px-2.5 py-1.5 ${approvalIcon === "warn" ? "border-amber-500/30 bg-amber-500/8" : "border-white/[0.06] bg-zinc-900/40"}`}>
+            <div className={`flex items-start gap-2 rounded-lg border px-2.5 py-1.5 ${approvalIcon === "warn" ? "border-amber-500/30 bg-amber-500/10 [html[data-theme=dark]_&]:bg-amber-500/8" : "border-[var(--border)] bg-[var(--surface)]"}`}>
               {approvalIcon === "warn" && <WarningCircle className="mt-0.5 shrink-0 text-amber-400/80" size={13} weight="bold" />}
               {approvalIcon === "ok" && <CheckCircle className="mt-0.5 shrink-0 text-emerald-400/80" size={13} weight="bold" />}
-              <p className={`min-w-0 flex-1 text-[10px] leading-snug ${approvalIcon === "warn" ? "text-amber-200/80" : "text-zinc-600"}`}>
+              <p className={`min-w-0 flex-1 text-[10px] leading-snug ${approvalIcon === "warn" ? "text-amber-900 [html[data-theme=dark]_&]:text-amber-200/80" : "text-[var(--muted)]"}`}>
                 {approvalLine}
               </p>
             </div>
@@ -332,26 +340,26 @@ export function TradeModal({
           {/* Trade summary — inline rows, no box */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-[10px]">
-              <span className="text-zinc-600">Est. tokens</span>
-              <span className="font-mono text-zinc-400">{tokensFormatted ?? "—"}</span>
+              <span className="text-[var(--muted)]">Est. tokens</span>
+              <span className="font-mono text-[var(--foreground)]">{tokensFormatted ?? "—"}</span>
             </div>
             <div className="flex items-center justify-between text-[10px]">
-              <span className="text-zinc-600">Price / token</span>
-              <span className="font-mono text-emerald-500">{pricePerTokenLabel ?? "—"}</span>
+              <span className="text-[var(--muted)]">Price / token</span>
+              <span className="font-mono text-emerald-600 [html[data-theme=dark]_&]:text-emerald-500">{pricePerTokenLabel ?? "—"}</span>
             </div>
             <div className="flex items-center justify-between text-[10px]">
-              <button type="button" onClick={onCycleSlippage} className="text-zinc-600 hover:text-zinc-400 transition">
+              <button type="button" onClick={onCycleSlippage} className="text-[var(--muted)] hover:text-[var(--foreground)] transition">
                 Slippage
               </button>
               <button type="button" onClick={onCycleSlippage}
-                className="flex items-center gap-0.5 font-mono text-zinc-500 tabular-nums transition hover:text-zinc-300">
+                className="flex items-center gap-0.5 font-mono text-[var(--muted)] tabular-nums transition hover:text-[var(--foreground)]">
                 {(slippageBps / 100).toFixed(1)}%
-                <PencilSimple size={11} className="text-zinc-700" weight="bold" />
+                <PencilSimple size={11} className="text-[var(--muted)]" weight="bold" />
               </button>
             </div>
           </div>
 
-          {status && <p className="text-center text-[10px] text-zinc-600">{status}</p>}
+          {status && <p className="text-center text-[10px] text-[var(--muted)]">{status}</p>}
 
           <button type="button" onClick={onSubmit} disabled={busy || tradeDisabled}
             className="w-full rounded-lg bg-[var(--accent)] py-2.5 text-center text-xs font-bold text-white shadow-[0_0_18px_rgba(139,92,246,0.28)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40">
@@ -363,47 +371,47 @@ export function TradeModal({
           {/* Limit inputs */}
           <div className="space-y-2.5">
             <div>
-              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
                 Price per token
               </label>
-              <div className="flex overflow-hidden rounded-xl border border-white/10 bg-transparent transition focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/20">
+              <div className="flex overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] transition focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/20">
                 <input type="text" inputMode="decimal" value={limitPrice} onChange={(e) => setLimitPrice(e.target.value)}
                   placeholder="0.50"
-                  className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm font-semibold text-white outline-none placeholder:text-zinc-600" />
-                <div className="flex items-center border-l border-white/10 bg-transparent px-3 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                  className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm font-semibold text-[var(--foreground)] outline-none placeholder:text-[var(--muted)]" />
+                <div className="flex items-center border-l border-[var(--border)] bg-transparent px-3 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
                   {collateralTicker}
                 </div>
               </div>
-              <p className="mt-1 text-[10px] text-zinc-700">
-                Market: <span className="font-mono text-zinc-500">{marketPrice != null ? (isUsdStyledCollateralTicker(collateralTicker) ? `$${marketPrice.toFixed(4)} ${collateralTicker}` : `${marketPrice.toFixed(4)} ${collateralTicker}`) : "—"}</span>
+              <p className="mt-1 text-[10px] text-[var(--muted)]">
+                Market: <span className="font-mono text-[var(--foreground)]/85">{marketPrice != null ? (isUsdStyledCollateralTicker(collateralTicker) ? `$${marketPrice.toFixed(4)} ${collateralTicker}` : `${marketPrice.toFixed(4)} ${collateralTicker}`) : "—"}</span>
               </p>
             </div>
             <div>
               <div className="mb-1 flex items-center justify-between">
-                <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
                   Amount
                 </label>
                 <button
                   type="button"
                   onClick={() => setLimitAmountUnit((u) => (u === "tokens" ? "quote" : "tokens"))}
-                  className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 transition hover:text-zinc-300"
+                  className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--foreground)]"
                   title="Switch amount unit"
                 >
                   <ArrowsClockwise size={11} weight="bold" />
                   {limitAmountUnit === "tokens" ? "TOKENS" : collateralTicker}
                 </button>
               </div>
-              <div className="flex overflow-hidden rounded-xl border border-white/10 bg-transparent transition focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/20">
+              <div className="flex overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] transition focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/20">
                 <input type="text" inputMode="decimal" value={limitAmount} onChange={(e) => setLimitAmount(e.target.value)}
                   placeholder={limitAmountUnit === "tokens" ? "100" : "50"}
-                  className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm font-semibold text-white outline-none placeholder:text-zinc-600" />
-                <div className="flex items-center border-l border-white/10 bg-transparent px-3 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                  className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm font-semibold text-[var(--foreground)] outline-none placeholder:text-[var(--muted)]" />
+                <div className="flex items-center border-l border-[var(--border)] bg-transparent px-3 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
                   {limitAmountUnit === "tokens" ? "TOKENS" : collateralTicker}
                 </div>
               </div>
-              <p className="mt-1 text-[10px] text-zinc-700">
+              <p className="mt-1 text-[10px] text-[var(--muted)]">
                 Balance:{" "}
-                <span className="font-mono text-zinc-500">
+                <span className="font-mono text-[var(--foreground)]/85">
                   {limitAmountUnit === "tokens"
                     ? (tokenBalanceFormatted ?? "—")
                     : isUsdStyledCollateralTicker(collateralTicker)
@@ -417,28 +425,28 @@ export function TradeModal({
             </div>
             {limitDerived.notionalUsdc && (
               <div className="flex items-center justify-between text-[10px]">
-                <span className="text-zinc-600">Total</span>
-                <span className="font-mono text-zinc-400">
+                <span className="text-[var(--muted)]">Total</span>
+                <span className="font-mono text-[var(--foreground)]">
                   {isUsdStyledCollateralTicker(collateralTicker) ? `$${limitDerived.notionalUsdc}` : `${limitDerived.notionalUsdc} ${collateralTicker}`}{" "}
-                  <span className="text-zinc-700">+ 0.5% fee</span>
+                  <span className="text-[var(--muted)]">+ 0.5% fee</span>
                 </span>
               </div>
             )}
             {limitDerived.tokens && (
               <div className="flex items-center justify-between text-[10px]">
-                <span className="text-zinc-600">Est. tokens</span>
-                <span className="font-mono text-zinc-400">{limitDerived.tokens}</span>
+                <span className="text-[var(--muted)]">Est. tokens</span>
+                <span className="font-mono text-[var(--foreground)]">{limitDerived.tokens}</span>
               </div>
             )}
             {minReceive && (
               <div className="flex items-center justify-between text-[10px]">
-                <span className="text-zinc-600">{minReceive.label}</span>
-                <span className="font-mono text-zinc-400">{minReceive.value}</span>
+                <span className="text-[var(--muted)]">{minReceive.label}</span>
+                <span className="font-mono text-[var(--foreground)]">{minReceive.value}</span>
               </div>
             )}
           </div>
 
-          {limitStatus && <p className="text-center text-[10px] text-zinc-600">{limitStatus}</p>}
+          {limitStatus && <p className="text-center text-[10px] text-[var(--muted)]">{limitStatus}</p>}
 
           <button type="button" disabled={limitBusy || !onSubmitLimit || Boolean(sellValidationMessage)} onClick={() => void handleLimitSubmit()}
             className={`w-full rounded-lg py-2.5 text-xs font-bold text-white transition disabled:opacity-40
@@ -460,43 +468,43 @@ export function TradeModal({
   // ── Modal mode ───────────────────────────────────────────────────────────
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-3 backdrop-blur-[2px] md:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-[var(--overlay-scrim)] p-3 backdrop-blur-[2px] md:items-center"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="presentation"
     >
       <div
-        className="relative w-full max-w-[400px] overflow-hidden rounded-3xl border border-white/10 bg-black shadow-[0_24px_80px_rgba(0,0,0,0.75)]"
+        className="relative w-full max-w-[400px] overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)]"
         role="dialog" aria-modal="true" aria-labelledby="trade-modal-title"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="border-b border-white/[0.06] px-4 pb-3 pt-4">
+        <div className="border-b border-[var(--border)] px-4 pb-3 pt-4">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5">
-                <h2 id="trade-modal-title" className="text-sm font-semibold tracking-tight text-white">
+                <h2 id="trade-modal-title" className="text-sm font-semibold tracking-tight text-[var(--foreground)]">
                   {marketTitle}
                 </h2>
                 <span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold tracking-wide
                   ${selectedOutcomeIndex === 0
-                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 [html[data-theme=light]_&]:text-emerald-800 [html[data-theme=light]_&]:bg-emerald-50"
                     : selectedOutcomeIndex === 1
-                      ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
-                      : "border-zinc-600 bg-zinc-800 text-zinc-300"}`}>
+                      ? "border-rose-500/30 bg-rose-500/10 text-rose-300 [html[data-theme=light]_&]:text-rose-800 [html[data-theme=light]_&]:bg-rose-50"
+                      : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]"}`}>
                   {selectedLabel.toUpperCase()}
                 </span>
               </div>
               {priceRangeLine && (
-                <p className="mt-1 text-base font-semibold tabular-nums text-white">{priceRangeLine}</p>
+                <p className="mt-1 text-base font-semibold tabular-nums text-[var(--foreground)]">{priceRangeLine}</p>
               )}
-              <p className="mt-1 text-[10px] leading-snug text-zinc-600">
-                Staking ends <span className="text-zinc-400">{stakeEnds}</span>
-                <span className="mx-1.5 text-zinc-800">·</span>
-                Expires <span className="text-zinc-400">{resolveAfter}</span>
+              <p className="mt-1 text-[10px] leading-snug text-[var(--muted)]">
+                Staking ends <span className="text-[var(--foreground)]/90">{stakeEnds}</span>
+                <span className="mx-1.5 text-[var(--border)]">·</span>
+                Expires <span className="text-[var(--foreground)]/90">{resolveAfter}</span>
               </p>
             </div>
             <button type="button" onClick={onClose}
-              className="shrink-0 rounded-full p-1 text-zinc-600 transition hover:bg-white/10 hover:text-white"
+              className="shrink-0 rounded-full p-1 text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
               aria-label="Close">
               <X size={18} weight="bold" />
             </button>

@@ -206,14 +206,19 @@ function TradingViewChart({ symbol }: { symbol: string }) {
   useEffect(() => {
     const id = "tv_chart_detail";
     let script: HTMLScriptElement | null = null;
+    const isLight = document.documentElement.getAttribute("data-theme") === "light";
     function init() {
       const tv = (window as unknown as { TradingView?: { widget: new (o: unknown) => void } }).TradingView;
-      if (!tv || !document.getElementById(id)) return;
-      new tv.widget({
+      const container = document.getElementById(id);
+      const W = tv;
+      if (!W || !container) return;
+      container.replaceChildren();
+      new W.widget({
         container_id: id, symbol, interval: "60", timezone: "Etc/UTC",
-        theme: "dark", style: "1", locale: "en", autosize: true,
+        theme: isLight ? "light" : "dark", style: "1", locale: "en", autosize: true,
         hide_top_toolbar: false, allow_symbol_change: false, save_image: false,
-        backgroundColor: "#050507", gridColor: "rgba(139,92,246,0.04)",
+        backgroundColor: isLight ? "#f7f8ff" : "#050507",
+        gridColor: isLight ? "rgba(124,77,255,0.08)" : "rgba(139,92,246,0.04)",
       });
     }
     if ((window as unknown as { TradingView?: unknown }).TradingView) { init(); }
@@ -224,7 +229,11 @@ function TradingViewChart({ symbol }: { symbol: string }) {
       script.onload = init;
       document.head.appendChild(script);
     }
-    return () => { if (script && document.head.contains(script)) document.head.removeChild(script); };
+    return () => {
+      const container = document.getElementById(id);
+      if (container) container.replaceChildren();
+      if (script && document.head.contains(script)) document.head.removeChild(script);
+    };
   }, [symbol]);
   return (
     <div ref={ref} className="h-[400px] w-full overflow-hidden rounded-xl border border-[var(--border)]">
@@ -260,6 +269,18 @@ export function MarketDetailClient({ address: addressProp }: Props) {
   const [outcomeTokens, setOutcomeTokens] = useState<Record<number, `0x${string}`>>({});
   const [outcomeTokenBalance, setOutcomeTokenBalance] = useState<bigint | null>(null);
   const [obSnapshot, setObSnapshot] = useState<ObSnapshot | null>(null);
+  const [chartThemeKey, setChartThemeKey] = useState(() =>
+    typeof document !== "undefined"
+      ? (document.documentElement.getAttribute("data-theme") ?? "dark")
+      : "dark",
+  );
+  useEffect(() => {
+    const sync = () => setChartThemeKey(document.documentElement.getAttribute("data-theme") ?? "dark");
+    sync();
+    const obs = new MutationObserver(sync);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
 
   const marketAddress = useMemo(() => {
     const raw = (addressProp || "").trim();
@@ -899,7 +920,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
               <span className="text-3xl font-bold text-emerald-400">
                 {market.outcomeLabels[0] ?? "Yes"}
               </span>
-              <span className="text-sm font-semibold text-emerald-400">
+              <span className="text-sm font-semibold text-emerald-400 [html[data-theme=light]_&]:text-emerald-700">
                 ↑ {market.chancePct.toFixed(1)}%
               </span>
             </div>
@@ -910,7 +931,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
 
 
             {/* TradingView chart (price markets) */}
-            {tvSymbol && <TradingViewChart symbol={tvSymbol} />}
+            {tvSymbol && <TradingViewChart key={`${tvSymbol}-${chartThemeKey}`} symbol={tvSymbol} />}
 
             {/* Event market: outcome list (no chart) */}
             {!tvSymbol && (
@@ -920,13 +941,16 @@ export function MarketDetailClient({ address: addressProp }: Props) {
                     ? (i === 0 ? market.chancePct : 100 - market.chancePct)
                     : Math.round(100 / market.outcomes);
                   const isWinner = market.winningOutcomeIndex === i;
-                  const col = i === 0 ? "text-emerald-400" : "text-rose-400";
+                  const col =
+                    i === 0
+                      ? "text-emerald-400 [html[data-theme=light]_&]:text-emerald-700"
+                      : "text-rose-400 [html[data-theme=light]_&]:text-rose-700";
                   return (
                     <div key={i} className="flex cursor-default items-center justify-between py-3 transition hover:bg-[var(--surface-hover)]">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-[var(--foreground)]">{label}</span>
                         {isWinner && (
-                          <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-300">Winner</span>
+                          <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-800 [html[data-theme=dark]_&]:text-emerald-300">Winner</span>
                         )}
                       </div>
                       <span className={`text-base font-bold tabular-nums ${col}`}>{pct.toFixed(1)}%</span>
@@ -946,7 +970,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
                   <div className="flex gap-1">
                     {market.outcomeLabels.slice(0, 2).map((label, i) => (
                       <button key={i} type="button" onClick={() => setSelectedOutcome(i)}
-                        className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition ${selectedOutcome === i ? (i === 0 ? "bg-emerald-600 text-white" : "bg-rose-600 text-white") : "text-[var(--muted)] hover:text-white"}`}>
+                        className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition ${selectedOutcome === i ? (i === 0 ? "bg-emerald-600 text-white" : "bg-rose-600 text-white") : "text-[var(--muted)] hover:text-[var(--foreground)]"}`}>
                         {label}
                       </button>
                     ))}
@@ -1009,7 +1033,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
                     { label: "Winning outcome", value: market.winningOutcomeIndex != null
                         ? (market.outcomeLabels[market.winningOutcomeIndex] ?? `Outcome ${market.winningOutcomeIndex + 1}`)
                         : "—",
-                      valueClass: "text-emerald-300 font-semibold" },
+                      valueClass: "font-semibold text-emerald-700 [html[data-theme=dark]_&]:text-emerald-300" },
                     ...(market.kind === "Price" && settledPriceHuman != null
                       ? [{ label: "Oracle price", value: `$${Number(settledPriceHuman).toLocaleString(undefined, { maximumFractionDigits: 6 })}`, mono: true }]
                       : []),
@@ -1040,7 +1064,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
           {/* ── Right: trade panel (desktop only, active markets) ── */}
           {market.marketState !== 2 && (
             <div className="hidden w-full shrink-0 lg:block lg:w-[380px]">
-              <div className="sticky top-4 m-4 overflow-hidden rounded-2xl border border-[#2d1b5e] bg-[#0d0920] shadow-[0_8px_40px_rgba(0,0,0,0.6)]">
+              <div className="sticky top-4 m-4 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)]">
                 <TradeModal
                   inline
                   open={false}
@@ -1082,7 +1106,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
 
       {/* ── Mobile bottom bar ── */}
       {market && market.marketState === 0 && (
-        <div className="fixed bottom-[64px] left-0 right-0 z-50 border-t border-[#2d1b5e] bg-[#0b0718]/95 px-4 py-3 backdrop-blur-md md:bottom-0 lg:hidden">
+        <div className="fixed bottom-[64px] left-0 right-0 z-50 border-t border-[var(--border)] bg-[var(--card)]/95 px-4 py-3 backdrop-blur-md md:bottom-0 lg:hidden [html[data-theme=light]_&]:bg-[var(--card)]/98">
           <div className="flex gap-2">
             <button
               type="button"
