@@ -62,7 +62,9 @@ const MARKET_ABI = parseAbi([
   "function numOutcomes() view returns (uint8)",
 ]);
 
-const USDEAD_BASE_SEPOLIA = deployment.contracts.AFTRUSDC as `0x${string}`;
+const USDEAD_BASE_SEPOLIA = ((deployment as unknown as { contracts: Record<string, string> }).contracts
+  .USDeAD ??
+  (deployment as unknown as { contracts: Record<string, string> }).contracts.AFTRUSDC) as `0x${string}`;
 const CIRCLE_USDC_BASE_SEPOLIA = deployment.external.umaBondCurrencyCircleUSDC as `0x${string}`;
 const FACTORY_ADDRESS = deployment.contracts.AFTRParimutuelMarketFactory as `0x${string}`;
 const DEFAULT_UMA_REWARD = BigInt(deployment.suggestedUmaReward ?? "0");
@@ -761,13 +763,24 @@ export function CreateClient() {
   return (
     <AppLayout searchPlaceholder="Search markets... (Ctrl/Cmd + K)" showSearch={false}>
       <div className="mx-auto max-w-3xl px-3 pb-14 md:px-6 md:pb-16">
-        <Link
-          href="/"
-          className="mb-6 inline-flex items-center gap-2 text-xs text-[var(--muted)] transition hover:text-[var(--foreground)] md:mb-8 md:text-sm"
-        >
-          <ArrowLeft size={18} weight="bold" />
-          Back to markets
-        </Link>
+        {step === "seed" ? (
+          <button
+            type="button"
+            onClick={() => setStep("details")}
+            className="mb-6 inline-flex items-center gap-2 text-xs text-[var(--muted)] transition hover:text-[var(--foreground)] md:mb-8 md:text-sm"
+          >
+            <ArrowLeft size={18} weight="bold" />
+            Back to edits
+          </button>
+        ) : (
+          <Link
+            href="/"
+            className="mb-6 inline-flex items-center gap-2 text-xs text-[var(--muted)] transition hover:text-[var(--foreground)] md:mb-8 md:text-sm"
+          >
+            <ArrowLeft size={18} weight="bold" />
+            Back to markets
+          </Link>
+        )}
 
         <div className="mb-7 md:mb-10">
           <div>
@@ -1090,10 +1103,10 @@ export function CreateClient() {
                 className={`${fieldClass} mt-2 h-11 py-2.5 text-sm sm:h-auto sm:py-3`}
               />
             </div>
+            <p className="pb-2 text-xs text-[var(--muted)] sm:col-span-2">
+              Times are entered in your local timezone and converted to UTC for onchain settlement.
+            </p>
           </section>
-          <p className="pb-2 text-xs text-[var(--muted)]">
-            Times are entered in your local timezone and converted to UTC for onchain settlement.
-          </p>
 
           <section className="py-8">
             <label className={labelClass} htmlFor="image">

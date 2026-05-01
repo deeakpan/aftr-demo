@@ -3,7 +3,6 @@ const hre = require("hardhat");
 const fs = require("fs");
 const path = require("path");
 
-const DRP_ADDRESS = "0x34a31ccc2bc660d17Ea91eBc5868397dd732fA64";
 const WETH_ADDRESS = "0x4200000000000000000000000000000000000006";
 const ETH_USD_COINGECKO =
   "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd";
@@ -47,10 +46,27 @@ function toUsdeadWeiForUsd(ethers, usdAmount) {
   return ethers.parseUnits(usdAmount.toFixed(6), 18);
 }
 
-async function runForWallet({ signer, collateralUsd, borrowUsd, ethUsd, ethers }) {
+async function resolveDrpAddress() {
+  const { ethers } = hre;
+  const fromEnv = process.env.DRP_ADDRESS?.trim();
+  if (fromEnv && ethers.isAddress(fromEnv)) return fromEnv;
+  const chainId = Number((await hre.ethers.provider.getNetwork()).chainId);
+  const file = path.join(
+    __dirname,
+    "..",
+    "deployments",
+    `${hre.network.name}-${chainId}.json`,
+  );
+  if (!fs.existsSync(file)) throw new Error(`Deployment file missing: ${file}`);
+  const drp = JSON.parse(fs.readFileSync(file, "utf8"))?.contracts?.DRP;
+  if (!drp || !ethers.isAddress(drp)) throw new Error("DRP missing in deployment JSON.");
+  return drp;
+}
+
+async function runForWallet({ signer, drpAddress, collateralUsd, borrowUsd, ethUsd, ethers }) {
   const addr = await signer.getAddress();
   const weth = new ethers.Contract(WETH_ADDRESS, WETH_ABI, signer);
-  const drp = new ethers.Contract(DRP_ADDRESS, DRP_ABI, signer);
+  const drp = new ethers.Contract(drpAddress, DRP_ABI, signer);
   const usdeadAddr = await drp.usdead();
   const usdead = new ethers.Contract(usdeadAddr, USDEAD_ABI, signer);
 
@@ -71,7 +87,7 @@ async function runForWallet({ signer, collateralUsd, borrowUsd, ethUsd, ethers }
   const wrapReceipt = await txWrap.wait();
 
   console.log("  2) Approving DRP to spend WETH...");
-  const txApprove = await weth.approve(DRP_ADDRESS, collateralWei);
+  const txApprove = await weth.approve(drpAddress, collateralWei);
   const approveReceipt = await txApprove.wait();
 
   console.log("  3) depositAndMint (WETH collateral, USDeAD borrow)...");
@@ -130,6 +146,9 @@ async function main() {
   const { ethers } = hre;
   const provider = ethers.provider;
 
+  const drpAddress = await resolveDrpAddress();
+  console.log("DRP:", drpAddress);
+
   const [wallet1] = await ethers.getSigners(); // Uses PRIVATE_KEY from env/hardhat config
   const wallet2Pk = req("SECOND_PRIVATE_KEY");
   const wallet2 = new ethers.Wallet(
@@ -144,6 +163,7 @@ async function main() {
   if (!runOnlyWallet2) {
     result1 = await runForWallet({
       signer: wallet1,
+      drpAddress,
       collateralUsd: 30,
       borrowUsd: 20,
       ethUsd,
@@ -156,6 +176,7 @@ async function main() {
   for (const borrowUsd of wallet2Attempts) {
     const attempt = await runForWallet({
       signer: wallet2,
+      drpAddress,
       collateralUsd: 10,
       borrowUsd,
       ethUsd,
@@ -172,7 +193,7 @@ async function main() {
 
   const output = {
     chainId: Number((await provider.getNetwork()).chainId),
-    drpAddress: DRP_ADDRESS,
+    drpAddress,
     wethAddress: WETH_ADDRESS,
     ethUsd,
     executedAt: new Date().toISOString(),

@@ -4,7 +4,7 @@ import deployment from "@/deployments/baseSepolia-84532.json";
 
 const SUBGRAPH_URL =
   process.env.SUBGRAPH_QUERY_URL ??
-  "https://api.studio.thegraph.com/query/1749057/aftr/03";
+  "https://api.studio.thegraph.com/query/1749057/aftr/v0.04";
 const RPC_URL = process.env.RPC_URL ?? process.env.NEXT_PUBLIC_RPC_URL;
 
 const MARKET_ABI = parseAbi([
@@ -197,6 +197,7 @@ export async function GET(req: NextRequest) {
       ),
     );
 
+    const balances: bigint[] = [];
     for (let i = 0; i < outcomeTokens.length; i += 1) {
       const bal = (await publicClient.readContract({
         address: outcomeTokens[i]!,
@@ -204,7 +205,14 @@ export async function GET(req: NextRequest) {
         functionName: "balanceOf",
         args: [wallet as `0x${string}`],
       })) as bigint;
+      balances.push(bal);
+    }
+
+    let emittedPositiveBalance = false;
+    for (let i = 0; i < outcomeTokens.length; i += 1) {
+      const bal = balances[i]!;
       if (bal <= BigInt(0)) continue;
+      emittedPositiveBalance = true;
       outRows.push({
         marketAddress: market,
         marketTitle,
@@ -228,6 +236,45 @@ export async function GET(req: NextRequest) {
         indexedSharesIn: pos.sharesIn,
         indexedSharesOut: pos.sharesOut,
       });
+    }
+
+    // Settled market, no outcome tokens left, but subgraph shows this wallet traded — keep the card (e.g. claimed winnings).
+    if (state === 2 && !emittedPositiveBalance && winningOutcomeIndex !== null) {
+      const collateralIn = BigInt(pos.collateralIn || "0");
+      const collateralOut = BigInt(pos.collateralOut || "0");
+      const sharesIn = BigInt(pos.sharesIn || "0");
+      const sharesOut = BigInt(pos.sharesOut || "0");
+      const participated = collateralIn > BigInt(0) || sharesIn > BigInt(0);
+      const indexerShowsRedeem = collateralOut > BigInt(0) || sharesOut > BigInt(0);
+
+      if (participated) {
+        const winIdx = winningOutcomeIndex as number;
+        const settlementDisplay = indexerShowsRedeem ? "claimed" : "settled_no_shares";
+        outRows.push({
+          marketAddress: market,
+          marketTitle,
+          marketKind: kind,
+          marketState: state,
+          stakeEndUnix,
+          collateralAddress: collateralAddressRaw as `0x${string}`,
+          winningOutcomeIndex,
+          redemptionRate: redemptionRate.toString(),
+          outcomeIndex: winIdx,
+          outcomeLabel: outcomeLabels[winIdx] ?? `Outcome ${winIdx + 1}`,
+          outcomeLabels,
+          balance: "0",
+          collateralDecimals,
+          chancePct,
+          poolTvlDisplay,
+          stakeEndsLabel,
+          imageUrl,
+          indexedCollateralIn: pos.collateralIn,
+          indexedCollateralOut: pos.collateralOut,
+          indexedSharesIn: pos.sharesIn,
+          indexedSharesOut: pos.sharesOut,
+          settlementDisplay,
+        });
+      }
     }
   }
 

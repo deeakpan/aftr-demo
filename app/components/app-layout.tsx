@@ -4,9 +4,11 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useWeb3Modal } from "@web3modal/wagmi/react";
-import { useAccount, useBalance, useDisconnect, useSignMessage } from "wagmi";
-import { formatUnits } from "viem";
+import { useAccount, useBalance, useDisconnect, useReadContract, useSignMessage } from "wagmi";
+import { formatUnits, parseAbi } from "viem";
+import deployment from "@/deployments/baseSepolia-84532.json";
 import {
   BookOpenText,
   CopySimple,
@@ -53,6 +55,18 @@ function signedSessionKey(address: string) {
   return `aftrmarket-signed:${address.toLowerCase()}`;
 }
 
+const PROFILE_USDC_ADDRESS = (
+  deployment as unknown as { external?: { umaBondCurrencyCircleUSDC?: string } }
+).external?.umaBondCurrencyCircleUSDC as `0x${string}` | undefined;
+const PROFILE_USDEAD_ADDRESS = (
+  deployment as unknown as { contracts?: { USDeAD?: string; AFTRUSDC?: string } }
+).contracts?.USDeAD as `0x${string}` | undefined;
+const ERC20_ABI = parseAbi([
+  "function balanceOf(address account) view returns (uint256)",
+  "function decimals() view returns (uint8)",
+  "function symbol() view returns (string)",
+]);
+
 export type AppLayoutProps = {
   children: ReactNode;
   /** Trending / category strip above main content */
@@ -70,6 +84,9 @@ export function AppLayout({
   pageBackgroundClassName,
 }: AppLayoutProps) {
   const { open } = useWeb3Modal();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
@@ -83,15 +100,65 @@ export function AppLayout({
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState("Trending");
+  const [searchQuery, setSearchQuery] = useState("");
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [profileName, setProfileName] = useState("");
   const [isEditingProfileName, setIsEditingProfileName] = useState(false);
   const [profileNameDraft, setProfileNameDraft] = useState("");
   const [isSavingProfileName, setIsSavingProfileName] = useState(false);
+  const [balanceView, setBalanceView] = useState<"eth" | "usdc" | "usdead">("eth");
+  /** `undefined` = still loading summary for connected wallet */
+  const [walletGraphStats, setWalletGraphStats] = useState<
+    | undefined
+    | null
+    | {
+        marketCount: number;
+        pnlUsd: string;
+        winRatePct: number | null;
+      }
+  >(undefined);
   const { data: nativeBalance } = useBalance({
     address,
     query: { enabled: Boolean(address) },
+  });
+  const { data: usdcBalanceRaw } = useReadContract({
+    address: PROFILE_USDC_ADDRESS,
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: { enabled: Boolean(address && PROFILE_USDC_ADDRESS) },
+  });
+  const { data: usdcDecimalsRaw } = useReadContract({
+    address: PROFILE_USDC_ADDRESS,
+    abi: ERC20_ABI,
+    functionName: "decimals",
+    query: { enabled: Boolean(PROFILE_USDC_ADDRESS) },
+  });
+  const { data: usdcSymbolRaw } = useReadContract({
+    address: PROFILE_USDC_ADDRESS,
+    abi: ERC20_ABI,
+    functionName: "symbol",
+    query: { enabled: Boolean(PROFILE_USDC_ADDRESS) },
+  });
+  const { data: usdeadBalanceRaw } = useReadContract({
+    address: PROFILE_USDEAD_ADDRESS,
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: { enabled: Boolean(address && PROFILE_USDEAD_ADDRESS) },
+  });
+  const { data: usdeadDecimalsRaw } = useReadContract({
+    address: PROFILE_USDEAD_ADDRESS,
+    abi: ERC20_ABI,
+    functionName: "decimals",
+    query: { enabled: Boolean(PROFILE_USDEAD_ADDRESS) },
+  });
+  const { data: usdeadSymbolRaw } = useReadContract({
+    address: PROFILE_USDEAD_ADDRESS,
+    abi: ERC20_ABI,
+    functionName: "symbol",
+    query: { enabled: Boolean(PROFILE_USDEAD_ADDRESS) },
   });
 
   useEffect(() => {
@@ -145,6 +212,24 @@ export function AppLayout({
   }, []);
 
   useEffect(() => {
+    if (!showFilterStrip) return;
+    const fromUrl = searchParams.get("filter") || "Trending";
+    setActiveFilter(fromUrl);
+    setSearchQuery(searchParams.get("q") ?? "");
+  }, [showFilterStrip, searchParams]);
+
+  const updateMarketQuery = (updates: Record<string, string | null>) => {
+    if (!showFilterStrip || pathname !== "/market") return;
+    const next = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([k, v]) => {
+      if (!v) next.delete(k);
+      else next.set(k, v);
+    });
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
+  useEffect(() => {
     const savedTheme = window.localStorage.getItem("aftrmarket-theme");
     const initialTheme = savedTheme === "light" ? "light" : "dark";
     setTheme(initialTheme);
@@ -164,6 +249,81 @@ export function AppLayout({
     const value = Number(formatUnits(nativeBalance.value, nativeBalance.decimals));
     return value.toFixed(4);
   }, [nativeBalance]);
+  const profileBalance = useMemo(() => {
+    if (balanceView === "usdc") {
+      const bal = (usdcBalanceRaw as bigint | undefined) ?? BigInt(0);
+      const decimals = Number(usdcDecimalsRaw ?? 6);
+      const symbol = typeof usdcSymbolRaw === "string" ? usdcSymbolRaw : "USDC";
+      const value = Number(formatUnits(bal, decimals));
+      return { amount: Number.isFinite(value) ? value.toFixed(2) : "0.00", symbol };
+    }
+    if (balanceView === "usdead") {
+      const bal = (usdeadBalanceRaw as bigint | undefined) ?? BigInt(0);
+      const decimals = Number(usdeadDecimalsRaw ?? 18);
+      const symbol = typeof usdeadSymbolRaw === "string" ? usdeadSymbolRaw : "USDeAD";
+      const value = Number(formatUnits(bal, decimals));
+      return { amount: Number.isFinite(value) ? value.toFixed(4) : "0.00", symbol };
+    }
+    if (!nativeBalance) return { amount: "0.00", symbol: "ETH" };
+    const value = Number(formatUnits(nativeBalance.value, nativeBalance.decimals));
+    return {
+      amount: Number.isFinite(value) ? value.toFixed(4) : "0.00",
+      symbol: nativeBalance.symbol ?? "ETH",
+    };
+  }, [
+    balanceView,
+    nativeBalance,
+    usdcBalanceRaw,
+    usdcDecimalsRaw,
+    usdcSymbolRaw,
+    usdeadBalanceRaw,
+    usdeadDecimalsRaw,
+    usdeadSymbolRaw,
+  ]);
+
+  const walletGraphSummary = useMemo(() => {
+    if (walletGraphStats === undefined || walletGraphStats === null) return null;
+    return {
+      marketCount: walletGraphStats.marketCount,
+      pnlUsd: typeof walletGraphStats.pnlUsd === "string" ? walletGraphStats.pnlUsd : "0.00",
+      winRatePct:
+        typeof walletGraphStats.winRatePct === "number" && Number.isFinite(walletGraphStats.winRatePct)
+          ? walletGraphStats.winRatePct
+          : null,
+    };
+  }, [walletGraphStats]);
+
+  useEffect(() => {
+    if (!address) {
+      setWalletGraphStats(undefined);
+      return;
+    }
+    let cancelled = false;
+    setWalletGraphStats(undefined);
+    void fetch(`/api/wallet/subgraph-summary?wallet=${encodeURIComponent(address)}`, { cache: "no-store" })
+      .then(async (res) => {
+        const j = (await res.json()) as {
+          marketCount?: number;
+          pnlUsd?: string;
+          winRatePct?: number | null;
+          error?: string;
+        };
+        if (!res.ok) throw new Error(j.error || "Subgraph summary failed");
+        if (cancelled) return;
+        setWalletGraphStats({
+          marketCount: typeof j.marketCount === "number" ? j.marketCount : 0,
+          pnlUsd: typeof j.pnlUsd === "string" ? j.pnlUsd : "0.00",
+          winRatePct:
+            typeof j.winRatePct === "number" && Number.isFinite(j.winRatePct) ? j.winRatePct : null,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setWalletGraphStats(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [address]);
   const walletGradient = useMemo(
     () => (address ? buildWalletGradient(address) : "linear-gradient(135deg, #3f3f46, #18181b)"),
     [address],
@@ -226,6 +386,12 @@ export function AppLayout({
                   ref={searchInputRef}
                   type="search"
                   placeholder={searchPlaceholder}
+                  value={searchQuery}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setSearchQuery(v);
+                    updateMarketQuery({ q: v.trim() ? v : null });
+                  }}
                   className="hidden h-10 w-[380px] max-w-[52vw] rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] md:block"
                 />
               )}
@@ -278,7 +444,7 @@ export function AppLayout({
                       <aside
                         onMouseEnter={openProfilePopover}
                         onMouseLeave={scheduleProfileClose}
-                        className="absolute right-2 top-full z-[60] mt-2 w-[220px] rounded-2xl border border-[var(--border)] bg-[var(--card)] p-2 shadow-2xl"
+                        className="absolute right-2 top-full z-[60] mt-2 w-[min(92vw,268px)] rounded-2xl border border-[var(--border)] bg-[var(--card)] p-2 shadow-2xl"
                       >
                         <div className="mb-2 flex items-center pb-1">
                           <h3 className="text-sm font-semibold">Profile</h3>
@@ -374,15 +540,47 @@ export function AppLayout({
                           <p className="py-1 text-[10px] uppercase tracking-wide text-[var(--muted)]">
                             Balance
                           </p>
-                          <p className="pb-1 text-xs text-[var(--foreground)]">
-                            {availableBalanceLabel} {nativeBalance?.symbol ?? "ETH"}
-                          </p>
-                          <p className="py-1 text-[10px] uppercase tracking-wide text-[var(--muted)]">PnL</p>
-                          <p className="pb-1 text-xs text-[#8f86ad]">-</p>
-                          <p className="py-1 text-[10px] uppercase tracking-wide text-[var(--muted)]">
-                            Win Rate
-                          </p>
-                          <p className="pb-1 text-xs text-[#68e0a0]">-</p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setBalanceView((v) => (v === "eth" ? "usdc" : v === "usdc" ? "usdead" : "eth"))
+                            }
+                            className="mb-1 rounded-md px-1 py-0.5 text-xs text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                            title="Tap to switch ETH / USDC / USDeAD"
+                          >
+                            {profileBalance.amount} {profileBalance.symbol}
+                          </button>
+                          <p className="py-1 text-[10px] uppercase tracking-wide text-[var(--muted)]">Profile stats</p>
+                          {walletGraphStats === undefined ? (
+                            <p className="pb-2 text-xs text-[var(--muted)]">Loading…</p>
+                          ) : walletGraphSummary ? (
+                            <div className="pb-2 space-y-1 text-[11px] leading-snug text-[var(--foreground)]">
+                              <p>
+                                Markets:{" "}
+                                <span className="font-semibold tabular-nums">{walletGraphSummary.marketCount}</span>
+                              </p>
+                              <div className="flex items-center justify-between gap-3">
+                                <p>
+                                  PnL:{" "}
+                                  <span
+                                    className={`font-semibold tabular-nums ${
+                                      walletGraphSummary.pnlUsd.startsWith("-") ? "text-rose-400" : "text-[#68e0a0]"
+                                    }`}
+                                  >
+                                    ${walletGraphSummary.pnlUsd}
+                                  </span>
+                                </p>
+                                <p>
+                                  Win rate:{" "}
+                                  <span className="font-semibold tabular-nums text-[var(--muted)]">
+                                    {walletGraphSummary.winRatePct === null ? "—" : `${walletGraphSummary.winRatePct}%`}
+                                  </span>
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="pb-2 text-xs text-[var(--muted)]">Indexer unavailable.</p>
+                          )}
                           {[
                             { label: "Trades", Icon: PlusMinus, iconClass: "text-[#7fd0ff]" },
                             { label: "Rewards", Icon: Trophy, iconClass: "text-[#ffbf47]" },
@@ -458,6 +656,12 @@ export function AppLayout({
               <input
                 type="search"
                 placeholder={searchPlaceholder}
+                value={searchQuery}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSearchQuery(v);
+                  updateMarketQuery({ q: v.trim() ? v : null });
+                }}
                 className="h-9 w-full max-w-[240px] rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 text-xs text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
               />
             </div>
@@ -484,8 +688,15 @@ export function AppLayout({
                     key={filter}
                     role="button"
                     tabIndex={0}
-                    onClick={() => setActiveFilter(filter)}
-                    onKeyDown={(e) => e.key === "Enter" && setActiveFilter(filter)}
+                    onClick={() => {
+                      setActiveFilter(filter);
+                      updateMarketQuery({ filter });
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter") return;
+                      setActiveFilter(filter);
+                      updateMarketQuery({ filter });
+                    }}
                     className={`cursor-pointer text-sm font-medium transition hover:text-[var(--foreground)] ${
                       activeFilter === filter ? "text-[var(--foreground)]" : "text-[#8f86ad]"
                     }`}
@@ -538,13 +749,13 @@ export function AppLayout({
             <PlusMinus size={18} weight="regular" />
             <span>Trades</span>
           </Link>
-          <button
-            type="button"
+          <Link
+            href="/leaderboard"
             className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
           >
             <CrownSimple size={18} weight="regular" />
             <span>Leader</span>
-          </button>
+          </Link>
         </div>
       </nav>
 

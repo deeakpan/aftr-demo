@@ -12,8 +12,10 @@ const ROUTER_ADDRESS = deployment.contracts.AFTRMarketDebtRouter as `0x${string}
 const DRP_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
   .DRP as `0x${string}`;
 const DEPLOYMENT_CHAIN_ID = deployment.chainId;
-const USDEAD_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
-  .AFTRUSDC?.toLowerCase();
+const USDEAD_ADDRESS = (
+  (deployment as unknown as { contracts: Record<string, string> }).contracts.USDeAD ??
+  (deployment as unknown as { contracts: Record<string, string> }).contracts.AFTRUSDC
+)?.toLowerCase();
 const CIRCLE_USDC_ADDRESS = (deployment as unknown as { external: Record<string, string> }).external
   .umaBondCurrencyCircleUSDC?.toLowerCase();
 
@@ -38,6 +40,9 @@ const ROUTER_ABI = parseAbi([
 ]);
 const DRP_ABI = parseAbi([
   "function getUserVaultDetails(address _user, address _token) view returns (uint256 collateral,uint256 debt,uint256 pendingWithdrawalAmount,uint256 unlockTimestamp,bool isClosing,bool isLiquidated)",
+  "function trustedManagers(address manager) view returns (bool)",
+  "function isVaultManager(address owner, address manager) view returns (bool)",
+  "function approveManager(address manager, bool active)",
 ]);
 
 type VaultCollateralOption = {
@@ -77,6 +82,10 @@ type PositionRow = {
   poolTvlDisplay: string;
   stakeEndsLabel: string;
   imageUrl: string;
+  indexedCollateralIn: bigint;
+  indexedCollateralOut: bigint;
+  /** Synthetic row after claim — no ERC20 balance left */
+  settlementDisplay?: "claimed" | "settled_no_shares";
 };
 
 
@@ -95,7 +104,10 @@ type MarketPositionGroup = {
   stakeEndsLabel: string;
   imageUrl: string;
   collateralDecimals: number;
-  /** One entry per outcome the wallet holds with balance &gt; 0 */
+  indexedCollateralIn: bigint;
+  indexedCollateralOut: bigint;
+  settlementDisplay?: "claimed" | "settled_no_shares";
+  /** Open shares per outcome, plus synthetic settled rows with zero balance */
   positions: { outcomeIndex: number; outcomeLabel: string; balance: bigint }[];
 };
 
@@ -132,6 +144,36 @@ function stateLabel(state: number, stakeEndUnix: number) {
   return "Open";
 }
 
+/** Turn long viem/MetaMask errors into something users can read. */
+function friendlyWalletError(e: unknown): string {
+  const raw =
+    typeof e === "object" &&
+    e !== null &&
+    "message" in e &&
+    typeof (e as { message: unknown }).message === "string"
+      ? (e as Error).message
+      : typeof e === "string"
+        ? e
+        : "";
+  const lower = raw.toLowerCase();
+  if (
+    lower.includes("user rejected") ||
+    lower.includes("user denied") ||
+    lower.includes("denied transaction signature") ||
+    (lower.includes("reject") && lower.includes("signature")) ||
+    lower.includes("user_cancelled") ||
+    lower.includes("action_rejected")
+  ) {
+    return "You closed or rejected the wallet prompt. Nothing was sent on-chain — try again when you’re ready.";
+  }
+  if (lower.includes("insufficient funds") && lower.includes("gas")) {
+    return "Not enough ETH on Base Sepolia to pay gas.";
+  }
+  const first = raw.split("\n")[0]?.split("Contract Call:")[0]?.trim() ?? "";
+  if (first && first.length <= 180) return first;
+  return "Transaction didn’t go through. Try again, or switch network and retry.";
+}
+
 function groupRows(rows: PositionRow[]): MarketPositionGroup[] {
   const byMarket = new Map<string, PositionRow[]>();
   for (const row of rows) {
@@ -143,6 +185,9 @@ function groupRows(rows: PositionRow[]): MarketPositionGroup[] {
   const groups: MarketPositionGroup[] = [];
   for (const list of byMarket.values()) {
     const head = list[0]!;
+    const indexedCollateralIn = list.reduce((acc, row) => acc + row.indexedCollateralIn, BigInt(0));
+    const indexedCollateralOut = list.reduce((acc, row) => acc + row.indexedCollateralOut, BigInt(0));
+    const settlementDisplay = list.find((r) => r.settlementDisplay)?.settlementDisplay;
     groups.push({
       marketAddress: head.marketAddress,
       collateralAddress: head.collateralAddress,
@@ -158,6 +203,9 @@ function groupRows(rows: PositionRow[]): MarketPositionGroup[] {
       stakeEndsLabel: head.stakeEndsLabel,
       imageUrl: head.imageUrl,
       collateralDecimals: head.collateralDecimals,
+      indexedCollateralIn,
+      indexedCollateralOut,
+      settlementDisplay,
       positions: list.map((r) => ({
         outcomeIndex: r.outcomeIndex,
         outcomeLabel: r.outcomeLabel,
@@ -184,6 +232,7 @@ function ClaimWinningsButton({
   redemptionRate,
   collateralTicker,
   collateralAddress,
+  indexedCollateralIn,
   onDone,
 }: {
   marketAddress: `0x${string}`;
@@ -193,6 +242,7 @@ function ClaimWinningsButton({
   redemptionRate: bigint;
   collateralTicker: string;
   collateralAddress: `0x${string}`;
+  indexedCollateralIn: bigint;
   onDone: () => void;
 }) {
   const publicClient = usePublicClient({ chainId: DEPLOYMENT_CHAIN_ID });
@@ -211,6 +261,9 @@ function ClaimWinningsButton({
   const [copiedVaultAddress, setCopiedVaultAddress] = useState(false);
   const [shareApprovalReady, setShareApprovalReady] = useState(false);
   const [drpApprovalReady, setDrpApprovalReady] = useState(false);
+  const [routerTrustedByDrp, setRouterTrustedByDrp] = useState<boolean | null>(null);
+  const [vaultManagerApproved, setVaultManagerApproved] = useState<boolean | null>(null);
+  const [statusIsError, setStatusIsError] = useState(false);
   const isUsdeadMarket = Boolean(
     USDEAD_ADDRESS && collateralAddress.toLowerCase() === USDEAD_ADDRESS,
   );
@@ -254,6 +307,41 @@ function ClaimWinningsButton({
     };
   }, [modalOpen, repayMode, isUsdeadMarket, publicClient, address, selectedVaultCollateral]);
 
+  useEffect(() => {
+    if (!modalOpen || !isUsdeadMarket || !publicClient || !address) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [trusted, approved] = (await Promise.all([
+          publicClient.readContract({
+            address: DRP_ADDRESS,
+            abi: DRP_ABI,
+            functionName: "trustedManagers",
+            args: [ROUTER_ADDRESS],
+          }),
+          publicClient.readContract({
+            address: DRP_ADDRESS,
+            abi: DRP_ABI,
+            functionName: "isVaultManager",
+            args: [address, ROUTER_ADDRESS],
+          }),
+        ])) as [boolean, boolean];
+        if (!cancelled) {
+          setRouterTrustedByDrp(trusted);
+          setVaultManagerApproved(approved);
+        }
+      } catch {
+        if (!cancelled) {
+          setRouterTrustedByDrp(null);
+          setVaultManagerApproved(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [modalOpen, isUsdeadMarket, publicClient, address]);
+
   // DRP charges 1% fee on burnAmount; with payout budget P, max burn ≈ P * 10000 / 10100.
   const maxDebtBurnFromWinningsWei = useMemo(
     () => (estPayoutWei * BigInt(10_000)) / BigInt(10_100),
@@ -269,6 +357,7 @@ function ClaimWinningsButton({
   );
   const fmtCollateral = (v: bigint) =>
     Number(formatUnits(v, shareDecimals)).toLocaleString(undefined, { maximumFractionDigits: 6 });
+  const collateralInLabel = useMemo(() => fmtCollateral(indexedCollateralIn), [indexedCollateralIn]);
 
   useEffect(() => {
     if (!modalOpen || !isUsdeadMarket || !publicClient || !address) return;
@@ -322,12 +411,71 @@ function ClaimWinningsButton({
     debtToBurnWei,
   ]);
 
-  const redeem = async (withRepay: boolean) => {
-    if (!publicClient || !walletClient || !address) { setStatus("Connect wallet."); return; }
-    if (chainId !== DEPLOYMENT_CHAIN_ID) { setStatus(`Switch to Base Sepolia.`); return; }
+  const enableVaultManager = async () => {
+    if (!publicClient || !walletClient || !address) {
+      setStatus("Connect wallet.");
+      setStatusIsError(true);
+      return;
+    }
+    if (chainId !== DEPLOYMENT_CHAIN_ID) {
+      setStatus("Switch to Base Sepolia.");
+      setStatusIsError(true);
+      return;
+    }
     try {
       setBusy(true);
+      setStatusIsError(false);
+      setStatus("Approve router as vault manager…");
+      const tx = await walletClient.writeContract({
+        chain: walletClient.chain,
+        address: DRP_ADDRESS,
+        abi: DRP_ABI,
+        functionName: "approveManager",
+        args: [ROUTER_ADDRESS, true],
+        account: address,
+        gas: BigInt(250_000),
+      });
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+      const approved = (await publicClient.readContract({
+        address: DRP_ADDRESS,
+        abi: DRP_ABI,
+        functionName: "isVaultManager",
+        args: [address, ROUTER_ADDRESS],
+      })) as boolean;
+      setVaultManagerApproved(approved);
+      setStatus(approved ? "Router can manage your vault for repay." : "Could not confirm approval — try refreshing.");
+      setStatusIsError(!approved);
+    } catch (e) {
+      setStatusIsError(true);
+      setStatus(friendlyWalletError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const redeem = async (withRepay: boolean) => {
+    if (!publicClient || !walletClient || !address) { setStatusIsError(true); setStatus("Connect wallet."); return; }
+    if (chainId !== DEPLOYMENT_CHAIN_ID) { setStatusIsError(true); setStatus(`Switch to Base Sepolia.`); return; }
+    try {
+      setBusy(true);
+      setStatusIsError(false);
       setStatus("Preparing…");
+      if (withRepay) {
+        const approved = (await publicClient.readContract({
+          address: DRP_ADDRESS,
+          abi: DRP_ABI,
+          functionName: "isVaultManager",
+          args: [address, ROUTER_ADDRESS],
+        })) as boolean;
+        if (!approved) {
+          setStatusIsError(true);
+          setStatus(
+            "Claim + repay needs the AFTR router allowed as your DRP vault manager. Tap “Enable vault manager” below, then try again.",
+          );
+          setBusy(false);
+          return;
+        }
+      }
       const token = (await publicClient.readContract({
         address: marketAddress, abi: MARKET_ABI, functionName: "outcomeToken",
         args: [BigInt(winningOutcomeIndex)],
@@ -396,7 +544,8 @@ function ClaimWinningsButton({
       setModalOpen(false);
       onDone();
     } catch (e) {
-      setStatus(e instanceof Error ? e.message : "Failed.");
+      setStatusIsError(true);
+      setStatus(friendlyWalletError(e));
     } finally {
       setBusy(false);
     }
@@ -408,13 +557,17 @@ function ClaimWinningsButton({
         {formatShareAmount(maxShares, shareDecimals)}
       </p>
       <p className="mb-1 text-[11px] text-slate-300">Est. payout: {maxPayout} {collateralTicker}</p>
-      {status && <p className="mb-1.5 text-[11px] text-emerald-300">{status}</p>}
+      {status && (
+        <p className={`mb-1.5 text-[11px] ${statusIsError ? "text-rose-300" : "text-emerald-300"}`}>{status}</p>
+      )}
       <button
         type="button"
         disabled={busy}
         onClick={() => {
           if (isUsdeadMarket) {
             setRepayMode(false);
+            setStatus("");
+            setStatusIsError(false);
             setModalOpen(true);
             return;
           }
@@ -445,6 +598,12 @@ function ClaimWinningsButton({
             <p className="mt-1 text-xs text-slate-400">
               Choose to claim only, or claim and repay DRP debt in one transaction.
             </p>
+            <p className="mt-1 text-xs text-slate-300">
+              Collateral put in (indexed):{" "}
+              <span className="font-semibold text-white">
+                {collateralInLabel} {collateralTicker}
+              </span>
+            </p>
 
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button
@@ -473,9 +632,9 @@ function ClaimWinningsButton({
               </button>
             </div>
 
-            <div className="mt-3 space-y-2 rounded-lg border border-white/10 bg-black/30 p-3 text-xs">
+            <div className="mt-3 space-y-2 text-xs">
               <label className="block text-slate-400">Vault collateral token</label>
-              <div className="group flex items-center justify-between rounded-md border border-white/10 bg-black px-2 py-1.5 text-white">
+              <div className="group flex items-center justify-between border-b border-white/10 pb-1.5 text-white">
                 <button
                   type="button"
                   onClick={() => setSelectedVaultCollateral(VAULT_COLLATERAL_OPTIONS[0]!.address)}
@@ -514,7 +673,8 @@ function ClaimWinningsButton({
             </div>
 
             <p className="mt-3 text-[11px] text-slate-400">
-              Aftrmarkets is in partnership with{" "}
+              Aftrmarkets uses the{" "}
+              <span className="font-semibold text-slate-200">AFTR router</span> with{" "}
               <a
                 href="https://dead.box"
                 target="_blank"
@@ -522,14 +682,44 @@ function ClaimWinningsButton({
                 className="font-semibold text-emerald-300 underline underline-offset-2"
               >
                 DRP
-              </a>{" "}
-              as a vault manager. Learn more.
+              </a>
+              . The protocol trusts this router globally;{" "}
+              <span className="text-slate-300">
+                each wallet still approves it once per account as{" "}
+                <span className="font-semibold text-white">your</span> vault manager to use Claim + Repay.
+              </span>
             </p>
-            <div className="mt-3 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-[11px] text-slate-400">
+            {repayMode && routerTrustedByDrp === false && (
+              <p className="mt-2 rounded-lg border border-amber-500/40 bg-amber-950/40 px-2 py-1.5 text-[11px] text-amber-200">
+                This deployment’s router is not marked trusted in DRP — Claim + repay may revert. Claim-only should still work.
+              </p>
+            )}
+            {repayMode && vaultManagerApproved === false && routerTrustedByDrp !== false && (
+              <div className="mt-2 rounded-lg border border-indigo-500/30 bg-indigo-950/30 p-2">
+                <p className="text-[11px] text-indigo-100">
+                  One-time setup: allow the AFTR router to act as your vault manager in DRP so it can repay from your claim.
+                </p>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void enableVaultManager()}
+                  className="mt-2 w-full rounded-lg bg-indigo-500 px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                >
+                  {busy ? "Waiting for wallet…" : "Enable vault manager"}
+                </button>
+              </div>
+            )}
+            {repayMode && vaultManagerApproved === true && (
+              <p className="mt-2 text-[11px] text-emerald-400/90">✓ This wallet has approved the router as its DRP vault manager.</p>
+            )}
+            <div className="mt-3 border-t border-white/10 pt-2 text-[11px] text-slate-400">
               {repayMode ? (
                 <>
                   This action may require multiple confirmations:
                   <div className="mt-1 space-y-0.5 text-slate-300">
+                    <p>
+                      0) {vaultManagerApproved ? "✓ " : ""}Allow router as your DRP vault manager (Claim + Repay only)
+                    </p>
                     <p>1) {shareApprovalReady ? "✓ " : ""}Approve winning shares to router</p>
                     <p>2) {drpApprovalReady ? "✓ " : ""}Approve DRP USDeAD spend</p>
                     <p>3) Execute claim + repay</p>
@@ -547,7 +737,11 @@ function ClaimWinningsButton({
             </div>
             <button
               type="button"
-              disabled={busy || (repayMode && debtLoading)}
+              disabled={
+                busy ||
+                (repayMode && debtLoading) ||
+                (repayMode && vaultManagerApproved === false && routerTrustedByDrp !== false)
+              }
               onClick={() => void redeem(repayMode)}
               className="mt-3 w-full rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
             >
@@ -635,6 +829,9 @@ export function TradesClient() {
             poolTvlDisplay: string;
             stakeEndsLabel: string;
             imageUrl: string;
+            indexedCollateralIn?: string;
+            indexedCollateralOut?: string;
+            settlementDisplay?: "claimed" | "settled_no_shares";
           }>;
           error?: string;
         };
@@ -659,6 +856,9 @@ export function TradesClient() {
           poolTvlDisplay: r.poolTvlDisplay,
           stakeEndsLabel: r.stakeEndsLabel || fmtTs(r.stakeEndUnix),
           imageUrl: r.imageUrl,
+          indexedCollateralIn: BigInt((r as { indexedCollateralIn?: string }).indexedCollateralIn ?? "0"),
+          indexedCollateralOut: BigInt((r as { indexedCollateralOut?: string }).indexedCollateralOut ?? "0"),
+          settlementDisplay: (r as { settlementDisplay?: "claimed" | "settled_no_shares" }).settlementDisplay,
         }));
         setRows(parsed);
       } catch (e) {
@@ -704,7 +904,7 @@ export function TradesClient() {
         {error && <p className="max-w-xl text-sm leading-relaxed text-red-400">{error}</p>}
         {!isLoading && !error && isConnected && chainId === DEPLOYMENT_CHAIN_ID && groups.length === 0 && (
           <p className="max-w-xl text-sm leading-relaxed text-[var(--muted)]">
-            No open share balances found for this wallet.
+            No markets with positions or indexed activity for this wallet.
           </p>
         )}
 
@@ -718,6 +918,11 @@ export function TradesClient() {
               const winIdx = g.winningOutcomeIndex;
               const winBal =
                 g.marketState === 2 && winIdx !== null ? balanceForOutcome(g.positions, winIdx) : BigInt(0);
+              const tick = collateralTickerFor(g.collateralAddress);
+              const fmtIndexed = (v: bigint) =>
+                Number(formatUnits(v, g.collateralDecimals)).toLocaleString(undefined, {
+                  maximumFractionDigits: 6,
+                });
 
               return (
                 <article
@@ -760,13 +965,26 @@ export function TradesClient() {
                             maxShares={winBal}
                             shareDecimals={g.collateralDecimals}
                             redemptionRate={g.redemptionRate}
-                            collateralTicker={collateralTickerFor(g.collateralAddress)}
+                            collateralTicker={tick}
                             collateralAddress={g.collateralAddress}
+                            indexedCollateralIn={g.indexedCollateralIn}
                             onDone={() => setRefreshKey((k) => k + 1)}
                           />
                         </div>
+                      ) : g.settlementDisplay === "claimed" ? (
+                        <div className="mt-2 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-2 py-1.5">
+                          <p className="text-sm font-bold text-emerald-400">Claimed</p>
+                          <p className="mt-0.5 text-[11px] font-semibold text-slate-200">
+                            {fmtIndexed(g.indexedCollateralOut)} {tick}
+                          </p>
+                        </div>
+                      ) : g.settlementDisplay === "settled_no_shares" ? (
+                        <div className="mt-2 rounded-lg border border-white/10 bg-[#0f1727] px-2 py-1.5">
+                          <p className="text-sm font-semibold text-slate-300">Settled</p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">No outcome tokens held on-chain anymore.</p>
+                        </div>
                       ) : (
-                        <p className="mt-2 text-sm font-bold text-rose-400">You Lost</p>
+                        <p className="mt-2 text-sm font-bold text-rose-400">You lost</p>
                       )
                     ) : (
                       <>

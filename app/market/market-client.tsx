@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowsClockwise, BookmarkSimple, Gift, TrendUp } from "@phosphor-icons/react";
 import { formatUnits, parseAbi, parseUnits, zeroAddress } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
@@ -51,8 +51,10 @@ const ERC20_ABI = parseAbi([
 
 const WAD = BigInt("1000000000000000000");
 const SLIPPAGE_PRESETS = [50, 100, 200, 300] as const;
-const USDEAD_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
-  .AFTRUSDC?.toLowerCase();
+const USDEAD_ADDRESS = (
+  (deployment as unknown as { contracts: Record<string, string> }).contracts.USDeAD ??
+  (deployment as unknown as { contracts: Record<string, string> }).contracts.AFTRUSDC
+)?.toLowerCase();
 const CIRCLE_USDC_ADDRESS = (deployment as unknown as { external: Record<string, string> }).external
   .umaBondCurrencyCircleUSDC?.toLowerCase();
 
@@ -80,6 +82,7 @@ type UiMarket = {
   /** Formatted bin strings per outcome for price markets (Chainlink-style 8-decimal bounds). */
   priceBinByOutcome?: string[];
   slug?: string;
+  categories?: string[];
 };
 
 type IpfsMetadata = {
@@ -88,6 +91,7 @@ type IpfsMetadata = {
   image?: string;
   outcomes?: string[];
   slug?: string;
+  categories?: string[];
 };
 
 function fmtTs(value: bigint) {
@@ -173,6 +177,7 @@ async function fetchIpfsMetadata(uri: string): Promise<IpfsMetadata | null> {
 
 export function MarketClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const publicClient = usePublicClient({ chainId: DEPLOYMENT_CHAIN_ID });
   const { address, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
@@ -360,6 +365,9 @@ export function MarketClient() {
                 maximumFractionDigits: 2,
               }),
               chancePct: leftPct,
+              categories:
+                md?.categories?.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean) ??
+                [],
               collateralAddress: (await publicClient.readContract({
                 address: marketAddress,
                 abi: MARKET_ABI,
@@ -507,8 +515,42 @@ export function MarketClient() {
   const visibleMarkets = useMemo(() => {
     void marketListClock;
     const now = Math.floor(Date.now() / 1000);
-    return markets.filter((m) => m.stakeEndUnix > now);
-  }, [markets, marketListClock]);
+    const q = (searchParams.get("q") ?? "").trim().toLowerCase();
+    const filter = (searchParams.get("filter") ?? "Trending").trim();
+
+    let rows = markets.filter((m) => m.stakeEndUnix > now);
+    if (q) {
+      rows = rows.filter((m) => {
+        const hay = `${m.title} ${m.description} ${m.slug ?? ""} ${(m.categories ?? []).join(" ")}`.toLowerCase();
+        return hay.includes(q);
+      });
+    }
+
+    const categoryFilters = new Set(["Crypto", "Politics", "Finance", "Tech", "Economy", "Sports", "Gaming"]);
+    if (categoryFilters.has(filter)) {
+      rows = rows.filter((m) =>
+        (m.categories ?? []).some((c) => c.toLowerCase() === filter.toLowerCase()),
+      );
+    }
+
+    if (filter === "Breaking") {
+      rows = rows.filter((m) => m.resolveAfterUnix - now <= 24 * 60 * 60);
+    }
+
+    const tvlValue = (m: UiMarket) => {
+      const v = Number((tvlOverrides[m.address] ?? m.poolTvl).replace(/,/g, ""));
+      return Number.isFinite(v) ? v : 0;
+    };
+
+    if (filter === "Newest") {
+      rows = [...rows].sort((a, b) => b.resolveAfterUnix - a.resolveAfterUnix);
+    } else {
+      // Trending/default: highest TVL first.
+      rows = [...rows].sort((a, b) => tvlValue(b) - tvlValue(a));
+    }
+
+    return rows;
+  }, [markets, marketListClock, searchParams, tvlOverrides]);
 
   const empty = useMemo(
     () => !isLoading && !loadError && visibleMarkets.length === 0,

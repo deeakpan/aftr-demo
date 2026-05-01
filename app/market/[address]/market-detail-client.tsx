@@ -18,8 +18,10 @@ import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import deployment from "@/deployments/baseSepolia-84532.json";
 
 const DEPLOYMENT_CHAIN_ID = deployment.chainId;
-const USDEAD_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
-  .AFTRUSDC?.toLowerCase();
+const USDEAD_ADDRESS = (
+  (deployment as unknown as { contracts: Record<string, string> }).contracts.USDeAD ??
+  (deployment as unknown as { contracts: Record<string, string> }).contracts.AFTRUSDC
+)?.toLowerCase();
 const CIRCLE_USDC_ADDRESS = (deployment as unknown as { external: Record<string, string> }).external
   .umaBondCurrencyCircleUSDC?.toLowerCase();
 const WAD = BigInt("1000000000000000000");
