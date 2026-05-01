@@ -29,7 +29,7 @@ function nextDivisibleTotal(seedUnits: bigint, nOutcomes: number): bigint {
   if (nOutcomes <= 0) return seedUnits;
   const n = BigInt(nOutcomes);
   const rem = seedUnits % n;
-  if (rem === 0n) return seedUnits;
+  if (rem === BigInt(0)) return seedUnits;
   return seedUnits + (n - rem);
 }
 
@@ -476,7 +476,7 @@ export function CreateClient() {
       setSeedValidationError("Enter a valid seed amount.");
       return;
     }
-    if (nOutcomes > 0 && seedUnits % BigInt(nOutcomes) !== 0n) {
+    if (nOutcomes > 0 && seedUnits % BigInt(nOutcomes) !== BigInt(0)) {
       const fix = nextDivisibleTotal(seedUnits, nOutcomes);
       const fixLabel = formatUnits(fix, collateral.decimals);
       setSeedValidationError(
