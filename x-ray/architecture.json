@@ -1,0 +1,72 @@
+{
+  "protocol": "AFTR Parimutuel",
+  "version": "a94c5b0",
+  "subsystems": [
+    {
+      "name": "Factory",
+      "contracts": ["AFTRParimutuelMarketFactory", "AFTRParimutuelDeployer", "AFTRParimutuelBatchFactory"],
+      "role": "Market deployment, bootstrap seeding, collateral whitelist"
+    },
+    {
+      "name": "Market Core",
+      "contracts": ["AFTRVParimutuelMarket"],
+      "role": "Virtual-reserve pricing, deposits, settlement, redemption"
+    },
+    {
+      "name": "Outcome Tokens",
+      "contracts": ["AFTROutcomeToken"],
+      "role": "Per-outcome ERC20 shares, owned by market"
+    },
+    {
+      "name": "Staking Vault",
+      "contracts": ["AFTRFeeVault", "sAFTRToken"],
+      "role": "AFTR staking, fee distribution, epoch tracking"
+    },
+    {
+      "name": "Router",
+      "contracts": ["AFTRMarketDebtRouter"],
+      "role": "Deposit/redeem proxy with DRP debt repayment"
+    },
+    {
+      "name": "Tokens",
+      "contracts": ["AFTRToken", "AFTRUSDC"],
+      "role": "Governance token, test USDC"
+    }
+  ],
+  "flows": [
+    {
+      "name": "Market Creation",
+      "path": "User → Factory.createPriceMarket → Deployer.deployPriceMarket → Market(new) → Market.initialize → Market.bootstrapLiquidity"
+    },
+    {
+      "name": "Trade",
+      "path": "User → Market.deposit → [0.3% → Creator] → [1.2% → Vault.receiveFees] → [98.5% → realPool] → OutcomeToken.mint"
+    },
+    {
+      "name": "Settlement (Price)",
+      "path": "Anyone → Market.settlePrice → Chainlink.latestRoundData → _finalizeSettlement → redemptionRate set"
+    },
+    {
+      "name": "Settlement (Event)",
+      "path": "Anyone → Market.requestEventResolution → UMA.requestPrice → [liveness] → Market.settleWithUmaResult → UMA.settleAndGetPrice → _finalizeSettlement"
+    },
+    {
+      "name": "Redemption",
+      "path": "Winner → Market.redeem → OutcomeToken.burnFrom → collateral sent to winner"
+    },
+    {
+      "name": "Staking",
+      "path": "User → Vault.stake → sAFTR.mint | Vault.initiateUnstake → [lockDuration] → Vault.completeUnstake → sAFTR.burn"
+    },
+    {
+      "name": "Fee Distribution",
+      "path": "Market._sendProtocolFee → [ERC165 check] → Vault.receiveFees → _distributeFees → rewardPerTokenStored++"
+    }
+  ],
+  "external_dependencies": [
+    {"name": "Chainlink AggregatorV3", "used_by": "AFTRVParimutuelMarket", "purpose": "PRICE market settlement"},
+    {"name": "UMA OptimisticOracleV2", "used_by": "AFTRVParimutuelMarket", "purpose": "EVENT market settlement"},
+    {"name": "DRP (DeaderalReserveProtocol)", "used_by": "AFTRMarketDebtRouter", "purpose": "Debt repayment integration"},
+    {"name": "OpenZeppelin", "used_by": "all", "purpose": "ERC20, Ownable2Step, ReentrancyGuard, SafeERC20, ERC165"}
+  ]
+}

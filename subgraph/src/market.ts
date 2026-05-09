@@ -28,6 +28,7 @@ function loadOrCreatePosition(marketAddr: Address, traderAddr: Address): TraderM
     p.collateralOut = ZERO;
     p.sharesIn = ZERO;
     p.sharesOut = ZERO;
+    p.lastTradeTimestamp = ZERO;
     p.save();
   }
   return p as TraderMarketPosition;
@@ -38,6 +39,7 @@ export function handleDeposited(event: Deposited): void {
   const recipient = event.params.recipient;
   const amount = event.params.collateralAmount;
   const shares = event.params.sharesMinted;
+  const timestamp = event.params.timestamp;
 
   const marketId = addrId(marketAddr);
   if (Market.load(marketId) == null) {
@@ -51,6 +53,7 @@ export function handleDeposited(event: Deposited): void {
   const pos = loadOrCreatePosition(marketAddr, recipient);
   pos.collateralIn = pos.collateralIn.plus(amount);
   pos.sharesIn = pos.sharesIn.plus(shares);
+  pos.lastTradeTimestamp = timestamp;
   pos.save();
 }
 
@@ -72,5 +75,6 @@ export function handleTokensRedeemed(event: TokensRedeemed): void {
   const pos = loadOrCreatePosition(marketAddr, user);
   pos.collateralOut = pos.collateralOut.plus(payout);
   pos.sharesOut = pos.sharesOut.plus(shares);
+  pos.lastTradeTimestamp = event.block.timestamp;
   pos.save();
 }

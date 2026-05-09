@@ -9,7 +9,8 @@
       { "indexed": false, "internalType": "string[]", "name": "outcomeLabels", "type": "string[]" },
       { "indexed": false, "internalType": "uint256", "name": "stakeEndTimestamp", "type": "uint256" },
       { "indexed": false, "internalType": "uint256", "name": "resolveAfterTimestamp", "type": "uint256" },
-      { "indexed": false, "internalType": "bytes32", "name": "metadataHash", "type": "bytes32" }
+      { "indexed": false, "internalType": "bytes32", "name": "metadataHash", "type": "bytes32" },
+      { "indexed": false, "internalType": "address", "name": "creator", "type": "address" }
     ],
     "name": "MarketCreated",
     "type": "event"

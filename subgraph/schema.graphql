@@ -6,6 +6,7 @@ type Market @entity(immutable: false) {
   stakeEndTimestamp: BigInt!
   resolveAfterTimestamp: BigInt!
   metadataHash: String!
+  creator: String!
   createdAt: BigInt!
   createdAtBlock: BigInt!
   positions: [TraderMarketPosition!]! @derivedFrom(field: "market")
@@ -28,4 +29,36 @@ type TraderMarketPosition @entity(immutable: false) {
   collateralOut: BigInt!
   sharesIn: BigInt!
   sharesOut: BigInt!
+  lastTradeTimestamp: BigInt!
+}
+
+"""One row per staker — tracks their current staked balance and lifetime rewards."""
+type Staker @entity(immutable: false) {
+  id: ID!                        # staker address
+  stakedBalance: BigInt!         # current sAFTR balance (active stake)
+  pendingUnstake: BigInt!        # amount in initiateUnstake queue
+  totalStaked: BigInt!           # lifetime AFTR staked
+  totalUnstaked: BigInt!         # lifetime AFTR unstaked
+  totalRewardsClaimed: BigInt!   # lifetime rewards claimed (all tokens combined in USD not tracked here)
+  rewardsClaimed: [RewardClaim!]! @derivedFrom(field: "staker")
+}
+
+"""One record per claimRewards() call per token."""
+type RewardClaim @entity(immutable: true) {
+  id: ID!           # txHash-logIndex
+  staker: Staker!
+  token: String!    # reward token address (0x0 = ETH)
+  amount: BigInt!
+  timestamp: BigInt!
+  epoch: BigInt!
+}
+
+"""Per-epoch per-token fee totals received by the vault."""
+type EpochFees @entity(immutable: false) {
+  id: ID!           # epoch-tokenAddress
+  epoch: BigInt!
+  token: String!
+  totalFees: BigInt!
+  stakerShare: BigInt!
+  treasuryShare: BigInt!
 }

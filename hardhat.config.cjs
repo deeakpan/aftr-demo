@@ -4,6 +4,9 @@ require("dotenv").config();
 /** @type import("hardhat/config").HardhatUserConfig */
 module.exports = {
   networks: {
+    hardhat: {
+      allowUnlimitedContractSize: true,
+    },
     baseSepolia: {
       url: process.env.RPC_URL || "",
       accounts: process.env.PRIVATE_KEY

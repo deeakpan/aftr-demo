@@ -12,6 +12,7 @@ export function handleMarketCreated(event: MarketCreated): void {
   m.stakeEndTimestamp = event.params.stakeEndTimestamp;
   m.resolveAfterTimestamp = event.params.resolveAfterTimestamp;
   m.metadataHash = event.params.metadataHash.toHexString();
+  m.creator = addrId(event.params.creator);
   m.createdAt = event.block.timestamp;
   m.createdAtBlock = event.block.number;
   m.save();

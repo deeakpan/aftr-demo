@@ -19,7 +19,7 @@ dataSources:
         - name: Factory
           file: ./abis/Factory.json
       eventHandlers:
-        - event: MarketCreated(indexed address,indexed uint8,indexed address,address[],string[],uint256,uint256,bytes32)
+        - event: MarketCreated(indexed address,indexed uint8,indexed address,address[],string[],uint256,uint256,bytes32,address)
           handler: handleMarketCreated
       file: ./src/factory.ts
   - kind: ethereum/contract
@@ -48,3 +48,35 @@ dataSources:
         - event: RouterRedeemedAndRepaid(indexed address,indexed address,indexed address,uint8,uint256,uint256,address,uint256)
           handler: handleRouterRedeemedAndRepaid
       file: ./src/router.ts
+  - kind: ethereum/contract
+    name: Vault
+    network: base-sepolia
+    source:
+      address: "0x1Fa3E56832F53a83b0702b82C6C44D0DdC7163B5"  # Replace with AFTRFeeVault address after deployment — run: npm run subgraph:update-config
+      abi: Vault
+      startBlock: 41284688  # Replace with vault deploy block after deployment
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Staker
+        - RewardClaim
+        - EpochFees
+      abis:
+        - name: Vault
+          file: ./abis/Vault.json
+      eventHandlers:
+        - event: Staked(indexed address,uint256,uint256)
+          handler: handleStaked
+        - event: UnstakeInitiated(indexed address,uint256,uint256)
+          handler: handleUnstakeInitiated
+        - event: UnstakeCompleted(indexed address,uint256)
+          handler: handleUnstakeCompleted
+        - event: UnstakeCancelled(indexed address,uint256)
+          handler: handleUnstakeCancelled
+        - event: RewardsClaimed(indexed address,indexed address,uint256)
+          handler: handleRewardsClaimed
+        - event: FeesReceived(indexed address,uint256,uint256,uint256,uint256)
+          handler: handleFeesReceived
+      file: ./src/vault.ts

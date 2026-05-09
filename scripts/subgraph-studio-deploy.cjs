@@ -12,7 +12,7 @@ if (!dk) {
 
 const subgraphDir = path.join(__dirname, "..", "subgraph");
 const slug = process.env.STUDIO_SUBGRAPH_SLUG ?? "aftr";
-const versionLabel = process.env.SUBGRAPH_VERSION_LABEL ?? "v0.05";
+const versionLabel = process.env.SUBGRAPH_VERSION_LABEL ?? "v0.06";
 
 /** Local CLI from subgraph/node_modules (.cmd on Windows). `npx` spawn often exits 1 with no output on Win. */
 const graphBin = path.join(

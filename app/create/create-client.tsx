@@ -351,7 +351,8 @@ export function CreateClient() {
     if (!resolveAfterAt) return "the specified resolve time (UTC)";
     const d = new Date(resolveAfterAt);
     if (Number.isNaN(d.getTime())) return "the specified resolve time (UTC)";
-    const readableUtc = new Intl.DateTimeFormat(undefined, {
+    // Always English in the onchain title; values are still the same instant (UTC labels).
+    const readableUtc = new Intl.DateTimeFormat("en-US", {
       weekday: "short",
       month: "short",
       day: "numeric",

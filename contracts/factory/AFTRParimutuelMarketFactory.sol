@@ -2,6 +2,8 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../token/AFTROutcomeToken.sol";
 import "../core/AFTRVParimutuelMarket.sol";
 import "../config/AFTRUmaIdentifiers.sol";
@@ -10,6 +12,7 @@ import "./AFTRParimutuelDeployer.sol";
 /// @title AFTRParimutuelMarketFactory
 /// @notice Core vPari factory (single-market creates). Batch deployment lives in AFTRParimutuelBatchFactory.
 contract AFTRParimutuelMarketFactory is Ownable2Step {
+    using SafeERC20 for IERC20;
     error InvalidAddress();
     error NotCreator();
     error InvalidCollateral();
@@ -20,6 +23,7 @@ contract AFTRParimutuelMarketFactory is Ownable2Step {
     error InvalidMeta();
     error InvalidBins();
     error InvalidDeployer();
+    error InvalidBootstrap();
     mapping(address => bool) public isSupportedCollateral;
 
     address public feeRecipient;
@@ -50,7 +54,8 @@ contract AFTRParimutuelMarketFactory is Ownable2Step {
         string[] outcomeLabels,
         uint256 stakeEndTimestamp,
         uint256 resolveAfterTimestamp,
-        bytes32 metadataHash
+        bytes32 metadataHash,
+        address creator
     );
 
     constructor(address owner_, address feeRecipient_, address optimisticOracleV2_, address umaBondCurrency_) Ownable(owner_) {
@@ -132,6 +137,10 @@ contract AFTRParimutuelMarketFactory is Ownable2Step {
         uint256[] priceBinUpper;
         /// @notice Minimum `totalAmount` for permissionless `bootstrapLiquidity` (0 = only >0 and divisible).
         uint256 minBootstrapTotal;
+        /// @notice Bootstrap liquidity amount (must be >= minBootstrapTotal and divisible by numOutcomes).
+        uint256 bootstrapAmount;
+        /// @notice Recipient of bootstrap shares (typically msg.sender or a liquidity pool).
+        address shareRecipient;
     }
 
     struct EventMarketParams {
@@ -155,14 +164,18 @@ contract AFTRParimutuelMarketFactory is Ownable2Step {
         /// @notice UMA bond token; address(0) => factory `umaBondCurrency` (WETH on Base testnets).
         address umaRewardCurrency;
         uint256 minBootstrapTotal;
+        /// @notice Bootstrap liquidity amount (must be >= minBootstrapTotal and divisible by numOutcomes).
+        uint256 bootstrapAmount;
+        /// @notice Recipient of bootstrap shares (typically msg.sender or a liquidity pool).
+        address shareRecipient;
     }
 
-    function createPriceMarket(PriceMarketParams calldata p) external onlyCreator returns (address market) {
-        market = _createPriceMarket(p);
+    function createPriceMarket(PriceMarketParams calldata p) external payable returns (address market) {
+        market = _createPriceMarket(p, msg.sender);
     }
 
-    function createEventMarket(EventMarketParams calldata p) external onlyCreator returns (address market) {
-        market = _createEventMarket(p);
+    function createEventMarket(EventMarketParams calldata p) external payable returns (address market) {
+        market = _createEventMarket(p, msg.sender);
     }
 
     function getMarketOutcomeTokens(address market) external view returns (address[] memory) {
@@ -179,11 +192,14 @@ contract AFTRParimutuelMarketFactory is Ownable2Step {
         return templateDec;
     }
 
-    function _createPriceMarket(PriceMarketParams calldata p) internal returns (address) {
+    function _createPriceMarket(PriceMarketParams calldata p, address creator) internal returns (address) {
         uint8 collateralDecimals = _decimalsForCollateral(p.collateralToken, p.collateralDecimals);
         if (!isSupportedCollateral[p.collateralToken]) revert InvalidCollateral();
         if (p.collateralToken == address(0) && collateralDecimals != 18) revert InvalidConfig();
         if (p.outcomeLabels.length < 2 || p.outcomeLabels.length > 32) revert InvalidOutcomes();
+        // Fix #8: explicit bounds check before uint8 cast (defensive — the >32 check above already
+        // prevents truncation, but this makes the intent unambiguous).
+        require(p.outcomeLabels.length <= type(uint8).max, "Labels overflow");
         if (p.chainlinkFeed == address(0)) revert InvalidFeed();
         if (p.maxPriceStaleness == 0) revert InvalidConfig();
         if (p.stakeEndTimestamp <= block.timestamp || p.resolveAfterTimestamp <= p.stakeEndTimestamp) revert InvalidTime();
@@ -204,6 +220,7 @@ contract AFTRParimutuelMarketFactory is Ownable2Step {
         (address market, address[] memory tokens) = AFTRParimutuelDeployer(marketDeployer).deployPriceMarket(
             owner(),
             feeRecipient,
+            creator,
             p.collateralToken,
             collateralDecimals,
             uint8(p.outcomeLabels.length),
@@ -221,6 +238,7 @@ contract AFTRParimutuelMarketFactory is Ownable2Step {
         );
 
         _wireMarket(market, tokens, p.metadataURI, new bytes(0), p.priceBinLower, p.priceBinUpper);
+        _seedMarket(market, p.collateralToken, p.bootstrapAmount, p.shareRecipient, uint8(p.outcomeLabels.length));
         _register(
             market,
             AFTRVParimutuelMarket.MarketKind.PRICE,
@@ -229,16 +247,19 @@ contract AFTRParimutuelMarketFactory is Ownable2Step {
             p.outcomeLabels,
             p.stakeEndTimestamp,
             p.resolveAfterTimestamp,
-            p.metadataHash
+            p.metadataHash,
+            creator
         );
         return market;
     }
 
-    function _createEventMarket(EventMarketParams calldata p) internal returns (address) {
+    function _createEventMarket(EventMarketParams calldata p, address creator) internal returns (address) {
         uint8 collateralDecimals = _decimalsForCollateral(p.collateralToken, p.collateralDecimals);
         if (!isSupportedCollateral[p.collateralToken]) revert InvalidCollateral();
         if (p.collateralToken == address(0) && collateralDecimals != 18) revert InvalidConfig();
         if (p.outcomeLabels.length < 2 || p.outcomeLabels.length > 32) revert InvalidOutcomes();
+        // Fix #8: explicit bounds check before uint8 cast.
+        require(p.outcomeLabels.length <= type(uint8).max, "Labels overflow");
         bytes memory anc = bytes(p.umaAncillary);
         if (anc.length == 0 || anc.length > 8192) revert InvalidConfig();
         if (p.umaLiveness == 0) revert InvalidConfig();
@@ -259,6 +280,7 @@ contract AFTRParimutuelMarketFactory is Ownable2Step {
         (address market, address[] memory tokens) = AFTRParimutuelDeployer(marketDeployer).deployEventMarket(
             owner(),
             feeRecipient,
+            creator,
             p.collateralToken,
             collateralDecimals,
             uint8(p.outcomeLabels.length),
@@ -277,6 +299,7 @@ contract AFTRParimutuelMarketFactory is Ownable2Step {
         );
 
         _wireMarket(market, tokens, p.metadataURI, anc, _emptyBins(), _emptyBins());
+        _seedMarket(market, p.collateralToken, p.bootstrapAmount, p.shareRecipient, uint8(p.outcomeLabels.length));
         _register(
             market,
             AFTRVParimutuelMarket.MarketKind.EVENT,
@@ -285,13 +308,44 @@ contract AFTRParimutuelMarketFactory is Ownable2Step {
             p.outcomeLabels,
             p.stakeEndTimestamp,
             p.resolveAfterTimestamp,
-            p.metadataHash
+            p.metadataHash,
+            creator
         );
         return market;
     }
 
     function _emptyBins() internal pure returns (uint256[] memory z) {
         z = new uint256[](0);
+    }
+
+    /// @notice Pull bootstrap collateral from msg.sender and seed the market atomically.
+    /// @dev For ERC20 markets the caller must have pre-approved this factory for `bootstrapAmount`.
+    ///      For native ETH markets the caller must send exactly `bootstrapAmount` as msg.value.
+    function _seedMarket(
+        address market,
+        address collateralToken,
+        uint256 bootstrapAmount,
+        address shareRecipient,
+        uint8 numOutcomes
+    ) internal {
+        if (bootstrapAmount == 0) revert InvalidBootstrap();
+        if (shareRecipient == address(0)) revert InvalidBootstrap();
+        if (bootstrapAmount % uint256(numOutcomes) != 0) revert InvalidBootstrap();
+
+        if (collateralToken == address(0)) {
+            // Native ETH: msg.value must equal bootstrapAmount (enforced by market).
+            if (msg.value != bootstrapAmount) revert InvalidBootstrap();
+            AFTRVParimutuelMarket(payable(market)).bootstrapLiquidity{value: bootstrapAmount}(
+                bootstrapAmount,
+                shareRecipient
+            );
+        } else {
+            // ERC20: pull from caller, approve market, then call bootstrap.
+            if (msg.value != 0) revert InvalidBootstrap();
+            IERC20(collateralToken).safeTransferFrom(msg.sender, address(this), bootstrapAmount);
+            IERC20(collateralToken).forceApprove(market, bootstrapAmount);
+            AFTRVParimutuelMarket(payable(market)).bootstrapLiquidity(bootstrapAmount, shareRecipient);
+        }
     }
 
     function _wireMarket(
@@ -316,14 +370,15 @@ contract AFTRParimutuelMarketFactory is Ownable2Step {
         string[] memory labels,
         uint256 stakeEnd,
         uint256 resolveAfter,
-        bytes32 meta
+        bytes32 meta,
+        address creator
     ) internal {
         markets.push(market);
         isMarket[market] = true;
         for (uint256 i = 0; i < tokens.length; i++) {
             _marketOutcomeTokens[market].push(tokens[i]);
         }
-        emit MarketCreated(market, kind, collateral, tokens, labels, stakeEnd, resolveAfter, meta);
+        emit MarketCreated(market, kind, collateral, tokens, labels, stakeEnd, resolveAfter, meta, creator);
     }
 
 }

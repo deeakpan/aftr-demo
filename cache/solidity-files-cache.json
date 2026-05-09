@@ -75,10 +75,10 @@
         "AFTRUmaAddresses"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\interfaces\\IAFTRAggregatorV3.sol": {
-      "lastModificationDate": 1775211604158,
-      "contentHash": "a4abac472c4b2015eea017d6725ed563",
-      "sourceName": "contracts/interfaces/IAFTRAggregatorV3.sol",
+    "C:\\Users\\USER\\aftermarket\\contracts\\config\\AFTRUmaIdentifiers.sol": {
+      "lastModificationDate": 1775607431213,
+      "contentHash": "bbb5718053e529018b885c9099c1f11f",
+      "sourceName": "contracts/config/AFTRUmaIdentifiers.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
@@ -109,13 +109,13 @@
         "^0.8.24"
       ],
       "artifacts": [
-        "IAFTRAggregatorV3"
+        "AFTRUmaIdentifiers"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\IERC20.sol": {
-      "lastModificationDate": 1775211768623,
-      "contentHash": "9261adf6457863de3e9892f51317ec89",
-      "sourceName": "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+    "C:\\Users\\USER\\aftermarket\\contracts\\factory\\AFTRParimutuelMarketFactory.sol": {
+      "lastModificationDate": 1778280418410,
+      "contentHash": "d483aaf3c6d0acb2b994ff2777e8ea46",
+      "sourceName": "contracts/factory/AFTRParimutuelMarketFactory.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
@@ -141,12 +141,149 @@
           }
         }
       },
-      "imports": [],
+      "imports": [
+        "@openzeppelin/contracts/access/Ownable2Step.sol",
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "../token/AFTROutcomeToken.sol",
+        "../core/AFTRVParimutuelMarket.sol",
+        "../config/AFTRUmaIdentifiers.sol",
+        "./AFTRParimutuelDeployer.sol"
+      ],
       "versionPragmas": [
-        ">=0.4.16"
+        "^0.8.24"
       ],
       "artifacts": [
-        "IERC20"
+        "AFTRParimutuelMarketFactory"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\token\\AFTROutcomeToken.sol": {
+      "lastModificationDate": 1775213600440,
+      "contentHash": "0ff772f629cdde43992ea1b056e3916c",
+      "sourceName": "contracts/token/AFTROutcomeToken.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        "@openzeppelin/contracts/access/Ownable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "AFTROutcomeToken"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\core\\AFTRVParimutuelMarket.sol": {
+      "lastModificationDate": 1778280332448,
+      "contentHash": "b4ed0597e57c3a7b475c4a64d0773d6f",
+      "sourceName": "contracts/core/AFTRVParimutuelMarket.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/access/Ownable2Step.sol",
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts/utils/Address.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+        "../token/AFTROutcomeToken.sol",
+        "../interfaces/IAFTRAggregatorV3.sol",
+        "../interfaces/IAFTROptimisticOracleV2.sol",
+        "../interfaces/IAFTRFeeReceiver.sol",
+        "../config/AFTRUmaIdentifiers.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "AFTRVParimutuelMarket",
+        "IDRPDebtRepay"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\factory\\AFTRParimutuelDeployer.sol": {
+      "lastModificationDate": 1778059442697,
+      "contentHash": "2d75db6c4523c0cc8328106421bb9886",
+      "sourceName": "contracts/factory/AFTRParimutuelDeployer.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../token/AFTROutcomeToken.sol",
+        "../core/AFTRVParimutuelMarket.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "AFTRParimutuelDeployer"
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\access\\Ownable2Step.sol": {
@@ -186,6 +323,43 @@
       ],
       "artifacts": [
         "Ownable2Step"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\IERC20.sol": {
+      "lastModificationDate": 1775211768623,
+      "contentHash": "9261adf6457863de3e9892f51317ec89",
+      "sourceName": "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.4.16"
+      ],
+      "artifacts": [
+        "IERC20"
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\utils\\SafeERC20.sol": {
@@ -267,358 +441,6 @@
         "Ownable"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\Context.sol": {
-      "lastModificationDate": 1775211766589,
-      "contentHash": "67bfbc07588eb8683b3fd8f6f909563e",
-      "sourceName": "@openzeppelin/contracts/utils/Context.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "viaIR": true,
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "Context"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\interfaces\\IERC1363.sol": {
-      "lastModificationDate": 1775211768381,
-      "contentHash": "a7fd0f05e36b0d0a21c75340c9c639ec",
-      "sourceName": "@openzeppelin/contracts/interfaces/IERC1363.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "viaIR": true,
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "./IERC20.sol",
-        "./IERC165.sol"
-      ],
-      "versionPragmas": [
-        ">=0.6.2"
-      ],
-      "artifacts": [
-        "IERC1363"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\interfaces\\IERC165.sol": {
-      "lastModificationDate": 1775211768477,
-      "contentHash": "947853028399b7de34bcc3704ee06e99",
-      "sourceName": "@openzeppelin/contracts/interfaces/IERC165.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "viaIR": true,
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "../utils/introspection/IERC165.sol"
-      ],
-      "versionPragmas": [
-        ">=0.4.16"
-      ],
-      "artifacts": []
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\interfaces\\IERC20.sol": {
-      "lastModificationDate": 1775211768607,
-      "contentHash": "68620db2da7583d9a4919096ac77f577",
-      "sourceName": "@openzeppelin/contracts/interfaces/IERC20.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "viaIR": true,
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "../token/ERC20/IERC20.sol"
-      ],
-      "versionPragmas": [
-        ">=0.4.16"
-      ],
-      "artifacts": []
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\introspection\\IERC165.sol": {
-      "lastModificationDate": 1775211768513,
-      "contentHash": "7074c93b1ea0a122063f26ddd1db1032",
-      "sourceName": "@openzeppelin/contracts/utils/introspection/IERC165.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "viaIR": true,
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        ">=0.4.16"
-      ],
-      "artifacts": [
-        "IERC165"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\core\\AFTRVParimutuelMarket.sol": {
-      "lastModificationDate": 1777463022088,
-      "contentHash": "876415ef3b374b1f7dd4c46487c95d79",
-      "sourceName": "contracts/core/AFTRVParimutuelMarket.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "viaIR": true,
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/access/Ownable2Step.sol",
-        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
-        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
-        "@openzeppelin/contracts/utils/Address.sol",
-        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
-        "../token/AFTROutcomeToken.sol",
-        "../interfaces/IAFTRAggregatorV3.sol",
-        "../interfaces/IAFTROptimisticOracleV2.sol",
-        "../config/AFTRUmaIdentifiers.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "AFTRVParimutuelMarket",
-        "IDRPDebtRepay"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\token\\AFTROutcomeToken.sol": {
-      "lastModificationDate": 1775213600440,
-      "contentHash": "0ff772f629cdde43992ea1b056e3916c",
-      "sourceName": "contracts/token/AFTROutcomeToken.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "viaIR": true,
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/token/ERC20/ERC20.sol",
-        "@openzeppelin/contracts/access/Ownable.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "AFTROutcomeToken"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\interfaces\\IAFTROptimisticOracleV2.sol": {
-      "lastModificationDate": 1775601128201,
-      "contentHash": "88ab78ed26fa73d3cb61e9f12817e1f4",
-      "sourceName": "contracts/interfaces/IAFTROptimisticOracleV2.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "viaIR": true,
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "IAFTROptimisticOracleV2"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\ReentrancyGuard.sol": {
-      "lastModificationDate": 1775211769372,
-      "contentHash": "6e5efb502dd6652d12ad15eea2c5bdf4",
-      "sourceName": "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "viaIR": true,
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "./StorageSlot.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "ReentrancyGuard"
-      ]
-    },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\ERC20.sol": {
       "lastModificationDate": 1775211767315,
       "contentHash": "d15c4d05583536e080f1960ab282772d",
@@ -661,10 +483,10 @@
         "ERC20"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\interfaces\\draft-IERC6093.sol": {
-      "lastModificationDate": 1775211766883,
-      "contentHash": "bcc76f4747d56c28c40ae272ef3470a6",
-      "sourceName": "@openzeppelin/contracts/interfaces/draft-IERC6093.sol",
+    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\Context.sol": {
+      "lastModificationDate": 1775211766589,
+      "contentHash": "67bfbc07588eb8683b3fd8f6f909563e",
+      "sourceName": "@openzeppelin/contracts/utils/Context.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
@@ -692,12 +514,10 @@
       },
       "imports": [],
       "versionPragmas": [
-        ">=0.8.4"
+        "^0.8.20"
       ],
       "artifacts": [
-        "IERC1155Errors",
-        "IERC20Errors",
-        "IERC721Errors"
+        "Context"
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\extensions\\IERC20Metadata.sol": {
@@ -739,10 +559,10 @@
         "IERC20Metadata"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\StorageSlot.sol": {
-      "lastModificationDate": 1775211769619,
-      "contentHash": "e656d64c4ce918f3d13030b91c935134",
-      "sourceName": "@openzeppelin/contracts/utils/StorageSlot.sol",
+    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\interfaces\\draft-IERC6093.sol": {
+      "lastModificationDate": 1775211766883,
+      "contentHash": "bcc76f4747d56c28c40ae272ef3470a6",
+      "sourceName": "@openzeppelin/contracts/interfaces/draft-IERC6093.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
@@ -770,16 +590,18 @@
       },
       "imports": [],
       "versionPragmas": [
-        "^0.8.20"
+        ">=0.8.4"
       ],
       "artifacts": [
-        "StorageSlot"
+        "IERC1155Errors",
+        "IERC20Errors",
+        "IERC721Errors"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\factory\\AFTRParimutuelMarketFactory.sol": {
-      "lastModificationDate": 1776088625047,
-      "contentHash": "15cd199c7defd3e90d426798ff589ec9",
-      "sourceName": "contracts/factory/AFTRParimutuelMarketFactory.sol",
+    "C:\\Users\\USER\\aftermarket\\contracts\\interfaces\\IAFTRAggregatorV3.sol": {
+      "lastModificationDate": 1775211604158,
+      "contentHash": "a4abac472c4b2015eea017d6725ed563",
+      "sourceName": "contracts/interfaces/IAFTRAggregatorV3.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
@@ -805,18 +627,86 @@
           }
         }
       },
-      "imports": [
-        "@openzeppelin/contracts/access/Ownable2Step.sol",
-        "../token/AFTROutcomeToken.sol",
-        "../core/AFTRVParimutuelMarket.sol",
-        "../config/AFTRUmaIdentifiers.sol",
-        "./AFTRParimutuelDeployer.sol"
-      ],
+      "imports": [],
       "versionPragmas": [
         "^0.8.24"
       ],
       "artifacts": [
-        "AFTRParimutuelMarketFactory"
+        "IAFTRAggregatorV3"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\interfaces\\IAFTROptimisticOracleV2.sol": {
+      "lastModificationDate": 1775601128201,
+      "contentHash": "88ab78ed26fa73d3cb61e9f12817e1f4",
+      "sourceName": "contracts/interfaces/IAFTROptimisticOracleV2.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "IAFTROptimisticOracleV2"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\interfaces\\IAFTRFeeReceiver.sol": {
+      "lastModificationDate": 1778153451189,
+      "contentHash": "e8529c2d136b8ffe280e8ff3cba0abb6",
+      "sourceName": "contracts/interfaces/IAFTRFeeReceiver.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "IAFTRFeeReceiver"
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\Address.sol": {
@@ -857,6 +747,45 @@
       ],
       "artifacts": [
         "Address"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\ReentrancyGuard.sol": {
+      "lastModificationDate": 1775211769372,
+      "contentHash": "6e5efb502dd6652d12ad15eea2c5bdf4",
+      "sourceName": "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./StorageSlot.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "ReentrancyGuard"
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\Errors.sol": {
@@ -931,6 +860,361 @@
       ],
       "artifacts": [
         "LowLevelCall"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\StorageSlot.sol": {
+      "lastModificationDate": 1775211769619,
+      "contentHash": "e656d64c4ce918f3d13030b91c935134",
+      "sourceName": "@openzeppelin/contracts/utils/StorageSlot.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "StorageSlot"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\interfaces\\IERC1363.sol": {
+      "lastModificationDate": 1775211768381,
+      "contentHash": "a7fd0f05e36b0d0a21c75340c9c639ec",
+      "sourceName": "@openzeppelin/contracts/interfaces/IERC1363.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./IERC20.sol",
+        "./IERC165.sol"
+      ],
+      "versionPragmas": [
+        ">=0.6.2"
+      ],
+      "artifacts": [
+        "IERC1363"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\interfaces\\IERC20.sol": {
+      "lastModificationDate": 1775211768607,
+      "contentHash": "68620db2da7583d9a4919096ac77f577",
+      "sourceName": "@openzeppelin/contracts/interfaces/IERC20.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../token/ERC20/IERC20.sol"
+      ],
+      "versionPragmas": [
+        ">=0.4.16"
+      ],
+      "artifacts": []
+    },
+    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\interfaces\\IERC165.sol": {
+      "lastModificationDate": 1775211768477,
+      "contentHash": "947853028399b7de34bcc3704ee06e99",
+      "sourceName": "@openzeppelin/contracts/interfaces/IERC165.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../utils/introspection/IERC165.sol"
+      ],
+      "versionPragmas": [
+        ">=0.4.16"
+      ],
+      "artifacts": []
+    },
+    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\introspection\\IERC165.sol": {
+      "lastModificationDate": 1775211768513,
+      "contentHash": "7074c93b1ea0a122063f26ddd1db1032",
+      "sourceName": "@openzeppelin/contracts/utils/introspection/IERC165.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.4.16"
+      ],
+      "artifacts": [
+        "IERC165"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\introspection\\ERC165.sol": {
+      "lastModificationDate": 1775211767235,
+      "contentHash": "0906d06dca25210d4696dcef6dad2909",
+      "sourceName": "@openzeppelin/contracts/utils/introspection/ERC165.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./IERC165.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "ERC165"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\staking\\AFTRFeeVault.sol": {
+      "lastModificationDate": 1778280389343,
+      "contentHash": "4ac89da2f417e3b55ee73c1323c9c26e",
+      "sourceName": "contracts/staking/AFTRFeeVault.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/access/Ownable2Step.sol",
+        "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+        "@openzeppelin/contracts/utils/introspection/ERC165.sol",
+        "../interfaces/IAFTRFeeReceiver.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "AFTRFeeVault",
+        "sAFTRToken"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\token\\AFTRToken.sol": {
+      "lastModificationDate": 1778153427841,
+      "contentHash": "513df5394001d012fca1c90d19ec3439",
+      "sourceName": "contracts/token/AFTRToken.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        "@openzeppelin/contracts/access/Ownable2Step.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "AFTRToken"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\factory\\AFTRParimutuelBatchFactory.sol": {
+      "lastModificationDate": 1778060396053,
+      "contentHash": "84a5669882804691902e0311f9189677",
+      "sourceName": "contracts/factory/AFTRParimutuelBatchFactory.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/access/Ownable2Step.sol",
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "./AFTRParimutuelMarketFactory.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "AFTRParimutuelBatchFactory"
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\orderbook\\AFTRVParimutuelOrderBook.sol": {
@@ -1052,163 +1336,6 @@
       ],
       "artifacts": [
         "OrderPriceVolumeSet"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\factory\\AFTRParimutuelBatchFactory.sol": {
-      "lastModificationDate": 1776088628830,
-      "contentHash": "a572d3be51f7a4017d2de93eb083d81b",
-      "sourceName": "contracts/factory/AFTRParimutuelBatchFactory.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "viaIR": true,
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/access/Ownable2Step.sol",
-        "./AFTRParimutuelMarketFactory.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "AFTRParimutuelBatchFactory"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\factory\\AFTRParimutuelDeployer.sol": {
-      "lastModificationDate": 1775601168049,
-      "contentHash": "45269d71983be994c43cdacd7ee2a009",
-      "sourceName": "contracts/factory/AFTRParimutuelDeployer.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "viaIR": true,
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "../token/AFTROutcomeToken.sol",
-        "../core/AFTRVParimutuelMarket.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "AFTRParimutuelDeployer"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\config\\AFTRUmaIdentifiers.sol": {
-      "lastModificationDate": 1775607431213,
-      "contentHash": "bbb5718053e529018b885c9099c1f11f",
-      "sourceName": "contracts/config/AFTRUmaIdentifiers.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "viaIR": true,
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "AFTRUmaIdentifiers"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\token\\AFTRUSDC.sol": {
-      "lastModificationDate": 1775608009033,
-      "contentHash": "c1ebad0d9a1af01b5b84a0aaaf7cedca",
-      "sourceName": "contracts/token/AFTRUSDC.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "viaIR": true,
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/token/ERC20/ERC20.sol",
-        "@openzeppelin/contracts/access/Ownable.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "AFTRUSDC"
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\orderbook\\AFTROrderBook.sol": {
@@ -1345,43 +1472,6 @@
         "IUSDeAD"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\interfaces\\IOracleManager.sol": {
-      "lastModificationDate": 1777458598658,
-      "contentHash": "619b1180207d7c33fe5c2ec56a96bf93",
-      "sourceName": "contracts/interfaces/IOracleManager.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "viaIR": true,
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "IOracleManager"
-      ]
-    },
     "C:\\Users\\USER\\aftermarket\\contracts\\drp\\USDeAD.sol": {
       "lastModificationDate": 1777458602340,
       "contentHash": "a85057506c31fe215bebe763a9297b52",
@@ -1421,84 +1511,6 @@
       ],
       "artifacts": [
         "USDeAD"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\drp\\MockStabilityPool.sol": {
-      "lastModificationDate": 1777460308854,
-      "contentHash": "71e2858471dc7d104cd4d8556b269e23",
-      "sourceName": "contracts/drp/MockStabilityPool.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "viaIR": true,
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
-        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
-        "@openzeppelin/contracts/access/Ownable.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "MockStabilityPool"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\drp\\MockTreasurySplitter.sol": {
-      "lastModificationDate": 1777460292715,
-      "contentHash": "28b4fe976dd7102d42a2de1090fca189",
-      "sourceName": "contracts/drp/MockTreasurySplitter.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "viaIR": true,
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "MockTreasurySplitter"
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\core\\AFTRMarketDebtRouter.sol": {
@@ -1543,6 +1555,198 @@
         "IAFTRFactoryLike",
         "IAFTRMarketLike",
         "IDRPLike"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\drp\\MockStabilityPool.sol": {
+      "lastModificationDate": 1777460308854,
+      "contentHash": "71e2858471dc7d104cd4d8556b269e23",
+      "sourceName": "contracts/drp/MockStabilityPool.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts/access/Ownable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "MockStabilityPool"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\token\\AFTRUSDC.sol": {
+      "lastModificationDate": 1775608009033,
+      "contentHash": "c1ebad0d9a1af01b5b84a0aaaf7cedca",
+      "sourceName": "contracts/token/AFTRUSDC.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        "@openzeppelin/contracts/access/Ownable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "AFTRUSDC"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\drp\\MockTreasurySplitter.sol": {
+      "lastModificationDate": 1777460292715,
+      "contentHash": "28b4fe976dd7102d42a2de1090fca189",
+      "sourceName": "contracts/drp/MockTreasurySplitter.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "MockTreasurySplitter"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\interfaces\\IOracleManager.sol": {
+      "lastModificationDate": 1777458598658,
+      "contentHash": "619b1180207d7c33fe5c2ec56a96bf93",
+      "sourceName": "contracts/interfaces/IOracleManager.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "IOracleManager"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\mocks\\MockChainlinkFeed.sol": {
+      "lastModificationDate": 1778281240264,
+      "contentHash": "2f675fd809852d9918a967383d8e4a06",
+      "sourceName": "contracts/mocks/MockChainlinkFeed.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "MockChainlinkFeed"
       ]
     }
   }

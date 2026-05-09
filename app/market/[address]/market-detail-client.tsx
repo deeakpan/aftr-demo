@@ -559,7 +559,12 @@ export function MarketDetailClient({ address: addressProp }: Props) {
     if (!t || !Number.isFinite(Number(t)) || Number(t) <= 0) return null;
     try {
       const amountWei = parseUnits(t, market.collateralDecimals);
-      const sharesWei = (amountWei * WAD) / tradePriceRaw;
+      // Deduct 1.5% fee (0.3% creator + 1.2% protocol) before computing shares
+      // to match what the contract actually mints.
+      const creatorFee = (amountWei * 30n) / 10000n;
+      const protocolFee = (amountWei * 120n) / 10000n;
+      const netAmount = amountWei - creatorFee - protocolFee;
+      const sharesWei = (netAmount * WAD) / tradePriceRaw;
       if (sharesWei === BigInt(0)) return null;
       return {
         spend: formatUnits(amountWei, market.collateralDecimals),
@@ -661,9 +666,14 @@ export function MarketDetailClient({ address: addressProp }: Props) {
         functionName: "priceOf",
         args: [selectedOutcome],
       })) as bigint;
-      const estShares = (amountUnits * WAD) / currentPrice;
+      // Use net amount (after 1.5% fee) for slippage baseline so minSharesOut
+      // matches what the contract will actually mint.
+      const creatorFeeEst = (amountUnits * 30n) / 10000n;
+      const protocolFeeEst = (amountUnits * 120n) / 10000n;
+      const netAmountEst = amountUnits - creatorFeeEst - protocolFeeEst;
+      const estSharesNet = (netAmountEst * WAD) / currentPrice;
       const slipBps = Math.min(5000, Math.max(1, tradeSlippageBps));
-      const minSharesOut = (estShares * BigInt(10_000 - slipBps)) / BigInt(10000);
+      const minSharesOut = (estSharesNet * BigInt(10_000 - slipBps)) / BigInt(10000);
       const isNative = market.collateralAddress.toLowerCase() === zeroAddress.toLowerCase();
       if (!isNative) {
         const allowance = (await publicClient.readContract({

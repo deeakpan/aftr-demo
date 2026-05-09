@@ -7,7 +7,8 @@
       { "indexed": true, "internalType": "uint8", "name": "outcomeIndex", "type": "uint8" },
       { "indexed": false, "internalType": "uint256", "name": "collateralAmount", "type": "uint256" },
       { "indexed": false, "internalType": "uint256", "name": "sharesMinted", "type": "uint256" },
-      { "indexed": false, "internalType": "uint256", "name": "price1e18", "type": "uint256" }
+      { "indexed": false, "internalType": "uint256", "name": "price1e18", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
     ],
     "name": "Deposited",
     "type": "event"

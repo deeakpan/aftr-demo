@@ -24,6 +24,7 @@ contract AFTRParimutuelDeployer {
     function deployPriceMarket(
         address owner_,
         address feeRecipient_,
+        address creator_,
         address collateralToken_,
         uint8 collateralDecimals_,
         uint8 numOutcomes_,
@@ -44,6 +45,7 @@ contract AFTRParimutuelDeployer {
             factory,
             owner_,
             feeRecipient_,
+            creator_,
             collateralToken_,
             collateralDecimals_,
             numOutcomes_,
@@ -71,6 +73,7 @@ contract AFTRParimutuelDeployer {
     function deployEventMarket(
         address owner_,
         address feeRecipient_,
+        address creator_,
         address collateralToken_,
         uint8 collateralDecimals_,
         uint8 numOutcomes_,
@@ -92,6 +95,7 @@ contract AFTRParimutuelDeployer {
             factory,
             owner_,
             feeRecipient_,
+            creator_,
             collateralToken_,
             collateralDecimals_,
             numOutcomes_,

@@ -27,7 +27,9 @@
     "send:usdc": "node scripts/send-usdc.cjs",
     "indexer:dev": "npm run dev --prefix indexer",
     "indexer:build": "npm run build --prefix indexer",
+    "subgraph:update-config": "node scripts/subgraph-update-config.cjs",
     "subgraph:codegen": "npm run codegen --prefix subgraph",
+    "subgraph:build": "npm run build --prefix subgraph",
     "subgraph:build": "npm run build --prefix subgraph",
     "subgraph:deploy-studio": "node scripts/subgraph-studio-deploy.cjs"
   },

@@ -1,0 +1,303 @@
+{
+  "meta": {
+    "repo": "C:\\Users\\USER\\aftermarket",
+    "src_dir": "contracts",
+    "generated_at": "2026-05-08T12:09:19.161989+00:00",
+    "git_head": "a94c5b0",
+    "git_branch": "main",
+    "total_commits": 23,
+    "total_source_files": 25,
+    "analysis_time_ms": 3948
+  },
+  "repo_shape": {
+    "classification": "normal_dev",
+    "total_commits": 23,
+    "source_touching_commits": 6,
+    "bulk_import_sha": null,
+    "date_spread_days": 31,
+    "first_commit_date": "2026-03-31",
+    "last_commit_date": "2026-05-01",
+    "signals": [
+      "Date spread: 31 days",
+      "6 commits touch source files out of 23 total"
+    ]
+  },
+  "fix_candidates": [
+    {
+      "sha": "1e9fc4c",
+      "full_sha": "1e9fc4c6e928c2f8e166931e7679d4e263f71402",
+      "date": "2026-04-30",
+      "author": "deeakpan",
+      "subject": "bump",
+      "score": 10,
+      "reasons": [
+        "unclassified",
+        "adds runtime guards (+5/-2)",
+        "rewrites access control (+2/-2)",
+        "changes token transfer logic",
+        "changes accounting/balance logic",
+        "focused change (2 source files)"
+      ],
+      "source_files_touched": [
+        "contracts/core/AFTRMarketDebtRouter.sol",
+        "contracts/drp/DeaderalReserveProtocol.sol"
+      ],
+      "test_changed": false,
+      "lines_changed": 8
+    },
+    {
+      "sha": "a94c5b0",
+      "full_sha": "a94c5b02516649da1bd69264c9405eedda162b5b",
+      "date": "2026-05-01",
+      "author": "deeakpan",
+      "subject": "fixed trade component theme responsiveness",
+      "score": 4,
+      "reasons": [
+        "bug fix"
+      ],
+      "source_files_touched": [],
+      "test_changed": false,
+      "lines_changed": 0
+    },
+    {
+      "sha": "4a1202e",
+      "full_sha": "4a1202eb3bf79614b03e46f3cf1c42a5e7f22b32",
+      "date": "2026-05-01",
+      "author": "deeakpan",
+      "subject": "fixed theme issue",
+      "score": 4,
+      "reasons": [
+        "bug fix"
+      ],
+      "source_files_touched": [],
+      "test_changed": false,
+      "lines_changed": 0
+    },
+    {
+      "sha": "32749c1",
+      "full_sha": "32749c12d80330653445a43ce1621d395b073dc1",
+      "date": "2026-05-01",
+      "author": "deeakpan",
+      "subject": "fixed build error",
+      "score": 4,
+      "reasons": [
+        "bug fix"
+      ],
+      "source_files_touched": [],
+      "test_changed": false,
+      "lines_changed": 0
+    },
+    {
+      "sha": "6c7bc5e",
+      "full_sha": "6c7bc5eff20d08956fc92be48df1cedf86662841",
+      "date": "2026-05-01",
+      "author": "deeakpan",
+      "subject": "fixed multi outcome",
+      "score": 4,
+      "reasons": [
+        "bug fix"
+      ],
+      "source_files_touched": [],
+      "test_changed": false,
+      "lines_changed": 0
+    },
+    {
+      "sha": "e7c5573",
+      "full_sha": "e7c557330baebfb99072a5af84a2b9e116d856b3",
+      "date": "2026-05-01",
+      "author": "deeakpan",
+      "subject": "fixed token addresses reading",
+      "score": 4,
+      "reasons": [
+        "bug fix"
+      ],
+      "source_files_touched": [],
+      "test_changed": false,
+      "lines_changed": 0
+    },
+    {
+      "sha": "3e0c25a",
+      "full_sha": "3e0c25a105d7db965a80ce85a2f9355de7164bd9",
+      "date": "2026-04-20",
+      "author": "deeakpan",
+      "subject": "fixed uma scripts",
+      "score": 4,
+      "reasons": [
+        "bug fix",
+        "focused change (3 source files)",
+        "large change (>500 source lines)"
+      ],
+      "source_files_touched": [
+        "contracts/libraries/OrderBookLinkedList.sol",
+        "contracts/libraries/OrderPriceVolumeSet.sol",
+        "contracts/orderbook/AFTROrderBook.sol"
+      ],
+      "test_changed": false,
+      "lines_changed": 692
+    },
+    {
+      "sha": "fc96718",
+      "full_sha": "fc9671808bb55812a8f3bfdd7b549ce896e2a575",
+      "date": "2026-04-08",
+      "author": "deeakpan",
+      "subject": "fixed build error 2",
+      "score": 4,
+      "reasons": [
+        "bug fix"
+      ],
+      "source_files_touched": [],
+      "test_changed": false,
+      "lines_changed": 0
+    },
+    {
+      "sha": "c2b5506",
+      "full_sha": "c2b55069c2df59be7d988657b36fd04729c45cb1",
+      "date": "2026-04-08",
+      "author": "deeakpan",
+      "subject": "fixed build error",
+      "score": 4,
+      "reasons": [
+        "bug fix"
+      ],
+      "source_files_touched": [],
+      "test_changed": false,
+      "lines_changed": 0
+    },
+    {
+      "sha": "f5e456d",
+      "full_sha": "f5e456d0a93adacbebe573733c34dbb2a3624ce8",
+      "date": "2026-03-31",
+      "author": "deeakpan",
+      "subject": "Fix Vercel build and repository tracking issues.",
+      "score": 4,
+      "reasons": [
+        "bug fix"
+      ],
+      "source_files_touched": [],
+      "test_changed": false,
+      "lines_changed": 0
+    }
+  ],
+  "dangerous_area_changes": {},
+  "late_changes": {
+    "window_days": 30,
+    "cutoff_date": "2026-04-01",
+    "latest_commit_date": "2026-05-01",
+    "late_commits": [
+      {
+        "sha": "1e9fc4c",
+        "date": "2026-04-30",
+        "author": "deeakpan",
+        "subject": "bump",
+        "source_files": [
+          "contracts/core/AFTRMarketDebtRouter.sol",
+          "contracts/drp/DeaderalReserveProtocol.sol"
+        ],
+        "test_changed": false,
+        "lines_changed": 8
+      },
+      {
+        "sha": "51171b3",
+        "date": "2026-04-30",
+        "author": "deeakpan",
+        "subject": "integrated subgraph",
+        "source_files": [
+          "contracts/core/AFTRMarketDebtRouter.sol",
+          "contracts/core/AFTRVParimutuelMarket.sol",
+          "contracts/drp/DeaderalReserveProtocol.sol",
+          "contracts/drp/MockStabilityPool.sol",
+          "contracts/drp/MockTreasurySplitter.sol",
+          "contracts/drp/USDeAD.sol",
+          "contracts/interfaces/IOracleManager.sol",
+          "contracts/interfaces/IUSDeAD.sol"
+        ],
+        "test_changed": false,
+        "lines_changed": 1466
+      },
+      {
+        "sha": "3e0c25a",
+        "date": "2026-04-20",
+        "author": "deeakpan",
+        "subject": "fixed uma scripts",
+        "source_files": [
+          "contracts/libraries/OrderBookLinkedList.sol",
+          "contracts/libraries/OrderPriceVolumeSet.sol",
+          "contracts/orderbook/AFTROrderBook.sol"
+        ],
+        "test_changed": false,
+        "lines_changed": 692
+      },
+      {
+        "sha": "6722f87",
+        "date": "2026-04-13",
+        "author": "deeakpan",
+        "subject": "implemented trades page",
+        "source_files": [
+          "contracts/core/AFTRVParimutuelMarket.sol",
+          "contracts/factory/AFTRParimutuelBatchFactory.sol",
+          "contracts/factory/AFTRParimutuelMarketFactory.sol"
+        ],
+        "test_changed": false,
+        "lines_changed": 8
+      },
+      {
+        "sha": "cdf0f92",
+        "date": "2026-04-09",
+        "author": "deeakpan",
+        "subject": "added trading component",
+        "source_files": [
+          "contracts/factory/AFTRParimutuelMarketFactory.sol"
+        ],
+        "test_changed": false,
+        "lines_changed": 5
+      },
+      {
+        "sha": "3a172b9",
+        "date": "2026-04-08",
+        "author": "deeakpan",
+        "subject": "skeleton contracts ready",
+        "source_files": [
+          "contracts/config/AFTRChainlinkFeeds.sol",
+          "contracts/config/AFTRUmaAddresses.sol",
+          "contracts/config/AFTRUmaIdentifiers.sol",
+          "contracts/core/AFTRVParimutuelMarket.sol",
+          "contracts/factory/AFTRParimutuelBatchFactory.sol",
+          "contracts/factory/AFTRParimutuelDeployer.sol",
+          "contracts/factory/AFTRParimutuelMarketFactory.sol",
+          "contracts/interfaces/IAFTRAggregatorV3.sol",
+          "contracts/interfaces/IAFTROptimisticOracleV2.sol",
+          "contracts/libraries/OrderBookLinkedList.sol"
+        ],
+        "test_changed": false,
+        "lines_changed": 1772
+      }
+    ],
+    "source_without_test_count": 6,
+    "total_late_source_commits": 6
+  },
+  "forked_deps": {
+    "detected_libs": [],
+    "removed_submodules": []
+  },
+  "tech_debt": {
+    "total_count": 0,
+    "items": [],
+    "files_with_debt": 0,
+    "capped": false
+  },
+  "dev_patterns": {
+    "test_co_change_rate": 0.0,
+    "fix_without_test_rate": 1.0,
+    "avg_commit_size": 658.5,
+    "avg_commit_size_note": null,
+    "single_developer_pct": 1.0,
+    "top_contributor": "deeakpan",
+    "contributor_breakdown": [
+      {
+        "author": "deeakpan",
+        "lines_added": 3921,
+        "pct": 1.0
+      }
+    ]
+  }
+}

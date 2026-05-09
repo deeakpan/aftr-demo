@@ -1,7 +1,7 @@
 {
   "chainId": 84532,
   "deployer": "0x68ac96Ce64D62386b1A5E2DFf8f0F01fEEd46E09",
-  "feeRecipient": "0x68ac96Ce64D62386b1A5E2DFf8f0F01fEEd46E09",
+  "feeRecipient": "0x1Fa3E56832F53a83b0702b82C6C44D0DdC7163B5",
   "contracts": {
     "AFTRUSDC": "0xc7d08673038E1F8fD4963E38F493048155C740a2",
     "USDeAD": "0x05E6171016d01340302dcB5004Ab47a57d3C8f9a",
@@ -9,7 +9,9 @@
     "AFTRParimutuelMarketFactory": "0x4521Bb1CDb50Ba00DdF5f866dC86de21AE1Bc4A5",
     "AFTRParimutuelDeployer": "0x4896dEA02B5aC18D69Eac1e642C621499c453bB4",
     "AFTROrderBook": "0x6c78811e8b9deA3580cbeDE2Fd4C1C985863aE5D",
-    "AFTRMarketDebtRouter": "0xb959325D396d9b88a1A9D68A986F7462E83d7D68"
+    "AFTRMarketDebtRouter": "0xb959325D396d9b88a1A9D68A986F7462E83d7D68",
+    "AFTRToken": "0x7DBbaDc2ca97c42DA8b00d20C115B537F5e40bFe",
+    "AFTRFeeVault": "0x1Fa3E56832F53a83b0702b82C6C44D0DdC7163B5"
   },
   "external": {
     "optimisticOracleV2": "0x99EC530a761E68a377593888D9504002Bd191717",
@@ -81,5 +83,20 @@
     "umaRewardToken": "Circle Base Sepolia USDC when umaRewardCurrency is address(0) on factory"
   },
   "network": "baseSepolia",
-  "deployedAt": "2026-05-01T20:43:45.000Z"
+  "deployedAt": "2026-05-09T14:41:18.624Z",
+  "deploymentBlocks": {
+    "AFTRToken": 41284686,
+    "AFTRFeeVault": 41284688
+  },
+  "vault": {
+    "stakeToken": "0x7DBbaDc2ca97c42DA8b00d20C115B537F5e40bFe",
+    "epochDuration": "604800",
+    "lockDuration": "604800",
+    "rewardTokens": [
+      "0xc7d08673038E1F8fD4963E38F493048155C740a2",
+      "0x05E6171016d01340302dcB5004Ab47a57d3C8f9a",
+      "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+      "0x0000000000000000000000000000000000000000"
+    ]
+  }
 }

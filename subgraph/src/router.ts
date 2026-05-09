@@ -35,6 +35,7 @@ function loadOrCreatePosition(
     p.collateralOut = ZERO;
     p.sharesIn = ZERO;
     p.sharesOut = ZERO;
+    p.lastTradeTimestamp = ZERO;
     p.save();
   }
   return p as TraderMarketPosition;
@@ -54,6 +55,7 @@ export function handleRouterDeposited(event: RouterDeposited): void {
 
   const pos = loadOrCreatePosition(marketAddr, user);
   pos.collateralIn = pos.collateralIn.plus(amount);
+  pos.lastTradeTimestamp = event.block.timestamp;
   pos.save();
 }
 
@@ -73,6 +75,7 @@ export function handleRouterRedeemed(event: RouterRedeemed): void {
   const pos = loadOrCreatePosition(marketAddr, user);
   pos.collateralOut = pos.collateralOut.plus(payout);
   pos.sharesOut = pos.sharesOut.plus(shares);
+  pos.lastTradeTimestamp = event.block.timestamp;
   pos.save();
 }
 
@@ -95,5 +98,6 @@ export function handleRouterRedeemedAndRepaid(
   const pos = loadOrCreatePosition(marketAddr, user);
   pos.collateralOut = pos.collateralOut.plus(payout);
   pos.sharesOut = pos.sharesOut.plus(shares);
+  pos.lastTradeTimestamp = event.block.timestamp;
   pos.save();
 }

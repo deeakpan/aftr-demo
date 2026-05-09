@@ -566,7 +566,12 @@ export function MarketClient() {
     if (!t || !Number.isFinite(Number(t)) || Number(t) <= 0) return null;
     try {
       const amountWei = parseUnits(t, selectedMarket.collateralDecimals);
-      const sharesWei = (amountWei * WAD) / tradePriceRaw;
+      // Deduct 1.5% fee (0.3% creator + 1.2% protocol) before computing shares
+      // to match what the contract actually mints.
+      const creatorFee = (amountWei * 30n) / 10000n;
+      const protocolFee = (amountWei * 120n) / 10000n;
+      const netAmount = amountWei - creatorFee - protocolFee;
+      const sharesWei = (netAmount * WAD) / tradePriceRaw;
       if (sharesWei === BigInt(0)) return null;
       return {
         spend: formatUnits(amountWei, selectedMarket.collateralDecimals),
@@ -726,9 +731,14 @@ export function MarketClient() {
         functionName: "priceOf",
         args: [selectedOutcome],
       })) as bigint;
-      const estShares = (amountUnits * WAD) / currentPrice;
+      // Use net amount (after 1.5% fee) for slippage baseline so minSharesOut
+      // matches what the contract will actually mint.
+      const creatorFeeEst = (amountUnits * 30n) / 10000n;
+      const protocolFeeEst = (amountUnits * 120n) / 10000n;
+      const netAmountEst = amountUnits - creatorFeeEst - protocolFeeEst;
+      const estSharesNet = (netAmountEst * WAD) / currentPrice;
       const slipBps = Math.min(5000, Math.max(1, tradeSlippageBps));
-      const minSharesOut = (estShares * BigInt(10_000 - slipBps)) / BigInt(10000);
+      const minSharesOut = (estSharesNet * BigInt(10_000 - slipBps)) / BigInt(10000);
 
       const isNative = selectedMarket.collateralAddress.toLowerCase() === "0x0000000000000000000000000000000000000000";
       if (!isNative) {
@@ -788,7 +798,7 @@ export function MarketClient() {
         {loadError && <p className="max-w-xl text-sm leading-relaxed text-red-400">{loadError}</p>}
         {empty && <p className="max-w-xl text-sm leading-relaxed text-[var(--muted)]">No markets yet.</p>}
         {visibleMarkets.length > 0 && (
-          <div className="mt-5 grid max-w-[760px] gap-3 md:grid-cols-2">
+          <div className="mt-5 grid w-full max-w-7xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {visibleMarkets.map((m) => {
               const chance = Number.isFinite(m?.chancePct) ? m.chancePct : 50;
               const rowLabels = (m.outcomeLabels ?? []).slice(0, m.outcomes);
