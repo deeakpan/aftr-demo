@@ -568,8 +568,8 @@ export function MarketClient() {
       const amountWei = parseUnits(t, selectedMarket.collateralDecimals);
       // Deduct 1.5% fee (0.3% creator + 1.2% protocol) before computing shares
       // to match what the contract actually mints.
-      const creatorFee = (amountWei * 30n) / 10000n;
-      const protocolFee = (amountWei * 120n) / 10000n;
+      const creatorFee = (amountWei * BigInt(30)) / BigInt(10000);
+      const protocolFee = (amountWei * BigInt(120)) / BigInt(10000);
       const netAmount = amountWei - creatorFee - protocolFee;
       const sharesWei = (netAmount * WAD) / tradePriceRaw;
       if (sharesWei === BigInt(0)) return null;
@@ -733,8 +733,8 @@ export function MarketClient() {
       })) as bigint;
       // Use net amount (after 1.5% fee) for slippage baseline so minSharesOut
       // matches what the contract will actually mint.
-      const creatorFeeEst = (amountUnits * 30n) / 10000n;
-      const protocolFeeEst = (amountUnits * 120n) / 10000n;
+      const creatorFeeEst = (amountUnits * BigInt(30)) / BigInt(10000);
+      const protocolFeeEst = (amountUnits * BigInt(120)) / BigInt(10000);
       const netAmountEst = amountUnits - creatorFeeEst - protocolFeeEst;
       const estSharesNet = (netAmountEst * WAD) / currentPrice;
       const slipBps = Math.min(5000, Math.max(1, tradeSlippageBps));
