@@ -4,7 +4,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 
 const SUBGRAPH_URL =
   process.env.SUBGRAPH_QUERY_URL ??
-  "https://api.studio.thegraph.com/query/1749057/aftr/v0.05";
+  "https://api.studio.thegraph.com/query/1749057/aftr/v0.06";
 
 type GraphResponse = {
   data?: {

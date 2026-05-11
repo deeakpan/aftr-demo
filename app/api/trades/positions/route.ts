@@ -4,7 +4,7 @@ import deployment from "@/deployments/baseSepolia-84532.json";
 
 const SUBGRAPH_URL =
   process.env.SUBGRAPH_QUERY_URL ??
-  "https://api.studio.thegraph.com/query/1749057/aftr/v0.05";
+  "https://api.studio.thegraph.com/query/1749057/aftr/v0.06";
 const RPC_URL = process.env.RPC_URL ?? process.env.NEXT_PUBLIC_RPC_URL;
 
 const MARKET_ABI = parseAbi([
