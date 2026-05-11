@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const hre = require("hardhat");
+const { deployParimutuelFacade } = require("./lib/deploy-parimutuel-facade.cjs");
 
 /**
  * @param {import("hardhat").HardhatRuntimeEnvironment} hre_
@@ -86,10 +87,17 @@ async function main() {
   console.log("AFTRParimutuelMarketFactory:", factoryAddress);
   console.log("Default UMA bond / reward currency (Circle Base Sepolia USDC):", BASE_SEPOLIA_CIRCLE_USDC);
 
-  const Deployer = await hre.ethers.getContractFactory("AFTRParimutuelDeployer");
-  const marketDeployer = await Deployer.deploy(factoryAddress);
-  await marketDeployer.waitForDeployment();
-  const marketDeployerAddress = await marketDeployer.getAddress();
+  async function deployAndTrack(factory, ...args) {
+    const instance = await factory.deploy(...args);
+    const receipt = await instance.deploymentTransaction().wait();
+    return { instance, address: await instance.getAddress(), blockNumber: receipt.blockNumber };
+  }
+  const { marketDeployerAddress } = await deployParimutuelFacade(
+    hre,
+    deployer,
+    factoryAddress,
+    deployAndTrack,
+  );
   console.log("AFTRParimutuelDeployer:", marketDeployerAddress);
 
   await (await factory.setMarketDeployer(marketDeployerAddress)).wait();

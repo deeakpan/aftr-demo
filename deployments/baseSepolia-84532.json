@@ -1,17 +1,19 @@
 {
   "chainId": 84532,
   "deployer": "0x68ac96Ce64D62386b1A5E2DFf8f0F01fEEd46E09",
-  "feeRecipient": "0x1Fa3E56832F53a83b0702b82C6C44D0DdC7163B5",
+  "feeRecipient": "0x00a31D4094e6d28F898885def5BAB655c0cd8D90",
   "contracts": {
-    "AFTRUSDC": "0xc7d08673038E1F8fD4963E38F493048155C740a2",
-    "USDeAD": "0x05E6171016d01340302dcB5004Ab47a57d3C8f9a",
-    "DRP": "0xf6eb40f38e2F71b54d7721a4727AC56a70f59A01",
-    "AFTRParimutuelMarketFactory": "0x4521Bb1CDb50Ba00DdF5f866dC86de21AE1Bc4A5",
-    "AFTRParimutuelDeployer": "0x4896dEA02B5aC18D69Eac1e642C621499c453bB4",
-    "AFTROrderBook": "0x6c78811e8b9deA3580cbeDE2Fd4C1C985863aE5D",
-    "AFTRMarketDebtRouter": "0xb959325D396d9b88a1A9D68A986F7462E83d7D68",
-    "AFTRToken": "0x7DBbaDc2ca97c42DA8b00d20C115B537F5e40bFe",
-    "AFTRFeeVault": "0x1Fa3E56832F53a83b0702b82C6C44D0DdC7163B5"
+    "AFTRToken": "0x63897b0705B52Ca3c3cE444D4947F0e68f4CEEba",
+    "AFTRFeeVault": "0x00a31D4094e6d28F898885def5BAB655c0cd8D90",
+    "AFTRUSDC": "0xA78a61Eeb01bFBc7Df2914492cE5B825F3c7FD04",
+    "USDeAD": "0x101C143832902795f6E5317D95271E563AaC3d30",
+    "DRP": "0xAa962c886028B3F134ac17E5B8971f22374eb15a",
+    "AFTRParimutuelMarketFactory": "0x43E92A90b47d1316Dd27709A8990806B4E19f074",
+    "AFTRPriceMarketDeployer": "0xD3c9CCc3cFC510511E487dDca6BEAa50c313CBA4",
+    "AFTREventMarketDeployer": "0x5D536a78F1a6772dCdDa359068D808f0ba0E9e4F",
+    "AFTRParimutuelDeployer": "0xDCc1707D00043d2156ce543Ce404a5be73497C1a",
+    "AFTROrderBook": "0xbC0A5B9e1c4aE3A8B40AD54272a51F4BD5E191B1",
+    "AFTRMarketDebtRouter": "0xF71A379666670Bb50Ce0060c66F74C6F6111Eb71"
   },
   "external": {
     "optimisticOracleV2": "0x99EC530a761E68a377593888D9504002Bd191717",
@@ -80,21 +82,34 @@
       "USDeAD",
       "Circle_Base_Sepolia_USDC"
     ],
-    "umaRewardToken": "Circle Base Sepolia USDC when umaRewardCurrency is address(0) on factory"
+    "umaRewardToken": "Circle Base Sepolia USDC when umaRewardCurrency is address(0) on factory",
+    "feeFlow": "Market deposit → 1.2% → AFTRFeeVault.receiveFees() → 0.2% stakers / 1.0% treasury",
+    "drpApproval": "After deploying markets, call market.approveDrp(DRP_ADDRESS) for each market that should support redeemAndRepayDebt"
   },
   "network": "baseSepolia",
-  "deployedAt": "2026-05-09T14:41:18.624Z",
+  "deployedAt": "2026-05-11T11:39:19.911Z",
   "deploymentBlocks": {
-    "AFTRToken": 41284686,
-    "AFTRFeeVault": 41284688
+    "AFTRToken": 41365621,
+    "AFTRFeeVault": 41365622,
+    "USDeAD": 41365614,
+    "MockTreasurySplitter": 41365615,
+    "MockStabilityPool": 41365616,
+    "DRP": 41365617,
+    "AFTRUSDC": 41365620,
+    "AFTRParimutuelMarketFactory": 41365623,
+    "AFTRParimutuelDeployer": 41365627,
+    "AFTRPriceMarketDeployer": 41365624,
+    "AFTREventMarketDeployer": 41365625,
+    "AFTROrderBook": 41365635,
+    "AFTRMarketDebtRouter": 41365636
   },
   "vault": {
-    "stakeToken": "0x7DBbaDc2ca97c42DA8b00d20C115B537F5e40bFe",
+    "stakeToken": "0x63897b0705B52Ca3c3cE444D4947F0e68f4CEEba",
     "epochDuration": "604800",
     "lockDuration": "604800",
     "rewardTokens": [
-      "0xc7d08673038E1F8fD4963E38F493048155C740a2",
-      "0x05E6171016d01340302dcB5004Ab47a57d3C8f9a",
+      "0xA78a61Eeb01bFBc7Df2914492cE5B825F3c7FD04",
+      "0x101C143832902795f6E5317D95271E563AaC3d30",
       "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
       "0x0000000000000000000000000000000000000000"
     ]

@@ -18,7 +18,9 @@
  */
 const fs = require("fs");
 const path = require("path");
+const { execSync } = require("child_process");
 const hre = require("hardhat");
+const { deployParimutuelFacade } = require("./lib/deploy-parimutuel-facade.cjs");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
 /** Circle test USDC on Base Sepolia (UMA-whitelisted). */
@@ -202,13 +204,22 @@ async function main() {
   console.log(`  Factory: ${factoryAddress} (block ${factoryBlock})`);
   console.log(`  feeRecipient = vault (${vaultAddr})`);
 
-  // ── 8. Deployer lib ────────────────────────────────────────────────────────
-  console.log("\n[8/10] Deploying AFTRParimutuelDeployer...");
-  const DeployerLibF = await hre.ethers.getContractFactory("AFTRParimutuelDeployer");
-  const { address: marketDeployerAddress, blockNumber: deployerBlock } =
-    await deployAndTrack(DeployerLibF, factoryAddress);
-  deploymentBlocks.AFTRParimutuelDeployer = deployerBlock;
-  console.log(`  Deployer: ${marketDeployerAddress} (block ${deployerBlock})`);
+  // ── 8. Deployer lib (3 txs — avoids EIP-3860 initcode limit) ───────────────
+  console.log("\n[8/10] Deploying AFTRParimutuelDeployer + sub-deployers...");
+  const {
+    marketDeployerAddress,
+    facadeBlock,
+    priceDep,
+    eventDep,
+    priceBlock,
+    eventBlock,
+  } = await deployParimutuelFacade(hre, deployer, factoryAddress, deployAndTrack);
+  deploymentBlocks.AFTRParimutuelDeployer = facadeBlock;
+  deploymentBlocks.AFTRPriceMarketDeployer = priceBlock;
+  deploymentBlocks.AFTREventMarketDeployer = eventBlock;
+  console.log(`  AFTRPriceMarketDeployer:  ${priceDep} (block ${priceBlock})`);
+  console.log(`  AFTREventMarketDeployer:  ${eventDep} (block ${eventBlock})`);
+  console.log(`  AFTRParimutuelDeployer:   ${marketDeployerAddress} (block ${facadeBlock})`);
 
   await (await factory.setMarketDeployer(marketDeployerAddress)).wait();
   console.log("  Linked factory.marketDeployer");
@@ -256,6 +267,8 @@ async function main() {
       USDeAD:                       usdeadAddress,
       DRP:                          drpAddress,
       AFTRParimutuelMarketFactory:  factoryAddress,
+      AFTRPriceMarketDeployer:      priceDep,
+      AFTREventMarketDeployer:      eventDep,
       AFTRParimutuelDeployer:       marketDeployerAddress,
       AFTROrderBook:                orderBookAddress,
       AFTRMarketDebtRouter:         routerAddress,
@@ -280,6 +293,15 @@ async function main() {
       drpApproval: "After deploying markets, call market.approveDrp(DRP_ADDRESS) for each market that should support redeemAndRepayDebt",
     },
   });
+
+  // ── Subgraph: patch subgraph.yaml from deployment JSON ─────────────────────
+  try {
+    const root = path.join(__dirname, "..");
+    execSync("node scripts/subgraph-update-config.cjs", { cwd: root, stdio: "inherit" });
+    console.log("  Patched subgraph/subgraph.yaml (Factory, Router, Vault).");
+  } catch (e) {
+    console.warn("  subgraph-update-config failed — run: npm run subgraph:update-config", e?.message ?? e);
+  }
 
   // ── DRP: whitelist router as vault manager ─────────────────────────────────
   const signerIsParamSetter = paramSetterAdmin.toLowerCase() === deployer.address.toLowerCase();
@@ -319,10 +341,11 @@ async function main() {
   console.log(`  AFTRMarketDebtRouter:        ${routerAddress}`);
   console.log(`  AFTROrderBook:               ${orderBookAddress}`);
   console.log("\nNext steps:");
-  console.log("  1. Update subgraph/subgraph.yaml with addresses + startBlocks from deploymentBlocks.");
-  console.log("  2. Distribute AFTR tokens to stakers / liquidity programs.");
-  console.log("  3. Create markets from the UI — each market auto-seeds on creation.");
-  console.log("  4. For DRP-integrated markets: call market.approveDrp(DRP_ADDRESS).");
+  console.log("  1. subgraph/subgraph.yaml was updated — run: npm run subgraph:codegen && npm run subgraph:build");
+  console.log("  2. Deploy to Studio: SUBGRAPH_VERSION_LABEL=v0.07 npm run subgraph:deploy-studio");
+  console.log("  3. Distribute AFTR tokens to stakers / liquidity programs.");
+  console.log("  4. Create markets from the UI — each market auto-seeds on creation.");
+  console.log("  5. For DRP-integrated markets: call market.approveDrp(DRP_ADDRESS).");
   console.log("═══════════════════════════════════════════════════════\n");
 }
 

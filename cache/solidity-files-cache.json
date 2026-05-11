@@ -10,9 +10,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -47,9 +50,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -84,9 +90,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -113,17 +122,20 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\factory\\AFTRParimutuelMarketFactory.sol": {
-      "lastModificationDate": 1778280418410,
-      "contentHash": "d483aaf3c6d0acb2b994ff2777e8ea46",
+      "lastModificationDate": 1778499064694,
+      "contentHash": "04384207dd77e770a8f14ef84635ba3f",
       "sourceName": "contracts/factory/AFTRParimutuelMarketFactory.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -166,9 +178,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -206,9 +221,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -247,17 +265,20 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\factory\\AFTRParimutuelDeployer.sol": {
-      "lastModificationDate": 1778059442697,
-      "contentHash": "2d75db6c4523c0cc8328106421bb9886",
+      "lastModificationDate": 1778499063782,
+      "contentHash": "5cc5ca052d47e50ddc5c190bf779757b",
       "sourceName": "contracts/factory/AFTRParimutuelDeployer.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -283,7 +304,9 @@
         "^0.8.24"
       ],
       "artifacts": [
-        "AFTRParimutuelDeployer"
+        "AFTREventMarketDeployer",
+        "AFTRParimutuelDeployer",
+        "AFTRPriceMarketDeployer"
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\access\\Ownable2Step.sol": {
@@ -295,9 +318,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -334,9 +360,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -371,9 +400,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -411,9 +443,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -450,9 +485,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -492,9 +530,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -529,9 +570,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -568,9 +612,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -607,9 +654,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -644,9 +694,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -681,9 +734,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -718,9 +774,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -758,9 +817,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -797,9 +859,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -834,9 +899,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -871,9 +939,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -908,9 +979,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -948,9 +1022,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -985,9 +1062,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1022,9 +1102,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1059,9 +1142,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1098,9 +1184,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1144,9 +1233,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1184,9 +1276,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1226,9 +1321,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1273,9 +1371,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1310,9 +1411,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1347,9 +1451,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1395,9 +1502,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1442,9 +1552,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1481,9 +1594,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1522,9 +1638,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1566,9 +1685,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1607,9 +1729,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1647,9 +1772,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1684,9 +1812,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {
@@ -1721,9 +1852,12 @@
         "settings": {
           "optimizer": {
             "enabled": true,
-            "runs": 200
+            "runs": 1
           },
           "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
           "evmVersion": "paris",
           "outputSelection": {
             "*": {

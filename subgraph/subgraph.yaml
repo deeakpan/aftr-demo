@@ -6,9 +6,9 @@ dataSources:
     name: Factory
     network: base-sepolia
     source:
-      address: "0x4521Bb1CDb50Ba00DdF5f866dC86de21AE1Bc4A5"
+      address: "0x43E92A90b47d1316Dd27709A8990806B4E19f074"
       abi: Factory
-      startBlock: 40950026
+      startBlock: 41365623
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -26,9 +26,9 @@ dataSources:
     name: Router
     network: base-sepolia
     source:
-      address: "0xb959325D396d9b88a1A9D68A986F7462E83d7D68"
+      address: "0xF71A379666670Bb50Ce0060c66F74C6F6111Eb71"
       abi: Router
-      startBlock: 40950038
+      startBlock: 41365636
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -52,9 +52,9 @@ dataSources:
     name: Vault
     network: base-sepolia
     source:
-      address: "0x1Fa3E56832F53a83b0702b82C6C44D0DdC7163B5"  # Replace with AFTRFeeVault address after deployment — run: npm run subgraph:update-config
+      address: "0x00a31D4094e6d28F898885def5BAB655c0cd8D90"
       abi: Vault
-      startBlock: 41284688  # Replace with vault deploy block after deployment
+      startBlock: 41365622
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7

@@ -3,7 +3,7 @@ import { formatUnits, isAddress } from "viem";
 
 const SUBGRAPH_URL =
   process.env.SUBGRAPH_QUERY_URL ??
-  "https://api.studio.thegraph.com/query/1749057/aftr/v0.06";
+  "https://api.studio.thegraph.com/query/1749057/aftr/v0.07";
 
 type GraphResponse = {
   data?: {

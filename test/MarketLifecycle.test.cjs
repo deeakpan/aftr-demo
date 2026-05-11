@@ -5,7 +5,9 @@
  */
 
 const { expect } = require("chai");
-const { ethers } = require("hardhat");
+const hre = require("hardhat");
+const { ethers } = hre;
+const { deployParimutuelFacade } = require("../scripts/lib/deploy-parimutuel-facade.cjs");
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -28,6 +30,12 @@ async function deployMockFeed(answer, decimals = 8) {
 // ─── Deploy full stack ─────────────────────────────────────────────────────────
 
 async function deployStack(owner, feeRecipient) {
+  async function deployAndTrack(factory, ...args) {
+    const instance = await factory.deploy(...args);
+    const receipt = await instance.deploymentTransaction().wait();
+    return { instance, address: await instance.getAddress(), blockNumber: receipt.blockNumber };
+  }
+
   // 1. USDC mock
   const USDC = await ethers.getContractFactory("AFTRUSDC");
   const usdc = await USDC.deploy(owner.address);
@@ -40,13 +48,14 @@ async function deployStack(owner, feeRecipient) {
     ethers.ZeroAddress, // optimisticOracleV2 — not needed for PRICE markets
     await usdc.getAddress()  // umaBondCurrency
   );
+  const factoryAddr = await factory.getAddress();
 
-  // 3. Deployer
-  const Deployer = await ethers.getContractFactory("AFTRParimutuelDeployer");
-  const deployer = await Deployer.deploy(await factory.getAddress());
+  // 3. Deployer facade + sub-deployers (3 txs — EIP-3860)
+  const { marketDeployerAddress } = await deployParimutuelFacade(hre, owner, factoryAddr, deployAndTrack);
+  const deployer = await ethers.getContractAt("AFTRParimutuelDeployer", marketDeployerAddress);
 
   // 4. Wire factory
-  await factory.connect(owner).setMarketDeployer(await deployer.getAddress());
+  await factory.connect(owner).setMarketDeployer(marketDeployerAddress);
   await factory.connect(owner).addSupportedCollateral(await usdc.getAddress());
 
   return { usdc, factory, deployer };

@@ -17,8 +17,10 @@ module.exports = {
   solidity: {
     version: "0.8.24",
     settings: {
-      optimizer: { enabled: true, runs: 200 },
+      optimizer: { enabled: true, runs: 1 },
       viaIR: true,
+      // Shrink bytecode below EIP-170 24KB limit for L2 (sub-deployers embed market).
+      metadata: { bytecodeHash: "none" },
     },
   },
   paths: {

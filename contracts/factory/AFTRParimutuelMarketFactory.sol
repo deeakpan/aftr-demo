@@ -32,7 +32,7 @@ contract AFTRParimutuelMarketFactory is Ownable2Step {
     address public umaBondCurrency;
     /// @notice Optional helper contract allowed to call create functions.
     address public batchExecutor;
-    /// @notice Deploys token + market bytecode (set after deploy: deploy AFTRParimutuelDeployer(factory), then setMarketDeployer).
+    /// @notice Deploys token + market bytecode (set after deploy: deploy sub-deployers + AFTRParimutuelDeployer(factory, priceDep, eventDep), then setMarketDeployer).
     address public marketDeployer;
 
     address[] public markets;
