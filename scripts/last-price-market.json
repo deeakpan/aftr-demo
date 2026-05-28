@@ -1,0 +1,15 @@
+{
+  "chainId": 84532,
+  "createdAt": "2026-05-16T08:07:00.000Z",
+  "creator": "0x68ac96Ce64D62386b1A5E2DFf8f0F01fEEd46E09",
+  "marketAddress": "0x691FB32dD5F07c6a69cfa187a64992961bB2d45f",
+  "factoryAddress": "0x43E92A90b47d1316Dd27709A8990806B4E19f074",
+  "routerAddress": "0xF71A379666670Bb50Ce0060c66F74C6F6111Eb71",
+  "collateral": "0xA78a61Eeb01bFBc7Df2914492cE5B825F3c7FD04",
+  "btcFeed": "0x0FB99723Aee6f420beAD13e6bBB79b7E6F034298",
+  "spot": 78355.94088,
+  "thresholdDisplay": "82,273.737924",
+  "title": "Will BTC settle above $82,273.737924 at Sat, May 16, 10:12 UTC?",
+  "metadataUri": "ipfs://QmVzn8FZosAAiAgkhQEekqzLhY8RLmb9EftFzuU7y44VfX",
+  "bootstrapped": true
+}

@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { formatUnits, isAddress } from "viem";
-
-const SUBGRAPH_URL =
-  process.env.SUBGRAPH_QUERY_URL ??
-  "https://api.studio.thegraph.com/query/1749057/aftr/v0.07";
+import { querySubgraph } from "@/lib/subgraph/client";
 
 type GraphResponse = {
   data?: {
@@ -35,33 +32,34 @@ export async function GET(req: NextRequest) {
   }
 
   const id = wallet.toLowerCase();
-  const graphRes = await fetch(SUBGRAPH_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      query: `query TraderSummary($id: ID!) {
-        trader(id: $id) {
-          totalDeposited
-          totalRedeemed
-          positions(first: 1000) { id }
-        }
-        traderMarketPositions(where: { trader: $id }, first: 1000) {
-          market { id }
-          collateralIn
-          collateralOut
-        }
-      }`,
-      variables: { id },
-    }),
-    cache: "no-store",
-  });
+  const graph = await querySubgraph<NonNullable<GraphResponse["data"]>>(
+    `query TraderSummary($id: ID!) {
+      trader(id: $id) {
+        totalDeposited
+        totalRedeemed
+        positions(first: 1000) { id }
+      }
+      traderMarketPositions(where: { trader: $id }, first: 1000) {
+        market { id }
+        collateralIn
+        collateralOut
+      }
+    }`,
+    { id },
+  );
 
-  if (!graphRes.ok) {
-    return NextResponse.json({ error: "Subgraph query failed" }, { status: 502 });
+  if (!graph.ok) {
+    return NextResponse.json({
+      marketCount: 0,
+      pnlUsd: "0.00",
+      depositedUsd: "0.00",
+      redeemedUsd: "0.00",
+      unavailable: true,
+      reason: graph.reason,
+    });
   }
 
-  const graphJson = (await graphRes.json()) as GraphResponse;
-  const t = graphJson.data?.trader;
+  const t = graph.data.trader;
   if (!t) {
     return NextResponse.json({
       marketCount: 0,
@@ -76,7 +74,7 @@ export async function GET(req: NextRequest) {
   const redeemed = BigInt(t.totalRedeemed || "0");
   const pnl = redeemed - deposited;
   const absPnl = pnl < BigInt(0) ? -pnl : pnl;
-  const perMarket = graphJson.data?.traderMarketPositions ?? [];
+  const perMarket = graph.data.traderMarketPositions ?? [];
   const settledEvaluable = perMarket.filter((p) => BigInt(p.collateralIn || "0") > BigInt(0));
   const wins = settledEvaluable.filter((p) => BigInt(p.collateralOut || "0") > BigInt(p.collateralIn || "0")).length;
   const winRatePct =

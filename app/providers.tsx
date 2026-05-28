@@ -3,8 +3,8 @@
 import { ReactNode, useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createWeb3Modal } from "@web3modal/wagmi/react";
+import type { Config } from "wagmi";
 import { WagmiProvider } from "wagmi";
-import { wagmiConfig, walletConnectProjectId } from "./wagmi-config";
 
 declare global {
   interface Window {
@@ -12,12 +12,14 @@ declare global {
   }
 }
 
-function ensureWeb3ModalInitialized() {
-  if (typeof window === "undefined") return false;
-  if (window.__aftr_w3m_initialized__) return true;
+const queryClient = new QueryClient();
+
+function initWeb3Modal(config: Config, projectId: string) {
+  if (typeof window === "undefined") return;
+  if (window.__aftr_w3m_initialized__) return;
   createWeb3Modal({
-    wagmiConfig,
-    projectId: walletConnectProjectId,
+    wagmiConfig: config,
+    projectId,
     themeMode: "dark",
     themeVariables: {
       "--w3m-accent": "#7c3aed",
@@ -30,25 +32,33 @@ function ensureWeb3ModalInitialized() {
     },
   });
   window.__aftr_w3m_initialized__ = true;
-  return true;
 }
 
-const queryClient = new QueryClient();
-
-export function Providers({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const [isModalReady, setIsModalReady] = useState(false);
+export function Providers({ children }: { children: ReactNode }) {
+  const [ready, setReady] = useState(false);
+  const [config, setConfig] = useState<Config | null>(null);
 
   useEffect(() => {
-    setIsModalReady(ensureWeb3ModalInitialized());
+    void import("./wagmi-config.client").then(({ wagmiConfig, walletConnectProjectId }) => {
+      initWeb3Modal(wagmiConfig, walletConnectProjectId);
+      setConfig(wagmiConfig);
+      setReady(true);
+    });
   }, []);
 
+  if (!ready || !config) {
+    return (
+      <div
+        className="min-h-screen bg-[var(--background)]"
+        aria-busy="true"
+        aria-label="Loading wallet"
+      />
+    );
+  }
+
   return (
-    <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>{isModalReady ? children : null}</QueryClientProvider>
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </WagmiProvider>
   );
 }

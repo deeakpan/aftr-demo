@@ -1,7 +1,7 @@
-import { Address } from "@graphprotocol/graph-ts";
+import { Address, BigInt } from "@graphprotocol/graph-ts";
 import { Deposited, TokensRedeemed } from "../generated/templates/Market/Market";
-import { Market, Trader, TraderMarketPosition } from "../generated/schema";
-import { ZERO, addrId, positionId } from "./ids";
+import { Market, MarketTrade, Trader, TraderMarketPosition } from "../generated/schema";
+import { ZERO, addrId, positionId, tradeId } from "./ids";
 
 function loadOrCreateTrader(addr: Address): Trader {
   const id = addrId(addr);
@@ -34,6 +34,48 @@ function loadOrCreatePosition(marketAddr: Address, traderAddr: Address): TraderM
   return p as TraderMarketPosition;
 }
 
+function saveDepositTrade(
+  marketId: string,
+  traderAddr: Address,
+  outcomeIndex: i32,
+  amount: BigInt,
+  timestamp: BigInt,
+  blockNumber: BigInt,
+  txHash: string,
+  logIndex: i32,
+): void {
+  const trade = new MarketTrade(tradeId(txHash, logIndex));
+  trade.market = marketId;
+  trade.trader = addrId(traderAddr);
+  trade.timestamp = timestamp;
+  trade.blockNumber = blockNumber;
+  trade.collateralAmount = amount;
+  trade.outcomeIndex = outcomeIndex;
+  trade.kind = "deposit";
+  trade.save();
+}
+
+function saveRedeemTrade(
+  marketId: string,
+  traderAddr: Address,
+  outcomeIndex: i32,
+  payout: BigInt,
+  blockNumber: BigInt,
+  txHash: string,
+  logIndex: i32,
+  timestamp: BigInt,
+): void {
+  const trade = new MarketTrade(tradeId(txHash, logIndex));
+  trade.market = marketId;
+  trade.trader = addrId(traderAddr);
+  trade.timestamp = timestamp;
+  trade.blockNumber = blockNumber;
+  trade.collateralAmount = payout;
+  trade.outcomeIndex = outcomeIndex;
+  trade.kind = "redeem";
+  trade.save();
+}
+
 export function handleDeposited(event: Deposited): void {
   const marketAddr = event.address;
   const recipient = event.params.recipient;
@@ -55,6 +97,17 @@ export function handleDeposited(event: Deposited): void {
   pos.sharesIn = pos.sharesIn.plus(shares);
   pos.lastTradeTimestamp = timestamp;
   pos.save();
+
+  saveDepositTrade(
+    marketId,
+    recipient,
+    event.params.outcomeIndex,
+    amount,
+    timestamp,
+    event.block.number,
+    event.transaction.hash.toHexString(),
+    event.logIndex.toI32(),
+  );
 }
 
 export function handleTokensRedeemed(event: TokensRedeemed): void {
@@ -77,4 +130,15 @@ export function handleTokensRedeemed(event: TokensRedeemed): void {
   pos.sharesOut = pos.sharesOut.plus(shares);
   pos.lastTradeTimestamp = event.block.timestamp;
   pos.save();
+
+  saveRedeemTrade(
+    marketId,
+    user,
+    event.params.outcomeIndex,
+    payout,
+    event.block.number,
+    event.transaction.hash.toHexString(),
+    event.logIndex.toI32(),
+    event.block.timestamp,
+  );
 }

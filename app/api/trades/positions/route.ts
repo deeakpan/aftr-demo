@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, formatUnits, http, isAddress, parseAbi } from "viem";
 import deployment from "@/deployments/baseSepolia-84532.json";
-
-const SUBGRAPH_URL =
-  process.env.SUBGRAPH_QUERY_URL ??
-  "https://api.studio.thegraph.com/query/1749057/aftr/v0.07";
+import { querySubgraph } from "@/lib/subgraph/client";
 const RPC_URL = process.env.RPC_URL ?? process.env.NEXT_PUBLIC_RPC_URL;
 
 const MARKET_ABI = parseAbi([
@@ -81,8 +78,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing RPC URL" }, { status: 500 });
   }
 
-  const graphQuery = {
-    query: `query WalletPositions($wallet: String!) {
+  const graph = await querySubgraph<NonNullable<SubgraphResponse["data"]>>(
+    `query WalletPositions($wallet: String!) {
       traderMarketPositions(where: { trader: $wallet }, first: 500) {
         market { id }
         collateralIn
@@ -91,20 +88,19 @@ export async function GET(req: NextRequest) {
         sharesOut
       }
     }`,
-    variables: { wallet: wallet.toLowerCase() },
-  };
+    { wallet: wallet.toLowerCase() },
+  );
 
-  const graphRes = await fetch(SUBGRAPH_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(graphQuery),
-    cache: "no-store",
-  });
-  if (!graphRes.ok) {
-    return NextResponse.json({ error: "Subgraph query failed" }, { status: 502 });
+  if (!graph.ok) {
+    return NextResponse.json({
+      rows: [],
+      chainId: deployment.chainId,
+      unavailable: true,
+      reason: graph.reason,
+    });
   }
-  const graphJson = (await graphRes.json()) as SubgraphResponse;
-  const positionRows = graphJson.data?.traderMarketPositions ?? [];
+
+  const positionRows = graph.data.traderMarketPositions ?? [];
   if (positionRows.length === 0) {
     return NextResponse.json({ rows: [], chainId: deployment.chainId });
   }

@@ -10,6 +10,20 @@ type Market @entity(immutable: false) {
   createdAt: BigInt!
   createdAtBlock: BigInt!
   positions: [TraderMarketPosition!]! @derivedFrom(field: "market")
+  trades: [MarketTrade!]! @derivedFrom(field: "market")
+}
+
+"""One market Deposited or TokensRedeemed (time series for trade activity charts)."""
+type MarketTrade @entity(immutable: true) {
+  id: ID!
+  market: Market!
+  trader: Trader!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  collateralAmount: BigInt!
+  outcomeIndex: Int!
+  """deposit | redeem"""
+  kind: String!
 }
 
 """Wallet-level aggregates for leaderboards (e.g. orderBy totalDeposited)."""

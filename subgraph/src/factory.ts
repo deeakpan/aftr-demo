@@ -1,4 +1,5 @@
 import { MarketCreated } from "../generated/Factory/Factory";
+import { Market as MarketTemplate } from "../generated/templates";
 import { Market as MarketEntity } from "../generated/schema";
 import { addrId } from "./ids";
 
@@ -16,4 +17,6 @@ export function handleMarketCreated(event: MarketCreated): void {
   m.createdAt = event.block.timestamp;
   m.createdAtBlock = event.block.number;
   m.save();
+
+  MarketTemplate.create(marketAddr);
 }

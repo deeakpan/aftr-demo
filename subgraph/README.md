@@ -1,74 +1,51 @@
 # AFTR subgraph (The Graph)
 
-Indexes **`MarketCreated`** on the factory (creates a `Market` row + **dynamic data source** per market), then on each market contract indexes **`Deposited`** and **`TokensRedeemed`** to maintain:
+Indexes on Base Sepolia:
 
-- **`Trader`** — `totalDeposited` / `totalRedeemed` (wallet-level leaderboard inputs).
-- **`TraderMarketPosition`** — `collateralIn` / `collateralOut` / `sharesIn` / `sharesOut` per `(market, trader)`; deposits use **`recipient`**, redemptions use **`user`**.
+- **`MarketCreated`** on the factory — creates a `Market` row and a **dynamic `Market` template** per market.
+- **`Deposited`** / **`TokensRedeemed`** on each market — maintains:
+  - **`MarketTrade`** — per-event rows for trade activity charts (`marketTrades` query).
+  - **`Trader`** — `totalDeposited` / `totalRedeemed` (leaderboard).
+  - **`TraderMarketPosition`** — per `(market, trader)` aggregates.
+- **Vault** events — staking / fee epochs.
+
+Router trades are included because the router calls `market.deposit` / redeem, which emits the same market events.
 
 ## Before you deploy
 
-1. **`subgraph.yaml` → `startBlock`**  
-   Set to the **block where the factory contract was deployed** (not `23600000` unless that is correct). Wrong `startBlock` = missed markets or slow backfill.
+1. **`subgraph.yaml` → `startBlock`** on Factory and Vault must match `deployments/baseSepolia-84532.json` (`npm run subgraph:update-config` from repo root).
+2. **`source.address`** must match deployed factory and vault.
 
-2. **`subgraph.yaml` → `source.address`**  
-   Must match your `AFTRParimutuelMarketFactory` on Base Sepolia.
-
-3. **`TokensRedeemed`**  
-   Only exists on market bytecode that **emits** it; older markets still get **deposits** indexed.
-
-## Commands
+## Commands (repo root)
 
 ```bash
-npm install --prefix subgraph
-npm run codegen --prefix subgraph
-npm run build --prefix subgraph
+npm run subgraph:update-config
+npm run subgraph:codegen
+npm run subgraph:build
+SUBGRAPH_VERSION_LABEL=v0.08 npm run subgraph:deploy-studio
 ```
 
-From repo root you can use **`npm run subgraph:codegen`** / **`npm run subgraph:build`** (see root `package.json`).
+Set `SUBGRAPH_DEPLOY_KEY` in `.env`. After sync, point the app at:
 
-## Deploy (hosted)
+`https://api.studio.thegraph.com/query/1749057/aftr/v0.08`
 
-Create a subgraph in [Subgraph Studio](https://thegraph.com/studio), then:
-
-```bash
-cd subgraph
-npx graph auth --studio <DEPLOY_KEY>
-npx graph deploy --studio <SUBGRAPH_SLUG>
-```
-
-You get a **GraphQL endpoint**; your Next app queries it (no need to run `graph-node` yourself).
-
-## Example: leaderboard-style query
+## Trade activity chart query
 
 ```graphql
-query TopTraders {
-  traders(
-    first: 50
-    orderBy: totalDeposited
-    orderDirection: desc
+query MarketTrades($market: String!) {
+  marketTrades(
+    where: { market: $market }
+    orderBy: timestamp
+    orderDirection: asc
+    first: 1000
   ) {
     id
-    totalDeposited
-    totalRedeemed
+    timestamp
+    collateralAmount
+    outcomeIndex
+    kind
   }
 }
 ```
 
-Filter one wallet:
-
-```graphql
-query OneTrader($id: ID!) {
-  trader(id: $id) {
-    id
-    totalDeposited
-    totalRedeemed
-    positions {
-      market { id }
-      collateralIn
-      collateralOut
-    }
-  }
-}
-```
-
-(`$id` = lowercased `0x…` address.)
+(`$market` = lowercased market address.)

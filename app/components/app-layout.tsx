@@ -80,6 +80,8 @@ export type AppLayoutProps = {
   searchPlaceholder?: string;
   showSearch?: boolean;
   pageBackgroundClassName?: string;
+  /** Lock main column to viewport height so child panes can scroll independently (e.g. market detail). */
+  viewportLocked?: boolean;
 };
 
 export function AppLayout({
@@ -88,6 +90,7 @@ export function AppLayout({
   searchPlaceholder = "Search markets... (Ctrl/Cmd + K)",
   showSearch = true,
   pageBackgroundClassName,
+  viewportLocked = false,
 }: AppLayoutProps) {
   const { open } = useWeb3Modal();
   const router = useRouter();
@@ -180,27 +183,37 @@ export function AppLayout({
     hasRunAuthRef.current = true;
 
     const runPostConnectFlow = async () => {
-      try {
-        const alreadySigned = window.localStorage.getItem(signedSessionKey(address)) === "1";
-        if (!alreadySigned) {
+      setAuthError(null);
+
+      const alreadySigned = window.localStorage.getItem(signedSessionKey(address)) === "1";
+      if (!alreadySigned) {
+        try {
           const nonce = Math.floor(Math.random() * 1_000_000);
           await signMessageAsync({
             message: `Sign in to AFTRMarket\nAddress: ${address}\nNonce: ${nonce}`,
           });
           window.localStorage.setItem(signedSessionKey(address), "1");
+        } catch {
+          hasRunAuthRef.current = false;
+          return;
         }
-        const existingProfile = await getUserProfileByAddress(address);
-        if (!existingProfile) {
-          const suggested = createSuggestedUsername(address);
-          setNameInput(suggested);
-          setProfileName(suggested);
-          setShowNameModal(true);
-        } else {
-          setProfileName(existingProfile.name);
-        }
-      } catch (error) {
-        hasRunAuthRef.current = false;
-        setAuthError(error instanceof Error ? error.message : "Could not complete sign-in flow.");
+      }
+
+      let existingProfile: { address: string; name: string } | null = null;
+      try {
+        existingProfile = await getUserProfileByAddress(address);
+      } catch {
+        setProfileName(createSuggestedUsername(address));
+        return;
+      }
+
+      if (!existingProfile) {
+        const suggested = createSuggestedUsername(address);
+        setNameInput(suggested);
+        setProfileName(suggested);
+        setShowNameModal(true);
+      } else {
+        setProfileName(existingProfile.name);
       }
     };
     void runPostConnectFlow();
@@ -356,7 +369,9 @@ export function AppLayout({
 
   return (
     <main
-      className={`mx-auto flex min-h-screen w-full py-4 pb-24 md:pb-4 ${pageBackgroundClassName ?? "bg-[var(--background)]"}`}
+      className={`mx-auto flex w-full flex-col py-4 pb-24 md:pb-4 ${
+        viewportLocked ? "h-dvh max-h-dvh min-h-0 overflow-hidden" : "min-h-screen"
+      } ${pageBackgroundClassName ?? "bg-[var(--background)]"}`}
     >
       <SidebarDrawer
         isOpen={isSidebarOpen}
@@ -364,8 +379,16 @@ export function AppLayout({
         theme={theme}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="mb-3 w-full px-3 md:mb-4 md:px-6">
+      <div
+        className={`flex min-w-0 flex-1 flex-col ${viewportLocked ? "relative min-h-0 overflow-hidden" : ""}`}
+      >
+        <header
+          className={`z-30 w-full shrink-0 px-3 md:px-6 ${
+            viewportLocked
+              ? "sticky top-0 mb-0 bg-[var(--background)]/95 py-1 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--background)]/80"
+              : "mb-3 md:mb-4"
+          }`}
+        >
           <div className="flex items-center justify-between gap-2 md:flex-nowrap md:gap-3">
             <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
               <button
@@ -401,12 +424,12 @@ export function AppLayout({
                   className="hidden h-10 w-[380px] max-w-[52vw] rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] md:block"
                 />
               )}
-              <div className="hidden items-center gap-2 text-sm md:flex">
+              <Link href="/how-it-works" className="hidden items-center gap-2 text-sm md:flex">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full border border-[var(--accent)] text-xs font-semibold text-[var(--accent)]">
                   i
                 </span>
                 <span className="whitespace-nowrap text-[var(--accent)]">How it works</span>
-              </div>
+              </Link>
             </div>
 
             <div className="flex shrink-0 items-center gap-1.5 md:gap-3">
@@ -723,7 +746,11 @@ export function AppLayout({
           </>
         )}
 
-        {children}
+        {viewportLocked ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+        ) : (
+          children
+        )}
 
         {authError && (
           <p className="mx-4 mt-4 rounded-lg border border-red-700/50 bg-red-950/40 px-4 py-3 text-sm text-red-300 md:mx-6">

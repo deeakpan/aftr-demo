@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { formatUnits } from "viem";
 import { getSupabaseClient } from "@/lib/supabase/client";
-
-const SUBGRAPH_URL =
-  process.env.SUBGRAPH_QUERY_URL ??
-  "https://api.studio.thegraph.com/query/1749057/aftr/v0.07";
+import { querySubgraph } from "@/lib/subgraph/client";
 
 type GraphResponse = {
   data?: {
@@ -26,28 +23,22 @@ function usdLike(value: bigint) {
 }
 
 export async function GET() {
-  const graphRes = await fetch(SUBGRAPH_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      query: `query Leaderboard {
-        traders(first: 200, orderBy: totalRedeemed, orderDirection: desc) {
-          id
-          totalDeposited
-          totalRedeemed
-          positions(first: 1000) { id }
-        }
-      }`,
-    }),
-    cache: "no-store",
-  });
+  const graph = await querySubgraph<NonNullable<GraphResponse["data"]>>(
+    `query Leaderboard {
+      traders(first: 200, orderBy: totalRedeemed, orderDirection: desc) {
+        id
+        totalDeposited
+        totalRedeemed
+        positions(first: 1000) { id }
+      }
+    }`,
+  );
 
-  if (!graphRes.ok) {
-    return NextResponse.json({ error: "Subgraph query failed" }, { status: 502 });
+  if (!graph.ok) {
+    return NextResponse.json({ rows: [], unavailable: true, reason: graph.reason });
   }
 
-  const graphJson = (await graphRes.json()) as GraphResponse;
-  const traders = graphJson.data?.traders ?? [];
+  const traders = graph.data.traders ?? [];
 
   const rows = traders
     .map((t) => {

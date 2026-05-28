@@ -23,32 +23,6 @@ dataSources:
           handler: handleMarketCreated
       file: ./src/factory.ts
   - kind: ethereum/contract
-    name: Router
-    network: base-sepolia
-    source:
-      address: "0xF71A379666670Bb50Ce0060c66F74C6F6111Eb71"
-      abi: Router
-      startBlock: 41365636
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.7
-      language: wasm/assemblyscript
-      entities:
-        - Trader
-        - TraderMarketPosition
-        - Market
-      abis:
-        - name: Router
-          file: ./abis/Router.json
-      eventHandlers:
-        - event: RouterDeposited(indexed address,indexed address,indexed address,uint8,uint256,uint256)
-          handler: handleRouterDeposited
-        - event: RouterRedeemed(indexed address,indexed address,indexed address,uint8,uint256,uint256)
-          handler: handleRouterRedeemed
-        - event: RouterRedeemedAndRepaid(indexed address,indexed address,indexed address,uint8,uint256,uint256,address,uint256)
-          handler: handleRouterRedeemedAndRepaid
-      file: ./src/router.ts
-  - kind: ethereum/contract
     name: Vault
     network: base-sepolia
     source:
@@ -80,3 +54,26 @@ dataSources:
         - event: FeesReceived(indexed address,uint256,uint256,uint256,uint256)
           handler: handleFeesReceived
       file: ./src/vault.ts
+templates:
+  - kind: ethereum/contract
+    name: Market
+    network: base-sepolia
+    source:
+      abi: Market
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - MarketTrade
+        - Trader
+        - TraderMarketPosition
+      abis:
+        - name: Market
+          file: ./abis/Market.json
+      eventHandlers:
+        - event: Deposited(indexed address,indexed address,indexed uint8,uint256,uint256,uint256,uint256)
+          handler: handleDeposited
+        - event: TokensRedeemed(indexed address,indexed uint8,uint256,uint256)
+          handler: handleTokensRedeemed
+      file: ./src/market.ts

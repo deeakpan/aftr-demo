@@ -1,6 +1,6 @@
 {
   "name": "aftr-subgraph",
-  "version": "0.07.0",
+  "version": "0.08.0",
   "private": true,
   "scripts": {
     "codegen": "graph codegen subgraph.yaml",
