@@ -11,12 +11,13 @@ import {
   parseUnits,
   zeroAddress,
 } from "viem";
-import { useAccount, usePublicClient, useWalletClient } from "wagmi";
+import { useAccount, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import { MarketChartPanel } from "@/app/market/components/market-chart-panel";
 import { LimitOrderParams, TradeModal } from "@/app/market/components/trade-modal";
 import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import { collateralTickerFromDeployment, isUsdStyledCollateralTicker } from "@/lib/deployment-collateral";
+import { deploymentPublicClient, assertMarketContract, readMarketPrice } from "@/lib/deployment-public-client";
 import deployment from "@/deployments/baseSepolia-84532.json";
 
 const DEPLOYMENT_CHAIN_ID = deployment.chainId;
@@ -202,10 +203,27 @@ function priceKindName(kind: number): string {
   return `Kind ${kind}`;
 }
 
+function formatLoadError(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (msg.includes("returned no data") || msg.includes("not a contract") || msg.includes("not found on Base Sepolia")) {
+    return "Market not found on Base Sepolia. Check the address or try again in a moment.";
+  }
+  return msg.length > 280 ? "Could not load market." : msg;
+}
+
+function formatTradeError(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (msg.includes("returned no data") || msg.includes("not a contract") || msg.includes("not found on Base Sepolia")) {
+    return "Market price unavailable. Confirm you are on Base Sepolia and refresh the page.";
+  }
+  if (msg.includes("User rejected") || msg.includes("user rejected")) return "Transaction cancelled.";
+  return msg.length > 240 ? "Trade failed. Try again." : msg;
+}
+
 type Props = { address: string };
 
 export function MarketDetailClient({ address: addressProp }: Props) {
-  const publicClient = usePublicClient({ chainId: DEPLOYMENT_CHAIN_ID });
+  const publicClient = deploymentPublicClient;
   const { address, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
 
@@ -261,6 +279,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
     setIsLoading(true);
     setLoadError("");
     try {
+      await assertMarketContract(marketAddress);
       const [
         kind,
         uri,
@@ -378,13 +397,8 @@ export function MarketDetailClient({ address: addressProp }: Props) {
 
       let leftPct = outcomeCount >= 2 ? 50 : Math.max(1, Math.round(100 / Math.max(1, outcomeCount)));
       try {
-        const p0 = await publicClient.readContract({
-          address: marketAddress,
-          abi: MARKET_ABI,
-          functionName: "priceOf",
-          args: [0],
-        });
-        leftPct = clampPct(Number(formatUnits(p0 as bigint, 18)) * 100);
+        const p0 = await readMarketPrice(marketAddress, 0, MARKET_ABI);
+        leftPct = clampPct(Number(formatUnits(p0, 18)) * 100);
       } catch {
         // keep
       }
@@ -425,7 +439,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
         usesBins,
       });
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Could not load market.");
+      setLoadError(formatLoadError(e));
       setMarket(null);
     } finally {
       setIsLoading(false);
@@ -450,13 +464,8 @@ export function MarketDetailClient({ address: addressProp }: Props) {
     let cancelled = false;
     void (async () => {
       try {
-        const p = await publicClient.readContract({
-          address: market.address,
-          abi: MARKET_ABI,
-          functionName: "priceOf",
-          args: [selectedOutcome],
-        });
-        if (!cancelled) setTradePriceRaw(p as bigint);
+        const p = await readMarketPrice(market.address, selectedOutcome, MARKET_ABI);
+        if (!cancelled) setTradePriceRaw(p);
       } catch {
         if (!cancelled) setTradePriceRaw(null);
       }
@@ -620,12 +629,11 @@ export function MarketDetailClient({ address: addressProp }: Props) {
       setTradeBusy(true);
       setTradeStatus("Preparing trade...");
       const amountUnits = parseUnits(tradeAmount, market.collateralDecimals);
-      const currentPrice = (await publicClient.readContract({
-        address: market.address,
-        abi: MARKET_ABI,
-        functionName: "priceOf",
-        args: [selectedOutcome],
-      })) as bigint;
+      const currentPrice = tradePriceRaw;
+      if (!currentPrice || currentPrice <= BigInt(0)) {
+        setTradeStatus("Market price unavailable. Refresh and try again.");
+        return;
+      }
       // Use net amount (after 1.5% fee) for slippage baseline so minSharesOut
       // matches what the contract will actually mint.
       const creatorFeeEst = (amountUnits * BigInt(30)) / BigInt(10000);
@@ -673,7 +681,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
       setTradeAmount("");
       void reload();
     } catch (error) {
-      setTradeStatus(error instanceof Error ? error.message : "Trade failed.");
+      setTradeStatus(formatTradeError(error));
     } finally {
       setTradeBusy(false);
     }

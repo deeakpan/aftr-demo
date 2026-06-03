@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowsClockwise, BookmarkSimple, Gift, TrendUp } from "@phosphor-icons/react";
 import { formatUnits, parseAbi, parseUnits, zeroAddress } from "viem";
-import { useAccount, usePublicClient, useWalletClient } from "wagmi";
+import { useAccount, useWalletClient } from "wagmi";
 import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import { AppLayout } from "@/app/components/app-layout";
 import { LimitOrderParams, TradeModal } from "@/app/market/components/trade-modal";
@@ -12,6 +12,7 @@ import {
   collateralTickerFromDeployment,
   isUsdStyledCollateralTicker,
 } from "@/lib/deployment-collateral";
+import { deploymentPublicClient, readMarketPrice } from "@/lib/deployment-public-client";
 import deployment from "@/deployments/baseSepolia-84532.json";
 
 const DEPLOYMENT_CHAIN_ID = deployment.chainId;
@@ -220,10 +221,19 @@ async function fetchIpfsMetadata(uri: string): Promise<IpfsMetadata | null> {
   }
 }
 
+function formatTradeError(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (msg.includes("returned no data") || msg.includes("not a contract") || msg.includes("not found on Base Sepolia")) {
+    return "Market price unavailable. Confirm you are on Base Sepolia and refresh the page.";
+  }
+  if (msg.includes("User rejected") || msg.includes("user rejected")) return "Transaction cancelled.";
+  return msg.length > 240 ? "Trade failed. Try again." : msg;
+}
+
 export function MarketClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const publicClient = usePublicClient({ chainId: DEPLOYMENT_CHAIN_ID });
+  const publicClient = deploymentPublicClient;
   const { address, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
   const [markets, setMarkets] = useState<UiMarket[]>([]);
@@ -505,13 +515,8 @@ export function MarketClient() {
     let cancelled = false;
     void (async () => {
       try {
-        const p = await publicClient.readContract({
-          address: selectedMarket.address,
-          abi: MARKET_ABI,
-          functionName: "priceOf",
-          args: [selectedOutcome],
-        });
-        if (!cancelled) setTradePriceRaw(p as bigint);
+        const p = await readMarketPrice(selectedMarket.address, selectedOutcome, MARKET_ABI);
+        if (!cancelled) setTradePriceRaw(p);
       } catch {
         if (!cancelled) setTradePriceRaw(null);
       }
@@ -778,12 +783,11 @@ export function MarketClient() {
       setTradeBusy(true);
       setTradeStatus("Preparing trade...");
       const amountUnits = parseUnits(tradeAmount, selectedMarket.collateralDecimals);
-      const currentPrice = (await publicClient.readContract({
-        address: selectedMarket.address,
-        abi: MARKET_ABI,
-        functionName: "priceOf",
-        args: [selectedOutcome],
-      })) as bigint;
+      const currentPrice = tradePriceRaw;
+      if (!currentPrice || currentPrice <= BigInt(0)) {
+        setTradeStatus("Market price unavailable. Refresh and try again.");
+        return;
+      }
       // Use net amount (after 1.5% fee) for slippage baseline so minSharesOut
       // matches what the contract will actually mint.
       const creatorFeeEst = (amountUnits * BigInt(30)) / BigInt(10000);
@@ -832,7 +836,7 @@ export function MarketClient() {
       setTradeStatus("Trade successful.");
       setTradeAmount("");
     } catch (error) {
-      setTradeStatus(error instanceof Error ? error.message : "Trade failed.");
+      setTradeStatus(formatTradeError(error));
     } finally {
       setTradeBusy(false);
     }

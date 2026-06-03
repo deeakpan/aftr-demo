@@ -859,9 +859,6 @@ export function CreateClient() {
             <h1 className="text-xl font-semibold tracking-tight text-[var(--foreground)] md:text-3xl">
               Create market
             </h1>
-            <p className="mt-1.5 max-w-lg text-xs leading-relaxed text-[var(--muted)] md:mt-2 md:text-sm">
-              Define resolution rules and metadata. On-chain creation via the factory will plug in here next.
-            </p>
           </div>
         </div>
 

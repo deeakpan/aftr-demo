@@ -16,10 +16,6 @@ type TradesByMarketId = {
   marketTrades?: TradeRow[];
 };
 
-type TradesByMarketEntity = {
-  market?: { trades: TradeRow[] } | null;
-};
-
 function normalizeTrades(rows: TradeRow[]) {
   return rows.map((t) => ({
     id: t.id,
@@ -56,44 +52,17 @@ export async function GET(req: NextRequest) {
     { market: marketId },
   );
 
-  if (listQuery.ok && (listQuery.data.marketTrades?.length ?? 0) > 0) {
+  if (listQuery.ok) {
     return NextResponse.json({
       trades: normalizeTrades(listQuery.data.marketTrades ?? []),
       unavailable: false,
     });
   }
 
-  const entityQuery = await querySubgraph<TradesByMarketEntity>(
-    `query MarketTradeList($id: ID!) {
-      market(id: $id) {
-        trades(first: 1000, orderBy: timestamp, orderDirection: asc) {
-          id
-          timestamp
-          collateralAmount
-          outcomeIndex
-          kind
-        }
-      }
-    }`,
-    { id: marketId },
-  );
-
-  if (entityQuery.ok) {
-    const rows = entityQuery.data.market?.trades ?? [];
-    return NextResponse.json({
-      trades: normalizeTrades(rows),
-      unavailable: false,
-    });
-  }
-
-  const reason =
-    (!entityQuery.ok ? entityQuery.reason : undefined) ||
-    (!listQuery.ok ? listQuery.reason : undefined) ||
-    "Subgraph unavailable";
   return NextResponse.json({
     trades: [],
     unavailable: true,
-    reason,
+    reason: listQuery.reason || "Subgraph unavailable",
     subgraphUrl: getSubgraphUrl(),
   });
 }

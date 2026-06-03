@@ -103,11 +103,14 @@ export function TradeModal({
     : null;
   const selectedLabel = labels[selectedOutcomeIndex] ?? labels[0] ?? "Outcome";
   const hasTradeAmount = Boolean(tokensFormatted);
+  const marketPriceReady = Boolean(priceOfRaw && priceOfRaw > BigInt(0));
   const marketCtaLabel = busy
     ? "Processing…"
-    : needsApproval && hasTradeAmount
-      ? `Approve & Buy ${selectedLabel}`
-      : `Buy ${selectedLabel}`;
+    : !marketPriceReady
+      ? "Loading price…"
+      : needsApproval && hasTradeAmount
+        ? `Approve & Buy ${selectedLabel}`
+        : `Buy ${selectedLabel}`;
 
   const limitDerived = useMemo(() => {
     const p = Number(limitPrice);
@@ -361,7 +364,7 @@ export function TradeModal({
 
           {status && <p className="text-center text-[10px] text-[var(--muted)]">{status}</p>}
 
-          <button type="button" onClick={onSubmit} disabled={busy || tradeDisabled}
+          <button type="button" onClick={onSubmit} disabled={busy || tradeDisabled || !marketPriceReady}
             className="w-full rounded-lg bg-[var(--accent)] py-2.5 text-center text-xs font-bold text-white shadow-[0_0_18px_rgba(139,92,246,0.28)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40">
             {tradeDisabled ? "Trading closed" : marketCtaLabel}
           </button>
