@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowsClockwise, BookmarkSimple, CaretDown, Copy, PlusMinus, X } from "@phosphor-icons/react";
+import { ArrowsClockwise, BookmarkSimple, Copy, PlusMinus, X } from "@phosphor-icons/react";
 import { formatUnits, parseAbi, zeroAddress } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
@@ -218,150 +218,45 @@ function balanceForOutcome(
   return hit?.balance ?? BigInt(0);
 }
 
-function outcomePctColor(idx: number, total: number): string {
-  if (total === 2 && idx === 0) return "text-emerald-400 [html[data-theme=light]_&]:text-emerald-700";
-  if (total === 2 && idx === 1) return "text-rose-400 [html[data-theme=light]_&]:text-rose-700";
-  return "text-[var(--foreground)]";
-}
-
-function OpenPositionOutcomes({
+function OpenPositionHoldings({
   labels,
-  chancePcts,
   positions,
   collateralDecimals,
 }: {
   labels: string[];
-  chancePcts: number[];
   positions: MarketPositionGroup["positions"];
   collateralDecimals: number;
 }) {
-  const n = labels.length;
-  const scrollable = n > 2;
+  const held = labels
+    .map((label, idx) => ({
+      label,
+      bal: balanceForOutcome(positions, idx),
+    }))
+    .filter((h) => h.bal > BigInt(0));
 
-  const held = useMemo(
-    () =>
-      labels
-        .map((label, idx) => ({
-          idx,
-          label,
-          bal: balanceForOutcome(positions, idx),
-          pct: chancePcts[idx] ?? (n >= 2 && idx === 0 ? 50 : Math.round(100 / Math.max(1, n))),
-        }))
-        .filter((h) => h.bal > BigInt(0)),
-    [labels, chancePcts, positions, n],
-  );
+  if (held.length === 0) {
+    return (
+      <p className="mt-2 text-[10px] text-[var(--muted)]">No open positions</p>
+    );
+  }
 
-  const [heldMenuOpen, setHeldMenuOpen] = useState(false);
-  const [selectedHeldKey, setSelectedHeldKey] = useState(0);
-  const heldMenuRef = React.useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setSelectedHeldKey(0);
-    setHeldMenuOpen(false);
-  }, [labels.join("|"), positions.map((p) => `${p.outcomeIndex}:${p.balance}`).join("|")]);
-
-  useEffect(() => {
-    if (!heldMenuOpen) return;
-    const onDoc = (e: MouseEvent) => {
-      if (!heldMenuRef.current?.contains(e.target as Node)) setHeldMenuOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [heldMenuOpen]);
-
-  const selectedHeld = held[selectedHeldKey] ?? held[0];
+  const scrollable = held.length > 1;
 
   return (
-    <div className="mt-2">
-      <div
-        className={`space-y-0.5 ${scrollable ? "no-scrollbar max-h-[88px] overflow-y-auto pr-0.5" : ""}`}
-      >
-        {labels.map((label, idx) => {
-          const pct = chancePcts[idx] ?? (n >= 2 && idx === 0 ? 50 : Math.round(100 / Math.max(1, n)));
-          const has = balanceForOutcome(positions, idx) > BigInt(0);
-          return (
-            <div
-              key={`${label}-${idx}`}
-              className={`flex items-center justify-between gap-2 rounded-md px-1.5 py-1 transition ${
-                has
-                  ? "hover:border hover:border-[var(--accent)]/35 hover:bg-[var(--surface-hover)]"
-                  : "hover:bg-[var(--surface-hover)]/80"
-              }`}
-            >
-              <span className="min-w-0 truncate text-[11px] font-medium text-[var(--foreground)]">{label}</span>
-              <span className={`shrink-0 text-[10px] font-semibold tabular-nums ${outcomePctColor(idx, n)}`}>
-                {pct.toFixed(0)}%
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      {held.length === 1 && (
-        <p className="mt-1.5 text-[10px] text-[var(--muted)]">
-          Your position:{" "}
-          <span className="font-medium text-[var(--foreground)]">
-            {formatShareAmount(held[0]!.bal, collateralDecimals)}
+    <div
+      className={`mt-2 space-y-0.5 ${scrollable ? "no-scrollbar max-h-[88px] overflow-y-auto pr-0.5" : ""}`}
+    >
+      {held.map((h, i) => (
+        <div
+          key={`${h.label}-${i}`}
+          className="flex items-center justify-between gap-2 rounded-md px-1.5 py-1 transition hover:bg-[var(--surface-hover)]"
+        >
+          <span className="min-w-0 truncate text-[11px] font-medium text-[var(--foreground)]">{h.label}</span>
+          <span className="shrink-0 text-[10px] font-medium tabular-nums text-[var(--muted)]">
+            {formatShareAmount(h.bal, collateralDecimals)}
           </span>
-        </p>
-      )}
-
-      {held.length > 1 && (
-        <div ref={heldMenuRef} className="relative mt-1.5">
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-            Your positions
-          </p>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setHeldMenuOpen((o) => !o);
-            }}
-            className="flex w-full items-center justify-between gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-left transition hover:border-[var(--accent)]/40 hover:bg-[var(--surface-hover)]"
-          >
-            <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-[var(--foreground)]">
-              {selectedHeld ? (
-                <>
-                  {selectedHeld.label}
-                  <span className="ml-1.5 text-[var(--muted)]">
-                    · {formatShareAmount(selectedHeld.bal, collateralDecimals)}
-                  </span>
-                </>
-              ) : (
-                "Select position"
-              )}
-            </span>
-            <CaretDown
-              size={12}
-              weight="bold"
-              className={`shrink-0 text-[var(--muted)] transition ${heldMenuOpen ? "rotate-180" : ""}`}
-            />
-          </button>
-          {heldMenuOpen && (
-            <div className="no-scrollbar absolute left-0 right-0 z-10 mt-1 max-h-36 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--card)] py-1 shadow-lg">
-              {held.map((h, i) => (
-                <button
-                  key={`held-${h.idx}`}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedHeldKey(i);
-                    setHeldMenuOpen(false);
-                  }}
-                  className={`flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left text-[11px] transition hover:bg-[var(--surface-hover)] ${
-                    i === selectedHeldKey ? "font-semibold text-[var(--accent)]" : "text-[var(--foreground)]"
-                  }`}
-                >
-                  <span className="min-w-0 truncate">{h.label}</span>
-                  <span className="shrink-0 tabular-nums text-[var(--muted)]">
-                    {formatShareAmount(h.bal, collateralDecimals)}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
-      )}
+      ))}
     </div>
   );
 }
@@ -1116,7 +1011,6 @@ export function TradesClient() {
         {groups.length > 0 && (
           <div className="mt-5 grid max-w-[760px] gap-3 md:grid-cols-2">
             {groups.map((g) => {
-              const chance = Number.isFinite(g.chancePct) ? g.chancePct : 50;
               const winIdx = g.winningOutcomeIndex;
               const winBal =
                 g.marketState === 2 && winIdx !== null ? balanceForOutcome(g.positions, winIdx) : BigInt(0);
@@ -1146,17 +1040,6 @@ export function TradesClient() {
                     <p className="mt-0.5 text-[11px] text-[var(--muted)]">
                       {g.marketKind} · {stateLabel(g.marketState, g.stakeEndUnix)}
                     </p>
-
-                    <div className="mt-2 flex items-center justify-between text-xs font-semibold">
-                      <span className="text-emerald-400 [html[data-theme=light]_&]:text-emerald-700">{chance.toFixed(0)}%</span>
-                      <span className="text-rose-400 [html[data-theme=light]_&]:text-rose-700">{(100 - chance).toFixed(0)}%</span>
-                    </div>
-                    <div className="mt-1 h-2 rounded-full border border-[var(--border)] bg-[var(--surface)] p-[2px]">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-emerald-500/70 to-rose-500/70"
-                        style={{ width: `${chance}%` }}
-                      />
-                    </div>
 
                     {g.marketState === 2 ? (
                       winIdx !== null && winBal > BigInt(0) ? (
@@ -1190,15 +1073,8 @@ export function TradesClient() {
                         />
                       )
                     ) : (
-                      <OpenPositionOutcomes
+                      <OpenPositionHoldings
                         labels={g.outcomeLabels}
-                        chancePcts={
-                          g.outcomeChancePcts.length > 0
-                            ? g.outcomeChancePcts
-                            : g.outcomeLabels.map((_, i) =>
-                                i === 0 ? g.chancePct : Math.round((100 - g.chancePct) / Math.max(1, g.outcomeLabels.length - 1)),
-                              )
-                        }
                         positions={g.positions}
                         collateralDecimals={g.collateralDecimals}
                       />
