@@ -8,7 +8,7 @@ dataSources:
     source:
       address: "0x43E92A90b47d1316Dd27709A8990806B4E19f074"
       abi: Factory
-      startBlock: 41365623
+      startBlock: 42379440
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -28,7 +28,7 @@ dataSources:
     source:
       address: "0x00a31D4094e6d28F898885def5BAB655c0cd8D90"
       abi: Vault
-      startBlock: 41365622
+      startBlock: 42379440
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -60,7 +60,7 @@ dataSources:
     source:
       address: "0xF71A379666670Bb50Ce0060c66F74C6F6111Eb71"
       abi: Router
-      startBlock: 41365636
+      startBlock: 42379440
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
