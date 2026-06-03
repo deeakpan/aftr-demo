@@ -7,7 +7,7 @@ import { formatUnits, parseAbi, parseUnits, zeroAddress } from "viem";
 import { useAccount, useWalletClient } from "wagmi";
 import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import { AppLayout } from "@/app/components/app-layout";
-import { LimitOrderParams, TradeModal } from "@/app/market/components/trade-modal";
+import { LimitOrderParams, TradeModal, type TradeSuccessResult } from "@/app/market/components/trade-modal";
 import {
   collateralTickerFromDeployment,
   isUsdStyledCollateralTicker,
@@ -214,6 +214,7 @@ export function MarketClient() {
   const [selectedOutcome, setSelectedOutcome] = useState(0);
   const [tradeAmount, setTradeAmount] = useState("");
   const [tradeStatus, setTradeStatus] = useState("");
+  const [tradeSuccess, setTradeSuccess] = useState<TradeSuccessResult | null>(null);
   const [tradeBusy, setTradeBusy] = useState(false);
   const [tradePriceRaw, setTradePriceRaw] = useState<bigint | null>(null);
   const [collateralBalance, setCollateralBalance] = useState<bigint | null>(null);
@@ -546,6 +547,7 @@ export function MarketClient() {
     setSelectedOutcome(outcomeIndex);
     setTradeAmount("");
     setTradeStatus("");
+    setTradeSuccess(null);
   };
 
   const submitTrade = async () => {
@@ -625,7 +627,17 @@ export function MarketClient() {
         gas: BigInt(500_000),
       });
       await publicClient.waitForTransactionReceipt({ hash: txHash });
-      setTradeStatus("Trade successful.");
+      const tick = collateralTickerFromDeployment(selectedMarket.collateralAddress);
+      const spendLabel = isUsdStyledCollateralTicker(tick)
+        ? `$${tradeAmount} ${tick}`
+        : `${tradeAmount} ${tick}`;
+      setTradeSuccess({
+        outcomeLabel: selectedMarket.outcomeLabels[selectedOutcome] ?? `Outcome ${selectedOutcome + 1}`,
+        amountLabel: spendLabel,
+        sharesLabel: tradeSummary?.tokens ?? "—",
+        txHash,
+      });
+      setTradeStatus("");
       setTradeAmount("");
     } catch (error) {
       setTradeStatus(formatTradeError(error));
@@ -756,13 +768,6 @@ export function MarketClient() {
                         const pct = Number.isFinite(pcts[idx])
                           ? (pcts[idx] as number)
                           : Math.round(100 / Math.max(1, m.outcomes));
-                        const borderL = [
-                          "border-l-[3px] border-l-emerald-500/70",
-                          "border-l-[3px] border-l-rose-500/70",
-                          "border-l-[3px] border-l-amber-500/70",
-                          "border-l-[3px] border-l-sky-500/70",
-                          "border-l-[3px] border-l-violet-500/70",
-                        ][idx % 5]!;
                         return (
                           <button
                             key={`${m.address}-oc-${idx}`}
@@ -772,12 +777,12 @@ export function MarketClient() {
                               e.stopPropagation();
                               openTrade(m, idx);
                             }}
-                            className={`flex w-full items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-left transition hover:border-[var(--accent)]/30 hover:bg-[var(--surface-hover)] ${borderL}`}
+                            className="flex w-full items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-left transition hover:border-[var(--accent)]/30 hover:bg-[var(--surface-hover)]"
                           >
                             <span className="min-w-0 truncate text-[11px] font-semibold leading-tight text-[var(--foreground)]">
                               {label}
                             </span>
-                            <span className="shrink-0 text-xs font-bold tabular-nums text-emerald-400 [html[data-theme=light]_&]:text-emerald-700">
+                            <span className="shrink-0 text-xs font-bold tabular-nums text-[var(--muted)]">
                               {pct.toFixed(1)}%
                             </span>
                           </button>
@@ -824,6 +829,7 @@ export function MarketClient() {
         onClose={() => {
           setSelectedMarket(null);
           setTradeStatus("");
+          setTradeSuccess(null);
           setTradeAmount("");
         setOutcomeTokenBalance(null);
         }}
@@ -856,6 +862,13 @@ export function MarketClient() {
           void submitTrade();
         }}
         onSubmitLimit={submitLimitOrderFromParams}
+        tradeSuccess={tradeSuccess}
+        onDismissSuccess={() => {
+          setTradeSuccess(null);
+          setSelectedMarket(null);
+          setTradeAmount("");
+          setOutcomeTokenBalance(null);
+        }}
       />
     </AppLayout>
   );

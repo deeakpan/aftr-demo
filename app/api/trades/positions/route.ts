@@ -197,14 +197,22 @@ export async function GET(req: NextRequest) {
     const outcomeLabels = labels.length > 0 ? labels : fallbackLabels;
 
     let chancePct = numOutcomes >= 2 ? 50 : Math.max(1, Math.round(100 / Math.max(1, numOutcomes)));
+    let outcomeChancePcts = Array.from({ length: numOutcomes }, (_, i) =>
+      i === 0 ? chancePct : Math.round((100 - chancePct) / Math.max(1, numOutcomes - 1)),
+    );
     try {
-      const p0 = await publicClient.readContract({
-        address: market,
-        abi: MARKET_ABI,
-        functionName: "priceOf",
-        args: [0],
-      });
-      chancePct = clampPct(Number(formatUnits(p0 as bigint, 18)) * 100);
+      const priceReads = await Promise.all(
+        Array.from({ length: numOutcomes }, (_, i) =>
+          publicClient.readContract({
+            address: market,
+            abi: MARKET_ABI,
+            functionName: "priceOf",
+            args: [i],
+          }),
+        ),
+      );
+      outcomeChancePcts = priceReads.map((p) => clampPct(Number(formatUnits(p as bigint, 18)) * 100));
+      chancePct = outcomeChancePcts[0] ?? chancePct;
     } catch {
       // keep fallback
     }
@@ -289,6 +297,7 @@ export async function GET(req: NextRequest) {
         balance: bal.toString(),
         collateralDecimals,
         chancePct,
+        outcomeChancePcts,
         poolTvlDisplay,
         stakeEndsLabel,
         imageUrl,
@@ -318,6 +327,7 @@ export async function GET(req: NextRequest) {
         balance: "0",
         collateralDecimals,
         chancePct,
+        outcomeChancePcts,
         poolTvlDisplay,
         stakeEndsLabel,
         imageUrl,

@@ -14,7 +14,7 @@ import {
 import { useAccount, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import { MarketChartPanel } from "@/app/market/components/market-chart-panel";
-import { LimitOrderParams, TradeModal } from "@/app/market/components/trade-modal";
+import { LimitOrderParams, TradeModal, type TradeSuccessResult } from "@/app/market/components/trade-modal";
 import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import { collateralTickerFromDeployment, isUsdStyledCollateralTicker } from "@/lib/deployment-collateral";
 import { deploymentPublicClient, assertMarketContract, readMarketPrice } from "@/lib/deployment-public-client";
@@ -235,6 +235,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
   const [selectedOutcome, setSelectedOutcome] = useState(0);
   const [tradeAmount, setTradeAmount] = useState("");
   const [tradeStatus, setTradeStatus] = useState("");
+  const [tradeSuccess, setTradeSuccess] = useState<TradeSuccessResult | null>(null);
   const [tradeBusy, setTradeBusy] = useState(false);
   const [tradePriceRaw, setTradePriceRaw] = useState<bigint | null>(null);
   const [collateralBalance, setCollateralBalance] = useState<bigint | null>(null);
@@ -677,7 +678,17 @@ export function MarketDetailClient({ address: addressProp }: Props) {
         gas: BigInt(500_000),
       });
       await publicClient.waitForTransactionReceipt({ hash: txHash });
-      setTradeStatus("Trade successful.");
+      const tick = collateralTickerFromDeployment(market.collateralAddress);
+      const spendLabel = isUsdStyledCollateralTicker(tick)
+        ? `$${tradeAmount} ${tick}`
+        : `${tradeAmount} ${tick}`;
+      setTradeSuccess({
+        outcomeLabel: market.outcomeLabels[selectedOutcome] ?? `Outcome ${selectedOutcome + 1}`,
+        amountLabel: spendLabel,
+        sharesLabel: tradeSummary?.tokens ?? "—",
+        txHash,
+      });
+      setTradeStatus("");
       setTradeAmount("");
       void reload();
     } catch (error) {
@@ -896,17 +907,35 @@ export function MarketDetailClient({ address: addressProp }: Props) {
 
 
             {/* Outcome hero */}
-            <div className="mb-1 flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-emerald-400">
-                {market.outcomeLabels[0] ?? "Yes"}
-              </span>
-              <span className="text-sm font-semibold text-emerald-400 [html[data-theme=light]_&]:text-emerald-700">
-                ↑ {market.chancePct.toFixed(1)}%
-              </span>
-            </div>
-            <p className="mb-5 text-sm text-[var(--muted)]">
-              {market.chancePct.toFixed(1)}% chance
-            </p>
+            {market.outcomes > 2 ? (
+              <>
+                <div className="mb-1 flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-[var(--foreground)]">
+                    {market.outcomeLabels[selectedOutcome] ?? `Outcome ${selectedOutcome + 1}`}
+                  </span>
+                  {tradePriceRaw && tradePriceRaw > BigInt(0) && (
+                    <span className="text-sm font-semibold tabular-nums text-[var(--muted)]">
+                      {clampPct(Number(formatUnits(tradePriceRaw, 18)) * 100).toFixed(1)}%
+                    </span>
+                  )}
+                </div>
+                <p className="mb-5 text-sm text-[var(--muted)]">Select an outcome to trade or view the order book</p>
+              </>
+            ) : (
+              <>
+                <div className="mb-1 flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-emerald-400">
+                    {market.outcomeLabels[0] ?? "Yes"}
+                  </span>
+                  <span className="text-sm font-semibold text-emerald-400 [html[data-theme=light]_&]:text-emerald-700">
+                    ↑ {market.chancePct.toFixed(1)}%
+                  </span>
+                </div>
+                <p className="mb-5 text-sm text-[var(--muted)]">
+                  {market.chancePct.toFixed(1)}% chance
+                </p>
+              </>
+            )}
 
             <MarketChartPanel
               marketKind={market.kind}
@@ -925,13 +954,33 @@ export function MarketDetailClient({ address: addressProp }: Props) {
                   <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">
                     Order Book · {market.outcomeLabels[selectedOutcome] ?? `Outcome ${selectedOutcome}`}
                   </p>
-                  <div className="flex gap-1">
-                    {market.outcomeLabels.slice(0, 2).map((label, i) => (
-                      <button key={i} type="button" onClick={() => setSelectedOutcome(i)}
-                        className={`rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition ${selectedOutcome === i ? (i === 0 ? "bg-emerald-600 text-white" : "bg-rose-600 text-white") : "text-[var(--muted)] hover:text-[var(--foreground)]"}`}>
-                        {label}
-                      </button>
-                    ))}
+                  <div className="flex max-w-[55%] flex-wrap justify-end gap-1">
+                    {(market.outcomes > 2 ? market.outcomeLabels : market.outcomeLabels.slice(0, 2)).map(
+                      (label, i) => {
+                        const isMulti = market.outcomes > 2;
+                        const active = selectedOutcome === i;
+                        return (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setSelectedOutcome(i)}
+                            className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide transition ${
+                              isMulti
+                                ? active
+                                  ? "bg-[var(--accent)] text-white"
+                                  : "text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                                : active
+                                  ? i === 0
+                                    ? "bg-emerald-600 text-white"
+                                    : "bg-rose-600 text-white"
+                                  : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      },
+                    )}
                   </div>
                 </div>
                 {obSnapshot && (obSnapshot.bidPrices.length > 0 || obSnapshot.askPrices.length > 0) ? (
@@ -1055,6 +1104,8 @@ export function MarketDetailClient({ address: addressProp }: Props) {
                   busy={tradeBusy}
                   onSubmit={() => void submitTrade()}
                   onSubmitLimit={submitLimitOrderFromParams}
+                  tradeSuccess={tradeSuccess}
+                  onDismissSuccess={() => setTradeSuccess(null)}
                 />
               </div>
             </div>
@@ -1069,7 +1120,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => { setSelectedOutcome(0); setTradeOpen(true); setTradeStatus(""); }}
+              onClick={() => { setSelectedOutcome(0); setTradeOpen(true); setTradeStatus(""); setTradeSuccess(null); }}
               className="group flex flex-1 items-center justify-between rounded-full border border-emerald-600 bg-emerald-700 px-4 py-3 transition hover:bg-emerald-600 active:scale-[0.97]"
             >
               <span className="text-xs font-bold uppercase tracking-widest text-emerald-200">
@@ -1082,7 +1133,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
             {market.outcomes >= 2 && (
               <button
                 type="button"
-                onClick={() => { setSelectedOutcome(1); setTradeOpen(true); setTradeStatus(""); }}
+                onClick={() => { setSelectedOutcome(1); setTradeOpen(true); setTradeStatus(""); setTradeSuccess(null); }}
                 className="group flex flex-1 items-center justify-between rounded-full border border-rose-600 bg-rose-700 px-4 py-3 transition hover:bg-rose-600 active:scale-[0.97]"
               >
                 <span className="text-xs font-bold uppercase tracking-widest text-rose-200">
@@ -1109,6 +1160,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
           onClose={() => {
             setTradeOpen(false);
             setTradeStatus("");
+            setTradeSuccess(null);
             setTradeAmount("");
           }}
           marketTitle={market.title}
@@ -1140,6 +1192,12 @@ export function MarketDetailClient({ address: addressProp }: Props) {
             void submitTrade();
           }}
           onSubmitLimit={submitLimitOrderFromParams}
+          tradeSuccess={tradeSuccess}
+          onDismissSuccess={() => {
+            setTradeSuccess(null);
+            setTradeOpen(false);
+            setTradeAmount("");
+          }}
         />
       )}
     </AppLayout>

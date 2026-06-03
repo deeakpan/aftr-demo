@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowsClockwise, BookmarkSimple, Copy, PlusMinus, X } from "@phosphor-icons/react";
+import { ArrowsClockwise, BookmarkSimple, CaretDown, Copy, PlusMinus, X } from "@phosphor-icons/react";
 import { formatUnits, parseAbi, zeroAddress } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
@@ -77,6 +77,7 @@ type PositionRow = {
   balance: bigint;
   collateralDecimals: number;
   chancePct: number;
+  outcomeChancePcts: number[];
   poolTvlDisplay: string;
   stakeEndsLabel: string;
   imageUrl: string;
@@ -98,6 +99,7 @@ type MarketPositionGroup = {
   redemptionRate: bigint;
   outcomeLabels: string[];
   chancePct: number;
+  outcomeChancePcts: number[];
   poolTvlDisplay: string;
   stakeEndsLabel: string;
   imageUrl: string;
@@ -190,6 +192,7 @@ function groupRows(rows: PositionRow[]): MarketPositionGroup[] {
       redemptionRate: head.redemptionRate,
       outcomeLabels: head.outcomeLabels,
       chancePct: head.chancePct,
+      outcomeChancePcts: head.outcomeChancePcts,
       poolTvlDisplay: head.poolTvlDisplay,
       stakeEndsLabel: head.stakeEndsLabel,
       imageUrl: head.imageUrl,
@@ -213,6 +216,154 @@ function balanceForOutcome(
 ): bigint {
   const hit = positions.find((p) => p.outcomeIndex === outcomeIndex);
   return hit?.balance ?? BigInt(0);
+}
+
+function outcomePctColor(idx: number, total: number): string {
+  if (total === 2 && idx === 0) return "text-emerald-400 [html[data-theme=light]_&]:text-emerald-700";
+  if (total === 2 && idx === 1) return "text-rose-400 [html[data-theme=light]_&]:text-rose-700";
+  return "text-[var(--foreground)]";
+}
+
+function OpenPositionOutcomes({
+  labels,
+  chancePcts,
+  positions,
+  collateralDecimals,
+}: {
+  labels: string[];
+  chancePcts: number[];
+  positions: MarketPositionGroup["positions"];
+  collateralDecimals: number;
+}) {
+  const n = labels.length;
+  const scrollable = n > 2;
+
+  const held = useMemo(
+    () =>
+      labels
+        .map((label, idx) => ({
+          idx,
+          label,
+          bal: balanceForOutcome(positions, idx),
+          pct: chancePcts[idx] ?? (n >= 2 && idx === 0 ? 50 : Math.round(100 / Math.max(1, n))),
+        }))
+        .filter((h) => h.bal > BigInt(0)),
+    [labels, chancePcts, positions, n],
+  );
+
+  const [heldMenuOpen, setHeldMenuOpen] = useState(false);
+  const [selectedHeldKey, setSelectedHeldKey] = useState(0);
+  const heldMenuRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setSelectedHeldKey(0);
+    setHeldMenuOpen(false);
+  }, [labels.join("|"), positions.map((p) => `${p.outcomeIndex}:${p.balance}`).join("|")]);
+
+  useEffect(() => {
+    if (!heldMenuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!heldMenuRef.current?.contains(e.target as Node)) setHeldMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [heldMenuOpen]);
+
+  const selectedHeld = held[selectedHeldKey] ?? held[0];
+
+  return (
+    <div className="mt-2">
+      <div
+        className={`space-y-0.5 ${scrollable ? "no-scrollbar max-h-[88px] overflow-y-auto pr-0.5" : ""}`}
+      >
+        {labels.map((label, idx) => {
+          const pct = chancePcts[idx] ?? (n >= 2 && idx === 0 ? 50 : Math.round(100 / Math.max(1, n)));
+          const has = balanceForOutcome(positions, idx) > BigInt(0);
+          return (
+            <div
+              key={`${label}-${idx}`}
+              className={`flex items-center justify-between gap-2 rounded-md px-1.5 py-1 transition ${
+                has
+                  ? "hover:border hover:border-[var(--accent)]/35 hover:bg-[var(--surface-hover)]"
+                  : "hover:bg-[var(--surface-hover)]/80"
+              }`}
+            >
+              <span className="min-w-0 truncate text-[11px] font-medium text-[var(--foreground)]">{label}</span>
+              <span className={`shrink-0 text-[10px] font-semibold tabular-nums ${outcomePctColor(idx, n)}`}>
+                {pct.toFixed(0)}%
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {held.length === 1 && (
+        <p className="mt-1.5 text-[10px] text-[var(--muted)]">
+          Your position:{" "}
+          <span className="font-medium text-[var(--foreground)]">
+            {formatShareAmount(held[0]!.bal, collateralDecimals)}
+          </span>
+        </p>
+      )}
+
+      {held.length > 1 && (
+        <div ref={heldMenuRef} className="relative mt-1.5">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+            Your positions
+          </p>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setHeldMenuOpen((o) => !o);
+            }}
+            className="flex w-full items-center justify-between gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-left transition hover:border-[var(--accent)]/40 hover:bg-[var(--surface-hover)]"
+          >
+            <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-[var(--foreground)]">
+              {selectedHeld ? (
+                <>
+                  {selectedHeld.label}
+                  <span className="ml-1.5 text-[var(--muted)]">
+                    · {formatShareAmount(selectedHeld.bal, collateralDecimals)}
+                  </span>
+                </>
+              ) : (
+                "Select position"
+              )}
+            </span>
+            <CaretDown
+              size={12}
+              weight="bold"
+              className={`shrink-0 text-[var(--muted)] transition ${heldMenuOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+          {heldMenuOpen && (
+            <div className="no-scrollbar absolute left-0 right-0 z-10 mt-1 max-h-36 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--card)] py-1 shadow-lg">
+              {held.map((h, i) => (
+                <button
+                  key={`held-${h.idx}`}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedHeldKey(i);
+                    setHeldMenuOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left text-[11px] transition hover:bg-[var(--surface-hover)] ${
+                    i === selectedHeldKey ? "font-semibold text-[var(--accent)]" : "text-[var(--foreground)]"
+                  }`}
+                >
+                  <span className="min-w-0 truncate">{h.label}</span>
+                  <span className="shrink-0 tabular-nums text-[var(--muted)]">
+                    {formatShareAmount(h.bal, collateralDecimals)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function SettledMarketSummary({
@@ -878,6 +1029,7 @@ export function TradesClient() {
             balance: string;
             collateralDecimals: number;
             chancePct: number;
+            outcomeChancePcts?: number[];
             poolTvlDisplay: string;
             stakeEndsLabel: string;
             imageUrl: string;
@@ -905,6 +1057,7 @@ export function TradesClient() {
           balance: BigInt(r.balance),
           collateralDecimals: r.collateralDecimals,
           chancePct: clampPct(r.chancePct),
+          outcomeChancePcts: (r.outcomeChancePcts ?? []).map((p) => clampPct(p)),
           poolTvlDisplay: r.poolTvlDisplay,
           stakeEndsLabel: r.stakeEndsLabel || fmtTs(r.stakeEndUnix),
           imageUrl: r.imageUrl,
@@ -964,9 +1117,6 @@ export function TradesClient() {
           <div className="mt-5 grid max-w-[760px] gap-3 md:grid-cols-2">
             {groups.map((g) => {
               const chance = Number.isFinite(g.chancePct) ? g.chancePct : 50;
-              const nOutcomes = g.outcomeLabels.length;
-              const extraPositions = g.positions.filter((p) => p.outcomeIndex >= 2);
-
               const winIdx = g.winningOutcomeIndex;
               const winBal =
                 g.marketState === 2 && winIdx !== null ? balanceForOutcome(g.positions, winIdx) : BigInt(0);
@@ -1040,42 +1190,18 @@ export function TradesClient() {
                         />
                       )
                     ) : (
-                      <>
-                        <div className="mt-2 grid grid-cols-2 gap-1.5">
-                          {g.outcomeLabels.slice(0, 2).map((label, idx) => {
-                            const bal = balanceForOutcome(g.positions, idx);
-                            const has = bal > BigInt(0);
-                            return (
-                              <div
-                                key={`${g.marketAddress}-${label}`}
-                                className={`rounded-md border px-1.5 py-1 text-center ${
-                                  idx === 0
-                                    ? "border-emerald-500/40 bg-emerald-500/10 [html[data-theme=light]_&]:bg-emerald-50"
-                                    : "border-rose-500/40 bg-rose-500/10 [html[data-theme=light]_&]:bg-rose-50"
-                                }`}
-                              >
-                                <p className={`text-[11px] font-semibold uppercase tracking-wide ${idx === 0 ? "text-emerald-200 [html[data-theme=light]_&]:text-emerald-800" : "text-rose-200 [html[data-theme=light]_&]:text-rose-800"}`}>
-                                  {label}
-                                </p>
-                                <p className={`mt-0.5 text-[10px] font-medium leading-tight ${has ? "text-[var(--foreground)]" : "text-[var(--muted)] opacity-80"}`}>
-                                  {has ? formatShareAmount(bal, g.collateralDecimals) : "—"}
-                                </p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        {nOutcomes > 2 && extraPositions.length > 0 && (
-                          <div className="mt-2 space-y-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Other outcomes</p>
-                            {extraPositions.map((p) => (
-                              <p key={p.outcomeIndex} className="text-xs text-[var(--foreground)]">
-                                <span className="text-[var(--muted)]">{g.outcomeLabels[p.outcomeIndex] ?? `Outcome ${p.outcomeIndex + 1}`}:</span>{" "}
-                                {formatShareAmount(p.balance, g.collateralDecimals)}
-                              </p>
-                            ))}
-                          </div>
-                        )}
-                      </>
+                      <OpenPositionOutcomes
+                        labels={g.outcomeLabels}
+                        chancePcts={
+                          g.outcomeChancePcts.length > 0
+                            ? g.outcomeChancePcts
+                            : g.outcomeLabels.map((_, i) =>
+                                i === 0 ? g.chancePct : Math.round((100 - g.chancePct) / Math.max(1, g.outcomeLabels.length - 1)),
+                              )
+                        }
+                        positions={g.positions}
+                        collateralDecimals={g.collateralDecimals}
+                      />
                     )}
                   </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ArrowsClockwise, CheckCircle, PencilSimple, WarningCircle, X } from "@phosphor-icons/react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowsClockwise, CaretDown, CheckCircle, PencilSimple, WarningCircle, X } from "@phosphor-icons/react";
 import { formatUnits } from "viem";
 import { isUsdStyledCollateralTicker } from "@/lib/deployment-collateral";
 
@@ -10,6 +10,13 @@ export type LimitOrderParams = {
   outcomeIndex: number;
   price: string;
   amount: string;
+};
+
+export type TradeSuccessResult = {
+  outcomeLabel: string;
+  amountLabel: string;
+  sharesLabel: string;
+  txHash?: string;
 };
 
 type TradeModalProps = {
@@ -45,6 +52,8 @@ type TradeModalProps = {
   onSubmit: () => void;
   /** Optional — enables the Limit tab */
   onSubmitLimit?: (params: LimitOrderParams) => Promise<void>;
+  tradeSuccess?: TradeSuccessResult | null;
+  onDismissSuccess?: () => void;
 };
 
 const QUICK_AMOUNTS = ["10", "25", "50", "100"] as const;
@@ -81,6 +90,8 @@ export function TradeModal({
   busy,
   onSubmit,
   onSubmitLimit,
+  tradeSuccess = null,
+  onDismissSuccess,
 }: TradeModalProps) {
   const [orderMode, setOrderMode] = useState<"market" | "limit">("market");
   const [limitSide, setLimitSide] = useState<"buy" | "sell">("buy");
@@ -89,6 +100,8 @@ export function TradeModal({
   const [limitAmountUnit, setLimitAmountUnit] = useState<"tokens" | "quote">("tokens");
   const [limitStatus, setLimitStatus] = useState("");
   const [limitBusy, setLimitBusy] = useState(false);
+  const [outcomeMenuOpen, setOutcomeMenuOpen] = useState(false);
+  const outcomeMenuRef = useRef<HTMLDivElement>(null);
 
   const labels = outcomeLabels.length > 0 ? outcomeLabels : ["Outcome 0"];
   const balanceNum = walletBalanceWei != null ? Number(formatUnits(walletBalanceWei, collateralDecimals)) : null;
@@ -189,6 +202,15 @@ export function TradeModal({
     // Prefill when side/outcome/price context changes; field stays editable.
   }, [limitSide, selectedOutcomeIndex, marketPrice]);
 
+  useEffect(() => {
+    if (!outcomeMenuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!outcomeMenuRef.current?.contains(e.target as Node)) setOutcomeMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [outcomeMenuOpen]);
+
   if (!inline && !open) return null;
 
   const handleLimitSubmit = async () => {
@@ -223,37 +245,111 @@ export function TradeModal({
     }
   };
 
-  // ── Outcome selector buttons ─────────────────────────────────────────────
-  const outcomeButtons = (
-    <div className="grid grid-cols-2 gap-1.5">
-      {labels.slice(0, 4).map((label, idx) => {
-        const active = idx === selectedOutcomeIndex;
-        const isNo = idx === 1;
-        const isYesNo = idx <= 1;
-        const baseYes =
-          "border-emerald-500/25 bg-emerald-500/[0.06] text-emerald-300/80 hover:border-emerald-500/60 hover:bg-emerald-600 hover:text-white [html[data-theme=light]_&]:bg-emerald-50 [html[data-theme=light]_&]:text-emerald-800 [html[data-theme=light]_&]:hover:bg-emerald-600 [html[data-theme=light]_&]:hover:text-white";
-        const activeYes = "border-emerald-500 bg-emerald-600 text-white";
-        const baseNo =
-          "border-rose-500/25 bg-rose-500/[0.06] text-rose-300/80 hover:border-rose-500/60 hover:bg-rose-600 hover:text-white [html[data-theme=light]_&]:bg-rose-50 [html[data-theme=light]_&]:text-rose-800 [html[data-theme=light]_&]:hover:bg-rose-600 [html[data-theme=light]_&]:hover:text-white";
-        const activeNo = "border-rose-500 bg-rose-600 text-white";
-        const neutralBase =
-          "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--foreground)]";
-        const neutralActive =
-          "border-[var(--accent)]/50 bg-[var(--surface-hover)] text-[var(--foreground)]";
-        let cls = "rounded-lg border py-2 text-center text-[11px] font-semibold uppercase tracking-wider transition ";
-        if (isYesNo) cls += isNo ? (active ? activeNo : baseNo) : (active ? activeYes : baseYes);
-        else cls += active ? neutralActive : neutralBase;
-        return (
-          <button key={`${label}-${idx}`} type="button" onClick={() => onSelectOutcome(idx)} className={cls}>
-            {label}
-          </button>
-        );
-      })}
+  // ── Outcome selector ─────────────────────────────────────────────────────
+  const outcomeSelector =
+    labels.length > 2 ? (
+      <div ref={outcomeMenuRef} className="relative">
+        <button
+          type="button"
+          onClick={() => setOutcomeMenuOpen((o) => !o)}
+          className="flex w-full items-center justify-between gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-left transition hover:border-[var(--accent)]/40 hover:bg-[var(--surface-hover)]"
+        >
+          <span className="min-w-0 truncate text-sm font-semibold text-[var(--foreground)]">{selectedLabel}</span>
+          <CaretDown
+            size={14}
+            weight="bold"
+            className={`shrink-0 text-[var(--muted)] transition ${outcomeMenuOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+        {outcomeMenuOpen && (
+          <div className="no-scrollbar absolute left-0 right-0 z-20 mt-1 max-h-44 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--card)] py-1 shadow-lg">
+            {labels.map((label, idx) => (
+              <button
+                key={`${label}-${idx}`}
+                type="button"
+                onClick={() => {
+                  onSelectOutcome(idx);
+                  setOutcomeMenuOpen(false);
+                }}
+                className={`flex w-full items-center px-3 py-2 text-left text-sm transition hover:bg-[var(--surface-hover)] ${
+                  idx === selectedOutcomeIndex
+                    ? "font-semibold text-[var(--accent)]"
+                    : "font-medium text-[var(--foreground)]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    ) : (
+      <div className="grid grid-cols-2 gap-1.5">
+        {labels.slice(0, 2).map((label, idx) => {
+          const active = idx === selectedOutcomeIndex;
+          const isNo = idx === 1;
+          const baseYes =
+            "border-emerald-500/25 bg-emerald-500/[0.06] text-emerald-300/80 hover:border-emerald-500/60 hover:bg-emerald-600 hover:text-white [html[data-theme=light]_&]:bg-emerald-50 [html[data-theme=light]_&]:text-emerald-800 [html[data-theme=light]_&]:hover:bg-emerald-600 [html[data-theme=light]_&]:hover:text-white";
+          const activeYes = "border-emerald-500 bg-emerald-600 text-white";
+          const baseNo =
+            "border-rose-500/25 bg-rose-500/[0.06] text-rose-300/80 hover:border-rose-500/60 hover:bg-rose-600 hover:text-white [html[data-theme=light]_&]:bg-rose-50 [html[data-theme=light]_&]:text-rose-800 [html[data-theme=light]_&]:hover:bg-rose-600 [html[data-theme=light]_&]:hover:text-white";
+          const activeNo = "border-rose-500 bg-rose-600 text-white";
+          const cls =
+            "rounded-lg border py-2 text-center text-[11px] font-semibold uppercase tracking-wider transition " +
+            (isNo ? (active ? activeNo : baseNo) : active ? activeYes : baseYes);
+          return (
+            <button key={`${label}-${idx}`} type="button" onClick={() => onSelectOutcome(idx)} className={cls}>
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    );
+
+  const successPanel = tradeSuccess ? (
+    <div className="flex flex-col items-center px-4 py-8 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 [html[data-theme=light]_&]:text-emerald-600">
+        <CheckCircle size={36} weight="fill" />
+      </div>
+      <h3 className="mt-4 text-lg font-bold text-[var(--foreground)]">Trade complete</h3>
+      <p className="mt-1 text-sm text-[var(--muted)]">You bought {tradeSuccess.outcomeLabel}</p>
+      <div className="mt-5 w-full space-y-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-[var(--muted)]">Spent</span>
+          <span className="font-semibold tabular-nums text-[var(--foreground)]">{tradeSuccess.amountLabel}</span>
+        </div>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-[var(--muted)]">Shares received</span>
+          <span className="font-semibold tabular-nums text-[var(--foreground)]">{tradeSuccess.sharesLabel}</span>
+        </div>
+        {tradeSuccess.txHash && (
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <span className="text-[var(--muted)]">Receipt</span>
+            <a
+              href={`https://sepolia.basescan.org/tx/${tradeSuccess.txHash}`}
+              target="_blank"
+              rel="noreferrer"
+              className="truncate font-mono text-[10px] text-[var(--accent)] hover:underline"
+            >
+              {tradeSuccess.txHash.slice(0, 10)}…{tradeSuccess.txHash.slice(-8)}
+            </a>
+          </div>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => onDismissSuccess?.()}
+        className="mt-5 w-full rounded-lg bg-[var(--accent)] py-2.5 text-xs font-bold text-white shadow-[0_0_18px_rgba(139,92,246,0.28)] transition hover:brightness-110"
+      >
+        Done
+      </button>
     </div>
-  );
+  ) : null;
 
   // ── Panel content (shared between modal + inline) ────────────────────────
-  const panelContent = (
+  const panelContent = tradeSuccess ? (
+    successPanel
+  ) : (
     <div
       className={
         inline ? "space-y-3.5 px-4 py-4" : "space-y-3.5 bg-[var(--card)] px-4 py-4"
@@ -291,7 +387,7 @@ export function TradeModal({
       )}
 
       {/* Outcome selector */}
-      {outcomeButtons}
+      {outcomeSelector}
 
       {orderMode === "market" ? (
         <>

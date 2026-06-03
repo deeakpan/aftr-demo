@@ -165,7 +165,17 @@ export function MarketPreviewModal({
           </div>
 
           {submitStatus && (
-            <p className="mt-2 text-xs text-[var(--muted)]">{submitStatus}</p>
+            <p
+              className={`mt-3 text-sm ${
+                isCreateComplete || /successfully/i.test(submitStatus)
+                  ? "font-bold text-emerald-400 [html[data-theme=light]_&]:text-emerald-700"
+                  : /error|failed|insufficient|missing|invalid/i.test(submitStatus)
+                    ? "font-semibold text-rose-400 [html[data-theme=light]_&]:text-rose-700"
+                    : "font-medium text-[var(--foreground)]"
+              }`}
+            >
+              {submitStatus}
+            </p>
           )}
         </div>
 
