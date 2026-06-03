@@ -71,16 +71,25 @@ const ERC20_ABI = parseAbi([
   "function approve(address spender, uint256 amount) returns (bool)",
 ]);
 const FACTORY_ABI = parseAbi([
-  "function createEventMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,string umaAncillary,bytes32 umaIdentifier,uint64 umaLiveness,uint256 umaProposerBond,uint256 umaReward,address umaRewardCurrency,uint256 minBootstrapTotal) p) returns (address market)",
-  "function createPriceMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,address chainlinkFeed,uint256 priceThreshold,uint8 priceKind,uint256 priceUpperBound,uint256 maxPriceStaleness,uint256[] priceBinLower,uint256[] priceBinUpper,uint256 minBootstrapTotal) p) returns (address market)",
-  "event MarketCreated(address indexed market, uint8 indexed kind, address indexed collateralToken, address[] outcomeTokens, string[] outcomeLabels, uint256 stakeEndTimestamp, uint256 resolveAfterTimestamp, bytes32 metadataHash)",
-]);
-const MARKET_ABI = parseAbi([
-  "function bootstrapLiquidity(uint256 totalAmount, address shareRecipient) payable",
-  "function bootstrapped() view returns (bool)",
-  "function numOutcomes() view returns (uint8)",
+  "function createEventMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,string umaAncillary,bytes32 umaIdentifier,uint64 umaLiveness,uint256 umaProposerBond,uint256 umaReward,address umaRewardCurrency,uint256 minBootstrapTotal,uint256 bootstrapAmount,address shareRecipient) p) payable returns (address market)",
+  "function createPriceMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,address chainlinkFeed,uint256 priceThreshold,uint8 priceKind,uint256 priceUpperBound,uint256 maxPriceStaleness,uint256[] priceBinLower,uint256[] priceBinUpper,uint256 minBootstrapTotal,uint256 bootstrapAmount,address shareRecipient) p) payable returns (address market)",
+  "event MarketCreated(address indexed market, uint8 indexed kind, address indexed collateralToken, address[] outcomeTokens, string[] outcomeLabels, uint256 stakeEndTimestamp, uint256 resolveAfterTimestamp, bytes32 metadataHash, address creator)",
 ]);
 
+function formatCreateError(error: unknown): string {
+  if (error && typeof error === "object") {
+    const e = error as {
+      shortMessage?: string;
+      message?: string;
+      cause?: { shortMessage?: string; message?: string };
+    };
+    const fromCause = e.cause?.shortMessage || e.cause?.message;
+    if (fromCause) return fromCause.split("\n")[0] ?? fromCause;
+    const msg = e.shortMessage || e.message;
+    if (msg) return msg.split("\n")[0]?.split("Contract Call:")[0]?.trim() ?? msg;
+  }
+  return error instanceof Error ? error.message : "Transaction failed.";
+}
 const CIRCLE_USDC_BASE_SEPOLIA = deployment.external.umaBondCurrencyCircleUSDC as `0x${string}`;
 const FACTORY_ADDRESS = deployment.contracts.AFTRParimutuelMarketFactory as `0x${string}`;
 const DEFAULT_UMA_REWARD = BigInt(deployment.suggestedUmaReward ?? "0");
@@ -549,62 +558,107 @@ export function CreateClient() {
       const virtualReserve = seedUnits;
       const minBootstrapTotal = minSeedUnits;
 
-      setSubmitStatus("Creating market...");
-      const createHash =
+      if (!metadataUri.trim()) {
+        setSubmitStatus("Metadata is missing. Go back and upload market details again.");
+        return;
+      }
+
+      const nOutcomes = cleanOutcomes.length;
+      if (nOutcomes > 0 && seedUnits % BigInt(nOutcomes) !== BigInt(0)) {
+        const fix = nextDivisibleTotal(seedUnits, nOutcomes);
+        const fixLabel = formatUnits(fix, collateral.decimals);
+        setSubmitStatus(
+          `Seed must divide evenly by ${nOutcomes} outcomes. Try ${fixLabel} ${collateral.symbol}.`,
+        );
+        return;
+      }
+
+      const sharedParams = {
+        collateralToken: collateral.address,
+        collateralDecimals: collateral.decimals,
+        virtualReserve,
+        stakeEndTimestamp: stakeTs,
+        resolveAfterTimestamp: resolveTs,
+        metadataHash,
+        outcomeLabels: cleanOutcomes,
+        metadataURI: metadataUri,
+        minBootstrapTotal,
+        bootstrapAmount: seedUnits,
+        shareRecipient: address,
+      };
+
+      if (!collateral.isNative) {
+        const factoryAllowance = (await publicClient.readContract({
+          address: collateral.address,
+          abi: ERC20_ABI,
+          functionName: "allowance",
+          args: [address, FACTORY_ADDRESS],
+        })) as bigint;
+
+        if (factoryAllowance < seedUnits) {
+          setSubmitStatus(`Approve ${collateral.symbol} for market creation...`);
+          const approveHash = await walletClient.writeContract({
+            chain: walletClient.chain,
+            address: collateral.address,
+            abi: ERC20_ABI,
+            functionName: "approve",
+            args: [FACTORY_ADDRESS, seedUnits],
+            account: address,
+          });
+          await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        }
+      }
+
+      const createRequest =
         marketKind === "event"
-          ? await walletClient.writeContract({
-              chain: walletClient.chain,
+          ? {
               address: FACTORY_ADDRESS,
               abi: FACTORY_ABI,
-              functionName: "createEventMarket",
+              functionName: "createEventMarket" as const,
               args: [
                 {
-                  collateralToken: collateral.address,
-                  collateralDecimals: collateral.decimals,
-                  virtualReserve,
-                  stakeEndTimestamp: stakeTs,
-                  resolveAfterTimestamp: resolveTs,
-                  metadataHash,
-                  outcomeLabels: cleanOutcomes,
-                  metadataURI: metadataUri,
+                  ...sharedParams,
                   umaAncillary,
                   umaIdentifier: stringToHex("", { size: 32 }),
                   umaLiveness: BigInt(180),
                   umaProposerBond: BigInt(0),
                   umaReward: DEFAULT_UMA_REWARD,
                   umaRewardCurrency: DEFAULT_UMA_REWARD_CURRENCY,
-                  minBootstrapTotal,
                 },
               ],
               account: address,
-            })
-          : await walletClient.writeContract({
-              chain: walletClient.chain,
+              value: collateral.isNative ? seedUnits : undefined,
+              gas: BigInt(3_000_000),
+            }
+          : {
               address: FACTORY_ADDRESS,
               abi: FACTORY_ABI,
-              functionName: "createPriceMarket",
+              functionName: "createPriceMarket" as const,
               args: [
                 {
-                  collateralToken: collateral.address,
-                  collateralDecimals: collateral.decimals,
-                  virtualReserve,
-                  stakeEndTimestamp: stakeTs,
-                  resolveAfterTimestamp: resolveTs,
-                  metadataHash,
-                  outcomeLabels: cleanOutcomes,
-                  metadataURI: metadataUri,
+                  ...sharedParams,
                   chainlinkFeed: feed.address,
                   priceThreshold: parseUnits(cleanedThreshold || "0", 8),
                   priceKind: comparison === "ABOVE" ? 0 : 1,
                   priceUpperBound: BigInt(0),
                   maxPriceStaleness: BigInt(3600),
-                  priceBinLower: [],
-                  priceBinUpper: [],
-                  minBootstrapTotal,
+                  priceBinLower: [] as bigint[],
+                  priceBinUpper: [] as bigint[],
                 },
               ],
               account: address,
-            });
+              value: collateral.isNative ? seedUnits : undefined,
+              gas: BigInt(3_000_000),
+            };
+
+      setSubmitStatus("Simulating market creation...");
+      await publicClient.simulateContract(createRequest);
+
+      setSubmitStatus("Creating market and seeding liquidity...");
+      const createHash = await walletClient.writeContract({
+        chain: walletClient.chain,
+        ...createRequest,
+      });
 
       const createReceipt = await publicClient.waitForTransactionReceipt({ hash: createHash });
       let createdMarket = "";
@@ -633,75 +687,6 @@ export function CreateClient() {
         return;
       }
 
-      // Brief wait for RPC to index the newly-deployed contract before reading state.
-      await new Promise((r) => setTimeout(r, 2000));
-
-      // Check if already bootstrapped — may transiently fail on fresh deployments; treat errors as "not yet bootstrapped".
-      try {
-        const alreadyBootstrapped = (await publicClient.readContract({
-          address: createdMarket as `0x${string}`,
-          abi: MARKET_ABI,
-          functionName: "bootstrapped",
-        })) as boolean;
-        if (alreadyBootstrapped) {
-          setSubmitStatus("Market created, but liquidity was already seeded by another wallet.");
-          return;
-        }
-      } catch {
-        // RPC hasn't indexed the new contract yet — safe to proceed with bootstrap.
-      }
-
-      const nOutcomes = Number(
-        (await publicClient.readContract({
-          address: createdMarket as `0x${string}`,
-          abi: MARKET_ABI,
-          functionName: "numOutcomes",
-        })) as number,
-      );
-      if (nOutcomes > 0 && seedUnits % BigInt(nOutcomes) !== BigInt(0)) {
-        const fix = nextDivisibleTotal(seedUnits, nOutcomes);
-        const fixLabel = formatUnits(fix, collateral.decimals);
-        setSubmitStatus(
-          `Seed must divide evenly by ${nOutcomes} outcomes (contract splits integer token units per outcome). Try ${fixLabel} ${collateral.symbol}.`,
-        );
-        return;
-      }
-
-      if (!collateral.isNative) {
-        const marketAllowance = (await publicClient.readContract({
-          address: collateral.address,
-          abi: ERC20_ABI,
-          functionName: "allowance",
-          args: [address, createdMarket as `0x${string}`],
-        })) as bigint;
-
-        if (marketAllowance < seedUnits) {
-          setSubmitStatus(`Approve ${collateral.symbol} to seed liquidity...`);
-          const approveHash = await walletClient.writeContract({
-            chain: walletClient.chain,
-            address: collateral.address,
-            abi: ERC20_ABI,
-            functionName: "approve",
-            args: [createdMarket as `0x${string}`, seedUnits],
-            account: address,
-          });
-          await publicClient.waitForTransactionReceipt({ hash: approveHash });
-        }
-      }
-
-      setSubmitStatus("Seeding liquidity...");
-      const bootstrapHash = await walletClient.writeContract({
-        chain: walletClient.chain,
-        address: createdMarket as `0x${string}`,
-        abi: MARKET_ABI,
-        functionName: "bootstrapLiquidity",
-        args: [seedUnits, address],
-        account: address,
-        value: collateral.isNative ? seedUnits : undefined,
-        gas: BigInt(800_000),
-      });
-      await publicClient.waitForTransactionReceipt({ hash: bootstrapHash });
-
       setSubmitStatus("Market created and liquidity seeded successfully.");
       setIsCreateComplete(true);
       void (async () => {
@@ -726,10 +711,7 @@ export function CreateClient() {
         }
       })();
     } catch (error) {
-      const raw = error instanceof Error ? error.message : String(error);
-      // Strip verbose viem contract-call dumps — show only the first sentence.
-      const clean = raw.split("\n")[0]?.split("Contract Call:")[0]?.trim() ?? "Transaction failed.";
-      setSubmitStatus(`Error: ${clean}`);
+      setSubmitStatus(`Error: ${formatCreateError(error)}`);
     } finally {
       setIsSubmittingMarket(false);
     }
