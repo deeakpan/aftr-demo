@@ -1,4 +1,4 @@
-import { type Abi, createPublicClient, http, type PublicClient } from "viem";
+import { type Abi, createPublicClient, http } from "viem";
 import { baseSepolia } from "viem/chains";
 
 function deploymentRpcUrl(): string {
@@ -14,7 +14,7 @@ function deploymentRpcUrl(): string {
 }
 
 /** Base Sepolia reads — always uses deployment RPC, independent of wallet chain. */
-export const deploymentPublicClient: PublicClient = createPublicClient({
+export const deploymentPublicClient = createPublicClient({
   chain: baseSepolia,
   transport: http(deploymentRpcUrl()),
 });
