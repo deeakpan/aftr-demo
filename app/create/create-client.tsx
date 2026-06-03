@@ -609,56 +609,76 @@ export function CreateClient() {
         }
       }
 
-      const createRequest =
-        marketKind === "event"
-          ? {
-              address: FACTORY_ADDRESS,
-              abi: FACTORY_ABI,
-              functionName: "createEventMarket" as const,
-              args: [
-                {
-                  ...sharedParams,
-                  umaAncillary,
-                  umaIdentifier: stringToHex("", { size: 32 }),
-                  umaLiveness: BigInt(180),
-                  umaProposerBond: BigInt(0),
-                  umaReward: DEFAULT_UMA_REWARD,
-                  umaRewardCurrency: DEFAULT_UMA_REWARD_CURRENCY,
-                },
-              ],
-              account: address,
-              value: collateral.isNative ? seedUnits : undefined,
-              gas: BigInt(3_000_000),
-            }
-          : {
-              address: FACTORY_ADDRESS,
-              abi: FACTORY_ABI,
-              functionName: "createPriceMarket" as const,
-              args: [
-                {
-                  ...sharedParams,
-                  chainlinkFeed: feed.address,
-                  priceThreshold: parseUnits(cleanedThreshold || "0", 8),
-                  priceKind: comparison === "ABOVE" ? 0 : 1,
-                  priceUpperBound: BigInt(0),
-                  maxPriceStaleness: BigInt(3600),
-                  priceBinLower: [] as bigint[],
-                  priceBinUpper: [] as bigint[],
-                },
-              ],
-              account: address,
-              value: collateral.isNative ? seedUnits : undefined,
-              gas: BigInt(3_000_000),
-            };
+      const writeOpts = {
+        chain: walletClient.chain,
+        address: FACTORY_ADDRESS,
+        abi: FACTORY_ABI,
+        account: address,
+        value: collateral.isNative ? seedUnits : undefined,
+        gas: BigInt(3_000_000),
+      };
 
       setSubmitStatus("Simulating market creation...");
-      await publicClient.simulateContract(createRequest);
+      let createHash: `0x${string}`;
 
-      setSubmitStatus("Creating market and seeding liquidity...");
-      const createHash = await walletClient.writeContract({
-        chain: walletClient.chain,
-        ...createRequest,
-      });
+      if (marketKind === "event") {
+        const eventArgs = [
+          {
+            ...sharedParams,
+            umaAncillary,
+            umaIdentifier: stringToHex("", { size: 32 }),
+            umaLiveness: BigInt(180),
+            umaProposerBond: BigInt(0),
+            umaReward: DEFAULT_UMA_REWARD,
+            umaRewardCurrency: DEFAULT_UMA_REWARD_CURRENCY,
+          },
+        ] as const;
+
+        await publicClient.simulateContract({
+          address: FACTORY_ADDRESS,
+          abi: FACTORY_ABI,
+          functionName: "createEventMarket",
+          args: eventArgs,
+          account: address,
+          value: collateral.isNative ? seedUnits : undefined,
+        });
+
+        setSubmitStatus("Creating market and seeding liquidity...");
+        createHash = await walletClient.writeContract({
+          ...writeOpts,
+          functionName: "createEventMarket",
+          args: eventArgs,
+        });
+      } else {
+        const priceArgs = [
+          {
+            ...sharedParams,
+            chainlinkFeed: feed.address,
+            priceThreshold: parseUnits(cleanedThreshold || "0", 8),
+            priceKind: (comparison === "ABOVE" ? 0 : 1) as 0 | 1,
+            priceUpperBound: BigInt(0),
+            maxPriceStaleness: BigInt(3600),
+            priceBinLower: [] as readonly bigint[],
+            priceBinUpper: [] as readonly bigint[],
+          },
+        ] as const;
+
+        await publicClient.simulateContract({
+          address: FACTORY_ADDRESS,
+          abi: FACTORY_ABI,
+          functionName: "createPriceMarket",
+          args: priceArgs,
+          account: address,
+          value: collateral.isNative ? seedUnits : undefined,
+        });
+
+        setSubmitStatus("Creating market and seeding liquidity...");
+        createHash = await walletClient.writeContract({
+          ...writeOpts,
+          functionName: "createPriceMarket",
+          args: priceArgs,
+        });
+      }
 
       const createReceipt = await publicClient.waitForTransactionReceipt({ hash: createHash });
       let createdMarket = "";

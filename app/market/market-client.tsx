@@ -115,6 +115,24 @@ function stateLabel(state: number) {
   }
 }
 
+function MarketCardSkeleton() {
+  return (
+    <article className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] p-0 shadow-[var(--elevated-card-shadow)]">
+      <div className="aspect-[16/7] w-full animate-pulse bg-[var(--surface)]" />
+      <div className="space-y-2 p-2.5">
+        <div className="h-4 w-4/5 animate-pulse rounded-md bg-[var(--surface)]" />
+        <div className="h-3 w-1/3 animate-pulse rounded-md bg-[var(--surface)]" />
+        <div className="mt-2 h-2 animate-pulse rounded-full bg-[var(--surface)]" />
+        <div className="grid grid-cols-2 gap-2">
+          <div className="h-9 animate-pulse rounded-lg bg-[var(--surface)]" />
+          <div className="h-9 animate-pulse rounded-lg bg-[var(--surface)]" />
+        </div>
+      </div>
+      <div className="h-8 animate-pulse border-t border-[var(--border)] bg-[var(--surface)]" />
+    </article>
+  );
+}
+
 function clampPct(v: number) {
   if (!Number.isFinite(v)) return 50;
   return Math.max(0, Math.min(100, v));
@@ -794,10 +812,24 @@ export function MarketClient() {
             Markets
           </h1>
         </div>
-        {isLoading && <p className="max-w-xl text-sm leading-relaxed text-[var(--muted)]">Loading markets...</p>}
-        {loadError && <p className="max-w-xl text-sm leading-relaxed text-red-400">{loadError}</p>}
-        {empty && <p className="max-w-xl text-sm leading-relaxed text-[var(--muted)]">No markets yet.</p>}
-        {visibleMarkets.length > 0 && (
+        {isLoading && (
+          <div className="mt-5 grid w-full max-w-7xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }, (_, i) => (
+              <MarketCardSkeleton key={i} />
+            ))}
+          </div>
+        )}
+        {loadError && (
+          <div className="flex min-h-[40vh] items-center justify-center">
+            <p className="max-w-md text-center text-sm leading-relaxed text-red-400">{loadError}</p>
+          </div>
+        )}
+        {empty && (
+          <div className="flex min-h-[40vh] items-center justify-center">
+            <p className="text-sm text-[var(--muted)]">No markets yet.</p>
+          </div>
+        )}
+        {!isLoading && visibleMarkets.length > 0 && (
           <div className="mt-5 grid w-full max-w-7xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {visibleMarkets.map((m) => {
               const chance = Number.isFinite(m?.chancePct) ? m.chancePct : 50;
