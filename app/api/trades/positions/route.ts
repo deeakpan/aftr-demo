@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPublicClient, formatUnits, http, isAddress, parseAbi } from "viem";
+import { createPublicClient, formatUnits, http, isAddress, parseAbi, parseAbiItem } from "viem";
 import deployment from "@/deployments/baseSepolia-84532.json";
 import { querySubgraph } from "@/lib/subgraph/client";
 const RPC_URL = process.env.RPC_URL ?? process.env.NEXT_PUBLIC_RPC_URL;
+
+const ROUTER_ADDRESS = deployment.contracts.AFTRMarketDebtRouter as `0x${string}`;
+const ROUTER_START_BLOCK = BigInt(
+  (deployment as { deploymentBlocks?: { AFTRMarketDebtRouter?: number } }).deploymentBlocks
+    ?.AFTRMarketDebtRouter ?? 0,
+);
+
+const ROUTER_REDEEMED_EVENT = parseAbiItem(
+  "event RouterRedeemed(address indexed user, address indexed market, address indexed collateralToken, uint8 outcomeIndex, uint256 shareAmount, uint256 payoutAmount)",
+);
+const ROUTER_REDEEMED_AND_REPAID_EVENT = parseAbiItem(
+  "event RouterRedeemedAndRepaid(address indexed user, address indexed market, address indexed drp, uint8 outcomeIndex, uint256 shareAmount, uint256 payoutAmount, address vaultCollateralToken, uint256 debtToBurn)",
+);
 
 const MARKET_ABI = parseAbi([
   "function marketKind() view returns (uint8)",
@@ -67,6 +80,39 @@ function fmtTs(seconds: number) {
 function clampPct(v: number) {
   if (!Number.isFinite(v)) return 50;
   return Math.max(0, Math.min(100, v));
+}
+
+async function routerRedemptionTotal(
+  publicClient: ReturnType<typeof createPublicClient>,
+  wallet: `0x${string}`,
+  market: `0x${string}`,
+): Promise<bigint> {
+  try {
+    const [redeemedLogs, repaidLogs] = await Promise.all([
+      publicClient.getLogs({
+        address: ROUTER_ADDRESS,
+        event: ROUTER_REDEEMED_EVENT,
+        args: { user: wallet, market },
+        fromBlock: ROUTER_START_BLOCK,
+        toBlock: "latest",
+      }),
+      publicClient.getLogs({
+        address: ROUTER_ADDRESS,
+        event: ROUTER_REDEEMED_AND_REPAID_EVENT,
+        args: { user: wallet, market },
+        fromBlock: ROUTER_START_BLOCK,
+        toBlock: "latest",
+      }),
+    ]);
+    let total = BigInt(0);
+    for (const log of [...redeemedLogs, ...repaidLogs]) {
+      const payout = log.args.payoutAmount;
+      if (typeof payout === "bigint") total += payout;
+    }
+    return total;
+  } catch {
+    return BigInt(0);
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -204,11 +250,30 @@ export async function GET(req: NextRequest) {
       balances.push(bal);
     }
 
-    let emittedPositiveBalance = false;
+    const collateralIn = BigInt(pos.collateralIn || "0");
+    let collateralOut = BigInt(pos.collateralOut || "0");
+    const sharesIn = BigInt(pos.sharesIn || "0");
+    const sharesOut = BigInt(pos.sharesOut || "0");
+    if (state === 2 && collateralOut === BigInt(0)) {
+      const routerOut = await routerRedemptionTotal(
+        publicClient,
+        wallet as `0x${string}`,
+        market,
+      );
+      if (routerOut > collateralOut) collateralOut = routerOut;
+    }
+    const participated = collateralIn > BigInt(0) || sharesIn > BigInt(0);
+    const indexerShowsRedeem = collateralOut > BigInt(0) || sharesOut > BigInt(0);
+    const emittedPositiveBalance = balances.some((b) => b > BigInt(0));
+    let settlementDisplay: "claimed" | "settled_no_shares" | undefined;
+    if (state === 2 && participated && winningOutcomeIndex !== null) {
+      if (indexerShowsRedeem) settlementDisplay = "claimed";
+      else if (!emittedPositiveBalance) settlementDisplay = "settled_no_shares";
+    }
+
     for (let i = 0; i < outcomeTokens.length; i += 1) {
       const bal = balances[i]!;
       if (bal <= BigInt(0)) continue;
-      emittedPositiveBalance = true;
       outRows.push({
         marketAddress: market,
         marketTitle,
@@ -228,49 +293,40 @@ export async function GET(req: NextRequest) {
         stakeEndsLabel,
         imageUrl,
         indexedCollateralIn: pos.collateralIn,
-        indexedCollateralOut: pos.collateralOut,
+        indexedCollateralOut: collateralOut.toString(),
         indexedSharesIn: pos.sharesIn,
         indexedSharesOut: pos.sharesOut,
+        settlementDisplay,
       });
     }
 
     // Settled market, no outcome tokens left, but subgraph shows this wallet traded — keep the card (e.g. claimed winnings).
-    if (state === 2 && !emittedPositiveBalance && winningOutcomeIndex !== null) {
-      const collateralIn = BigInt(pos.collateralIn || "0");
-      const collateralOut = BigInt(pos.collateralOut || "0");
-      const sharesIn = BigInt(pos.sharesIn || "0");
-      const sharesOut = BigInt(pos.sharesOut || "0");
-      const participated = collateralIn > BigInt(0) || sharesIn > BigInt(0);
-      const indexerShowsRedeem = collateralOut > BigInt(0) || sharesOut > BigInt(0);
-
-      if (participated) {
-        const winIdx = winningOutcomeIndex as number;
-        const settlementDisplay = indexerShowsRedeem ? "claimed" : "settled_no_shares";
-        outRows.push({
-          marketAddress: market,
-          marketTitle,
-          marketKind: kind,
-          marketState: state,
-          stakeEndUnix,
-          collateralAddress: collateralAddressRaw as `0x${string}`,
-          winningOutcomeIndex,
-          redemptionRate: redemptionRate.toString(),
-          outcomeIndex: winIdx,
-          outcomeLabel: outcomeLabels[winIdx] ?? `Outcome ${winIdx + 1}`,
-          outcomeLabels,
-          balance: "0",
-          collateralDecimals,
-          chancePct,
-          poolTvlDisplay,
-          stakeEndsLabel,
-          imageUrl,
-          indexedCollateralIn: pos.collateralIn,
-          indexedCollateralOut: pos.collateralOut,
-          indexedSharesIn: pos.sharesIn,
-          indexedSharesOut: pos.sharesOut,
-          settlementDisplay,
-        });
-      }
+    if (state === 2 && !emittedPositiveBalance && winningOutcomeIndex !== null && participated) {
+      const winIdx = winningOutcomeIndex as number;
+      outRows.push({
+        marketAddress: market,
+        marketTitle,
+        marketKind: kind,
+        marketState: state,
+        stakeEndUnix,
+        collateralAddress: collateralAddressRaw as `0x${string}`,
+        winningOutcomeIndex,
+        redemptionRate: redemptionRate.toString(),
+        outcomeIndex: winIdx,
+        outcomeLabel: outcomeLabels[winIdx] ?? `Outcome ${winIdx + 1}`,
+        outcomeLabels,
+        balance: "0",
+        collateralDecimals,
+        chancePct,
+        poolTvlDisplay,
+        stakeEndsLabel,
+        imageUrl,
+        indexedCollateralIn: pos.collateralIn,
+        indexedCollateralOut: collateralOut.toString(),
+        indexedSharesIn: pos.sharesIn,
+        indexedSharesOut: pos.sharesOut,
+        settlementDisplay,
+      });
     }
   }
 

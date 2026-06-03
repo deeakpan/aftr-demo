@@ -22,12 +22,12 @@ Router trades are included because the router calls `market.deposit` / redeem, w
 npm run subgraph:update-config
 npm run subgraph:codegen
 npm run subgraph:build
-SUBGRAPH_VERSION_LABEL=v0.08 npm run subgraph:deploy-studio
+SUBGRAPH_VERSION_LABEL=v0.09 npm run subgraph:deploy-studio
 ```
 
 Set `SUBGRAPH_DEPLOY_KEY` in `.env`. After sync, point the app at:
 
-`https://api.studio.thegraph.com/query/1749057/aftr/v0.08`
+`https://api.studio.thegraph.com/query/1749057/aftr/v0.09`
 
 ## Trade activity chart query
 

@@ -25,11 +25,13 @@ function main() {
 
   const factory = contracts.AFTRParimutuelMarketFactory;
   const vault = contracts.AFTRFeeVault;
+  const router = contracts.AFTRMarketDebtRouter;
 
   const factoryBlock = blocks.AFTRParimutuelMarketFactory ?? 1;
   const vaultBlock = blocks.AFTRFeeVault ?? 1;
+  const routerBlock = blocks.AFTRMarketDebtRouter ?? 1;
 
-  if (!factory || !vault) {
+  if (!factory || !vault || !router) {
     console.error("Missing contract addresses in deployment JSON. Run the deploy script first.");
     process.exit(1);
   }
@@ -38,11 +40,13 @@ function main() {
 
   yaml = patchSource(yaml, "Factory", factory, factoryBlock);
   yaml = patchSource(yaml, "Vault", vault, vaultBlock);
+  yaml = patchSource(yaml, "Router", router, routerBlock);
 
   fs.writeFileSync(SUBGRAPH_YAML, yaml, "utf8");
   console.log("Updated subgraph/subgraph.yaml:");
   console.log(`  Factory  → ${factory} (startBlock: ${factoryBlock})`);
   console.log(`  Vault    → ${vault} (startBlock: ${vaultBlock})`);
+  console.log(`  Router   → ${router} (startBlock: ${routerBlock})`);
   console.log("  Market template → per-market Deposited / TokensRedeemed (from MarketCreated)");
 }
 

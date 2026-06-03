@@ -1,5 +1,5 @@
 const DEFAULT_SUBGRAPH_URL =
-  "https://api.studio.thegraph.com/query/1749057/aftr/v0.08";
+  "https://api.studio.thegraph.com/query/1749057/aftr/v0.09";
 
 const SUBGRAPH_TIMEOUT_MS = 20_000;
 

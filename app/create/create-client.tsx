@@ -4,19 +4,24 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, CaretDown } from "@phosphor-icons/react";
 import {
+  BaseError,
+  decodeErrorResult,
   decodeEventLog,
   formatUnits,
   isAddress,
   keccak256,
+  maxUint256,
   parseAbi,
   parseUnits,
   stringToHex,
   toBytes,
   zeroAddress,
+  type Address,
 } from "viem";
-import { useAccount, usePublicClient, useWalletClient } from "wagmi";
+import { useAccount, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import { MarketPreviewModal } from "@/app/create/components/market-preview-modal";
+import { deploymentPublicClient } from "@/lib/deployment-public-client";
 import deployment from "@/deployments/baseSepolia-84532.json";
 
 const fieldClass =
@@ -74,21 +79,104 @@ const FACTORY_ABI = parseAbi([
   "function createEventMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,string umaAncillary,bytes32 umaIdentifier,uint64 umaLiveness,uint256 umaProposerBond,uint256 umaReward,address umaRewardCurrency,uint256 minBootstrapTotal,uint256 bootstrapAmount,address shareRecipient) p) payable returns (address market)",
   "function createPriceMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,address chainlinkFeed,uint256 priceThreshold,uint8 priceKind,uint256 priceUpperBound,uint256 maxPriceStaleness,uint256[] priceBinLower,uint256[] priceBinUpper,uint256 minBootstrapTotal,uint256 bootstrapAmount,address shareRecipient) p) payable returns (address market)",
   "event MarketCreated(address indexed market, uint8 indexed kind, address indexed collateralToken, address[] outcomeTokens, string[] outcomeLabels, uint256 stakeEndTimestamp, uint256 resolveAfterTimestamp, bytes32 metadataHash, address creator)",
+  "error InvalidAddress()",
+  "error InvalidCollateral()",
+  "error InvalidConfig()",
+  "error InvalidOutcomes()",
+  "error InvalidFeed()",
+  "error InvalidTime()",
+  "error InvalidMeta()",
+  "error InvalidBins()",
+  "error InvalidDeployer()",
+  "error InvalidBootstrap()",
 ]);
 
-function formatCreateError(error: unknown): string {
-  if (error && typeof error === "object") {
-    const e = error as {
-      shortMessage?: string;
-      message?: string;
-      cause?: { shortMessage?: string; message?: string };
-    };
-    const fromCause = e.cause?.shortMessage || e.cause?.message;
-    if (fromCause) return fromCause.split("\n")[0] ?? fromCause;
-    const msg = e.shortMessage || e.message;
-    if (msg) return msg.split("\n")[0]?.split("Contract Call:")[0]?.trim() ?? msg;
+const CREATE_ERROR_ABI = parseAbi([
+  "error InvalidAddress()",
+  "error InvalidCollateral()",
+  "error InvalidConfig()",
+  "error InvalidOutcomes()",
+  "error InvalidFeed()",
+  "error InvalidTime()",
+  "error InvalidMeta()",
+  "error InvalidBins()",
+  "error InvalidDeployer()",
+  "error InvalidBootstrap()",
+  "error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed)",
+  "error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed)",
+]);
+
+function extractRevertData(error: unknown): `0x${string}` | undefined {
+  if (!(error instanceof BaseError)) return undefined;
+  let data: `0x${string}` | undefined;
+  error.walk((e) => {
+    const candidate = (e as { data?: unknown }).data;
+    if (typeof candidate === "string" && candidate.startsWith("0x")) {
+      data = candidate as `0x${string}`;
+    }
+    return false;
+  });
+  return data;
+}
+
+function formatCreateError(error: unknown, collateralSymbol = "collateral"): string {
+  const revertData = extractRevertData(error);
+  if (revertData) {
+    try {
+      const decoded = decodeErrorResult({ abi: CREATE_ERROR_ABI, data: revertData });
+      if (decoded.errorName === "ERC20InsufficientAllowance") {
+        return `Insufficient ${collateralSymbol} approval for the factory. Approve again and retry.`;
+      }
+      if (decoded.errorName === "ERC20InsufficientBalance") {
+        return `Insufficient ${collateralSymbol} balance for seed liquidity.`;
+      }
+      if (decoded.errorName === "InvalidTime") {
+        return "Stake end and resolve times must be in the future, with resolve after stake end.";
+      }
+      if (decoded.errorName === "InvalidBootstrap") {
+        return "Seed amount must be at least the minimum and divide evenly across outcomes.";
+      }
+      if (decoded.errorName === "InvalidCollateral") {
+        return "This collateral token is not supported by the factory.";
+      }
+      if (decoded.errorName === "InvalidConfig") {
+        return "Invalid market config (check UMA ancillary data and outcome count).";
+      }
+      return decoded.errorName.replace(/([A-Z])/g, " $1").trim();
+    } catch {
+      // fall through
+    }
   }
+
+  if (error instanceof BaseError) {
+    const msg = error.shortMessage || error.message;
+    if (msg.includes("User rejected")) return "Transaction cancelled.";
+    if (msg.includes("reverted with the following signature")) {
+      return "Market creation reverted onchain. Check seed amount, times, and token approval.";
+    }
+    return msg.split("\n")[0]?.split("Contract Call:")[0]?.trim() || msg;
+  }
+
   return error instanceof Error ? error.message : "Transaction failed.";
+}
+
+async function waitForErc20Allowance(
+  token: Address,
+  owner: Address,
+  spender: Address,
+  minAmount: bigint,
+): Promise<void> {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const allowance = (await deploymentPublicClient.readContract({
+      address: token,
+      abi: ERC20_ABI,
+      functionName: "allowance",
+      args: [owner, spender],
+    })) as bigint;
+    if (allowance >= minAmount) return;
+    await new Promise((resolve) => setTimeout(resolve, 600));
+  }
+  throw new Error("Token approval not detected yet. Wait a few seconds and try again.");
 }
 const CIRCLE_USDC_BASE_SEPOLIA = deployment.external.umaBondCurrencyCircleUSDC as `0x${string}`;
 const FACTORY_ADDRESS = deployment.contracts.AFTRParimutuelMarketFactory as `0x${string}`;
@@ -194,7 +282,7 @@ function parseLocalDateTimeToMs(input: string): number {
 }
 
 export function CreateClient() {
-  const publicClient = usePublicClient({ chainId: DEPLOYMENT_CHAIN_ID });
+  const publicClient = deploymentPublicClient;
   const { address, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
   const [marketKind, setMarketKind] = useState<"event" | "price">("event");
@@ -602,20 +690,18 @@ export function CreateClient() {
             address: collateral.address,
             abi: ERC20_ABI,
             functionName: "approve",
-            args: [FACTORY_ADDRESS, seedUnits],
+            args: [FACTORY_ADDRESS, maxUint256],
             account: address,
           });
           await publicClient.waitForTransactionReceipt({ hash: approveHash });
+          setSubmitStatus("Waiting for approval to confirm...");
+          await waitForErc20Allowance(collateral.address, address, FACTORY_ADDRESS, seedUnits);
         }
       }
 
-      const writeOpts = {
-        chain: walletClient.chain,
-        address: FACTORY_ADDRESS,
-        abi: FACTORY_ABI,
-        account: address,
-        value: collateral.isNative ? seedUnits : undefined,
-        gas: BigInt(8_000_000),
+      const createGasBuffer = (estimated: bigint | undefined) => {
+        if (!estimated) return BigInt(10_000_000);
+        return (estimated * BigInt(120)) / BigInt(100);
       };
 
       setSubmitStatus("Simulating market creation...");
@@ -634,7 +720,7 @@ export function CreateClient() {
           },
         ] as const;
 
-        await publicClient.simulateContract({
+        const simulation = await publicClient.simulateContract({
           address: FACTORY_ADDRESS,
           abi: FACTORY_ABI,
           functionName: "createEventMarket",
@@ -645,9 +731,9 @@ export function CreateClient() {
 
         setSubmitStatus("Creating market and seeding liquidity...");
         createHash = await walletClient.writeContract({
-          ...writeOpts,
-          functionName: "createEventMarket",
-          args: eventArgs,
+          ...simulation.request,
+          chain: walletClient.chain,
+          gas: createGasBuffer(simulation.request.gas),
         });
       } else {
         const priceArgs = [
@@ -663,7 +749,7 @@ export function CreateClient() {
           },
         ] as const;
 
-        await publicClient.simulateContract({
+        const simulation = await publicClient.simulateContract({
           address: FACTORY_ADDRESS,
           abi: FACTORY_ABI,
           functionName: "createPriceMarket",
@@ -674,9 +760,9 @@ export function CreateClient() {
 
         setSubmitStatus("Creating market and seeding liquidity...");
         createHash = await walletClient.writeContract({
-          ...writeOpts,
-          functionName: "createPriceMarket",
-          args: priceArgs,
+          ...simulation.request,
+          chain: walletClient.chain,
+          gas: createGasBuffer(simulation.request.gas),
         });
       }
 
@@ -731,7 +817,7 @@ export function CreateClient() {
         }
       })();
     } catch (error) {
-      setSubmitStatus(`Error: ${formatCreateError(error)}`);
+      setSubmitStatus(`Error: ${formatCreateError(error, collateral.symbol)}`);
     } finally {
       setIsSubmittingMarket(false);
     }

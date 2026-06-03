@@ -175,8 +175,9 @@ function groupRows(rows: PositionRow[]): MarketPositionGroup[] {
   const groups: MarketPositionGroup[] = [];
   for (const list of byMarket.values()) {
     const head = list[0]!;
-    const indexedCollateralIn = list.reduce((acc, row) => acc + row.indexedCollateralIn, BigInt(0));
-    const indexedCollateralOut = list.reduce((acc, row) => acc + row.indexedCollateralOut, BigInt(0));
+    // Indexed amounts are per-market (duplicated on each outcome row), not per-outcome.
+    const indexedCollateralIn = head.indexedCollateralIn;
+    const indexedCollateralOut = head.indexedCollateralOut;
     const settlementDisplay = list.find((r) => r.settlementDisplay)?.settlementDisplay;
     groups.push({
       marketAddress: head.marketAddress,
@@ -212,6 +213,70 @@ function balanceForOutcome(
 ): bigint {
   const hit = positions.find((p) => p.outcomeIndex === outcomeIndex);
   return hit?.balance ?? BigInt(0);
+}
+
+function SettledMarketSummary({
+  invested,
+  redeemed,
+  tick,
+  fmtAmount,
+}: {
+  invested: bigint;
+  redeemed: bigint;
+  tick: string;
+  fmtAmount: (v: bigint) => string;
+}) {
+  const net = redeemed - invested;
+  const hasRedeemed = redeemed > BigInt(0);
+  const hasInvested = invested > BigInt(0);
+
+  if (hasRedeemed) {
+    const netPositive = net > BigInt(0);
+    const netZero = net === BigInt(0);
+    return (
+      <div className="mt-2 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-2 py-1.5">
+        <p className="text-sm font-bold text-emerald-400 [html[data-theme=light]_&]:text-emerald-700">Redeemed</p>
+        <p className="mt-0.5 text-[11px] font-semibold text-[var(--foreground)]">
+          {fmtAmount(redeemed)} {tick}
+        </p>
+        {hasInvested && (
+          <p
+            className={`mt-0.5 text-[11px] font-semibold ${
+              netPositive
+                ? "text-emerald-400 [html[data-theme=light]_&]:text-emerald-700"
+                : netZero
+                  ? "text-[var(--muted)]"
+                  : "text-rose-400 [html[data-theme=light]_&]:text-rose-700"
+            }`}
+          >
+            {netPositive
+              ? `Won ${fmtAmount(net)} ${tick}`
+              : netZero
+                ? "Break even"
+                : `Net −${fmtAmount(-net)} ${tick}`}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  if (hasInvested) {
+    return (
+      <div className="mt-2 rounded-lg border border-rose-500/25 bg-rose-500/5 px-2 py-1.5">
+        <p className="text-sm font-bold text-rose-400 [html[data-theme=light]_&]:text-rose-700">You lost</p>
+        <p className="mt-0.5 text-[11px] font-semibold text-[var(--foreground)]">
+          {fmtAmount(invested)} {tick} invested · nothing redeemed
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5">
+      <p className="text-sm font-semibold text-[var(--foreground)]">Settled</p>
+      <p className="mt-0.5 text-[11px] text-[var(--muted)]">No outcome tokens held on-chain anymore.</p>
+    </div>
+  );
 }
 
 function ClaimWinningsButton({
@@ -960,21 +1025,22 @@ export function TradesClient() {
                             indexedCollateralIn={g.indexedCollateralIn}
                             onDone={() => setRefreshKey((k) => k + 1)}
                           />
-                        </div>
-                      ) : g.settlementDisplay === "claimed" ? (
-                        <div className="mt-2 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-2 py-1.5">
-                          <p className="text-sm font-bold text-emerald-400">Claimed</p>
-                          <p className="mt-0.5 text-[11px] font-semibold text-[var(--foreground)]">
-                            {fmtIndexed(g.indexedCollateralOut)} {tick}
-                          </p>
-                        </div>
-                      ) : g.settlementDisplay === "settled_no_shares" ? (
-                        <div className="mt-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5">
-                          <p className="text-sm font-semibold text-[var(--foreground)]">Settled</p>
-                          <p className="mt-0.5 text-[11px] text-[var(--muted)]">No outcome tokens held on-chain anymore.</p>
+                          {g.indexedCollateralOut > BigInt(0) && (
+                            <SettledMarketSummary
+                              invested={g.indexedCollateralIn}
+                              redeemed={g.indexedCollateralOut}
+                              tick={tick}
+                              fmtAmount={fmtIndexed}
+                            />
+                          )}
                         </div>
                       ) : (
-                        <p className="mt-2 text-sm font-bold text-rose-400">You lost</p>
+                        <SettledMarketSummary
+                          invested={g.indexedCollateralIn}
+                          redeemed={g.indexedCollateralOut}
+                          tick={tick}
+                          fmtAmount={fmtIndexed}
+                        />
                       )
                     ) : (
                       <>

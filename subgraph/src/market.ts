@@ -110,35 +110,54 @@ export function handleDeposited(event: Deposited): void {
   );
 }
 
-export function handleTokensRedeemed(event: TokensRedeemed): void {
-  const marketAddr = event.address;
-  const user = event.params.user;
-  const payout = event.params.payout;
-  const shares = event.params.shares;
-
+export function creditRedemption(
+  marketAddr: Address,
+  userAddr: Address,
+  outcomeIndex: i32,
+  payout: BigInt,
+  shares: BigInt,
+  timestamp: BigInt,
+  blockNumber: BigInt,
+  txHash: string,
+  logIndex: i32,
+): void {
   const marketId = addrId(marketAddr);
   if (Market.load(marketId) == null) {
     return;
   }
 
-  const trader = loadOrCreateTrader(user);
+  const trader = loadOrCreateTrader(userAddr);
   trader.totalRedeemed = trader.totalRedeemed.plus(payout);
   trader.save();
 
-  const pos = loadOrCreatePosition(marketAddr, user);
+  const pos = loadOrCreatePosition(marketAddr, userAddr);
   pos.collateralOut = pos.collateralOut.plus(payout);
   pos.sharesOut = pos.sharesOut.plus(shares);
-  pos.lastTradeTimestamp = event.block.timestamp;
+  pos.lastTradeTimestamp = timestamp;
   pos.save();
 
   saveRedeemTrade(
     marketId,
-    user,
-    event.params.outcomeIndex,
+    userAddr,
+    outcomeIndex,
     payout,
+    blockNumber,
+    txHash,
+    logIndex,
+    timestamp,
+  );
+}
+
+export function handleTokensRedeemed(event: TokensRedeemed): void {
+  creditRedemption(
+    event.address,
+    event.params.user,
+    event.params.outcomeIndex,
+    event.params.payout,
+    event.params.shares,
+    event.block.timestamp,
     event.block.number,
     event.transaction.hash.toHexString(),
     event.logIndex.toI32(),
-    event.block.timestamp,
   );
 }

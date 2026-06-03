@@ -54,6 +54,32 @@ dataSources:
         - event: FeesReceived(indexed address,uint256,uint256,uint256,uint256)
           handler: handleFeesReceived
       file: ./src/vault.ts
+  - kind: ethereum/contract
+    name: Router
+    network: base-sepolia
+    source:
+      address: "0xF71A379666670Bb50Ce0060c66F74C6F6111Eb71"
+      abi: Router
+      startBlock: 41365636
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - MarketTrade
+        - Trader
+        - TraderMarketPosition
+      abis:
+        - name: Router
+          file: ./abis/Router.json
+        - name: Market
+          file: ./abis/Market.json
+      eventHandlers:
+        - event: RouterRedeemed(indexed address,indexed address,indexed address,uint8,uint256,uint256)
+          handler: handleRouterRedeemed
+        - event: RouterRedeemedAndRepaid(indexed address,indexed address,indexed address,uint8,uint256,uint256,address,uint256)
+          handler: handleRouterRedeemedAndRepaid
+      file: ./src/router.ts
 templates:
   - kind: ethereum/contract
     name: Market
