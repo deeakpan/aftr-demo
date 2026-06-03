@@ -115,20 +115,55 @@ function stateLabel(state: number) {
   }
 }
 
+function SkeletonBlock({ className }: { className?: string }) {
+  return (
+    <div
+      className={`animate-pulse rounded bg-[var(--border)]/50 [html[data-theme=light]_&]:bg-[var(--border)]/70 ${className ?? ""}`}
+    />
+  );
+}
+
 function MarketCardSkeleton() {
   return (
     <article className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] p-0 shadow-[var(--elevated-card-shadow)]">
-      <div className="aspect-[16/7] w-full animate-pulse bg-[var(--surface)]" />
-      <div className="space-y-2 p-2.5">
-        <div className="h-4 w-4/5 animate-pulse rounded-md bg-[var(--surface)]" />
-        <div className="h-3 w-1/3 animate-pulse rounded-md bg-[var(--surface)]" />
-        <div className="mt-2 h-2 animate-pulse rounded-full bg-[var(--surface)]" />
-        <div className="grid grid-cols-2 gap-2">
-          <div className="h-9 animate-pulse rounded-lg bg-[var(--surface)]" />
-          <div className="h-9 animate-pulse rounded-lg bg-[var(--surface)]" />
+      <div className="aspect-[16/7] w-full overflow-hidden border-b border-[var(--border)] bg-[var(--surface)]">
+        <SkeletonBlock className="h-full w-full rounded-none" />
+      </div>
+
+      <div className="p-2.5">
+        <SkeletonBlock className="h-[1.125rem] w-full" />
+        <SkeletonBlock className="mt-1.5 h-[1.125rem] w-[68%]" />
+        <SkeletonBlock className="mt-1 h-2.5 w-28" />
+
+        <div className="mt-2 flex items-center justify-between">
+          <SkeletonBlock className="h-3 w-9" />
+          <SkeletonBlock className="h-3 w-9" />
+        </div>
+        <div className="mt-1 h-2 rounded-full border border-[var(--border)] bg-[var(--surface)] p-[2px]">
+          <div className="h-full w-[58%] animate-pulse rounded-full bg-gradient-to-r from-emerald-500/35 to-rose-500/20" />
+        </div>
+
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <div className="rounded-lg border border-emerald-500/35 bg-emerald-500/[0.06] px-2 py-2">
+            <SkeletonBlock className="mx-auto h-3.5 w-9 bg-emerald-500/25" />
+          </div>
+          <div className="rounded-lg border border-rose-500/35 bg-rose-500/[0.06] px-2 py-2">
+            <SkeletonBlock className="mx-auto h-3.5 w-8 bg-rose-500/25" />
+          </div>
         </div>
       </div>
-      <div className="h-8 animate-pulse border-t border-[var(--border)] bg-[var(--surface)]" />
+
+      <div className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className="inline-flex h-4 w-4 animate-pulse rounded-full bg-gradient-to-br from-[#4f7cff]/50 to-[#6dff8e]/50" />
+          <SkeletonBlock className="h-3 w-16" />
+        </div>
+        <div className="flex items-center gap-2">
+          <SkeletonBlock className="h-3 w-3 rounded-full" />
+          <SkeletonBlock className="h-3 w-20" />
+          <SkeletonBlock className="h-3 w-3 rounded-full" />
+        </div>
+      </div>
     </article>
   );
 }
