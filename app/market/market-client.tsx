@@ -16,7 +16,6 @@ import { deploymentPublicClient, readMarketPrice } from "@/lib/deployment-public
 import deployment from "@/deployments/baseSepolia-84532.json";
 
 const DEPLOYMENT_CHAIN_ID = deployment.chainId;
-const FACTORY_ADDRESS = deployment.contracts.AFTRParimutuelMarketFactory as `0x${string}`;
 const ORDERBOOK_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts.AFTROrderBook as `0x${string}`;
 const ROUTER_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
   .AFTRMarketDebtRouter as `0x${string}`;
@@ -27,10 +26,6 @@ const ORDERBOOK_ABI = parseAbi([
 const ROUTER_ABI = parseAbi([
   "function depositForSelf(address market, uint8 outcomeIndex, uint256 amount, uint256 minSharesOut)",
   "function depositForSelfNative(address market, uint8 outcomeIndex, uint256 minSharesOut) payable",
-]);
-const FACTORY_ABI = parseAbi([
-  "function marketsLength() view returns (uint256)",
-  "function markets(uint256) view returns (address)",
 ]);
 const MARKET_ABI = parseAbi([
   "function marketKind() view returns (uint8)",
@@ -85,21 +80,6 @@ type UiMarket = {
   slug?: string;
   categories?: string[];
 };
-
-type IpfsMetadata = {
-  title?: string;
-  description?: string;
-  image?: string;
-  outcomes?: string[];
-  slug?: string;
-  categories?: string[];
-};
-
-function fmtTs(value: bigint) {
-  const ms = Number(value) * 1000;
-  if (!Number.isFinite(ms) || ms <= 0) return "-";
-  return new Date(ms).toLocaleString();
-}
 
 function stateLabel(state: number) {
   switch (state) {
@@ -185,40 +165,12 @@ function Tip({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function ipfsToHttp(uri: string) {
-  if (!uri) return "";
-  if (uri.startsWith("ipfs://")) {
-    const cid = uri.replace("ipfs://", "");
-    return `https://gateway.lighthouse.storage/ipfs/${cid}`;
-  }
-  return uri;
-}
-
-function fmtUsdBin(value: bigint): string {
-  const n = Number(formatUnits(value, 8));
-  if (!Number.isFinite(n)) return "—";
-  return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-}
-
 function formatMoneyAmount(unformatted: string, ticker: string): string {
   const n = Number(unformatted);
   if (!Number.isFinite(n)) return unformatted;
   const compact = n.toLocaleString(undefined, { maximumFractionDigits: 6 });
   if (isUsdStyledCollateralTicker(ticker)) return `$${compact}`;
   return `${compact} ${ticker}`;
-}
-
-async function fetchIpfsMetadata(uri: string): Promise<IpfsMetadata | null> {
-  const httpUrl = ipfsToHttp(uri);
-  if (!httpUrl) return null;
-  try {
-    const res = await fetch(httpUrl, { cache: "no-store" });
-    if (!res.ok) return null;
-    const data = (await res.json()) as IpfsMetadata;
-    return data;
-  } catch {
-    return null;
-  }
 }
 
 function formatTradeError(error: unknown): string {
@@ -276,175 +228,15 @@ export function MarketClient() {
 
   useEffect(() => {
     const run = async () => {
-      if (!publicClient) return;
       setIsLoading(true);
       setLoadError("");
       try {
-        const total = Number(
-          await publicClient.readContract({
-            address: FACTORY_ADDRESS,
-            abi: FACTORY_ABI,
-            functionName: "marketsLength",
-          }),
-        );
-
-        const addresses = await Promise.all(
-          Array.from({ length: total }, (_, idx) =>
-            publicClient.readContract({
-              address: FACTORY_ADDRESS,
-              abi: FACTORY_ABI,
-              functionName: "markets",
-              args: [BigInt(total - 1 - idx)],
-            }),
-          ),
-        );
-
-        const rows = await Promise.all(
-          addresses.map(async (marketAddress) => {
-            const [kind, uri, stake, resolveAfter, outcomes, state, collateralDecimals] = await Promise.all([
-              publicClient.readContract({
-                address: marketAddress,
-                abi: MARKET_ABI,
-                functionName: "marketKind",
-              }),
-              publicClient.readContract({
-                address: marketAddress,
-                abi: MARKET_ABI,
-                functionName: "metadataURI",
-              }),
-              publicClient.readContract({
-                address: marketAddress,
-                abi: MARKET_ABI,
-                functionName: "stakeEndTimestamp",
-              }),
-              publicClient.readContract({
-                address: marketAddress,
-                abi: MARKET_ABI,
-                functionName: "resolveAfterTimestamp",
-              }),
-              publicClient.readContract({
-                address: marketAddress,
-                abi: MARKET_ABI,
-                functionName: "numOutcomes",
-              }),
-              publicClient.readContract({
-                address: marketAddress,
-                abi: MARKET_ABI,
-                functionName: "state",
-              }),
-              publicClient.readContract({
-                address: marketAddress,
-                abi: MARKET_ABI,
-                functionName: "collateralDecimals",
-              }),
-            ]);
-            const metadataUri = String(uri || "");
-            const md = await fetchIpfsMetadata(metadataUri);
-            const outcomeCount = Number(outcomes);
-            const dec = Number(collateralDecimals);
-            const realPoolParts = await Promise.all(
-              Array.from({ length: outcomeCount }, (_, i) =>
-                publicClient.readContract({
-                  address: marketAddress,
-                  abi: MARKET_ABI,
-                  functionName: "realPool",
-                  args: [BigInt(i)],
-                }),
-              ),
-            );
-            const poolTvlRaw = realPoolParts.reduce((acc, v) => acc + (v as bigint), BigInt(0));
-            const fallbackLabels = Array.from({ length: outcomeCount }, (_, i) => `Outcome ${i + 1}`);
-            const labelsFromIpfs =
-              md?.outcomes && md.outcomes.length > 0 ? md.outcomes.filter((x): x is string => typeof x === "string") : [];
-            const safeOutcomeLabels =
-              labelsFromIpfs.length > 0 ? labelsFromIpfs : fallbackLabels;
-            const isPrice = Number(kind) === 0;
-            let priceBinByOutcome: string[] | undefined;
-            if (isPrice) {
-              try {
-                const lowers = await Promise.all(
-                  Array.from({ length: outcomeCount }, (_, i) =>
-                    publicClient.readContract({
-                      address: marketAddress,
-                      abi: MARKET_ABI,
-                      functionName: "priceBinLower",
-                      args: [BigInt(i)],
-                    }),
-                  ),
-                );
-                const uppers = await Promise.all(
-                  Array.from({ length: outcomeCount }, (_, i) =>
-                    publicClient.readContract({
-                      address: marketAddress,
-                      abi: MARKET_ABI,
-                      functionName: "priceBinUpper",
-                      args: [BigInt(i)],
-                    }),
-                  ),
-                );
-                priceBinByOutcome = lowers.map((lo, i) => {
-                  return `$${fmtUsdBin(lo as bigint)} — $${fmtUsdBin(uppers[i] as bigint)}`;
-                });
-              } catch {
-                priceBinByOutcome = undefined;
-              }
-            }
-            let leftPct = outcomeCount >= 2 ? 50 : Math.max(1, Math.round(100 / Math.max(1, outcomeCount)));
-            let outcomeChancePcts: number[] = Array.from({
-              length: outcomeCount,
-            }, (_, i) => (i === 0 ? leftPct : Math.round((100 - leftPct) / Math.max(1, outcomeCount - 1))));
-            try {
-              const preds = await Promise.all(
-                Array.from({ length: outcomeCount }, (_, i) =>
-                  publicClient.readContract({
-                    address: marketAddress,
-                    abi: MARKET_ABI,
-                    functionName: "priceOf",
-                    args: [i],
-                  }),
-                ),
-              );
-              outcomeChancePcts = preds.map((p) =>
-                clampPct(Number(formatUnits(p as bigint, 18)) * 100),
-              );
-              leftPct = outcomeChancePcts[0] ?? leftPct;
-            } catch {
-              // keep fallback
-            }
-            return {
-              address: marketAddress,
-              kind: isPrice ? "Price" : "Event",
-              outcomes: outcomeCount,
-              outcomeLabels: safeOutcomeLabels,
-              slug: md?.slug?.trim() || undefined,
-              title: md?.title?.trim() || `${isPrice ? "Price" : "Event"} market`,
-              description: md?.description?.trim() || "No description provided.",
-              imageUrl: ipfsToHttp(md?.image?.trim() || ""),
-              stakeEnds: fmtTs(stake as bigint),
-              resolveAfter: fmtTs(resolveAfter as bigint),
-              stakeEndUnix: Number(stake as bigint),
-              resolveAfterUnix: Number(resolveAfter as bigint),
-              marketState: Number(state),
-              stateLabel: stateLabel(Number(state)),
-              poolTvl: Number(formatUnits(poolTvlRaw, dec)).toLocaleString(undefined, {
-                maximumFractionDigits: 2,
-              }),
-              chancePct: leftPct,
-              outcomeChancePcts,
-              categories:
-                md?.categories?.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean) ??
-                [],
-              collateralAddress: (await publicClient.readContract({
-                address: marketAddress,
-                abi: MARKET_ABI,
-                functionName: "collateralAddress",
-              })) as `0x${string}`,
-              collateralDecimals: dec,
-              priceBinByOutcome,
-            } satisfies UiMarket;
-          }),
-        );
-        setMarkets(rows);
+        const res = await fetch("/api/markets", { cache: "no-store" });
+        const json = (await res.json()) as { markets?: UiMarket[]; error?: string };
+        if (!res.ok) {
+          throw new Error(json.error ?? "Could not load markets.");
+        }
+        setMarkets(json.markets ?? []);
       } catch (error) {
         setLoadError(error instanceof Error ? error.message : "Could not load markets.");
       } finally {
@@ -452,7 +244,7 @@ export function MarketClient() {
       }
     };
     void run();
-  }, [publicClient]);
+  }, []);
 
   // Fetch outcome token address when selected market/outcome changes (needed for limit orders)
   useEffect(() => {

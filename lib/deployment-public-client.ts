@@ -2,13 +2,9 @@ import { type Abi, createPublicClient, http } from "viem";
 import { baseSepolia } from "viem/chains";
 
 function deploymentRpcUrl(): string {
-  // Browser reads use the public endpoint — Alchemy keys are often server-only / domain-restricted.
-  if (typeof window !== "undefined") {
-    return "https://sepolia.base.org";
-  }
   return (
-    process.env.RPC_URL?.trim() ||
     process.env.NEXT_PUBLIC_RPC_URL?.trim() ||
+    process.env.RPC_URL?.trim() ||
     "https://sepolia.base.org"
   );
 }
