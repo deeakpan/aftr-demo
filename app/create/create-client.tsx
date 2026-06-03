@@ -615,7 +615,7 @@ export function CreateClient() {
         abi: FACTORY_ABI,
         account: address,
         value: collateral.isNative ? seedUnits : undefined,
-        gas: BigInt(3_000_000),
+        gas: BigInt(8_000_000),
       };
 
       setSubmitStatus("Simulating market creation...");
