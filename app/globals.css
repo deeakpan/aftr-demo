@@ -91,3 +91,23 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/** Native date/time picker icon — dark theme uses a dark icon by default. */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+html:not([data-theme="light"]) input[type="date"]::-webkit-calendar-picker-indicator,
+html:not([data-theme="light"]) input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+html:not([data-theme="light"]) input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+html:not([data-theme="light"]) input[type="date"],
+html:not([data-theme="light"]) input[type="datetime-local"],
+html:not([data-theme="light"]) input[type="time"] {
+  color-scheme: dark;
+}

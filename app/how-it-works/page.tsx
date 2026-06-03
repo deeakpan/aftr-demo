@@ -152,8 +152,14 @@ export default function HowItWorksPage() {
             <section id="settlement" className="scroll-mt-24 space-y-3">
               <h2 className="text-xl font-semibold text-[var(--foreground)]">Settlement</h2>
               <ul className="space-y-2 text-sm text-[var(--foreground)] md:text-base">
-                <li>- Price markets settle from Chainlink data at resolve time.</li>
-                <li>- Event markets settle through UMA Optimistic Oracle flow.</li>
+                <li>
+                  - Price markets read Chainlink at resolve time. Once the resolve-after timestamp
+                  passes, anyone can call settlement and the market finalizes in seconds.
+                </li>
+                <li>
+                  - Event markets use UMA&apos;s Optimistic Oracle. Resolution timing depends on
+                  proposals, disputes, and liveness windows — often minutes to hours, sometimes longer.
+                </li>
                 <li>- Winners redeem outcome shares for collateral after settlement.</li>
                 <li>- Market trades and pool moves are publicly verifiable onchain.</li>
               </ul>

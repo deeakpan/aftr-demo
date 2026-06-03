@@ -264,9 +264,6 @@ function SettledMarketSummary({
     return (
       <div className="mt-2 rounded-lg border border-rose-500/25 bg-rose-500/5 px-2 py-1.5">
         <p className="text-sm font-bold text-rose-400 [html[data-theme=light]_&]:text-rose-700">You lost</p>
-        <p className="mt-0.5 text-[11px] font-semibold text-[var(--foreground)]">
-          {fmtAmount(invested)} {tick} invested · nothing redeemed
-        </p>
       </div>
     );
   }
