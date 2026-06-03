@@ -1,53 +1,52 @@
-import { getSupabaseClient } from "./client";
-
 export type UserProfileInput = {
   address: string;
   name: string;
 };
 
-export async function saveUserProfile({ address, name }: UserProfileInput) {
-  const supabase = getSupabaseClient();
+export type UserProfile = {
+  address: string;
+  name: string;
+};
+
+async function readJson<T>(res: Response): Promise<T> {
+  return (await res.json()) as T;
+}
+
+export async function getUserProfileByAddress(address: string): Promise<UserProfile | null> {
+  const normalizedAddress = address.toLowerCase().trim();
+  if (!normalizedAddress) {
+    throw new Error("Address is required.");
+  }
+
+  const res = await fetch(`/api/profile?address=${encodeURIComponent(normalizedAddress)}`, {
+    cache: "no-store",
+  });
+  const body = await readJson<{ profile?: UserProfile | null; error?: string }>(res);
+  if (!res.ok) {
+    throw new Error(body.error || "Profile lookup failed.");
+  }
+  return body.profile ?? null;
+}
+
+export async function saveUserProfile({ address, name }: UserProfileInput): Promise<UserProfile> {
   const normalizedAddress = address.toLowerCase().trim();
   const trimmedName = name.trim();
 
   if (!normalizedAddress) {
     throw new Error("Address is required.");
   }
-
   if (!trimmedName) {
     throw new Error("Name is required.");
   }
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .upsert(
-      {
-        address: normalizedAddress,
-        name: trimmedName,
-      },
-      { onConflict: "address" },
-    )
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-}
-
-export async function getUserProfileByAddress(address: string) {
-  const supabase = getSupabaseClient();
-  const normalizedAddress = address.toLowerCase().trim();
-
-  if (!normalizedAddress) {
-    throw new Error("Address is required.");
+  const res = await fetch("/api/profile", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ address: normalizedAddress, name: trimmedName }),
+  });
+  const body = await readJson<{ profile?: UserProfile; error?: string }>(res);
+  if (!res.ok || !body.profile) {
+    throw new Error(body.error || "Could not save profile.");
   }
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("address,name")
-    .eq("address", normalizedAddress)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data;
+  return body.profile;
 }

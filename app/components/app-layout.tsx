@@ -106,7 +106,8 @@ export function AppLayout({
   const [showNameModal, setShowNameModal] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [isSavingName, setIsSavingName] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [nameModalError, setNameModalError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState("Trending");
   const [searchQuery, setSearchQuery] = useState("");
@@ -183,7 +184,8 @@ export function AppLayout({
     hasRunAuthRef.current = true;
 
     const runPostConnectFlow = async () => {
-      setAuthError(null);
+      setProfileError(null);
+      setNameModalError(null);
 
       const alreadySigned = window.localStorage.getItem(signedSessionKey(address)) === "1";
       if (!alreadySigned) {
@@ -491,7 +493,10 @@ export function AppLayout({
                               {isEditingProfileName ? (
                                 <input
                                   value={profileNameDraft}
-                                  onChange={(e) => setProfileNameDraft(e.target.value)}
+                                  onChange={(e) => {
+                                    setProfileNameDraft(e.target.value);
+                                    setProfileError(null);
+                                  }}
                                   className="h-7 w-[112px] border border-[var(--border)] bg-[var(--surface)] px-2 text-xs outline-none focus:border-[var(--accent)]"
                                   maxLength={40}
                                 />
@@ -507,11 +512,12 @@ export function AppLayout({
                                   if (!address) return;
                                   if (!isEditingProfileName) {
                                     setProfileNameDraft(profileName || createSuggestedUsername(address));
+                                    setProfileError(null);
                                     setIsEditingProfileName(true);
                                     return;
                                   }
                                   setIsSavingProfileName(true);
-                                  setAuthError(null);
+                                  setProfileError(null);
                                   try {
                                     const finalName =
                                       profileNameDraft.trim() || createSuggestedUsername(address);
@@ -519,7 +525,7 @@ export function AppLayout({
                                     setProfileName(finalName);
                                     setIsEditingProfileName(false);
                                   } catch (error) {
-                                    setAuthError(
+                                    setProfileError(
                                       error instanceof Error
                                         ? error.message
                                         : "Could not update profile name.",
@@ -552,7 +558,7 @@ export function AppLayout({
                                     try {
                                       await navigator.clipboard.writeText(profileUrl);
                                     } catch {
-                                      setAuthError("Could not copy profile link.");
+                                      setProfileError("Could not copy profile link.");
                                     }
                                   }}
                                   className="ml-1.5 inline-flex align-middle text-[#7fd0ff] hover:text-[#a6e2ff]"
@@ -562,6 +568,9 @@ export function AppLayout({
                                 </button>
                               )}
                             </p>
+                            {profileError && (
+                              <p className="mt-1 text-[10px] leading-snug text-red-400">{profileError}</p>
+                            )}
                           </div>
                         </div>
                         <div className="my-2 border-t border-[var(--border)]" />
@@ -751,12 +760,6 @@ export function AppLayout({
         ) : (
           children
         )}
-
-        {authError && (
-          <p className="mx-4 mt-4 rounded-lg border border-red-700/50 bg-red-950/40 px-4 py-3 text-sm text-red-300 md:mx-6">
-            {authError}
-          </p>
-        )}
       </div>
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border)] bg-[var(--background)]/90 px-2 py-2 backdrop-blur-md md:hidden">
@@ -801,25 +804,31 @@ export function AppLayout({
             </p>
             <input
               value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
+              onChange={(e) => {
+                setNameInput(e.target.value);
+                setNameModalError(null);
+              }}
               className="mt-4 h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm outline-none focus:border-[var(--accent)]"
               placeholder="Enter your name"
               maxLength={40}
             />
+            {nameModalError && (
+              <p className="mt-2 text-sm text-red-400">{nameModalError}</p>
+            )}
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={async () => {
                   if (!address) return;
                   setIsSavingName(true);
-                  setAuthError(null);
+                  setNameModalError(null);
                   try {
                     const fallbackName = nameInput.trim() || createSuggestedUsername(address);
                     await saveUserProfile({ address, name: fallbackName });
                     setProfileName(fallbackName);
                     setShowNameModal(false);
                   } catch (error) {
-                    setAuthError(
+                    setNameModalError(
                       error instanceof Error ? error.message : "Could not save profile name.",
                     );
                   } finally {
@@ -836,14 +845,14 @@ export function AppLayout({
                 onClick={async () => {
                   if (!address) return;
                   setIsSavingName(true);
-                  setAuthError(null);
+                  setNameModalError(null);
                   try {
                     const fallbackName = nameInput.trim() || createSuggestedUsername(address);
                     await saveUserProfile({ address, name: fallbackName });
                     setProfileName(fallbackName);
                     setShowNameModal(false);
                   } catch (error) {
-                    setAuthError(
+                    setNameModalError(
                       error instanceof Error ? error.message : "Could not save profile name.",
                     );
                   } finally {

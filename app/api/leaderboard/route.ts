@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { formatUnits } from "viem";
-import { getSupabaseClient } from "@/lib/supabase/client";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { querySubgraph } from "@/lib/subgraph/client";
 
 type GraphResponse = {
@@ -67,8 +67,9 @@ export async function GET() {
   let nameByAddress = new Map<string, string>();
   if (addresses.length > 0) {
     try {
-      const supabase = getSupabaseClient();
-      const { data } = await supabase.from("profiles").select("address,name").in("address", addresses);
+      const supabase = getSupabaseAdminClient();
+      const { data, error } = await supabase.from("profiles").select("address,name").in("address", addresses);
+      if (error) throw error;
       nameByAddress = new Map(
         (data ?? [])
           .filter((p): p is { address: string; name: string } => Boolean(p?.address) && Boolean(p?.name))
