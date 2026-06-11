@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 /**
- * Send a fixed amount of ERC20 (defaults to deployment AFTRUSDC on Base Sepolia) to a recipient.
+ * Send a fixed amount of ERC20 (defaults to deployment MondaloreUSDC on Base Sepolia) to a recipient.
  *
  * Env:
  *   PRIVATE_KEY (or DEPLOYER_PRIVATE_KEY) — hex, with or without 0x
@@ -37,9 +37,9 @@ function normalizePrivateKey(raw) {
 function readDefaultTokenAddress() {
   const deploymentPath = path.join(__dirname, "..", "deployments", "baseSepolia-84532.json");
   const j = JSON.parse(fs.readFileSync(deploymentPath, "utf8"));
-  const addr = j?.contracts?.AFTRUSDC;
+  const addr = j?.contracts?.MondaloreUSDC;
   if (!addr || typeof addr !== "string") {
-    throw new Error("AFTRUSDC missing in deployments/baseSepolia-84532.json");
+    throw new Error("MondaloreUSDC missing in deployments/baseSepolia-84532.json");
   }
   return addr;
 }

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowsClockwise, CaretDown, CheckCircle, PencilSimple, WarningCircle, X } from "@phosphor-icons/react";
 import { formatUnits } from "viem";
+import { txExplorerUrl } from "@/lib/chain";
 import { isUsdStyledCollateralTicker } from "@/lib/deployment-collateral";
 
 export type LimitOrderParams = {
@@ -57,7 +58,7 @@ type TradeModalProps = {
 };
 
 const QUICK_AMOUNTS = ["10", "25", "50", "100"] as const;
-const ORDERBOOK_FEE_BPS = 50; // 0.5% per side, matches AFTROrderBook default.
+const ORDERBOOK_FEE_BPS = 50; // 0.5% per side, matches MondaloreOrderBook default.
 
 export function TradeModal({
   open,
@@ -326,7 +327,7 @@ export function TradeModal({
           <div className="flex items-center justify-between gap-2 text-xs">
             <span className="text-[var(--muted)]">Receipt</span>
             <a
-              href={`https://sepolia.basescan.org/tx/${tradeSuccess.txHash}`}
+              href={txExplorerUrl(tradeSuccess.txHash)}
               target="_blank"
               rel="noreferrer"
               className="truncate font-mono text-[10px] text-[var(--accent)] hover:underline"

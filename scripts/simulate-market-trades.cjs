@@ -1,12 +1,11 @@
 /* eslint-disable no-console */
 /**
- * Random router trades from wallets.json on the last BTC market (or MARKET_ADDRESS env).
+ * Random market deposits from wallets.json on the last BTC market (or MARKET_ADDRESS env).
  *
  * Env: TRADE_COUNT (default 10), TRADE_MIN_USDC (20), TRADE_MAX_USDC (47)
  */
 const {
   ERC20_ABI,
-  ROUTER_ABI,
   estimateMinSharesOut,
   ensureErc20Allowance,
   loadLastMarket,
@@ -47,47 +46,49 @@ const MARKET_ABI = [
     inputs: [],
     outputs: [{ type: "uint256" }],
   },
+  {
+    type: "function",
+    name: "deposit",
+    stateMutability: "payable",
+    inputs: [
+      { name: "outcomeIndex", type: "uint8" },
+      { name: "amount", type: "uint256" },
+      { name: "recipient", type: "address" },
+      { name: "minSharesOut", type: "uint256" },
+    ],
+    outputs: [],
+  },
 ];
 
-async function tradeOnce({ marketAddress, routerAddress, usdcAddress, wallet, publicClient, minUsdc, maxUsdc }) {
+async function tradeOnce({ marketAddress, usdcAddress, wallet, publicClient, minUsdc, maxUsdc }) {
   const { account, walletClient } = makeClients(wallet.privateKey);
   const outcomeIndex = randomInt(0, 1);
   const amountHuman = randomUsdcAmount(minUsdc, maxUsdc);
   const amountUnits = parseUnits(amountHuman, 6);
 
-  const [price, allowance] = await Promise.all([
-    publicClient.readContract({
-      address: marketAddress,
-      abi: MARKET_ABI,
-      functionName: "priceOf",
-      args: [outcomeIndex],
-    }),
-    publicClient.readContract({
-      address: usdcAddress,
-      abi: ERC20_ABI,
-      functionName: "allowance",
-      args: [account.address, routerAddress],
-    }),
-  ]);
+  const price = await publicClient.readContract({
+    address: marketAddress,
+    abi: MARKET_ABI,
+    functionName: "priceOf",
+    args: [outcomeIndex],
+  });
 
-  if (allowance < amountUnits) {
-    await ensureErc20Allowance(
-      publicClient,
-      walletClient,
-      usdcAddress,
-      account.address,
-      routerAddress,
-      amountUnits,
-    );
-  }
+  await ensureErc20Allowance(
+    publicClient,
+    walletClient,
+    usdcAddress,
+    account.address,
+    marketAddress,
+    amountUnits,
+  );
 
   const minSharesOut = estimateMinSharesOut(amountUnits, price, 800);
 
   const hash = await walletClient.writeContract({
-    address: routerAddress,
-    abi: ROUTER_ABI,
-    functionName: "depositForSelf",
-    args: [marketAddress, outcomeIndex, amountUnits, minSharesOut],
+    address: marketAddress,
+    abi: MARKET_ABI,
+    functionName: "deposit",
+    args: [outcomeIndex, amountUnits, account.address, minSharesOut],
     account,
     gas: 500000n,
   });
@@ -103,8 +104,7 @@ async function tradeOnce({ marketAddress, routerAddress, usdcAddress, wallet, pu
 
 async function main() {
   const deployment = readDeployment();
-  const routerAddress = deployment.contracts.AFTRMarketDebtRouter;
-  const usdcAddress = deployment.contracts.AFTRUSDC;
+  const usdcAddress = deployment.contracts.MondaloreUSDC;
   const last = loadLastMarket();
   const marketAddress = process.env.MARKET_ADDRESS || last.marketAddress;
   if (!marketAddress) throw new Error("No market address");
@@ -138,7 +138,6 @@ async function main() {
   ]);
 
   console.log(`Market: ${marketAddress}`);
-  console.log(`Router: ${routerAddress}`);
   console.log(`State: ${state} | stakeEnd: ${stakeEnd} | resolveAfter: ${resolveAfter} | now: ${now}`);
 
   if (Number(state) !== 0) throw new Error(`Market not OPEN (state ${state})`);
@@ -153,7 +152,6 @@ async function main() {
     try {
       const r = await tradeOnce({
         marketAddress,
-        routerAddress,
         usdcAddress,
         wallet,
         publicClient,

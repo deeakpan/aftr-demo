@@ -16,10 +16,22 @@ const {
   toBytes,
 } = require("viem");
 const { generatePrivateKey, privateKeyToAccount } = require("viem/accounts");
-const { baseSepolia } = require("viem/chains");
+const { defineChain } = require("viem");
+
+const monadTestnet = defineChain({
+  id: 10143,
+  name: "Monad Testnet",
+  nativeCurrency: { name: "Monad", symbol: "MON", decimals: 18 },
+  rpcUrls: { default: { http: ["https://testnet-rpc.monad.xyz"] } },
+  contracts: {
+    multicall3: {
+      address: "0xcA11bde05977b3631167028862bE2a173976CA11",
+    },
+  },
+});
 
 const ROOT = path.join(__dirname, "..", "..");
-const DEPLOYMENT_PATH = path.join(ROOT, "deployments", "baseSepolia-84532.json");
+const DEPLOYMENT_PATH = path.join(ROOT, "deployments", "monadTestnet-10143.json");
 const WALLETS_PATH = path.join(ROOT, "wallets.json");
 const LAST_MARKET_PATH = path.join(ROOT, "scripts", "last-price-market.json");
 const LIGHTHOUSE_ADD_URL = "https://upload.lighthouse.storage/api/v0/add";
@@ -38,7 +50,9 @@ const ERC20_ABI = parseAbi([
 ]);
 
 const FACTORY_ABI = parseAbi([
-  "function createPriceMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,address chainlinkFeed,uint256 priceThreshold,uint8 priceKind,uint256 priceUpperBound,uint256 maxPriceStaleness,uint256[] priceBinLower,uint256[] priceBinUpper,uint256 minBootstrapTotal,uint256 bootstrapAmount,address shareRecipient) p) payable returns (address market)",
+  "function createPriceMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,bytes32 priceAssetKey,uint256 priceThreshold,uint8 priceKind,uint256 priceUpperBound,uint256 maxPriceStaleness,uint256[] priceBinLower,uint256[] priceBinUpper,uint256 minBootstrapTotal,uint256 bootstrapAmount,address shareRecipient) p) payable returns (address market)",
+  "function priceFeeds(bytes32 assetKey) view returns (address)",
+  "function setPriceFeed(bytes32 assetKey, address feed)",
   "event MarketCreated(address indexed market, uint8 indexed kind, address indexed collateralToken, address[] outcomeTokens, string[] outcomeLabels, uint256 stakeEndTimestamp, uint256 resolveAfterTimestamp, bytes32 metadataHash, address creator)",
 ]);
 
@@ -66,7 +80,7 @@ function readDeployment() {
 }
 
 function getRpcUrl() {
-  return process.env.BASE_SEPOLIA_RPC_URL || process.env.RPC_URL || "https://sepolia.base.org";
+  return process.env.RPC_URL || "https://testnet-rpc.monad.xyz/";
 }
 
 function makeClients(privateKey) {
@@ -74,8 +88,8 @@ function makeClients(privateKey) {
   if (!pk) throw new Error("Missing private key");
   const account = privateKeyToAccount(pk);
   const transport = http(getRpcUrl());
-  const publicClient = createPublicClient({ chain: baseSepolia, transport });
-  const walletClient = createWalletClient({ account, chain: baseSepolia, transport });
+  const publicClient = createPublicClient({ chain: monadTestnet, transport });
+  const walletClient = createWalletClient({ account, chain: monadTestnet, transport });
   return { account, publicClient, walletClient };
 }
 
@@ -197,7 +211,7 @@ async function ensureErc20Allowance(publicClient, walletClient, token, ownerAddr
     functionName: "approve",
     args: [spender, amount],
     account,
-    chain: baseSepolia,
+    chain: monadTestnet,
   });
   return publicClient.waitForTransactionReceipt({ hash });
 }
@@ -254,7 +268,7 @@ module.exports = {
   MARKET_ABI,
   ROUTER_ABI,
   WAD,
-  baseSepolia,
+  monadTestnet,
   normalizePrivateKey,
   readDeployment,
   getRpcUrl,

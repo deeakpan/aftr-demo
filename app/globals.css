@@ -92,22 +92,61 @@ body {
   display: none;
 }
 
-/** Native date/time picker icon — dark theme uses a dark icon by default. */
+/** Native date/time picker icon — white calendar in dark theme. */
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="datetime-local"]::-webkit-calendar-picker-indicator,
 input[type="time"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
-html:not([data-theme="light"]) input[type="date"]::-webkit-calendar-picker-indicator,
-html:not([data-theme="light"]) input[type="datetime-local"]::-webkit-calendar-picker-indicator,
-html:not([data-theme="light"]) input[type="time"]::-webkit-calendar-picker-indicator {
-  filter: invert(1);
+input[type="date"]::-moz-calendar-picker-indicator,
+input[type="datetime-local"]::-moz-calendar-picker-indicator,
+input[type="time"]::-moz-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.9;
 }
 
-html:not([data-theme="light"]) input[type="date"],
-html:not([data-theme="light"]) input[type="datetime-local"],
-html:not([data-theme="light"]) input[type="time"] {
+html[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+html[data-theme="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+html[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator,
+html:not([data-theme]) input[type="date"]::-webkit-calendar-picker-indicator,
+html:not([data-theme]) input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+html:not([data-theme]) input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: brightness(0) invert(1);
+  opacity: 1;
+}
+
+html[data-theme="dark"] input[type="date"]::-moz-calendar-picker-indicator,
+html[data-theme="dark"] input[type="datetime-local"]::-moz-calendar-picker-indicator,
+html[data-theme="dark"] input[type="time"]::-moz-calendar-picker-indicator,
+html:not([data-theme]) input[type="date"]::-moz-calendar-picker-indicator,
+html:not([data-theme]) input[type="datetime-local"]::-moz-calendar-picker-indicator,
+html:not([data-theme]) input[type="time"]::-moz-calendar-picker-indicator {
+  filter: brightness(0) invert(1);
+  opacity: 1;
+}
+
+html[data-theme="dark"] input[type="date"],
+html[data-theme="dark"] input[type="datetime-local"],
+html[data-theme="dark"] input[type="time"],
+html:not([data-theme]) input[type="date"],
+html:not([data-theme]) input[type="datetime-local"],
+html:not([data-theme]) input[type="time"] {
   color-scheme: dark;
+}
+
+html[data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator,
+html[data-theme="light"] input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+html[data-theme="light"] input[type="time"]::-webkit-calendar-picker-indicator,
+html[data-theme="light"] input[type="date"]::-moz-calendar-picker-indicator,
+html[data-theme="light"] input[type="datetime-local"]::-moz-calendar-picker-indicator,
+html[data-theme="light"] input[type="time"]::-moz-calendar-picker-indicator {
+  filter: none;
+}
+
+html[data-theme="light"] input[type="date"],
+html[data-theme="light"] input[type="datetime-local"],
+html[data-theme="light"] input[type="time"] {
+  color-scheme: light;
 }

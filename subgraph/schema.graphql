@@ -1,3 +1,11 @@
+"""Registered factory price feed for an asset key (BTC, ETH, …)."""
+type PriceFeed @entity(immutable: false) {
+  id: ID!
+  assetKey: Bytes!
+  feed: String!
+  updatedAt: BigInt!
+}
+
 """One row per deployed market (from factory `MarketCreated`)."""
 type Market @entity(immutable: false) {
   id: ID!
@@ -49,10 +57,10 @@ type TraderMarketPosition @entity(immutable: false) {
 """One row per staker — tracks their current staked balance and lifetime rewards."""
 type Staker @entity(immutable: false) {
   id: ID!                        # staker address
-  stakedBalance: BigInt!         # current sAFTR balance (active stake)
+  stakedBalance: BigInt!         # current sMondalore balance (active stake)
   pendingUnstake: BigInt!        # amount in initiateUnstake queue
-  totalStaked: BigInt!           # lifetime AFTR staked
-  totalUnstaked: BigInt!         # lifetime AFTR unstaked
+  totalStaked: BigInt!           # lifetime Mondalore staked
+  totalUnstaked: BigInt!         # lifetime Mondalore unstaked
   totalRewardsClaimed: BigInt!   # lifetime rewards claimed (all tokens combined in USD not tracked here)
   rewardsClaimed: [RewardClaim!]! @derivedFrom(field: "staker")
 }

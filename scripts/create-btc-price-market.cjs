@@ -43,13 +43,13 @@ function slugify(input) {
 
 async function main() {
   const deployment = readDeployment();
-  const factoryAddress = deployment.contracts.AFTRParimutuelMarketFactory;
-  const usdcAddress = deployment.contracts.AFTRUSDC;
-  const routerAddress = deployment.contracts.AFTRMarketDebtRouter;
-  const btcFeed = deployment.external?.chainlinkFeeds?.find((f) => f.asset === "BTC");
-  if (!factoryAddress || !usdcAddress || !btcFeed?.address) {
-    throw new Error("Deployment missing factory, AFTRUSDC, or BTC feed");
+  const factoryAddress = deployment.contracts.MondaloreParimutuelMarketFactory;
+  const usdcAddress = deployment.contracts.MondaloreUSDC;
+  const btcFeedAddr = deployment.contracts?.MockBtcUsdFeed;
+  if (!factoryAddress || !usdcAddress || !btcFeedAddr) {
+    throw new Error("Deployment missing factory, MondaloreUSDC, or MockBtcUsdFeed");
   }
+  const btcAssetKey = keccak256(toBytes("BTC"));
 
   const seedHuman = process.env.SEED_AMOUNT || DEFAULT_SEED;
   const { account, publicClient, walletClient } = getFunderClients();
@@ -63,7 +63,7 @@ async function main() {
     throw new Error("Timestamps too soon — wait and retry");
   }
 
-  const { spot } = await fetchBtcSpot(publicClient, btcFeed.address);
+  const { spot } = await fetchBtcSpot(publicClient, btcFeedAddr);
   const thresholdValue = spot * THRESHOLD_MULTIPLIER;
   const thresholdDisplay = thresholdValue.toLocaleString(undefined, { maximumFractionDigits: 8 });
   const cleanedThreshold = thresholdDisplay.replaceAll(",", "").trim();
@@ -101,8 +101,8 @@ async function main() {
     outcomes: ["Yes", "No"],
     image: imageUri,
     priceConfig: {
-      feed: btcFeed.label,
-      feedAddress: btcFeed.address,
+      asset: "BTC",
+      feedAddress: btcFeedAddr,
       currentPrice: spot.toLocaleString(undefined, { maximumFractionDigits: 8 }),
       comparison: "ABOVE",
       threshold: thresholdDisplay,
@@ -154,7 +154,7 @@ async function main() {
         metadataHash,
         outcomeLabels: ["Yes", "No"],
         metadataURI: metadataUri,
-        chainlinkFeed: btcFeed.address,
+        priceAssetKey: btcAssetKey,
         priceThreshold,
         priceKind: 0,
         priceUpperBound: 0n,
@@ -203,7 +203,6 @@ async function main() {
     creator: account.address,
     marketAddress,
     factoryAddress,
-    routerAddress,
     collateral: usdcAddress,
     btcFeed: btcFeed.address,
     spot,

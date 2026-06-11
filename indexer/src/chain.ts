@@ -1,7 +1,18 @@
 import { createPublicClient, defineChain, http, parseAbi } from "viem";
-import { baseSepolia } from "viem/chains";
 import type { Address } from "viem";
 import type { IndexerConfig } from "./config.js";
+
+const monadTestnet = defineChain({
+  id: 10143,
+  name: "Monad Testnet",
+  nativeCurrency: { name: "Monad", symbol: "MON", decimals: 18 },
+  rpcUrls: { default: { http: ["https://testnet-rpc.monad.xyz"] } },
+  contracts: {
+    multicall3: {
+      address: "0xcA11bde05977b3631167028862bE2a173976CA11",
+    },
+  },
+});
 
 const FACTORY_ABI = parseAbi([
   "function marketsLength() view returns (uint256)",
@@ -15,12 +26,12 @@ const MARKET_LOG_EVENTS = parseAbi([
 
 export function createChainClient(cfg: IndexerConfig) {
   const chain =
-    cfg.chainId === BigInt(baseSepolia.id)
-      ? baseSepolia
+    cfg.chainId === BigInt(monadTestnet.id)
+      ? monadTestnet
       : defineChain({
           id: Number(cfg.chainId),
           name: "Indexed chain",
-          nativeCurrency: baseSepolia.nativeCurrency,
+          nativeCurrency: monadTestnet.nativeCurrency,
           rpcUrls: { default: { http: [cfg.rpcUrl] } },
         });
 

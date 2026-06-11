@@ -14,8 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AFTRMarket",
-  description: "AFTRMarket prediction markets",
+  title: "Mondalore Market | The planet of predictions",
+  description:
+    "Mondalore Market — a planet of predictions on Monad. Trade outcomes, create markets, and earn with the community.",
 };
 
 export default function RootLayout({

@@ -8,11 +8,12 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useWeb3Modal } from "@web3modal/wagmi/react";
 import { useAccount, useBalance, useDisconnect, useReadContract, useSignMessage } from "wagmi";
 import { formatUnits, parseAbi } from "viem";
-import deployment from "@/deployments/baseSepolia-84532.json";
+import deployment, { DEPLOYMENT_CHAIN_ID } from "@/lib/deployment";
 import {
   BookOpenText,
   CopySimple,
-  CrownSimple,
+  Coins,
+  CrosshairSimple,
   DiamondsFour,
   Gear,
   Gift,
@@ -60,13 +61,10 @@ function signedSessionKey(address: string) {
   return `aftrmarket-signed:${address.toLowerCase()}`;
 }
 
-/** Profile “USDC” row reads minted AFTRUSDC (`symbol()` on-chain is still USDC). */
+/** Profile “USDC” row reads minted MondaloreUSDC (`symbol()` on-chain is still USDC). */
 const PROFILE_USDC_ADDRESS = (
-  deployment as unknown as { contracts?: { AFTRUSDC?: string } }
-).contracts?.AFTRUSDC as `0x${string}` | undefined;
-const PROFILE_USDEAD_ADDRESS = (
-  deployment as unknown as { contracts?: { USDeAD?: string } }
-).contracts?.USDeAD as `0x${string}` | undefined;
+  deployment as unknown as { contracts?: { MondaloreUSDC?: string } }
+).contracts?.MondaloreUSDC as `0x${string}` | undefined;
 const ERC20_ABI = parseAbi([
   "function balanceOf(address account) view returns (uint256)",
   "function decimals() view returns (uint8)",
@@ -117,7 +115,7 @@ export function AppLayout({
   const [isEditingProfileName, setIsEditingProfileName] = useState(false);
   const [profileNameDraft, setProfileNameDraft] = useState("");
   const [isSavingProfileName, setIsSavingProfileName] = useState(false);
-  const [balanceView, setBalanceView] = useState<"eth" | "usdc" | "usdead">("eth");
+  const [balanceView, setBalanceView] = useState<"mon" | "usdc">("mon");
   /** `undefined` = still loading summary for connected wallet */
   const [walletGraphStats, setWalletGraphStats] = useState<
     | undefined
@@ -130,6 +128,7 @@ export function AppLayout({
   >(undefined);
   const { data: nativeBalance } = useBalance({
     address,
+    chainId: DEPLOYMENT_CHAIN_ID,
     query: { enabled: Boolean(address) },
   });
   const { data: usdcBalanceRaw } = useReadContract({
@@ -150,25 +149,6 @@ export function AppLayout({
     abi: ERC20_ABI,
     functionName: "symbol",
     query: { enabled: Boolean(PROFILE_USDC_ADDRESS) },
-  });
-  const { data: usdeadBalanceRaw } = useReadContract({
-    address: PROFILE_USDEAD_ADDRESS,
-    abi: ERC20_ABI,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
-    query: { enabled: Boolean(address && PROFILE_USDEAD_ADDRESS) },
-  });
-  const { data: usdeadDecimalsRaw } = useReadContract({
-    address: PROFILE_USDEAD_ADDRESS,
-    abi: ERC20_ABI,
-    functionName: "decimals",
-    query: { enabled: Boolean(PROFILE_USDEAD_ADDRESS) },
-  });
-  const { data: usdeadSymbolRaw } = useReadContract({
-    address: PROFILE_USDEAD_ADDRESS,
-    abi: ERC20_ABI,
-    functionName: "symbol",
-    query: { enabled: Boolean(PROFILE_USDEAD_ADDRESS) },
   });
 
   useEffect(() => {
@@ -192,7 +172,7 @@ export function AppLayout({
         try {
           const nonce = Math.floor(Math.random() * 1_000_000);
           await signMessageAsync({
-            message: `Sign in to AFTRMarket\nAddress: ${address}\nNonce: ${nonce}`,
+            message: `Sign in to Mondalore Market\nAddress: ${address}\nNonce: ${nonce}`,
           });
           window.localStorage.setItem(signedSessionKey(address), "1");
         } catch {
@@ -278,18 +258,11 @@ export function AppLayout({
       const value = Number(formatUnits(bal, decimals));
       return { amount: formatGroupedAmount(value, 2, 2), symbol };
     }
-    if (balanceView === "usdead") {
-      const bal = (usdeadBalanceRaw as bigint | undefined) ?? BigInt(0);
-      const decimals = Number(usdeadDecimalsRaw ?? 18);
-      const symbol = typeof usdeadSymbolRaw === "string" ? usdeadSymbolRaw : "USDeAD";
-      const value = Number(formatUnits(bal, decimals));
-      return { amount: formatGroupedAmount(value, 4, 4), symbol };
-    }
-    if (!nativeBalance) return { amount: formatGroupedAmount(0, 4, 4), symbol: "ETH" };
+    if (!nativeBalance) return { amount: formatGroupedAmount(0, 4, 4), symbol: "MON" };
     const value = Number(formatUnits(nativeBalance.value, nativeBalance.decimals));
     return {
       amount: formatGroupedAmount(value, 4, 4),
-      symbol: nativeBalance.symbol ?? "ETH",
+      symbol: "MON",
     };
   }, [
     balanceView,
@@ -297,9 +270,6 @@ export function AppLayout({
     usdcBalanceRaw,
     usdcDecimalsRaw,
     usdcSymbolRaw,
-    usdeadBalanceRaw,
-    usdeadDecimalsRaw,
-    usdeadSymbolRaw,
   ]);
 
   const walletGraphSummary = useMemo(() => {
@@ -405,7 +375,7 @@ export function AppLayout({
               <Link href="/" className="relative block h-12 w-12 shrink-0 md:h-20 md:w-20">
                 <Image
                   src={theme === "light" ? "/light.png" : "/logo.png"}
-                  alt="AFTRMarket home"
+                  alt="Mondalore Market home"
                   fill
                   className="object-contain object-center"
                   sizes="(max-width: 768px) 64px, 112px"
@@ -445,7 +415,7 @@ export function AppLayout({
                       Available
                     </p>
                     <p className="text-sm font-semibold text-[var(--foreground)] transition group-hover:text-[var(--accent)]">
-                      {availableBalanceLabel} {nativeBalance?.symbol ?? "ETH"}
+                      {availableBalanceLabel} MON
                     </p>
                   </button>
                   <button type="button" className="deposit-ring relative rounded-full p-[1px]">
@@ -580,11 +550,9 @@ export function AppLayout({
                           </p>
                           <button
                             type="button"
-                            onClick={() =>
-                              setBalanceView((v) => (v === "eth" ? "usdc" : v === "usdc" ? "usdead" : "eth"))
-                            }
+                            onClick={() => setBalanceView((v) => (v === "mon" ? "usdc" : "mon"))}
                             className="mb-1 rounded-md px-1 py-0.5 text-xs text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
-                            title="Tap to switch ETH / AFTR USDC / USDeAD"
+                            title="Tap to switch MON / Mondalore USDC"
                           >
                             {profileBalance.amount} {profileBalance.symbol}
                           </button>
@@ -763,7 +731,7 @@ export function AppLayout({
       </div>
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border)] bg-[var(--background)]/90 px-2 py-2 backdrop-blur-md md:hidden">
-        <div className="grid grid-cols-4 gap-1">
+        <div className="grid grid-cols-5 gap-1">
           <Link
             href="/"
             className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
@@ -786,11 +754,18 @@ export function AppLayout({
             <span>Trades</span>
           </Link>
           <Link
-            href="/leaderboard"
+            href="/stake"
             className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
           >
-            <CrownSimple size={18} weight="regular" />
-            <span>Leader</span>
+            <Coins size={18} weight="regular" />
+            <span>Stake</span>
+          </Link>
+          <Link
+            href="/bounty-board"
+            className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+          >
+            <CrosshairSimple size={18} weight="regular" />
+            <span>Bounty</span>
           </Link>
         </div>
       </nav>

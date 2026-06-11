@@ -1,8 +1,8 @@
 import { formatUnits, parseAbi } from "viem";
-import deployment from "@/deployments/baseSepolia-84532.json";
+import deployment from "@/lib/deployment";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
 
-const FACTORY_ADDRESS = deployment.contracts.AFTRParimutuelMarketFactory as `0x${string}`;
+const FACTORY_ADDRESS = deployment.contracts.MondaloreParimutuelMarketFactory as `0x${string}`;
 
 const FACTORY_ABI = parseAbi([
   "function marketsLength() view returns (uint256)",

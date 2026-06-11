@@ -22,9 +22,13 @@ function bps(amount, fee) {
 
 // ─── Mock Chainlink feed ───────────────────────────────────────────────────────
 
-async function deployMockFeed(answer, decimals = 8) {
+async function deployMockFeed(owner, answer, decimals = 8) {
   const MockFeed = await ethers.getContractFactory("MockChainlinkFeed");
-  return MockFeed.deploy(answer, decimals);
+  return MockFeed.deploy(answer, decimals, owner.address);
+}
+
+function btcAssetKey() {
+  return ethers.keccak256(ethers.toUtf8Bytes("BTC"));
 }
 
 // ─── Deploy full stack ─────────────────────────────────────────────────────────
@@ -37,11 +41,11 @@ async function deployStack(owner, feeRecipient) {
   }
 
   // 1. USDC mock
-  const USDC = await ethers.getContractFactory("AFTRUSDC");
+  const USDC = await ethers.getContractFactory("MondaloreUSDC");
   const usdc = await USDC.deploy(owner.address);
 
   // 2. Factory (needs a dummy OO and bond currency — use usdc as bond currency)
-  const Factory = await ethers.getContractFactory("AFTRParimutuelMarketFactory");
+  const Factory = await ethers.getContractFactory("MondaloreParimutuelMarketFactory");
   const factory = await Factory.deploy(
     owner.address,
     feeRecipient.address,
@@ -52,7 +56,7 @@ async function deployStack(owner, feeRecipient) {
 
   // 3. Deployer facade + sub-deployers (3 txs — EIP-3860)
   const { marketDeployerAddress } = await deployParimutuelFacade(hre, owner, factoryAddr, deployAndTrack);
-  const deployer = await ethers.getContractAt("AFTRParimutuelDeployer", marketDeployerAddress);
+  const deployer = await ethers.getContractAt("MondaloreParimutuelDeployer", marketDeployerAddress);
 
   // 4. Wire factory
   await factory.connect(owner).setMarketDeployer(marketDeployerAddress);
@@ -91,7 +95,8 @@ describe("Market Lifecycle — Create, Trade, Redeem", function () {
 
     before(async function () {
       // Deploy mock Chainlink feed: BTC/USD = $100,000 (8 decimals)
-      feed = await deployMockFeed(100_000n * 10n ** 8n, 8);
+      feed = await deployMockFeed(owner, 100_000n * 10n ** 8n, 8);
+      await factory.connect(owner).setPriceFeed(btcAssetKey(), await feed.getAddress());
 
       const now = (await ethers.provider.getBlock("latest")).timestamp;
       stakeEnd = now + 7 * 24 * 3600;      // 7 days
@@ -109,7 +114,7 @@ describe("Market Lifecycle — Create, Trade, Redeem", function () {
         metadataHash: ethers.keccak256(ethers.toUtf8Bytes("btc-100k-market")),
         outcomeLabels: ["Above $100k", "Below $100k"],
         metadataURI: "ipfs://test",
-        chainlinkFeed: await feed.getAddress(),
+        priceAssetKey: btcAssetKey(),
         priceThreshold: 100_000n * 10n ** 6n, // $100k in 6-decimal normalized form
         priceKind: 0, // ABOVE
         priceUpperBound: 0n,
@@ -139,12 +144,12 @@ describe("Market Lifecycle — Create, Trade, Redeem", function () {
       expect(marketCreatedEvent, "MarketCreated event not found").to.not.be.undefined;
       marketAddr = marketCreatedEvent.args.market;
 
-      const Market = await ethers.getContractFactory("AFTRVParimutuelMarket");
+      const Market = await ethers.getContractFactory("MondaloreVParimutuelMarket");
       market = Market.attach(marketAddr);
 
       // Get outcome token addresses
       const tokens = await factory.getMarketOutcomeTokens(marketAddr);
-      const OutcomeToken = await ethers.getContractFactory("AFTROutcomeToken");
+      const OutcomeToken = await ethers.getContractFactory("MondaloreOutcomeToken");
       outcomeTokens = tokens.map(t => OutcomeToken.attach(t));
     });
 
@@ -356,9 +361,9 @@ describe("Market Lifecycle — Create, Trade, Redeem", function () {
 
     it("factory rejects unsupported collateral", async function () {
       const now = (await ethers.provider.getBlock("latest")).timestamp;
-      const feed = await deployMockFeed(100_000n * 10n ** 8n, 8);
+      await deployMockFeed(owner, 100_000n * 10n ** 8n, 8);
       const params = {
-        collateralToken: ethers.ZeroAddress, // ETH — not whitelisted
+        collateralToken: ethers.ZeroAddress, // native — not enabled in deployStack
         collateralDecimals: 18,
         virtualReserve: VIRTUAL_RESERVE,
         stakeEndTimestamp: now + 7 * 24 * 3600,
@@ -366,7 +371,7 @@ describe("Market Lifecycle — Create, Trade, Redeem", function () {
         metadataHash: ethers.keccak256(ethers.toUtf8Bytes("test")),
         outcomeLabels: ["Yes", "No"],
         metadataURI: "ipfs://test",
-        chainlinkFeed: await feed.getAddress(),
+        priceAssetKey: btcAssetKey(),
         priceThreshold: 0n,
         priceKind: 0,
         priceUpperBound: 0n,
@@ -380,6 +385,58 @@ describe("Market Lifecycle — Create, Trade, Redeem", function () {
       await expect(
         factory.connect(creator).createPriceMarket(params, { value: ethers.parseEther("0.2") })
       ).to.be.revertedWithCustomError(factory, "InvalidCollateral");
+    });
+
+    it("wraps native MON into WETH when creating a price market", async function () {
+      const MockWETH = await ethers.getContractFactory("MockWETH");
+      const weth = await MockWETH.deploy();
+      const wethAddr = await weth.getAddress();
+      const mockFeed = await deployMockFeed(owner, 100_000n * 10n ** 8n, 8);
+      await factory.connect(owner).setWrappedNativeToken(wethAddr);
+      await factory.connect(owner).addSupportedCollateral(ethers.ZeroAddress);
+      await factory.connect(owner).setPriceFeed(btcAssetKey(), await mockFeed.getAddress());
+
+      const now = (await ethers.provider.getBlock("latest")).timestamp;
+      const bootstrap = ethers.parseEther("2");
+      const params = {
+        collateralToken: ethers.ZeroAddress,
+        collateralDecimals: 18,
+        virtualReserve: ethers.parseEther("10"),
+        stakeEndTimestamp: now + 7 * 24 * 3600,
+        resolveAfterTimestamp: now + 8 * 24 * 3600,
+        metadataHash: ethers.keccak256(ethers.toUtf8Bytes("native-mon")),
+        outcomeLabels: ["Yes", "No"],
+        metadataURI: "ipfs://native-mon",
+        priceAssetKey: btcAssetKey(),
+        priceThreshold: 100_000n * 10n ** 8n,
+        priceKind: 0,
+        priceUpperBound: 0n,
+        maxPriceStaleness: 3600n,
+        priceBinLower: [],
+        priceBinUpper: [],
+        minBootstrapTotal: ethers.parseEther("0.2"),
+        bootstrapAmount: bootstrap,
+        shareRecipient: creator.address,
+      };
+
+      const tx = await factory.connect(creator).createPriceMarket(params, { value: bootstrap });
+      const receipt = await tx.wait();
+      const created = receipt.logs
+        .map((log) => {
+          try {
+            return factory.interface.parseLog(log);
+          } catch {
+            return null;
+          }
+        })
+        .find((parsed) => parsed?.name === "MarketCreated");
+      expect(created).to.not.be.undefined;
+      expect(created.args.collateralToken).to.equal(wethAddr);
+
+      const marketAddr = created.args.market;
+      const market = await ethers.getContractAt("MondaloreVParimutuelMarket", marketAddr);
+      expect(await market.collateralAddress()).to.equal(wethAddr);
+      expect(await market.bootstrapped()).to.be.true;
     });
   });
 });

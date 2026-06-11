@@ -27,7 +27,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "../interfaces/IAFTRAggregatorV3.sol";
+import "../interfaces/IMondaloreAggregatorV3.sol";
 import "../interfaces/IUSDeAD.sol";
 
 interface ITreasurySplitter {
@@ -301,12 +301,12 @@ contract DeaderalReserveProtocol is Ownable, ReentrancyGuard {
     function _getPrice(address _token) internal view returns (uint256) {
         address feed = collateralFeed[_token];
         if (feed == address(0)) revert DRP__TokenNotAllowed();
-        (, int256 answer, , uint256 updatedAt, ) = IAFTRAggregatorV3(feed)
+        (, int256 answer, , uint256 updatedAt, ) = IMondaloreAggregatorV3(feed)
             .latestRoundData();
         require(answer > 0, "Invalid price");
         require(updatedAt > 0, "Stale price");
         uint256 p = uint256(answer);
-        uint8 dec = IAFTRAggregatorV3(feed).decimals();
+        uint8 dec = IMondaloreAggregatorV3(feed).decimals();
         if (dec < 18) return p * (10 ** (18 - dec));
         if (dec > 18) return p / (10 ** (dec - 18));
         return p;

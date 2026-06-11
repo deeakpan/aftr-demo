@@ -5,13 +5,13 @@
  *
  *   CHAIN_ID=84532 BASE_RPC_URL=https://sepolia.base.org npm run uma:check-collateral -- 0xYourToken
  *
- * Env: ADDRESS_WHITELIST (default: AFTRUmaAddresses on Base Sepolia)
+ * Env: ADDRESS_WHITELIST (default: MondaloreUmaAddresses on Base Sepolia)
  */
 require("dotenv").config();
 const { createPublicClient, http, parseAbi, isAddress } = require("viem");
 const { baseSepolia, base } = require("viem/chains");
 
-// contracts/config/AFTRUmaAddresses.sol
+// contracts/config/MondaloreUmaAddresses.sol
 const DEFAULT_WHITELIST = "0xF2D5614BD8D6246AACa5a6841aCfCA210B0CbC19";
 
 const WHITELIST_ABI = parseAbi([

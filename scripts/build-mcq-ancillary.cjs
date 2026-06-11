@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 /**
- * Build UMIP-181 MULTIPLE_CHOICE_QUERY ancillary JSON for AFTR markets.
+ * Build UMIP-181 MULTIPLE_CHOICE_QUERY ancillary JSON for Mondalore markets.
  * Option values are "0".."N-1" so on-chain settlement maps directly to outcome indices.
  *
  * Usage:

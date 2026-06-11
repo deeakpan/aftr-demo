@@ -18,17 +18,12 @@ import { LimitOrderParams, TradeModal, type TradeSuccessResult } from "@/app/mar
 import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import { collateralTickerFromDeployment, isUsdStyledCollateralTicker } from "@/lib/deployment-collateral";
 import { deploymentPublicClient, assertMarketContract, readMarketPrice } from "@/lib/deployment-public-client";
-import deployment from "@/deployments/baseSepolia-84532.json";
-
-const DEPLOYMENT_CHAIN_ID = deployment.chainId;
+import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
 const WAD = BigInt("1000000000000000000");
-const UMA_BINARY_YES = BigInt("1000000000000000000");
 const SLIPPAGE_PRESETS = [50, 100, 200, 300] as const;
 
 const ORDERBOOK_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
-  .AFTROrderBook as `0x${string}`;
-const ROUTER_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
-  .AFTRMarketDebtRouter as `0x${string}`;
+  .MondaloreOrderBook as `0x${string}`;
 
 const ORDERBOOK_ABI = parseAbi([
   "function placeSellOrder(address market, address token, uint256 price, uint256 amount) returns (bytes32)",
@@ -69,13 +64,7 @@ const MARKET_ABI = parseAbi([
   "function redemptionRate() view returns (uint256)",
   "function outcomeToken(uint256) view returns (address)",
   "function redeem(uint8 outcomeIndex, uint256 shareAmount)",
-  "function umaIdentifier() view returns (bytes32)",
 ]);
-const ROUTER_ABI = parseAbi([
-  "function depositForSelf(address market, uint8 outcomeIndex, uint256 amount, uint256 minSharesOut)",
-  "function depositForSelfNative(address market, uint8 outcomeIndex, uint256 minSharesOut) payable",
-]);
-
 const FEED_ABI = parseAbi(["function decimals() view returns (uint8)"]);
 
 const ERC20_ABI = parseAbi([
@@ -83,12 +72,6 @@ const ERC20_ABI = parseAbi([
   "function approve(address spender, uint256 amount) returns (bool)",
   "function balanceOf(address account) view returns (uint256)",
 ]);
-
-/** Solidity `bytes32` string literals (right-padded), matching `AFTRUmaIdentifiers`. */
-const YES_OR_NO_QUERY_ID =
-  "0x5945535f4f525f4e4f5f51554552590000000000000000000000000000000000" as const;
-const MULTIPLE_CHOICE_QUERY_ID =
-  "0x4d554c5449504c455f43484f4943455f51554552590000000000000000000000" as const;
 
 type IpfsMetadata = {
   title?: string;
@@ -126,7 +109,6 @@ type DetailModel = {
   priceUpperBound: bigint;
   chainlinkFeed: `0x${string}`;
   feedDecimals: number;
-  umaIdentifier: `0x${string}`;
   usesBins: boolean;
   slug?: string;
 };
@@ -205,16 +187,16 @@ function priceKindName(kind: number): string {
 
 function formatLoadError(error: unknown): string {
   const msg = error instanceof Error ? error.message : String(error);
-  if (msg.includes("returned no data") || msg.includes("not a contract") || msg.includes("not found on Base Sepolia")) {
-    return "Market not found on Base Sepolia. Check the address or try again in a moment.";
+  if (msg.includes("returned no data") || msg.includes("not a contract") || msg.includes(`not found on ${DEPLOYMENT_NETWORK_LABEL}`)) {
+    return `Market not found on ${DEPLOYMENT_NETWORK_LABEL}. Check the address or try again in a moment.`;
   }
   return msg.length > 280 ? "Could not load market." : msg;
 }
 
 function formatTradeError(error: unknown): string {
   const msg = error instanceof Error ? error.message : String(error);
-  if (msg.includes("returned no data") || msg.includes("not a contract") || msg.includes("not found on Base Sepolia")) {
-    return "Market price unavailable. Confirm you are on Base Sepolia and refresh the page.";
+  if (msg.includes("returned no data") || msg.includes("not a contract") || msg.includes(`not found on ${DEPLOYMENT_NETWORK_LABEL}`)) {
+    return `Market price unavailable. Confirm you are on ${DEPLOYMENT_NETWORK_LABEL} and refresh the page.`;
   }
   if (msg.includes("User rejected") || msg.includes("user rejected")) return "Transaction cancelled.";
   return msg.length > 240 ? "Trade failed. Try again." : msg;
@@ -298,7 +280,6 @@ export function MarketDetailClient({ address: addressProp }: Props) {
         priceKind,
         priceUpper,
         feed,
-        umaId,
       ] = await Promise.all([
         publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "marketKind" }),
         publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "metadataURI" }),
@@ -320,7 +301,6 @@ export function MarketDetailClient({ address: addressProp }: Props) {
         publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "priceThresholdKind" }),
         publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "priceUpperBound" }),
         publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "chainlinkFeed" }),
-        publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "umaIdentifier" }),
       ]);
 
       const outcomeCount = Number(outcomes);
@@ -436,7 +416,6 @@ export function MarketDetailClient({ address: addressProp }: Props) {
         priceUpperBound: priceUpper as bigint,
         chainlinkFeed: feed as `0x${string}`,
         feedDecimals: feedDec,
-        umaIdentifier: umaId as `0x${string}`,
         usesBins,
       });
     } catch (e) {
@@ -504,7 +483,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
             address: market.collateralAddress,
             abi: ERC20_ABI,
             functionName: "allowance",
-            args: [address, ROUTER_ADDRESS],
+            args: [address, market.address],
           }) as Promise<bigint>,
         ]);
         if (!cancelled) {
@@ -619,7 +598,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
       return;
     }
     if (chainId !== DEPLOYMENT_CHAIN_ID) {
-      setTradeStatus(`Switch to Base Sepolia (${DEPLOYMENT_CHAIN_ID}).`);
+      setTradeStatus(wrongNetworkMessage());
       return;
     }
     if (!tradeAmount || Number(tradeAmount) <= 0) {
@@ -649,7 +628,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
           address: market.collateralAddress,
           abi: ERC20_ABI,
           functionName: "allowance",
-          args: [address, ROUTER_ADDRESS],
+          args: [address, market.address],
         })) as bigint;
         if (allowance < amountUnits) {
           setTradeStatus("Approve collateral...");
@@ -658,7 +637,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
             address: market.collateralAddress,
             abi: ERC20_ABI,
             functionName: "approve",
-            args: [ROUTER_ADDRESS, amountUnits],
+            args: [market.address, amountUnits],
             account: address,
           });
           await publicClient.waitForTransactionReceipt({ hash: approveHash });
@@ -667,12 +646,10 @@ export function MarketDetailClient({ address: addressProp }: Props) {
       setTradeStatus("Submitting trade...");
       const txHash = await walletClient.writeContract({
         chain: walletClient.chain,
-        address: ROUTER_ADDRESS,
-        abi: ROUTER_ABI,
-        functionName: isNative ? "depositForSelfNative" : "depositForSelf",
-        args: isNative
-          ? [market.address, selectedOutcome, minSharesOut]
-          : [market.address, selectedOutcome, amountUnits, minSharesOut],
+        address: market.address,
+        abi: MARKET_ABI,
+        functionName: "deposit",
+        args: [selectedOutcome, amountUnits, address, minSharesOut],
         account: address,
         value: isNative ? amountUnits : undefined,
         gas: BigInt(500_000),
@@ -756,7 +733,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
 
   const submitLimitOrderFromParams = async (params: LimitOrderParams) => {
     if (!market || !publicClient || !walletClient || !address) throw new Error("Connect wallet first.");
-    if (chainId !== DEPLOYMENT_CHAIN_ID) throw new Error(`Switch to Base Sepolia (${DEPLOYMENT_CHAIN_ID}).`);
+    if (chainId !== DEPLOYMENT_CHAIN_ID) throw new Error(wrongNetworkMessage());
     const token = outcomeTokens[params.outcomeIndex];
     if (!token) throw new Error("Fetching token address — try again.");
     const priceNum = Number(params.price);
@@ -818,20 +795,6 @@ export function MarketDetailClient({ address: addressProp }: Props) {
   const thresholdHuman = useMemo(() => {
     if (!market || market.kind !== "Price") return null;
     return formatUnits(market.priceThreshold, 8);
-  }, [market]);
-
-  const umaResultLine = useMemo(() => {
-    if (!market || market.marketState !== 2 || market.kind !== "Event") return null;
-    const p = market.settledOraclePrice;
-    const id = market.umaIdentifier.toLowerCase();
-    if (id === YES_OR_NO_QUERY_ID.toLowerCase()) {
-      if (p === UMA_BINARY_YES) return "UMA result: YES (1e18) → outcome 0 wins.";
-      return "UMA result: not YES (1e18) → outcome 1 wins (binary).";
-    }
-    if (id === MULTIPLE_CHOICE_QUERY_ID.toLowerCase()) {
-      return `UMA multiple-choice result: ${p.toString()} → winning outcome index ${market.winningOutcomeIndex ?? "—"}.`;
-    }
-    return `UMA result (raw): ${p.toString()} → winning index ${market.winningOutcomeIndex ?? "—"}.`;
   }, [market]);
 
   const tvSymbol = useMemo(() => {
@@ -1059,8 +1022,10 @@ export function MarketDetailClient({ address: addressProp }: Props) {
                       <span className={`text-right ${mono ? "font-mono" : ""} ${valueClass ?? "text-[var(--foreground)]"}`}>{value}</span>
                     </div>
                   ))}
-                  {market.kind === "Event" && umaResultLine && (
-                    <p className="pt-2 text-xs text-[var(--muted)]">{umaResultLine}</p>
+                  {market.kind === "Event" && (
+                    <p className="pt-2 text-xs text-[var(--muted)]">
+                      Resolved by community admin signatures (3-of-10).
+                    </p>
                   )}
                 </div>
 

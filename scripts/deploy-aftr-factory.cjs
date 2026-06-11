@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-/** @deprecated Prefer `deploy-aftr-full-stack.cjs` when you want fresh AFTRUSDC + USDeAD + DRP + router + factory with all collaterals. */
+/** @deprecated Prefer `deploy-aftr-full-stack.cjs` when you want fresh MondaloreUSDC + USDeAD + DRP + router + factory with all collaterals. */
 const fs = require("fs");
 const path = require("path");
 const hre = require("hardhat");
@@ -49,7 +49,7 @@ async function main() {
   console.log("Deployer:", deployer.address);
   const { chainId } = await hre.ethers.provider.getNetwork();
   const previous = tryReadDeployment(hre.network.name, Number(chainId));
-  const previousUsdc = previous?.contracts?.AFTRUSDC;
+  const previousUsdc = previous?.contracts?.MondaloreUSDC;
   const configuredCollateral = process.env.PREDICTION_COLLATERAL?.trim();
   const useCollateral =
     configuredCollateral && hre.ethers.isAddress(configuredCollateral)
@@ -62,19 +62,19 @@ async function main() {
     console.log("Using configured prediction collateral:", tradingTokenAddress);
   } else if (previousUsdc && hre.ethers.isAddress(previousUsdc)) {
     tradingTokenAddress = previousUsdc;
-    console.log("Reusing existing AFTRUSDC:", tradingTokenAddress);
+    console.log("Reusing existing MondaloreUSDC:", tradingTokenAddress);
   } else {
-    const USDC = await hre.ethers.getContractFactory("AFTRUSDC");
+    const USDC = await hre.ethers.getContractFactory("MondaloreUSDC");
     const tradingToken = await USDC.deploy(deployer.address);
     await tradingToken.waitForDeployment();
     tradingTokenAddress = await tradingToken.getAddress();
-    console.log("AFTRUSDC (trading collateral, 6 decimals, 100k minted to owner):", tradingTokenAddress);
+    console.log("MondaloreUSDC (trading collateral, 6 decimals, 100k minted to owner):", tradingTokenAddress);
   }
 
   const optimisticOracleV2 = "0x99EC530a761E68a377593888D9504002Bd191717";
   const feeRecipient = deployer.address;
 
-  const Factory = await hre.ethers.getContractFactory("AFTRParimutuelMarketFactory");
+  const Factory = await hre.ethers.getContractFactory("MondaloreParimutuelMarketFactory");
   const factory = await Factory.deploy(
     deployer.address,
     feeRecipient,
@@ -84,7 +84,7 @@ async function main() {
   await factory.waitForDeployment();
 
   const factoryAddress = await factory.getAddress();
-  console.log("AFTRParimutuelMarketFactory:", factoryAddress);
+  console.log("MondaloreParimutuelMarketFactory:", factoryAddress);
   console.log("Default UMA bond / reward currency (Circle Base Sepolia USDC):", BASE_SEPOLIA_CIRCLE_USDC);
 
   async function deployAndTrack(factory, ...args) {
@@ -98,19 +98,19 @@ async function main() {
     factoryAddress,
     deployAndTrack,
   );
-  console.log("AFTRParimutuelDeployer:", marketDeployerAddress);
+  console.log("MondaloreParimutuelDeployer:", marketDeployerAddress);
 
   await (await factory.setMarketDeployer(marketDeployerAddress)).wait();
   console.log("Linked factory.marketDeployer");
 
   await (await factory.addSupportedCollateral(tradingTokenAddress)).wait();
-  console.log("Enabled trading collateral (AFTRUSDC):", tradingTokenAddress);
+  console.log("Enabled trading collateral (MondaloreUSDC):", tradingTokenAddress);
 
-  const OrderBook = await hre.ethers.getContractFactory("AFTROrderBook");
+  const OrderBook = await hre.ethers.getContractFactory("MondaloreOrderBook");
   const orderBook = await OrderBook.deploy(factoryAddress, deployer.address, deployer.address);
   await orderBook.waitForDeployment();
   const orderBookAddress = await orderBook.getAddress();
-  console.log("AFTROrderBook:", orderBookAddress);
+  console.log("MondaloreOrderBook:", orderBookAddress);
 
   console.log("\n--- Event markets ---");
   console.log("Trading / pool collateral token:", tradingTokenAddress);
@@ -123,10 +123,10 @@ async function main() {
     deployer: deployer.address,
     feeRecipient: deployer.address,
     contracts: {
-      AFTRUSDC: tradingTokenAddress,
-      AFTRParimutuelMarketFactory: factoryAddress,
-      AFTRParimutuelDeployer: marketDeployerAddress,
-      AFTROrderBook: orderBookAddress,
+      MondaloreUSDC: tradingTokenAddress,
+      MondaloreParimutuelMarketFactory: factoryAddress,
+      MondaloreParimutuelDeployer: marketDeployerAddress,
+      MondaloreOrderBook: orderBookAddress,
     },
     external: {
       optimisticOracleV2,
@@ -134,7 +134,7 @@ async function main() {
     },
     suggestedUmaReward: UMA_REWARD_USDC.toString(),
     notes: {
-      tradingCollateral: tradingTokenAddress.toLowerCase() === DEFAULT_USDEAD.toLowerCase() ? "USDeAD" : "AFTRUSDC/custom",
+      tradingCollateral: tradingTokenAddress.toLowerCase() === DEFAULT_USDEAD.toLowerCase() ? "USDeAD" : "MondaloreUSDC/custom",
       umaRewardToken: "Circle Base Sepolia USDC when umaRewardCurrency is address(0) on factory",
     },
   });

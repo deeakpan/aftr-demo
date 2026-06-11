@@ -1,20 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, formatUnits, http, isAddress, parseAbi, parseAbiItem } from "viem";
-import deployment from "@/deployments/baseSepolia-84532.json";
+import deployment from "@/lib/deployment";
 import { querySubgraph } from "@/lib/subgraph/client";
 const RPC_URL = process.env.RPC_URL ?? process.env.NEXT_PUBLIC_RPC_URL;
 
-const ROUTER_ADDRESS = deployment.contracts.AFTRMarketDebtRouter as `0x${string}`;
-const ROUTER_START_BLOCK = BigInt(
-  (deployment as { deploymentBlocks?: { AFTRMarketDebtRouter?: number } }).deploymentBlocks
-    ?.AFTRMarketDebtRouter ?? 0,
-);
-
-const ROUTER_REDEEMED_EVENT = parseAbiItem(
-  "event RouterRedeemed(address indexed user, address indexed market, address indexed collateralToken, uint8 outcomeIndex, uint256 shareAmount, uint256 payoutAmount)",
-);
-const ROUTER_REDEEMED_AND_REPAID_EVENT = parseAbiItem(
-  "event RouterRedeemedAndRepaid(address indexed user, address indexed market, address indexed drp, uint8 outcomeIndex, uint256 shareAmount, uint256 payoutAmount, address vaultCollateralToken, uint256 debtToBurn)",
+const TOKENS_REDEEMED_EVENT = parseAbiItem(
+  "event TokensRedeemed(address indexed user, uint8 outcomeIndex, uint256 shareAmount, uint256 payoutAmount)",
 );
 
 const MARKET_ABI = parseAbi([
@@ -82,30 +73,21 @@ function clampPct(v: number) {
   return Math.max(0, Math.min(100, v));
 }
 
-async function routerRedemptionTotal(
+async function marketRedemptionTotal(
   publicClient: ReturnType<typeof createPublicClient>,
   wallet: `0x${string}`,
   market: `0x${string}`,
 ): Promise<bigint> {
   try {
-    const [redeemedLogs, repaidLogs] = await Promise.all([
-      publicClient.getLogs({
-        address: ROUTER_ADDRESS,
-        event: ROUTER_REDEEMED_EVENT,
-        args: { user: wallet, market },
-        fromBlock: ROUTER_START_BLOCK,
-        toBlock: "latest",
-      }),
-      publicClient.getLogs({
-        address: ROUTER_ADDRESS,
-        event: ROUTER_REDEEMED_AND_REPAID_EVENT,
-        args: { user: wallet, market },
-        fromBlock: ROUTER_START_BLOCK,
-        toBlock: "latest",
-      }),
-    ]);
+    const logs = await publicClient.getLogs({
+      address: market,
+      event: TOKENS_REDEEMED_EVENT,
+      args: { user: wallet },
+      fromBlock: BigInt(0),
+      toBlock: "latest",
+    });
     let total = BigInt(0);
-    for (const log of [...redeemedLogs, ...repaidLogs]) {
+    for (const log of logs) {
       const payout = log.args.payoutAmount;
       if (typeof payout === "bigint") total += payout;
     }
@@ -263,12 +245,12 @@ export async function GET(req: NextRequest) {
     const sharesIn = BigInt(pos.sharesIn || "0");
     const sharesOut = BigInt(pos.sharesOut || "0");
     if (state === 2 && collateralOut === BigInt(0)) {
-      const routerOut = await routerRedemptionTotal(
+      const marketOut = await marketRedemptionTotal(
         publicClient,
         wallet as `0x${string}`,
         market,
       );
-      if (routerOut > collateralOut) collateralOut = routerOut;
+      if (marketOut > collateralOut) collateralOut = marketOut;
     }
     const participated = collateralIn > BigInt(0) || sharesIn > BigInt(0);
     const indexerShowsRedeem = collateralOut > BigInt(0) || sharesOut > BigInt(0);

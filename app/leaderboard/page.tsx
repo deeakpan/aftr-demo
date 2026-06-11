@@ -1,6 +1,6 @@
-import { LeaderboardClient } from "./leaderboard-client";
+import { redirect } from "next/navigation";
 
-export default function LeaderboardPage() {
-  return <LeaderboardClient />;
+/** @deprecated Use /bounty-board */
+export default function LeaderboardRedirectPage() {
+  redirect("/bounty-board");
 }
-

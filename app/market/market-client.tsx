@@ -2,30 +2,25 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowsClockwise, BookmarkSimple, Gift, TrendUp } from "@phosphor-icons/react";
+import { TrendUp } from "@phosphor-icons/react";
 import { formatUnits, parseAbi, parseUnits, zeroAddress } from "viem";
 import { useAccount, useWalletClient } from "wagmi";
 import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import { AppLayout } from "@/app/components/app-layout";
+import { MarketListCard, MarketListCardSkeleton } from "@/app/market/components/market-list-card";
 import { LimitOrderParams, TradeModal, type TradeSuccessResult } from "@/app/market/components/trade-modal";
 import {
   collateralTickerFromDeployment,
   isUsdStyledCollateralTicker,
 } from "@/lib/deployment-collateral";
 import { deploymentPublicClient, readMarketPrice } from "@/lib/deployment-public-client";
-import deployment from "@/deployments/baseSepolia-84532.json";
-
-const DEPLOYMENT_CHAIN_ID = deployment.chainId;
-const ORDERBOOK_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts.AFTROrderBook as `0x${string}`;
-const ROUTER_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
-  .AFTRMarketDebtRouter as `0x${string}`;
+import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
+import { brandPageTitle } from "@/lib/brand-font";
+import { formatMarketCardDate } from "@/lib/market-cover";
+const ORDERBOOK_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts.MondaloreOrderBook as `0x${string}`;
 const ORDERBOOK_ABI = parseAbi([
   "function placeSellOrder(address market, address token, uint256 price, uint256 amount) returns (bytes32)",
   "function placeBuyOrder(address market, address token, uint256 price, uint256 amount) payable returns (bytes32)",
-]);
-const ROUTER_ABI = parseAbi([
-  "function depositForSelf(address market, uint8 outcomeIndex, uint256 amount, uint256 minSharesOut)",
-  "function depositForSelfNative(address market, uint8 outcomeIndex, uint256 minSharesOut) payable",
 ]);
 const MARKET_ABI = parseAbi([
   "function marketKind() view returns (uint8)",
@@ -96,75 +91,6 @@ function stateLabel(state: number) {
   }
 }
 
-function SkeletonBlock({ className }: { className?: string }) {
-  return (
-    <div
-      className={`animate-pulse rounded bg-[var(--border)]/50 [html[data-theme=light]_&]:bg-[var(--border)]/70 ${className ?? ""}`}
-    />
-  );
-}
-
-function MarketCardSkeleton() {
-  return (
-    <article className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] p-0 shadow-[var(--elevated-card-shadow)]">
-      <div className="aspect-[16/7] w-full overflow-hidden border-b border-[var(--border)] bg-[var(--surface)]">
-        <SkeletonBlock className="h-full w-full rounded-none" />
-      </div>
-
-      <div className="p-2.5">
-        <SkeletonBlock className="h-[1.125rem] w-full" />
-        <SkeletonBlock className="mt-1.5 h-[1.125rem] w-[68%]" />
-        <SkeletonBlock className="mt-1 h-2.5 w-28" />
-
-        <div className="mt-2 flex items-center justify-between">
-          <SkeletonBlock className="h-3 w-9" />
-          <SkeletonBlock className="h-3 w-9" />
-        </div>
-        <div className="mt-1 h-2 rounded-full border border-[var(--border)] bg-[var(--surface)] p-[2px]">
-          <div className="h-full w-[58%] animate-pulse rounded-full bg-gradient-to-r from-emerald-500/35 to-rose-500/20" />
-        </div>
-
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <div className="rounded-lg border border-emerald-500/35 bg-emerald-500/[0.06] px-2 py-2">
-            <SkeletonBlock className="mx-auto h-3.5 w-9 bg-emerald-500/25" />
-          </div>
-          <div className="rounded-lg border border-rose-500/35 bg-rose-500/[0.06] px-2 py-2">
-            <SkeletonBlock className="mx-auto h-3.5 w-8 bg-rose-500/25" />
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5">
-        <div className="flex items-center gap-1.5">
-          <span className="inline-flex h-4 w-4 animate-pulse rounded-full bg-gradient-to-br from-[#4f7cff]/50 to-[#6dff8e]/50" />
-          <SkeletonBlock className="h-3 w-16" />
-        </div>
-        <div className="flex items-center gap-2">
-          <SkeletonBlock className="h-3 w-3 rounded-full" />
-          <SkeletonBlock className="h-3 w-20" />
-          <SkeletonBlock className="h-3 w-3 rounded-full" />
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function clampPct(v: number) {
-  if (!Number.isFinite(v)) return 50;
-  return Math.max(0, Math.min(100, v));
-}
-
-function Tip({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <span className="group/tip relative inline-flex">
-      {children}
-      <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 rounded-md border border-white/10 bg-[#1a1a2e] px-2.5 py-1 text-[10px] font-medium tracking-wide text-zinc-200 opacity-0 shadow-lg transition-opacity duration-150 group-hover/tip:opacity-100 whitespace-nowrap">
-        {label}
-      </span>
-    </span>
-  );
-}
-
 function formatMoneyAmount(unformatted: string, ticker: string): string {
   const n = Number(unformatted);
   if (!Number.isFinite(n)) return unformatted;
@@ -175,8 +101,8 @@ function formatMoneyAmount(unformatted: string, ticker: string): string {
 
 function formatTradeError(error: unknown): string {
   const msg = error instanceof Error ? error.message : String(error);
-  if (msg.includes("returned no data") || msg.includes("not a contract") || msg.includes("not found on Base Sepolia")) {
-    return "Market price unavailable. Confirm you are on Base Sepolia and refresh the page.";
+  if (msg.includes("returned no data") || msg.includes("not a contract") || msg.includes(`not found on ${DEPLOYMENT_NETWORK_LABEL}`)) {
+    return `Market price unavailable. Confirm you are on ${DEPLOYMENT_NETWORK_LABEL} and refresh the page.`;
   }
   if (msg.includes("User rejected") || msg.includes("user rejected")) return "Transaction cancelled.";
   return msg.length > 240 ? "Trade failed. Try again." : msg;
@@ -347,7 +273,7 @@ export function MarketClient() {
             address: selectedMarket.collateralAddress,
             abi: ERC20_ABI,
             functionName: "allowance",
-            args: [address, ROUTER_ADDRESS],
+            args: [address, selectedMarket.address],
           }) as Promise<bigint>,
         ]);
         if (!cancelled) {
@@ -496,7 +422,7 @@ export function MarketClient() {
 
   const submitLimitOrderFromParams = async (params: LimitOrderParams) => {
     if (!selectedMarket || !publicClient || !walletClient || !address) throw new Error("Connect wallet first.");
-    if (chainId !== DEPLOYMENT_CHAIN_ID) throw new Error(`Switch to Base Sepolia (${DEPLOYMENT_CHAIN_ID}).`);
+    if (chainId !== DEPLOYMENT_CHAIN_ID) throw new Error(wrongNetworkMessage());
     if (!outcomeTokenForTrade) throw new Error("Fetching token address — try again.");
     const priceNum = Number(params.price);
     const amountNum = Number(params.amount);
@@ -565,7 +491,7 @@ export function MarketClient() {
       return;
     }
     if (chainId !== DEPLOYMENT_CHAIN_ID) {
-      setTradeStatus(`Switch to Base Sepolia (${DEPLOYMENT_CHAIN_ID}).`);
+      setTradeStatus(wrongNetworkMessage());
       return;
     }
     if (!tradeAmount || Number(tradeAmount) <= 0) {
@@ -591,13 +517,13 @@ export function MarketClient() {
       const slipBps = Math.min(5000, Math.max(1, tradeSlippageBps));
       const minSharesOut = (estSharesNet * BigInt(10_000 - slipBps)) / BigInt(10000);
 
-      const isNative = selectedMarket.collateralAddress.toLowerCase() === "0x0000000000000000000000000000000000000000";
+      const isNative = selectedMarket.collateralAddress.toLowerCase() === zeroAddress;
       if (!isNative) {
         const allowance = (await publicClient.readContract({
           address: selectedMarket.collateralAddress,
           abi: ERC20_ABI,
           functionName: "allowance",
-          args: [address, ROUTER_ADDRESS],
+          args: [address, selectedMarket.address],
         })) as bigint;
         if (allowance < amountUnits) {
           setTradeStatus("Approve collateral...");
@@ -606,7 +532,7 @@ export function MarketClient() {
             address: selectedMarket.collateralAddress,
             abi: ERC20_ABI,
             functionName: "approve",
-            args: [ROUTER_ADDRESS, amountUnits],
+            args: [selectedMarket.address, amountUnits],
             account: address,
           });
           await publicClient.waitForTransactionReceipt({ hash: approveHash });
@@ -616,12 +542,10 @@ export function MarketClient() {
       setTradeStatus("Submitting trade...");
       const txHash = await walletClient.writeContract({
         chain: walletClient.chain,
-        address: ROUTER_ADDRESS,
-        abi: ROUTER_ABI,
-        functionName: isNative ? "depositForSelfNative" : "depositForSelf",
-        args: isNative
-          ? [selectedMarket.address, selectedOutcome, minSharesOut]
-          : [selectedMarket.address, selectedOutcome, amountUnits, minSharesOut],
+        address: selectedMarket.address,
+        abi: MARKET_ABI,
+        functionName: "deposit",
+        args: [selectedOutcome, amountUnits, address, minSharesOut],
         account: address,
         value: isNative ? amountUnits : undefined,
         gas: BigInt(500_000),
@@ -651,14 +575,12 @@ export function MarketClient() {
       <section className="mx-4 pt-8 md:mx-6">
         <div className="mb-2 flex items-center gap-2">
           <TrendUp size={22} weight="bold" className="text-[var(--accent)]" />
-          <h1 className="text-xl font-semibold tracking-tight text-[var(--foreground)] md:text-2xl">
-            Markets
-          </h1>
+          <h1 className={`text-xl tracking-tight md:text-2xl ${brandPageTitle}`}>Markets</h1>
         </div>
         {isLoading && (
           <div className="mt-5 grid w-full max-w-7xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }, (_, i) => (
-              <MarketCardSkeleton key={i} />
+              <MarketListCardSkeleton key={i} />
             ))}
           </div>
         )}
@@ -674,147 +596,28 @@ export function MarketClient() {
         )}
         {!isLoading && visibleMarkets.length > 0 && (
           <div className="mt-5 grid w-full max-w-7xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleMarkets.map((m) => {
-              const chance = Number.isFinite(m?.chancePct) ? m.chancePct : 50;
-              const rowLabels = (m.outcomeLabels ?? []).slice(0, m.outcomes);
-              const pcts = m.outcomeChancePcts ?? [];
-              const outcomeAccent = (
-                idx: number,
-              ): { ring: string; soft: string } => {
-                const lt = "[html[data-theme=light]_&]:";
-                const rings = [
-                  "border-emerald-500/40 hover:border-emerald-500",
-                  "border-rose-500/40 hover:border-rose-500",
-                  "border-amber-500/40 hover:border-amber-500",
-                  "border-sky-500/40 hover:border-sky-500",
-                  "border-violet-500/40 hover:border-violet-500",
-                ];
-                const softs = [
-                  `bg-emerald-500/10 text-emerald-200 hover:bg-emerald-600 hover:text-white ${lt}bg-emerald-100 ${lt}text-emerald-900 ${lt}hover:bg-emerald-600 ${lt}hover:text-white`,
-                  `bg-rose-500/10 text-rose-200 hover:bg-rose-600 hover:text-white ${lt}bg-rose-100 ${lt}text-rose-900 ${lt}hover:bg-rose-600 ${lt}hover:text-white`,
-                  `bg-amber-500/10 text-amber-200 hover:bg-amber-600 hover:text-white ${lt}bg-amber-100 ${lt}text-amber-900 ${lt}hover:bg-amber-600 ${lt}hover:text-white`,
-                  `bg-sky-500/10 text-sky-200 hover:bg-sky-600 hover:text-white ${lt}bg-sky-100 ${lt}text-sky-900 ${lt}hover:bg-sky-600 ${lt}hover:text-white`,
-                  `bg-violet-500/10 text-violet-200 hover:bg-violet-600 hover:text-white ${lt}bg-violet-100 ${lt}text-violet-900 ${lt}hover:bg-violet-600 ${lt}hover:text-white`,
-                ];
-                return { ring: rings[idx % 5]!, soft: softs[idx % 5]! };
-              };
-              return (
-                <article
-                  key={m.address}
-                  className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] p-0 shadow-[var(--elevated-card-shadow)] transition hover:border-[var(--accent)]/35"
-                >
-                <div className="aspect-[16/7] w-full overflow-hidden border-b border-[var(--border)] bg-[var(--surface)]">
-                  {m.imageUrl ? (
-                    <img src={m.imageUrl} alt={m.title} className="h-full w-full object-cover object-center" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-[11px] text-[var(--muted)]">
-                      No image
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-2.5">
-                  <p
-                    className="line-clamp-2 cursor-pointer text-base leading-snug font-semibold text-[var(--foreground)] underline-offset-2 hover:underline"
-                    onClick={() => router.push(`/market/${m.address}`)}
-                  >
-                    {m.title}
-                  </p>
-                  {m.slug && (
-                    <p className="mt-0.5 font-mono text-[10px] text-[var(--muted)]">/{m.slug}</p>
-                  )}
-
-                  {m.outcomes <= 2 ? (
-                    <>
-                      <div className="mt-2 flex items-center justify-between text-xs font-semibold">
-                        <span className="text-emerald-400 [html[data-theme=light]_&]:text-emerald-700">
-                          {chance.toFixed(0)}%
-                        </span>
-                        <span className="text-rose-400 [html[data-theme=light]_&]:text-rose-700">
-                          {(100 - chance).toFixed(0)}%
-                        </span>
-                      </div>
-                      <div className="mt-1 h-2 rounded-full border border-[var(--border)] bg-[var(--surface)] p-[2px]">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-emerald-500/70 to-rose-500/70"
-                          style={{ width: `${chance}%` }}
-                        />
-                      </div>
-                      <div className="mt-2 grid grid-cols-2 gap-2">
-                        {Array.from({ length: Math.min(2, m.outcomes) }, (_, idx) => {
-                          const label =
-                            rowLabels[idx]?.trim() || (idx === 0 ? "Yes" : "No");
-                          const { ring, soft } = outcomeAccent(idx);
-                          return (
-                            <button
-                              key={`${m.address}-${label}`}
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openTrade(m, idx);
-                              }}
-                              className={`rounded-lg border px-2 py-2 text-center text-sm font-semibold uppercase tracking-wide transition ${ring} ${soft}`}
-                            >
-                              {label.toUpperCase()}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="mt-2 flex max-h-[7.75rem] flex-col gap-0.5 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[var(--border)]">
-                      {Array.from({ length: m.outcomes }, (_, idx) => {
-                        const label = rowLabels[idx]?.trim() || `Outcome ${idx + 1}`;
-                        const pct = Number.isFinite(pcts[idx])
-                          ? (pcts[idx] as number)
-                          : Math.round(100 / Math.max(1, m.outcomes));
-                        return (
-                          <button
-                            key={`${m.address}-oc-${idx}`}
-                            type="button"
-                            aria-label={`Trade ${label}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openTrade(m, idx);
-                            }}
-                            className="flex w-full items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-left transition hover:border-[var(--accent)]/30 hover:bg-[var(--surface-hover)]"
-                          >
-                            <span className="min-w-0 truncate text-[11px] font-semibold leading-tight text-[var(--foreground)]">
-                              {label}
-                            </span>
-                            <span className="shrink-0 text-xs font-bold tabular-nums text-[var(--muted)]">
-                              {pct.toFixed(1)}%
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[11px] text-[var(--muted)]">
-                  <Tip label="Total Value Locked">
-                    <div className="inline-flex items-center gap-1.5 font-semibold text-[var(--foreground)]">
-                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-[#4f7cff] to-[#6dff8e]" />
-                      ${m.poolTvl}
-                    </div>
-                  </Tip>
-                  <div className="flex items-center gap-2">
-                    <Tip label="Refresh TVL">
-                      <button type="button" onClick={(e) => { e.stopPropagation(); void refreshTvl(m); }}
-                        className="inline-flex items-center transition hover:text-[var(--foreground)]">
-                        <ArrowsClockwise size={12} className={tvlRefreshing[m.address] ? "animate-spin" : ""} />
-                      </button>
-                    </Tip>
-                    <Tip label="Resolves after">
-                      <span className="inline-flex items-center gap-0.5"><Gift size={12} /> {m.resolveAfter}</span>
-                    </Tip>
-                    <BookmarkSimple size={12} />
-                  </div>
-                </div>
-              </article>
-              );
-            })}
+            {visibleMarkets.map((m) => (
+              <MarketListCard
+                key={m.address}
+                title={m.title}
+                imageUrl={m.imageUrl}
+                outcomeLabels={m.outcomeLabels ?? []}
+                outcomeChancePcts={m.outcomeChancePcts}
+                poolTvl={tvlOverrides[m.address] ?? m.poolTvl}
+                resolveAfter={formatMarketCardDate(m.resolveAfterUnix * 1000) ?? m.resolveAfter}
+                showNewBadge={
+                  (() => {
+                    const v = Number((tvlOverrides[m.address] ?? m.poolTvl).replace(/,/g, ""));
+                    return !Number.isFinite(v) || v <= 0;
+                  })()
+                }
+                onTitleClick={() => router.push(`/market/${m.address}`)}
+                onTrade={(idx) => openTrade(m, idx)}
+                onRefreshTvl={() => void refreshTvl(m)}
+                tvlRefreshing={Boolean(tvlRefreshing[m.address])}
+                className="transition hover:border-[var(--accent)]/35"
+              />
+            ))}
           </div>
         )}
         {!hasWalletConnectProjectId && (

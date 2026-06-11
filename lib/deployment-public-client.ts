@@ -1,24 +1,16 @@
 import { type Abi, createPublicClient, http } from "viem";
-import { baseSepolia } from "viem/chains";
+import { DEPLOYMENT_CHAIN, DEPLOYMENT_NETWORK_LABEL, deploymentRpcUrl } from "@/lib/chain";
 
-function deploymentRpcUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_RPC_URL?.trim() ||
-    process.env.RPC_URL?.trim() ||
-    "https://sepolia.base.org"
-  );
-}
-
-/** Base Sepolia reads — always uses deployment RPC, independent of wallet chain. */
+/** Monad Testnet reads — always uses deployment RPC, independent of wallet chain. */
 export const deploymentPublicClient = createPublicClient({
-  chain: baseSepolia,
+  chain: DEPLOYMENT_CHAIN,
   transport: http(deploymentRpcUrl()),
 });
 
 export async function assertMarketContract(marketAddress: `0x${string}`): Promise<void> {
   const code = await deploymentPublicClient.getBytecode({ address: marketAddress });
   if (!code || code === "0x") {
-    throw new Error("Market contract not found on Base Sepolia.");
+    throw new Error(`Market contract not found on ${DEPLOYMENT_NETWORK_LABEL}.`);
   }
 }
 

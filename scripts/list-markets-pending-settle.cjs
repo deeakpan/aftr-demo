@@ -10,8 +10,8 @@ async function main() {
   const networkName = hre.network.name;
   const file = path.join(__dirname, "..", "deployments", `${networkName}-${chainId}.json`);
   const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
-  const factoryAddress = parsed.contracts.AFTRParimutuelMarketFactory;
-  const factory = await hre.ethers.getContractAt("AFTRParimutuelMarketFactory", factoryAddress);
+  const factoryAddress = parsed.contracts.MondaloreParimutuelMarketFactory;
+  const factory = await hre.ethers.getContractAt("MondaloreParimutuelMarketFactory", factoryAddress);
   const total = Number(await factory.marketsLength());
   const now = Math.floor(Date.now() / 1000);
 
@@ -25,7 +25,7 @@ async function main() {
 
   for (let i = 0; i < total; i += 1) {
     const addr = await factory.markets(BigInt(i));
-    const market = await hre.ethers.getContractAt("AFTRVParimutuelMarket", addr);
+    const market = await hre.ethers.getContractAt("MondaloreVParimutuelMarket", addr);
     const [kind, state, stakeEnd, resolveAfter, uri] = await Promise.all([
       market.marketKind(),
       market.state(),

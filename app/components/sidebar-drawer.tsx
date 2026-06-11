@@ -4,15 +4,7 @@ import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  CrownSimple,
-  DiamondsFour,
-  PlusMinus,
-  Question,
-  Rows,
-  TelegramLogo,
-  XLogo,
-} from "@phosphor-icons/react";
+import { Coins, CrosshairSimple, DiamondsFour, PlusMinus, Question, Rows, TelegramLogo, XLogo } from "@phosphor-icons/react";
 
 type SidebarDrawerProps = {
   isOpen: boolean;
@@ -55,13 +47,13 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
             <span className="relative block h-20 w-20 shrink-0">
               <Image
                 src={logoSrc}
-                alt="AFTRMarket logo"
+                alt="Mondalore Market logo"
                 fill
                 className="object-contain object-center"
                 sizes="80px"
               />
             </span>
-            <p className="text-lg font-semibold">AFTRMarket</p>
+            <p className="text-lg font-semibold">Mondalore Market</p>
           </div>
           <button
             type="button"
@@ -87,9 +79,13 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
               <PlusMinus size={26} weight="fill" className="text-[#7fd0ff]" />
               <span>Trades</span>
             </Link>
-            <Link href="/leaderboard" onClick={onClose} className={navClass("/leaderboard")}>
-              <CrownSimple size={26} weight="fill" className="text-[#ffbf47]" />
-              <span>Leaderboard</span>
+            <Link href="/stake" onClick={onClose} className={navClass("/stake")}>
+              <Coins size={26} weight="fill" className="text-[#6dff8e]" />
+              <span>Stake</span>
+            </Link>
+            <Link href="/bounty-board" onClick={onClose} className={navClass("/bounty-board")}>
+              <CrosshairSimple size={26} weight="fill" className="text-[#ffbf47]" />
+              <span>Bounty Board</span>
             </Link>
           </div>
           <div className="my-4 border-t border-[var(--border)]" />
@@ -103,7 +99,7 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
         </div>
 
         <div className="mt-4 border-t border-[var(--border)] pt-4">
-          <p className="text-base font-medium text-[var(--foreground)]">AFTRMarket</p>
+          <p className="text-base font-medium text-[var(--foreground)]">Mondalore Market</p>
           <p className="mt-1 text-sm text-[var(--foreground)]">
             Prediction markets on Base. Built for transparent market participation.
           </p>
@@ -115,7 +111,7 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
               <XLogo size={22} weight="regular" />
             </a>
           </div>
-          <p className="mt-3 text-sm text-[var(--foreground)]">© 2026 AFTRMarket. All rights reserved.</p>
+          <p className="mt-3 text-sm text-[var(--foreground)]">© 2026 Mondalore Market. All rights reserved.</p>
         </div>
       </aside>
     </>

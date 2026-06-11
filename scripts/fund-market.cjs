@@ -49,9 +49,9 @@ function readDeployment(hre, networkName, chainId) {
     throw new Error(`Deployment file not found: ${file}`);
   }
   const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
-  const factoryAddress = parsed?.contracts?.AFTRParimutuelMarketFactory;
+  const factoryAddress = parsed?.contracts?.MondaloreParimutuelMarketFactory;
   if (!factoryAddress || !hre.ethers.isAddress(factoryAddress)) {
-    throw new Error("AFTRParimutuelMarketFactory missing in deployment file.");
+    throw new Error("MondaloreParimutuelMarketFactory missing in deployment file.");
   }
   const circleUsdc = parsed?.external?.umaBondCurrencyCircleUSDC;
   return { factoryAddress, file, circleUsdc };
@@ -68,7 +68,7 @@ async function main() {
   const networkName = hre.network.name;
 
   const { factoryAddress, file, circleUsdc } = readDeployment(hre, networkName, chainId);
-  const factory = await hre.ethers.getContractAt("AFTRParimutuelMarketFactory", factoryAddress);
+  const factory = await hre.ethers.getContractAt("MondaloreParimutuelMarketFactory", factoryAddress);
 
   const total = Number(await factory.marketsLength());
   if (marketId >= total) {
@@ -76,7 +76,7 @@ async function main() {
   }
 
   const marketAddress = await factory.markets(BigInt(marketId));
-  const market = await hre.ethers.getContractAt("AFTRVParimutuelMarket", marketAddress);
+  const market = await hre.ethers.getContractAt("MondaloreVParimutuelMarket", marketAddress);
   const kind = Number(await market.marketKind());
   if (kind !== 1) {
     throw new Error("Only EVENT markets need UMA bond funding.");

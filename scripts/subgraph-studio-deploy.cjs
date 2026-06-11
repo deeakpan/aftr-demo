@@ -6,7 +6,7 @@
  *   SUBGRAPH_DEPLOY_KEY
  *
  * Optional:
- *   STUDIO_SUBGRAPH_SLUG (default aftr)
+ *   STUDIO_SUBGRAPH_SLUG (default mondalore-testnet)
  *   SUBGRAPH_VERSION_LABEL (default v0.08)
  *
  * Runs: graph deploy <slug> subgraph.yaml --version-label <version>
@@ -22,7 +22,7 @@ if (!dk) {
 }
 
 const subgraphDir = path.join(__dirname, "..", "subgraph");
-const slug = process.env.STUDIO_SUBGRAPH_SLUG ?? "aftr";
+const slug = process.env.STUDIO_SUBGRAPH_SLUG ?? "mondalore-testnet";
 const versionLabel = process.env.SUBGRAPH_VERSION_LABEL ?? "v0.08";
 const maxAttempts = Number(process.env.SUBGRAPH_DEPLOY_ATTEMPTS || 3);
 
@@ -95,14 +95,14 @@ Try:
   2. Set DNS to 1.1.1.1 or 8.8.8.8, disable VPN, retry
   3. PowerShell:
        $env:NODE_OPTIONS="--dns-result-order=ipv4first"
-       $env:STUDIO_SUBGRAPH_SLUG="aftr"
+       $env:STUDIO_SUBGRAPH_SLUG="mondalore_testnet"
        $env:SUBGRAPH_VERSION_LABEL="v0.08"
        npm run subgraph:deploy-studio
 
   4. Or deploy from subgraph folder:
        cd subgraph
        npx graph auth --studio <SUBGRAPH_DEPLOY_KEY>
-       npx graph deploy aftr subgraph.yaml --version-label v0.08
+       npx graph deploy mondalore_testnet subgraph.yaml --version-label v0.08
 
   5. Studio UI: https://thegraph.com/studio/ → your subgraph → Deploy new version
      (upload after local \`npm run subgraph:build\` if CLI keeps failing)

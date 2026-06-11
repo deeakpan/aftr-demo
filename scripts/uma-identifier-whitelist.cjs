@@ -2,13 +2,13 @@
 /**
  * UMA IdentifierWhitelist
  *
- * What address: the IdentifierWhitelist on the SAME chain as OO (see AFTRUmaAddresses.IDENTIFIER_WHITELIST).
+ * What address: the IdentifierWhitelist on the SAME chain as OO (see MondaloreUmaAddresses.IDENTIFIER_WHITELIST).
  * There is no "getAllIdentifiers()" — only isIdentifierSupported(bytes32), or log scan / subgraph.
  *
  *   CHAIN_ID=84532 BASE_RPC_URL=https://sepolia.base.org npm run uma:identifiers
  *   CHAIN_ID=84532 BASE_RPC_URL=https://sepolia.base.org npm run uma:check-identifier -- YES_OR_NO_QUERY
  *
- * Default whitelist address matches AFTRUmaAddresses (Base Sepolia). For Base mainnet use another RPC + IDENTIFIER_WHITELIST.
+ * Default whitelist address matches MondaloreUmaAddresses (Base Sepolia). For Base mainnet use another RPC + IDENTIFIER_WHITELIST.
  */
 require("dotenv").config();
 const { createPublicClient, http, parseAbi, decodeEventLog, pad, stringToHex } = require("viem");

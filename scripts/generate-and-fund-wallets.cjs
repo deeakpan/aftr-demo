@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 /**
- * Generate 10 wallets, fund each with >=50 AFTRUSDC and a small ETH gas stipend.
+ * Generate 10 wallets, fund each with >=50 MondaloreUSDC and a small ETH gas stipend.
  * Writes wallets.json at repo root (gitignored).
  *
  * Env: PRIVATE_KEY or DEPLOYER_PRIVATE_KEY, RPC_URL, optional WALLET_COUNT (default 10)
@@ -30,8 +30,8 @@ async function main() {
   }
 
   const deployment = readDeployment();
-  const usdcAddress = deployment.contracts.AFTRUSDC;
-  if (!usdcAddress) throw new Error("AFTRUSDC missing in deployment file");
+  const usdcAddress = deployment.contracts.MondaloreUSDC;
+  if (!usdcAddress) throw new Error("MondaloreUSDC missing in deployment file");
 
   const { account: funder, publicClient, walletClient } = getFunderClients();
   const decimals = await publicClient.readContract({

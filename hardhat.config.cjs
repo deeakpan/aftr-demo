@@ -13,6 +13,13 @@ module.exports = {
         ? [process.env.PRIVATE_KEY.startsWith("0x") ? process.env.PRIVATE_KEY : `0x${process.env.PRIVATE_KEY}`]
         : [],
     },
+    monadTestnet: {
+      url: process.env.RPC_URL || "https://testnet-rpc.monad.xyz/",
+      chainId: 10143,
+      accounts: process.env.PRIVATE_KEY
+        ? [process.env.PRIVATE_KEY.startsWith("0x") ? process.env.PRIVATE_KEY : `0x${process.env.PRIVATE_KEY}`]
+        : [],
+    },
   },
   solidity: {
     version: "0.8.24",

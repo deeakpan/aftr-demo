@@ -1,8 +1,8 @@
 /**
  * subgraph-update-config.cjs
  *
- * Reads deployments/baseSepolia-84532.json and patches subgraph/subgraph.yaml
- * with the correct contract addresses and startBlock values.
+ * Reads deployments/monadTestnet-10143.json (override via DEPLOYMENT_FILE) and patches
+ * subgraph/subgraph.yaml with contract addresses, startBlock values, and network.
  *
  * Usage:
  *   node scripts/subgraph-update-config.cjs
@@ -10,8 +10,11 @@
 const fs = require("fs");
 const path = require("path");
 
-const DEPLOYMENT_FILE = path.join(__dirname, "..", "deployments", "baseSepolia-84532.json");
+const DEPLOYMENT_FILE = process.env.DEPLOYMENT_FILE
+  ? path.resolve(process.env.DEPLOYMENT_FILE)
+  : path.join(__dirname, "..", "deployments", "monadTestnet-10143.json");
 const SUBGRAPH_YAML = path.join(__dirname, "..", "subgraph", "subgraph.yaml");
+const SUBGRAPH_NETWORK = process.env.SUBGRAPH_NETWORK ?? "monad-testnet";
 
 function main() {
   if (!fs.existsSync(DEPLOYMENT_FILE)) {
@@ -23,30 +26,28 @@ function main() {
   const contracts = dep.contracts ?? {};
   const blocks = dep.deploymentBlocks ?? {};
 
-  const factory = contracts.AFTRParimutuelMarketFactory;
-  const vault = contracts.AFTRFeeVault;
-  const router = contracts.AFTRMarketDebtRouter;
+  const factory = contracts.MondaloreParimutuelMarketFactory;
+  const vault = contracts.MondaloreFeeVault;
 
-  const factoryBlock = blocks.AFTRParimutuelMarketFactory ?? 1;
-  const vaultBlock = blocks.AFTRFeeVault ?? 1;
-  const routerBlock = blocks.AFTRMarketDebtRouter ?? 1;
+  const factoryBlock = blocks.MondaloreParimutuelMarketFactory ?? 1;
+  const vaultBlock = blocks.MondaloreFeeVault ?? 1;
 
-  if (!factory || !vault || !router) {
-    console.error("Missing contract addresses in deployment JSON. Run the deploy script first.");
+  if (!factory || !vault) {
+    console.error("Missing Factory or Vault in deployment JSON. Run the deploy script first.");
     process.exit(1);
   }
 
   let yaml = fs.readFileSync(SUBGRAPH_YAML, "utf8");
 
+  yaml = yaml.replace(/network:\s*[\w-]+/g, `network: ${SUBGRAPH_NETWORK}`);
   yaml = patchSource(yaml, "Factory", factory, factoryBlock);
   yaml = patchSource(yaml, "Vault", vault, vaultBlock);
-  yaml = patchSource(yaml, "Router", router, routerBlock);
 
   fs.writeFileSync(SUBGRAPH_YAML, yaml, "utf8");
   console.log("Updated subgraph/subgraph.yaml:");
+  console.log(`  network  → ${SUBGRAPH_NETWORK}`);
   console.log(`  Factory  → ${factory} (startBlock: ${factoryBlock})`);
   console.log(`  Vault    → ${vault} (startBlock: ${vaultBlock})`);
-  console.log(`  Router   → ${router} (startBlock: ${routerBlock})`);
   console.log("  Market template → per-market Deposited / TokensRedeemed (from MarketCreated)");
 }
 

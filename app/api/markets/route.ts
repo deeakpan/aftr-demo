@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import deployment from "@/deployments/baseSepolia-84532.json";
+import deployment from "@/lib/deployment";
 import { loadMarketsList } from "@/lib/markets/load-markets";
 
 export const revalidate = 15;

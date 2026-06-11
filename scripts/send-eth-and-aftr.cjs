@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 /**
- * Send AFTRUSDC (deployment `contracts.AFTRUSDC`; on-chain symbol is USDC) from PRIVATE_KEY → recipient (Base Sepolia).
+ * Send MondaloreUSDC (deployment `contracts.MondaloreUSDC`; on-chain symbol is USDC) from PRIVATE_KEY → recipient (Base Sepolia).
  *
  * Env:
  *   PRIVATE_KEY or DEPLOYER_PRIVATE_KEY
@@ -37,8 +37,8 @@ function normalizePrivateKey(raw) {
 function readAftrAddress() {
   const deploymentPath = path.join(__dirname, "..", "deployments", "baseSepolia-84532.json");
   const j = JSON.parse(fs.readFileSync(deploymentPath, "utf8"));
-  const addr = j?.contracts?.AFTRUSDC;
-  if (!addr || typeof addr !== "string") throw new Error("AFTRUSDC missing in deployments/baseSepolia-84532.json");
+  const addr = j?.contracts?.MondaloreUSDC;
+  if (!addr || typeof addr !== "string") throw new Error("MondaloreUSDC missing in deployments/baseSepolia-84532.json");
   return addr;
 }
 

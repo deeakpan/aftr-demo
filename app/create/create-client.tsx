@@ -10,24 +10,43 @@ import {
   formatUnits,
   isAddress,
   keccak256,
-  maxUint256,
   parseAbi,
   parseUnits,
   stringToHex,
   toBytes,
   zeroAddress,
   type Address,
+  type WalletClient,
 } from "viem";
 import { useAccount, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
-import { MarketPreviewModal } from "@/app/create/components/market-preview-modal";
+import { MarketCoverCropper } from "@/app/components/market-cover-cropper";
+import { MarketListCard } from "@/app/market/components/market-list-card";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
-import deployment from "@/deployments/baseSepolia-84532.json";
+import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
+import { monadTestnet } from "@/lib/chain";
+import { brandPageTitle, brandSectionLabel } from "@/lib/brand-font";
+import { formatMarketCardDate, MARKET_COVER_RATIO_LABEL } from "@/lib/market-cover";
+import { MON_COINGECKO_LOGO } from "@/lib/brand-assets";
+import { priceAssetKey } from "@/lib/price-asset-key";
 
 const fieldClass =
   "mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)]";
 
-const labelClass = "text-xs font-medium uppercase tracking-wider text-[var(--muted)]";
+const labelClass = brandSectionLabel;
+
+/** Testnet MON seed floor (not USD-pegged). Passed on-chain as `minBootstrapTotal` for native creates. */
+const MIN_MON_SEED = 0.01;
+
+function minSeedUnitsForCollateral(
+  collateral: { isNative?: boolean; decimals: number },
+  minSeedAmount: number,
+): bigint {
+  if (collateral.isNative) {
+    return parseUnits(String(MIN_MON_SEED), collateral.decimals);
+  }
+  return parseUnits(minSeedAmount.toFixed(2), collateral.decimals);
+}
 
 /** Bootstrap splits `totalAmount` evenly per outcome; contract requires `totalAmount % numOutcomes == 0` in token base units. */
 function nextDivisibleTotal(seedUnits: bigint, nOutcomes: number): bigint {
@@ -38,21 +57,33 @@ function nextDivisibleTotal(seedUnits: bigint, nOutcomes: number): bigint {
   return seedUnits + (n - rem);
 }
 
-type Feed = {
+type FeedAssetMeta = {
   label: string;
   asset: string;
   logo: string;
+};
+type Feed = FeedAssetMeta & {
   address: `0x${string}`;
+  assetKey: `0x${string}`;
 };
-const DEFAULT_FEED: Feed = {
-  label: "ETH/USD",
-  asset: "ETH",
-  logo: "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
-  address: "0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1",
-};
-const FEEDS =
-  (deployment as unknown as { external?: { chainlinkFeeds?: Feed[] } }).external?.chainlinkFeeds ??
-  [DEFAULT_FEED];
+const PRICE_FEED_ASSETS: FeedAssetMeta[] =
+  (
+    deployment as unknown as {
+      external?: { priceFeedAssets?: FeedAssetMeta[]; chainlinkFeeds?: FeedAssetMeta[] };
+    }
+  ).external?.priceFeedAssets ??
+  (
+    deployment as unknown as {
+      external?: { chainlinkFeeds?: FeedAssetMeta[] };
+    }
+  ).external?.chainlinkFeeds?.map(({ label, asset, logo }) => ({ label, asset, logo })) ??
+  [
+    {
+      label: "BTC/USD",
+      asset: "BTC",
+      logo: "https://assets.coingecko.com/coins/images/1/large/bitcoin.png",
+    },
+  ];
 
 const CATEGORIES = [
   "Crypto",
@@ -76,8 +107,12 @@ const ERC20_ABI = parseAbi([
   "function approve(address spender, uint256 amount) returns (bool)",
 ]);
 const FACTORY_ABI = parseAbi([
-  "function createEventMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,string umaAncillary,bytes32 umaIdentifier,uint64 umaLiveness,uint256 umaProposerBond,uint256 umaReward,address umaRewardCurrency,uint256 minBootstrapTotal,uint256 bootstrapAmount,address shareRecipient) p) payable returns (address market)",
-  "function createPriceMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,address chainlinkFeed,uint256 priceThreshold,uint8 priceKind,uint256 priceUpperBound,uint256 maxPriceStaleness,uint256[] priceBinLower,uint256[] priceBinUpper,uint256 minBootstrapTotal,uint256 bootstrapAmount,address shareRecipient) p) payable returns (address market)",
+  "function priceFeeds(bytes32 assetKey) view returns (address)",
+  "function isSupportedCollateral(address token) view returns (bool)",
+  "function resolutionAdminsLength() view returns (uint256)",
+  "function resolutionThreshold() view returns (uint256)",
+  "function createEventMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,uint256 minBootstrapTotal,uint256 bootstrapAmount,address shareRecipient) p) payable returns (address market)",
+  "function createPriceMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,bytes32 priceAssetKey,uint256 priceThreshold,uint8 priceKind,uint256 priceUpperBound,uint256 maxPriceStaleness,uint256[] priceBinLower,uint256[] priceBinUpper,uint256 minBootstrapTotal,uint256 bootstrapAmount,address shareRecipient) p) payable returns (address market)",
   "event MarketCreated(address indexed market, uint8 indexed kind, address indexed collateralToken, address[] outcomeTokens, string[] outcomeLabels, uint256 stakeEndTimestamp, uint256 resolveAfterTimestamp, bytes32 metadataHash, address creator)",
   "error InvalidAddress()",
   "error InvalidCollateral()",
@@ -137,10 +172,10 @@ function formatCreateError(error: unknown, collateralSymbol = "collateral"): str
         return "Seed amount must be at least the minimum and divide evenly across outcomes.";
       }
       if (decoded.errorName === "InvalidCollateral") {
-        return "This collateral token is not supported by the factory.";
+        return `${collateralSymbol} is not supported by the factory.`;
       }
       if (decoded.errorName === "InvalidConfig") {
-        return "Invalid market config (check UMA ancillary data and outcome count).";
+        return "Invalid market config (event markets need resolution admins on the factory, or check outcome count).";
       }
       return decoded.errorName.replace(/([A-Z])/g, " $1").trim();
     } catch {
@@ -150,7 +185,12 @@ function formatCreateError(error: unknown, collateralSymbol = "collateral"): str
 
   if (error instanceof BaseError) {
     const msg = error.shortMessage || error.message;
-    if (msg.includes("User rejected")) return "Transaction cancelled.";
+    if (msg.includes("User rejected")) {
+      return "Transaction cancelled in wallet.";
+    }
+    if (msg.includes("Review alert") || msg.includes("blocked")) {
+      return "MetaMask blocked this transaction (Security alerts / Blockaid). Settings → Security & Privacy → turn off security alerts, or try Rabby wallet. The red “buy MON” fee warning on Monad testnet is often a false alarm if you already have MON.";
+    }
     if (msg.includes("reverted with the following signature")) {
       return "Market creation reverted onchain. Check seed amount, times, and token approval.";
     }
@@ -178,14 +218,31 @@ async function waitForErc20Allowance(
   }
   throw new Error("Token approval not detected yet. Wait a few seconds and try again.");
 }
+
+async function submitFactoryCreateTx(
+  walletClient: WalletClient,
+  address: Address,
+  request: { address: Address; data?: `0x${string}`; value?: bigint },
+  gas: bigint,
+): Promise<`0x${string}`> {
+  if (!request.data) {
+    throw new Error("Missing transaction data for market creation.");
+  }
+  return walletClient.sendTransaction({
+    account: address,
+    chain: monadTestnet,
+    to: request.address,
+    data: request.data,
+    value: request.value ?? BigInt(0),
+    gas,
+  });
+}
+
 const CIRCLE_USDC_BASE_SEPOLIA = deployment.external.umaBondCurrencyCircleUSDC as `0x${string}`;
-const FACTORY_ADDRESS = deployment.contracts.AFTRParimutuelMarketFactory as `0x${string}`;
-const DEFAULT_UMA_REWARD = BigInt(deployment.suggestedUmaReward ?? "0");
-const DEFAULT_UMA_REWARD_CURRENCY = deployment.external.umaBondCurrencyCircleUSDC as `0x${string}`;
-const DEPLOYMENT_CHAIN_ID = deployment.chainId;
+const FACTORY_ADDRESS = deployment.contracts.MondaloreParimutuelMarketFactory as `0x${string}`;
 
 type CollateralOption = {
-  id: "eth" | "usdc" | "usdead" | "aftr_usdc";
+  id: "mon" | "usdc" | "aftr_usdc";
   label: string;
   symbol: string;
   address: `0x${string}`;
@@ -197,16 +254,15 @@ type CollateralOption = {
 function buildCollateralOptions(): CollateralOption[] {
   const c = deployment.contracts as Record<string, string>;
   const circle = CIRCLE_USDC_BASE_SEPOLIA;
-  const aftrAddr = (c.AFTRUSDC || "").trim() as `0x${string}`;
-  const usdeadAddr = (c.USDeAD || "").trim() as `0x${string}`;
+  const aftrAddr = (c.MondaloreUSDC || "").trim() as `0x${string}`;
   const list: CollateralOption[] = [
     {
-      id: "eth",
-      label: "Ethereum",
-      symbol: "ETH",
+      id: "mon",
+      label: "Monad",
+      symbol: "MON",
       address: zeroAddress,
       decimals: 18,
-      image: "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
+      image: MON_COINGECKO_LOGO,
       isNative: true,
     },
     {
@@ -224,21 +280,11 @@ function buildCollateralOptions(): CollateralOption[] {
   ) {
     list.push({
       id: "aftr_usdc",
-      label: "AFTR test USDC",
-      symbol: "AFTR USDC",
+      label: "Mondalore test USDC",
+      symbol: "Mondalore USDC",
       address: aftrAddr,
       decimals: 6,
       image: "https://assets.coingecko.com/coins/images/6319/large/usdc.png",
-    });
-  }
-  if (isAddress(usdeadAddr, { strict: false })) {
-    list.push({
-      id: "usdead",
-      label: "USDeAD",
-      symbol: "USDeAD",
-      address: usdeadAddr,
-      decimals: 18,
-      image: "/usdead.jpg",
     });
   }
   return list;
@@ -247,7 +293,9 @@ function buildCollateralOptions(): CollateralOption[] {
 const COLLATERAL_OPTIONS = buildCollateralOptions();
 
 const defaultCollateralOpt =
-  COLLATERAL_OPTIONS.find((o) => o.id === "usdead") ?? COLLATERAL_OPTIONS[0];
+  COLLATERAL_OPTIONS.find((o) => o.id === "aftr_usdc") ??
+  COLLATERAL_OPTIONS.find((o) => o.id === "usdc") ??
+  COLLATERAL_OPTIONS[0];
 
 function numString(idx: number) {
   return String(idx);
@@ -291,7 +339,8 @@ export function CreateClient() {
   const [description, setDescription] = useState("");
   const [outcomes, setOutcomes] = useState(["Yes", "No"]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [feed, setFeed] = useState<Feed>(FEEDS[0]);
+  const [feeds, setFeeds] = useState<Feed[]>([]);
+  const [feed, setFeed] = useState<Feed | null>(null);
   const [comparison, setComparison] = useState<"ABOVE" | "BELOW">("ABOVE");
   const [threshold, setThreshold] = useState("");
   const [currentPriceLabel, setCurrentPriceLabel] = useState("—");
@@ -302,6 +351,9 @@ export function CreateClient() {
   const [metadataUri, setMetadataUri] = useState("");
   const [uploadState, setUploadState] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [cropSourceUrl, setCropSourceUrl] = useState<string | null>(null);
+  const [cropFileName, setCropFileName] = useState("");
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [seedAmount, setSeedAmount] = useState("10");
   const [stakeEndAt, setStakeEndAt] = useState("");
   const [resolveAfterAt, setResolveAfterAt] = useState("");
@@ -309,8 +361,6 @@ export function CreateClient() {
   const [isNextLoading, setIsNextLoading] = useState(false);
   const [isAssetDropdownOpen, setIsAssetDropdownOpen] = useState(false);
   const [isCollateralDropdownOpen, setIsCollateralDropdownOpen] = useState(false);
-  const [isAncillaryOpen, setIsAncillaryOpen] = useState(false);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [seedValidationError, setSeedValidationError] = useState("");
   const [previewImageSrc, setPreviewImageSrc] = useState("");
   const assetDropdownRef = useRef<HTMLDivElement>(null);
@@ -318,7 +368,7 @@ export function CreateClient() {
   const [brokenLogoAddresses, setBrokenLogoAddresses] = useState<string[]>([]);
   const [timeValidationError, setTimeValidationError] = useState("");
   const [collateral, setCollateral] = useState<CollateralOption>(defaultCollateralOpt!);
-  const [ethUsdPrice, setEthUsdPrice] = useState<number | null>(null);
+  const [supportedCollaterals, setSupportedCollaterals] = useState<CollateralOption[]>(COLLATERAL_OPTIONS);
   const [collateralBalanceLabel, setCollateralBalanceLabel] = useState("0.00");
   const [isSubmittingMarket, setIsSubmittingMarket] = useState(false);
   const [submitStatus, setSubmitStatus] = useState("");
@@ -332,6 +382,32 @@ export function CreateClient() {
       setOutcomes((prev) => prev.length >= 3 ? prev : ["Option 1", "Option 2", "Option 3"]);
     }
   }, [eventMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!publicClient || !FACTORY_ADDRESS) return;
+    let cancelled = false;
+    void (async () => {
+      const supported: CollateralOption[] = [];
+      for (const opt of COLLATERAL_OPTIONS) {
+        const ok = (await publicClient.readContract({
+          address: FACTORY_ADDRESS,
+          abi: FACTORY_ABI,
+          functionName: "isSupportedCollateral",
+          args: [opt.address],
+        })) as boolean;
+        if (ok) supported.push(opt);
+      }
+      if (cancelled) return;
+      setSupportedCollaterals(supported);
+      setCollateral((prev) => {
+        if (supported.some((o) => o.id === prev.id)) return prev;
+        return supported[0] ?? prev;
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [publicClient]);
 
   useEffect(() => {
     const readBalance = async () => {
@@ -362,23 +438,6 @@ export function CreateClient() {
   }, [address, publicClient, collateral]);
 
   useEffect(() => {
-    const fetchEthPrice = async () => {
-      try {
-        const res = await fetch(
-          "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd",
-          { cache: "no-store" },
-        );
-        const json = (await res.json()) as { ethereum?: { usd?: number } };
-        const v = json?.ethereum?.usd;
-        setEthUsdPrice(typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null);
-      } catch {
-        setEthUsdPrice(null);
-      }
-    };
-    void fetchEthPrice();
-  }, []);
-
-  useEffect(() => {
     if (imageFile) {
       const objectUrl = URL.createObjectURL(imageFile);
       setPreviewImageSrc(objectUrl);
@@ -393,8 +452,69 @@ export function CreateClient() {
   }, [imageFile, imageUri]);
 
   useEffect(() => {
+    return () => {
+      if (cropSourceUrl) URL.revokeObjectURL(cropSourceUrl);
+    };
+  }, [cropSourceUrl]);
+
+  const handleCoverFilePick = (file: File | null) => {
+    if (!file) return;
+    if (cropSourceUrl) URL.revokeObjectURL(cropSourceUrl);
+    setCropSourceUrl(URL.createObjectURL(file));
+    setCropFileName(file.name);
+    setImageUri("");
+  };
+
+  const handleCropCancel = () => {
+    if (cropSourceUrl) URL.revokeObjectURL(cropSourceUrl);
+    setCropSourceUrl(null);
+    setCropFileName("");
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
+
+  const handleCropConfirm = (file: File) => {
+    setImageFile(file);
+    setImageUri("");
+    handleCropCancel();
+  };
+
+  const previewResolveLabel = useMemo(
+    () => formatMarketCardDate(resolveAfterAt),
+    [resolveAfterAt],
+  );
+
+  useEffect(() => {
+    if (!publicClient || !FACTORY_ADDRESS) return;
+    let cancelled = false;
+    void (async () => {
+      const registered: Feed[] = [];
+      for (const meta of PRICE_FEED_ASSETS) {
+        const key = priceAssetKey(meta.asset);
+        const addr = (await publicClient.readContract({
+          address: FACTORY_ADDRESS,
+          abi: FACTORY_ABI,
+          functionName: "priceFeeds",
+          args: [key],
+        })) as `0x${string}`;
+        if (addr !== zeroAddress) {
+          registered.push({ ...meta, address: addr, assetKey: key });
+        }
+      }
+      if (cancelled) return;
+      setFeeds(registered);
+      setFeed((prev) => {
+        if (prev && registered.some((r) => r.assetKey === prev.assetKey)) return prev;
+        return registered[0] ?? null;
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [publicClient]);
+
+  useEffect(() => {
     const run = async () => {
-      if (!publicClient || marketKind !== "price") return;
+      if (!publicClient || marketKind !== "price" || !feed?.address) return;
       setIsFetchingPrice(true);
       try {
         const [round, decimals] = await Promise.all([
@@ -466,16 +586,13 @@ export function CreateClient() {
     const dir = comparison === "ABOVE" ? "above" : "below";
     const cleanedThreshold = threshold.replaceAll(",", "").trim();
     const t = cleanedThreshold ? `$${threshold}` : "the selected threshold";
-    return `Will ${feed.asset} settle ${dir} ${t} at ${resolveUtcLabel}?`;
-  }, [comparison, feed.asset, marketKind, resolveUtcLabel, threshold]);
+    return `Will ${feed?.asset ?? "asset"} settle ${dir} ${t} at ${resolveUtcLabel}?`;
+  }, [comparison, feed?.asset, marketKind, resolveUtcLabel, threshold]);
 
   const minSeedAmount = useMemo(() => {
-    if (collateral.isNative) {
-      if (!ethUsdPrice || ethUsdPrice <= 0) return Number.POSITIVE_INFINITY;
-      return 10 / ethUsdPrice;
-    }
+    if (collateral.isNative) return MIN_MON_SEED;
     return 10;
-  }, [collateral.isNative, ethUsdPrice]);
+  }, [collateral.isNative]);
 
   const effectiveTitle = useMemo(
     () => (marketKind === "price" ? generatedPricePrompt : title),
@@ -487,19 +604,6 @@ export function CreateClient() {
     if (!slugManual) setSlug(slugify(marketKind === "price" ? generatedPricePrompt : title));
   }, [title, generatedPricePrompt, marketKind, slugManual]);
 
-  const umaAncillary = useMemo(() => {
-    if (marketKind !== "event") return "";
-    if (eventMode === "binary") {
-      const payload = [title, description].filter(Boolean).join("\n").trim();
-      return `${payload}\n\nAnswer only YES or NO.`;
-    }
-    const payload = {
-      title: title || "Multiple choice market",
-      description: description || "Resolve to the correct option.",
-      options: outcomes.map((label, idx) => [label, numString(idx)]),
-    };
-    return JSON.stringify(payload);
-  }, [description, eventMode, marketKind, outcomes, title]);
   const resolvedPriceTitle = useMemo(() => {
     if (marketKind !== "price") return title;
     return generatedPricePrompt;
@@ -531,39 +635,15 @@ export function CreateClient() {
 
   const [detailsValidationError, setDetailsValidationError] = useState("");
 
-  const openDetailsPreview = () => {
-    const errors: string[] = [];
-    if (marketKind === "event" && !title.trim()) errors.push("Title is required.");
-    if (!description.trim()) errors.push("Description is required.");
-    const filledOutcomes = outcomes.map((o) => o.trim()).filter(Boolean);
-    if (filledOutcomes.length < 2) errors.push("At least 2 outcome labels are required.");
-    if (outcomes.some((o) => !o.trim())) errors.push("All outcome labels must be filled in.");
-    if (!stakeEndAt) errors.push("Stake end time is required.");
-    if (!resolveAfterAt) errors.push("Resolve after time is required.");
-    if (stakeEndAt && resolveAfterAt) {
-      const stakeTs = parseLocalDateTimeToMs(stakeEndAt);
-      const resolveTs = parseLocalDateTimeToMs(resolveAfterAt);
-      if (resolveTs <= stakeTs) errors.push("Resolve after must be later than stake end.");
-    }
-    if (!imageFile) errors.push("Cover image is required.");
-    if (!slug.trim()) errors.push("Vanity slug is required.");
-    if (errors.length > 0) {
-      setDetailsValidationError(errors[0]!);
-      return;
-    }
-    setDetailsValidationError("");
-    setIsPreviewOpen(true);
-  };
-
-  const openPreview = () => {
+  const validateSeedAmount = (): boolean => {
     const seed = Number(seedAmount);
     if (!Number.isFinite(seed) || seed < minSeedAmount) {
       setSeedValidationError(
         collateral.isNative
-          ? `Seed liquidity must be at least $10 worth of ETH (~${minSeedAmount.toFixed(6)} ETH).`
+          ? `Seed liquidity must be at least ${MIN_MON_SEED} MON.`
           : `Seed liquidity must be at least 10 ${collateral.symbol}.`,
       );
-      return;
+      return false;
     }
     const nOutcomes =
       marketKind === "event" ? outcomes.map((o) => o.trim()).filter(Boolean).length : 2;
@@ -572,7 +652,7 @@ export function CreateClient() {
       seedUnits = parseUnits(seedAmount || "0", collateral.decimals);
     } catch {
       setSeedValidationError("Enter a valid seed amount.");
-      return;
+      return false;
     }
     if (nOutcomes > 0 && seedUnits % BigInt(nOutcomes) !== BigInt(0)) {
       const fix = nextDivisibleTotal(seedUnits, nOutcomes);
@@ -581,20 +661,20 @@ export function CreateClient() {
         `Seeding splits collateral evenly across ${nOutcomes} outcomes, so the total (in token units) must divide by ${nOutcomes}. ` +
           `Try ${fixLabel} ${collateral.symbol} or another amount where the raw total is a multiple of ${nOutcomes}.`,
       );
-      return;
+      return false;
     }
     setSeedValidationError("");
-    setIsCreateComplete(false);
-    setIsPreviewOpen(true);
+    return true;
   };
 
   const handleCreateMarket = async () => {
+    if (!validateSeedAmount()) return;
     if (!address || !publicClient || !walletClient) {
       setSubmitStatus("Connect wallet first.");
       return;
     }
     if (chainId !== DEPLOYMENT_CHAIN_ID) {
-      setSubmitStatus(`Switch wallet network to Base Sepolia (${DEPLOYMENT_CHAIN_ID}).`);
+      setSubmitStatus(wrongNetworkMessage());
       return;
     }
 
@@ -608,6 +688,27 @@ export function CreateClient() {
       return;
     }
 
+    if (marketKind === "event") {
+      const [adminCount, threshold] = await Promise.all([
+        publicClient.readContract({
+          address: FACTORY_ADDRESS,
+          abi: FACTORY_ABI,
+          functionName: "resolutionAdminsLength",
+        }),
+        publicClient.readContract({
+          address: FACTORY_ADDRESS,
+          abi: FACTORY_ABI,
+          functionName: "resolutionThreshold",
+        }),
+      ]);
+      if (BigInt(adminCount as bigint) < BigInt(threshold as bigint)) {
+        setSubmitStatus(
+          `Event markets are not ready on this factory yet (need ${threshold} resolution admins, have ${adminCount}). Use a price market instead.`,
+        );
+        return;
+      }
+    }
+
     try {
       setIsSubmittingMarket(true);
       setSubmitStatus("Preparing transaction...");
@@ -615,14 +716,11 @@ export function CreateClient() {
       setIsCreateComplete(false);
 
       const seedUnits = parseUnits(seedAmount || "0", collateral.decimals);
-      const minSeedUnits = parseUnits(
-        minSeedAmount === Number.POSITIVE_INFINITY ? "999999999" : minSeedAmount.toFixed(collateral.isNative ? 8 : 2),
-        collateral.decimals,
-      );
+      const minSeedUnits = minSeedUnitsForCollateral(collateral, minSeedAmount);
       if (seedUnits < minSeedUnits) {
         setSubmitStatus(
           collateral.isNative
-            ? `Seed liquidity must be at least $10 worth of ETH (~${minSeedAmount.toFixed(6)} ETH).`
+            ? `Seed liquidity must be at least ${MIN_MON_SEED} MON.`
             : `Seed liquidity must be at least 10 ${collateral.symbol}.`,
         );
         return;
@@ -635,13 +733,32 @@ export function CreateClient() {
             functionName: "balanceOf",
             args: [address],
           })) as bigint);
-      if (walletBalance < seedUnits) {
+      if (!collateral.isNative && walletBalance < seedUnits) {
         setSubmitStatus(`Insufficient ${collateral.symbol} balance for seed liquidity.`);
         return;
       }
 
       const stakeTs = BigInt(Math.floor(parseLocalDateTimeToMs(stakeEndAt) / 1000));
       const resolveTs = BigInt(Math.floor(parseLocalDateTimeToMs(resolveAfterAt) / 1000));
+      const nowSec = BigInt(Math.floor(Date.now() / 1000));
+      if (stakeTs <= nowSec || resolveTs <= stakeTs) {
+        setSubmitStatus("Stake end and resolve times must still be in the future. Go back and update them.");
+        return;
+      }
+
+      const collateralSupported = (await publicClient.readContract({
+        address: FACTORY_ADDRESS,
+        abi: FACTORY_ABI,
+        functionName: "isSupportedCollateral",
+        args: [collateral.address],
+      })) as boolean;
+      if (!collateralSupported) {
+        setSubmitStatus(
+          `${collateral.symbol} is not enabled on the factory yet. Choose Mondalore USDC or WETH.`,
+        );
+        return;
+      }
+
       const metadataHash = keccak256(toBytes(metadataUri || "ipfs://pending"));
       const virtualReserve = seedUnits;
       const minBootstrapTotal = minSeedUnits;
@@ -684,14 +801,29 @@ export function CreateClient() {
         })) as bigint;
 
         if (factoryAllowance < seedUnits) {
-          setSubmitStatus(`Approve ${collateral.symbol} for market creation...`);
-          const approveHash = await walletClient.writeContract({
-            chain: walletClient.chain,
+          setSubmitStatus(
+            `Approve ${formatUnits(seedUnits, collateral.decimals)} ${collateral.symbol} (exact seed amount only)…`,
+          );
+          const approveSimulation = await publicClient.simulateContract({
             address: collateral.address,
             abi: ERC20_ABI,
             functionName: "approve",
-            args: [FACTORY_ADDRESS, maxUint256],
+            args: [FACTORY_ADDRESS, seedUnits],
             account: address,
+          });
+          const baseApproveGas =
+            approveSimulation.request.gas ??
+            (await publicClient.estimateContractGas({
+              address: collateral.address,
+              abi: ERC20_ABI,
+              functionName: "approve",
+              args: [FACTORY_ADDRESS, seedUnits],
+              account: address,
+            }));
+          const approveHash = await walletClient.writeContract({
+            ...approveSimulation.request,
+            chain: walletClient.chain,
+            gas: baseApproveGas + baseApproveGas / BigInt(5),
           });
           await publicClient.waitForTransactionReceipt({ hash: approveHash });
           setSubmitStatus("Waiting for approval to confirm...");
@@ -699,26 +831,59 @@ export function CreateClient() {
         }
       }
 
-      const createGasBuffer = (estimated: bigint | undefined) => {
-        if (!estimated) return BigInt(10_000_000);
-        return (estimated * BigInt(120)) / BigInt(100);
-      };
+      if (!collateral.isNative) {
+        const allowanceBeforeCreate = (await publicClient.readContract({
+          address: collateral.address,
+          abi: ERC20_ABI,
+          functionName: "allowance",
+          args: [address, FACTORY_ADDRESS],
+        })) as bigint;
+        if (allowanceBeforeCreate < seedUnits) {
+          setSubmitStatus(
+            `Insufficient ${collateral.symbol} allowance for the factory (have ${formatUnits(allowanceBeforeCreate, collateral.decimals)}, need ${formatUnits(seedUnits, collateral.decimals)}). Approve again.`,
+          );
+          return;
+        }
+      }
+
+      const createGasBuffer = (estimated: bigint) =>
+        estimated + estimated / BigInt(10);
 
       setSubmitStatus("Simulating market creation...");
       let createHash: `0x${string}`;
 
+      const estimateCreateGas = async (
+        fn: "createEventMarket" | "createPriceMarket",
+        args: readonly unknown[],
+        value?: bigint,
+      ) => {
+        const estimated = await publicClient.estimateContractGas({
+          address: FACTORY_ADDRESS,
+          abi: FACTORY_ABI,
+          functionName: fn,
+          args: args as never,
+          account: address,
+          value,
+        });
+        return createGasBuffer(estimated);
+      };
+
+      const assertNativeMonAffordable = async (seed: bigint, gasLimit: bigint): Promise<boolean> => {
+        const monBalance = await publicClient.getBalance({ address });
+        const totalNeeded = seed + gasLimit;
+        if (monBalance >= totalNeeded) return true;
+        const have = formatUnits(monBalance, 18);
+        const need = formatUnits(totalNeeded, 18);
+        const seedLabel = formatUnits(seed, 18);
+        const gasLabel = formatUnits(gasLimit, 18);
+        setSubmitStatus(
+          `Insufficient MON on ${DEPLOYMENT_NETWORK_LABEL}. Need ~${need} MON (${seedLabel} seed + ~${gasLabel} gas). You have ${have} MON.`,
+        );
+        return false;
+      };
+
       if (marketKind === "event") {
-        const eventArgs = [
-          {
-            ...sharedParams,
-            umaAncillary,
-            umaIdentifier: stringToHex("", { size: 32 }),
-            umaLiveness: BigInt(180),
-            umaProposerBond: BigInt(0),
-            umaReward: DEFAULT_UMA_REWARD,
-            umaRewardCurrency: DEFAULT_UMA_REWARD_CURRENCY,
-          },
-        ] as const;
+        const eventArgs = [{ ...sharedParams }] as const;
 
         const simulation = await publicClient.simulateContract({
           address: FACTORY_ADDRESS,
@@ -730,16 +895,24 @@ export function CreateClient() {
         });
 
         setSubmitStatus("Creating market and seeding liquidity...");
-        createHash = await walletClient.writeContract({
-          ...simulation.request,
-          chain: walletClient.chain,
-          gas: createGasBuffer(simulation.request.gas),
-        });
+        const eventGas = await estimateCreateGas(
+          "createEventMarket",
+          eventArgs,
+          collateral.isNative ? seedUnits : undefined,
+        );
+        if (collateral.isNative && !(await assertNativeMonAffordable(seedUnits, eventGas))) {
+          return;
+        }
+        createHash = await submitFactoryCreateTx(walletClient, address, simulation.request, eventGas);
       } else {
+        if (!feed?.assetKey) {
+          setSubmitStatus("No registered price feed for this asset on the factory.");
+          return;
+        }
         const priceArgs = [
           {
             ...sharedParams,
-            chainlinkFeed: feed.address,
+            priceAssetKey: feed.assetKey,
             priceThreshold: parseUnits(cleanedThreshold || "0", 8),
             priceKind: (comparison === "ABOVE" ? 0 : 1) as 0 | 1,
             priceUpperBound: BigInt(0),
@@ -759,11 +932,15 @@ export function CreateClient() {
         });
 
         setSubmitStatus("Creating market and seeding liquidity...");
-        createHash = await walletClient.writeContract({
-          ...simulation.request,
-          chain: walletClient.chain,
-          gas: createGasBuffer(simulation.request.gas),
-        });
+        const priceGas = await estimateCreateGas(
+          "createPriceMarket",
+          priceArgs,
+          collateral.isNative ? seedUnits : undefined,
+        );
+        if (collateral.isNative && !(await assertNativeMonAffordable(seedUnits, priceGas))) {
+          return;
+        }
+        createHash = await submitFactoryCreateTx(walletClient, address, simulation.request, priceGas);
       }
 
       const createReceipt = await publicClient.waitForTransactionReceipt({ hash: createHash });
@@ -857,15 +1034,17 @@ export function CreateClient() {
       priceConfig:
         marketKind === "price"
           ? {
-              feed: feed.label,
-              feedAddress: feed.address,
+              asset: feed?.asset,
+              assetKey: feed?.assetKey,
+              feed: feed?.label,
+              feedAddress: feed?.address,
               currentPrice: currentPriceLabel,
               comparison,
               threshold,
               generatedPrompt: generatedPricePrompt,
             }
           : null,
-      umaAncillary: marketKind === "event" ? umaAncillary : null,
+      resolution: marketKind === "event" ? "community-3-of-10-admins" : null,
     };
     const fd = new FormData();
     fd.append("kind", "json");
@@ -878,6 +1057,21 @@ export function CreateClient() {
   };
 
   const goToSeedStep = async () => {
+    const errors: string[] = [];
+    if (marketKind === "event" && !title.trim()) errors.push("Title is required.");
+    if (!description.trim()) errors.push("Description is required.");
+    const filledOutcomes = outcomes.map((o) => o.trim()).filter(Boolean);
+    if (filledOutcomes.length < 2) errors.push("At least 2 outcome labels are required.");
+    if (outcomes.some((o) => !o.trim())) errors.push("All outcome labels must be filled in.");
+    if (!stakeEndAt) errors.push("Stake end time is required.");
+    if (!resolveAfterAt) errors.push("Resolve after time is required.");
+    if (!slug.trim()) errors.push("Vanity slug is required.");
+    if (errors.length > 0) {
+      setDetailsValidationError(errors[0]!);
+      return;
+    }
+    setDetailsValidationError("");
+
     // Match datetime-local minute precision (seconds are not user-editable).
     const nowMinuteTs = Math.floor(Date.now() / 60_000) * 60_000;
     const minTs = nowMinuteTs + 5 * 60 * 1000;
@@ -942,9 +1136,7 @@ export function CreateClient() {
 
         <div className="mb-7 md:mb-10">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-[var(--foreground)] md:text-3xl">
-              Create market
-            </h1>
+            <h1 className={`text-xl tracking-tight md:text-3xl ${brandPageTitle}`}>Create market</h1>
           </div>
         </div>
 
@@ -956,7 +1148,7 @@ export function CreateClient() {
             <div className="mt-4 inline-flex rounded-full bg-[var(--surface)] p-1">
               {(
                 [
-                  { id: "event" as const, label: "Event (UMA)" },
+                  { id: "event" as const, label: "Event (community)" },
                   { id: "price" as const, label: "Price (oracle)" },
                 ] as const
               ).map(({ id, label }) => (
@@ -1097,39 +1289,51 @@ export function CreateClient() {
             <>
               <section className="py-8">
                 <label className={labelClass}>Asset</label>
+                {feeds.length === 0 && (
+                  <p className="mt-2 text-xs text-amber-400">
+                    No price feeds registered on the factory yet. Owner must call setPriceFeed (e.g. BTC mock).
+                  </p>
+                )}
                 <div ref={assetDropdownRef} className="relative mt-2">
                   <button
                     type="button"
+                    disabled={!feed}
                     onClick={() => setIsAssetDropdownOpen((v) => !v)}
-                    className="flex w-full max-w-[300px] items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-left text-sm text-[var(--foreground)] md:max-w-[360px] md:px-4 md:py-3"
+                    className="flex w-full max-w-[300px] items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-left text-sm text-[var(--foreground)] disabled:opacity-50 md:max-w-[360px] md:px-4 md:py-3"
                   >
                     <span className="inline-flex items-center gap-3">
-                      {brokenLogoAddresses.includes(feed.address) ? (
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--surface-hover)] text-[9px] font-semibold text-[var(--muted)]">
-                          {feed.asset.slice(0, 2).toUpperCase()}
-                        </span>
+                      {!feed ? (
+                        <span className="text-[var(--muted)]">Select asset</span>
                       ) : (
-                        <img
-                          src={feed.logo}
-                          alt={feed.asset}
-                          onError={() =>
-                            setBrokenLogoAddresses((prev) =>
-                              prev.includes(feed.address) ? prev : [...prev, feed.address],
-                            )
-                          }
-                          className="h-5 w-5 rounded-full bg-[var(--surface-hover)] object-cover"
-                        />
+                        <>
+                          {brokenLogoAddresses.includes(feed.address) ? (
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--surface-hover)] text-[9px] font-semibold text-[var(--muted)]">
+                              {feed.asset.slice(0, 2).toUpperCase()}
+                            </span>
+                          ) : (
+                            <img
+                              src={feed.logo}
+                              alt={feed.asset}
+                              onError={() =>
+                                setBrokenLogoAddresses((prev) =>
+                                  prev.includes(feed.address) ? prev : [...prev, feed.address],
+                                )
+                              }
+                              className="h-5 w-5 rounded-full bg-[var(--surface-hover)] object-cover"
+                            />
+                          )}
+                          <span>
+                            {feed.asset}
+                            <span className="ml-2 text-xs text-[var(--muted)]">{feed.label}</span>
+                          </span>
+                        </>
                       )}
-                      <span>
-                        {feed.asset}
-                        <span className="ml-2 text-xs text-[var(--muted)]">{feed.label}</span>
-                      </span>
                     </span>
                     <CaretDown size={16} weight="bold" className="text-[var(--muted)]" />
                   </button>
-                  {isAssetDropdownOpen && (
+                  {isAssetDropdownOpen && feed && (
                     <div className="absolute z-30 mt-2 max-h-64 w-full max-w-[300px] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--card)] p-1 shadow-xl md:max-w-[360px]">
-                      {FEEDS.map((f) => (
+                      {feeds.map((f) => (
                         <button
                           key={f.address}
                           type="button"
@@ -1267,14 +1471,47 @@ export function CreateClient() {
             <label className={labelClass} htmlFor="image">
               Cover image
             </label>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Recommended banner ratio {MARKET_COVER_RATIO_LABEL}.
+            </p>
             <input
+              ref={imageInputRef}
               id="image"
               type="file"
               accept="image/*"
-              className={fieldClass}
-              onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+              className="sr-only"
+              onChange={(e) => handleCoverFilePick(e.target.files?.[0] ?? null)}
             />
-            {imageFile && <p className="mt-3 text-xs text-[var(--muted)]">{imageFile.name}</p>}
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+                className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
+              >
+                Choose file
+              </button>
+              <span className="text-sm text-[var(--foreground)]">
+                {imageFile
+                  ? `${imageFile.name} (${Math.round(imageFile.size / 1024)} KB)`
+                  : "No file chosen"}
+              </span>
+            </div>
+
+            {(previewImageSrc || effectiveTitle.trim() || outcomes.some((o) => o.trim())) && (
+              <div className="mt-6 max-w-sm">
+                <p className={`mb-2 text-xs uppercase tracking-wider text-[var(--muted)] ${brandSectionLabel}`}>
+                  Card preview
+                </p>
+                <MarketListCard
+                  title={effectiveTitle}
+                  imageUrl={previewImageSrc || undefined}
+                  outcomeLabels={outcomes}
+                  resolveAfter={previewResolveLabel}
+                  showNewBadge
+                  interactive={false}
+                />
+              </div>
+            )}
           </section>
 
           <section className="py-10">
@@ -1293,13 +1530,6 @@ export function CreateClient() {
                 ) : (
                   "Next"
                 )}
-              </button>
-              <button
-                type="button"
-                onClick={openDetailsPreview}
-                className="rounded-full border border-[var(--border)] bg-[var(--surface)] py-3.5 text-sm font-semibold text-[var(--foreground)] transition hover:border-[var(--accent)] sm:px-8 w-full sm:w-auto"
-              >
-                Preview
               </button>
             </div>
             {detailsValidationError && (
@@ -1328,7 +1558,7 @@ export function CreateClient() {
                 </button>
                 {isCollateralDropdownOpen && (
                   <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] p-1 shadow-xl">
-                    {COLLATERAL_OPTIONS.map((opt) => (
+                    {supportedCollaterals.map((opt) => (
                       <button
                         key={opt.id}
                         type="button"
@@ -1348,6 +1578,11 @@ export function CreateClient() {
                   </div>
                 )}
               </div>
+              {supportedCollaterals.length === 0 && (
+                <p className="mt-2 text-xs text-amber-400">
+                  Loading supported collateral from factory…
+                </p>
+              )}
 
               <label className={labelClass} htmlFor="seed-amount">
                 Seed liquidity ({collateral.symbol})
@@ -1362,7 +1597,7 @@ export function CreateClient() {
                 className={fieldClass}
                 placeholder={
                   collateral.isNative
-                    ? `Minimum ${Number.isFinite(minSeedAmount) ? minSeedAmount.toFixed(6) : "0.005"} ETH (~$10)`
+                    ? `Minimum ${MIN_MON_SEED} MON`
                     : `Minimum 10 ${collateral.symbol}`
                 }
               />
@@ -1370,68 +1605,63 @@ export function CreateClient() {
                 Wallet balance: {collateralBalanceLabel} {collateral.symbol}
               </p>
               {marketKind === "event" && (
-                <div className="mt-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsAncillaryOpen((v) => !v)}
-                    className="inline-flex items-center gap-1.5 text-xs text-[var(--accent)]"
-                  >
-                    <CaretDown
-                      size={14}
-                      weight="bold"
-                      className={`transition ${isAncillaryOpen ? "rotate-180" : ""}`}
-                    />
-                    Ancillary data
-                  </button>
-                  {isAncillaryOpen && (
-                    <pre className="mt-2 overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-[11px] leading-relaxed text-[var(--muted)]">
-                      {umaAncillary}
-                    </pre>
-                  )}
-                </div>
+                <p className="mt-3 text-xs text-[var(--muted)]">
+                  Event markets settle via 3-of-10 factory admin signatures (per market + outcome).
+                </p>
               )}
               <p className="mt-3 text-xs text-[var(--muted)]">
                 Seed-liquidity funder receives 0.5% of losing-side collateral at settlement.
               </p>
-              <p className="mt-1 text-xs text-[var(--accent)]">Learn more</p>
-              <button
-                type="button"
-                onClick={openPreview}
-                className="mt-6 w-full rounded-full border border-[var(--border)] bg-[var(--surface)] py-3 text-sm font-semibold text-[var(--foreground)] transition hover:border-[var(--accent)] sm:w-auto sm:px-8"
-              >
-                Preview
-              </button>
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                {isCreateComplete ? (
+                  <Link
+                    href="/market"
+                    className="rounded-full bg-emerald-600 px-8 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500"
+                  >
+                    View markets
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void handleCreateMarket()}
+                    disabled={isSubmittingMarket || !metadataUri}
+                    className="rounded-full bg-emerald-600 px-8 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isSubmittingMarket ? "Processing…" : "Create market"}
+                  </button>
+                )}
+              </div>
               {seedValidationError && (
                 <p className="mt-3 text-xs text-red-400">{seedValidationError}</p>
+              )}
+              {submitStatus && (
+                <p
+                  className={`mt-3 text-sm ${
+                    isCreateComplete || /successfully/i.test(submitStatus)
+                      ? "font-bold text-emerald-400"
+                      : /error|failed|insufficient|missing|invalid/i.test(submitStatus)
+                        ? "font-semibold text-rose-400"
+                        : "font-medium text-[var(--foreground)]"
+                  }`}
+                >
+                  {submitStatus}
+                </p>
+              )}
+              {createdMarketAddress && (
+                <p className="mt-2 font-mono text-xs text-[var(--muted)]">{createdMarketAddress}</p>
               )}
             </section>
           )}
         </div>
       </div>
-      <MarketPreviewModal
-        isOpen={isPreviewOpen}
-        marketKind={marketKind}
-        eventMode={eventMode}
-        previewImageSrc={previewImageSrc}
-        effectiveTitle={effectiveTitle}
-        description={description}
-        selectedCategories={selectedCategories}
-        outcomes={outcomes}
-        slug={slug}
-        stakeEndAt={stakeEndAt}
-        resolveAfterAt={resolveAfterAt}
-        seedAmount={seedAmount}
-        seedSymbol={collateral.symbol}
-        umaAncillary={umaAncillary}
-        metadataUri={metadataUri}
-        isReadOnly={!metadataUri}
-        isSubmittingMarket={isSubmittingMarket}
-        submitStatus={submitStatus}
-        createdMarketAddress={createdMarketAddress}
-        isCreateComplete={isCreateComplete}
-        onBack={() => setIsPreviewOpen(false)}
-        onCreateMarket={handleCreateMarket}
-      />
+      {cropSourceUrl && (
+        <MarketCoverCropper
+          imageSrc={cropSourceUrl}
+          fileName={cropFileName || "market-cover.webp"}
+          onConfirm={handleCropConfirm}
+          onCancel={handleCropCancel}
+        />
+      )}
     </AppLayout>
   );
 }

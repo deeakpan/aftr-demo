@@ -1,9 +1,7 @@
 import { Address, BigInt, Bytes } from "@graphprotocol/graph-ts";
 import {
   Staked,
-  UnstakeInitiated,
-  UnstakeCompleted,
-  UnstakeCancelled,
+  Withdrawn,
   RewardsClaimed,
   FeesReceived,
 } from "../generated/Vault/Vault";
@@ -32,26 +30,10 @@ export function handleStaked(event: Staked): void {
   s.save();
 }
 
-export function handleUnstakeInitiated(event: UnstakeInitiated): void {
+export function handleWithdrawn(event: Withdrawn): void {
   const s = loadOrCreateStaker(event.params.user);
-  // Move from active stake to pending
   s.stakedBalance = s.stakedBalance.minus(event.params.amount);
-  s.pendingUnstake = s.pendingUnstake.plus(event.params.amount);
-  s.save();
-}
-
-export function handleUnstakeCompleted(event: UnstakeCompleted): void {
-  const s = loadOrCreateStaker(event.params.user);
-  s.pendingUnstake = s.pendingUnstake.minus(event.params.amount);
   s.totalUnstaked = s.totalUnstaked.plus(event.params.amount);
-  s.save();
-}
-
-export function handleUnstakeCancelled(event: UnstakeCancelled): void {
-  const s = loadOrCreateStaker(event.params.user);
-  // Move back from pending to active
-  s.pendingUnstake = s.pendingUnstake.minus(event.params.amount);
-  s.stakedBalance = s.stakedBalance.plus(event.params.amount);
   s.save();
 }
 

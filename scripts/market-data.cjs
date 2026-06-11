@@ -29,9 +29,9 @@ function readDeployment(hre, networkName, chainId) {
   const file = path.join(__dirname, "..", "deployments", `${networkName}-${chainId}.json`);
   if (!fs.existsSync(file)) throw new Error(`Deployment file not found: ${file}`);
   const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
-  const factoryAddress = parsed?.contracts?.AFTRParimutuelMarketFactory;
+  const factoryAddress = parsed?.contracts?.MondaloreParimutuelMarketFactory;
   if (!factoryAddress || !hre.ethers.isAddress(factoryAddress)) {
-    throw new Error("AFTRParimutuelMarketFactory missing in deployment file.");
+    throw new Error("MondaloreParimutuelMarketFactory missing in deployment file.");
   }
   return { factoryAddress, file };
 }
@@ -53,14 +53,14 @@ async function main() {
   const networkName = hre.network.name;
   const { factoryAddress, file } = readDeployment(hre, networkName, chainId);
 
-  const factory = await hre.ethers.getContractAt("AFTRParimutuelMarketFactory", factoryAddress);
+  const factory = await hre.ethers.getContractAt("MondaloreParimutuelMarketFactory", factoryAddress);
   const total = Number(await factory.marketsLength());
   if (marketId >= total) {
     throw new Error(`Market id ${marketId} out of range. Total markets: ${total}`);
   }
 
   const marketAddress = await factory.markets(BigInt(marketId));
-  const market = await hre.ethers.getContractAt("AFTRVParimutuelMarket", marketAddress);
+  const market = await hre.ethers.getContractAt("MondaloreVParimutuelMarket", marketAddress);
 
   const [
     marketKind,

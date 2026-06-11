@@ -1,6 +1,6 @@
-import { MarketCreated } from "../generated/Factory/Factory";
+import { MarketCreated, PriceFeedUpdated } from "../generated/Factory/Factory";
 import { Market as MarketTemplate } from "../generated/templates";
-import { Market as MarketEntity } from "../generated/schema";
+import { Market as MarketEntity, PriceFeed } from "../generated/schema";
 import { addrId } from "./ids";
 
 export function handleMarketCreated(event: MarketCreated): void {
@@ -19,4 +19,16 @@ export function handleMarketCreated(event: MarketCreated): void {
   m.save();
 
   MarketTemplate.create(marketAddr);
+}
+
+export function handlePriceFeedUpdated(event: PriceFeedUpdated): void {
+  const keyHex = event.params.assetKey.toHexString();
+  let row = PriceFeed.load(keyHex);
+  if (row == null) {
+    row = new PriceFeed(keyHex);
+    row.assetKey = event.params.assetKey;
+  }
+  row.feed = addrId(event.params.feed);
+  row.updatedAt = event.block.timestamp;
+  row.save();
 }

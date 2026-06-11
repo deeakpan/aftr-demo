@@ -56,8 +56,8 @@ function readDeployment(hre, networkName, chainId) {
   const file = path.join(__dirname, "..", "deployments", `${networkName}-${chainId}.json`);
   if (!fs.existsSync(file)) throw new Error(`Deployment file not found: ${file}`);
   const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
-  const factoryAddress = parsed?.contracts?.AFTRParimutuelMarketFactory;
-  const aftrUsdc = parsed?.contracts?.AFTRUSDC;
+  const factoryAddress = parsed?.contracts?.MondaloreParimutuelMarketFactory;
+  const aftrUsdc = parsed?.contracts?.MondaloreUSDC;
   return { factoryAddress, file, aftrUsdc, parsed };
 }
 
@@ -73,9 +73,9 @@ async function main() {
   const networkName = hre.network.name;
 
   const { factoryAddress, file, aftrUsdc } = readDeployment(hre, networkName, chainId);
-  if (!hre.ethers.isAddress(factoryAddress)) throw new Error("AFTRParimutuelMarketFactory missing in deployment.");
+  if (!hre.ethers.isAddress(factoryAddress)) throw new Error("MondaloreParimutuelMarketFactory missing in deployment.");
 
-  const factory = await hre.ethers.getContractAt("AFTRParimutuelMarketFactory", factoryAddress);
+  const factory = await hre.ethers.getContractAt("MondaloreParimutuelMarketFactory", factoryAddress);
   const total = Number(await factory.marketsLength());
   if (marketId >= total) throw new Error(`Market id ${marketId} out of range (total ${total}).`);
 
@@ -108,7 +108,7 @@ async function main() {
     console.warn(
       "Warning: market collateral",
       collateralAddress,
-      "differs from deployment AFTRUSDC",
+      "differs from deployment MondaloreUSDC",
       aftrUsdc,
     );
   }

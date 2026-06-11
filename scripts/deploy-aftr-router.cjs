@@ -11,26 +11,26 @@ async function main() {
   if (!fs.existsSync(deploymentPath)) throw new Error(`Missing deployment file: ${deploymentPath}`);
   const deployment = JSON.parse(fs.readFileSync(deploymentPath, "utf8"));
 
-  const factory = deployment?.contracts?.AFTRParimutuelMarketFactory;
+  const factory = deployment?.contracts?.MondaloreParimutuelMarketFactory;
   const drp =
     process.env.DRP_ADDRESS?.trim() ||
     deployment?.contracts?.DRP ||
     deployment?.contracts?.DeaderalReserveProtocol;
-  if (!factory || !hre.ethers.isAddress(factory)) throw new Error("Invalid AFTRParimutuelMarketFactory in deployment json");
+  if (!factory || !hre.ethers.isAddress(factory)) throw new Error("Invalid MondaloreParimutuelMarketFactory in deployment json");
   if (!drp || !hre.ethers.isAddress(String(drp))) throw new Error("Invalid DRP: set contracts.DRP in deployment json or pass DRP_ADDRESS");
 
   console.log("Deployer:", deployer.address);
   console.log("Factory:", factory);
   console.log("DRP:", drp);
 
-  const Router = await hre.ethers.getContractFactory("AFTRMarketDebtRouter");
+  const Router = await hre.ethers.getContractFactory("MondaloreMarketDebtRouter");
   const router = await Router.deploy(factory, drp);
   await router.waitForDeployment();
   const routerAddress = await router.getAddress();
-  console.log("AFTRMarketDebtRouter:", routerAddress);
+  console.log("MondaloreMarketDebtRouter:", routerAddress);
 
   deployment.contracts = deployment.contracts || {};
-  deployment.contracts.AFTRMarketDebtRouter = routerAddress;
+  deployment.contracts.MondaloreMarketDebtRouter = routerAddress;
   deployment.contracts.DRP = drp;
   fs.writeFileSync(deploymentPath, `${JSON.stringify(deployment, null, 2)}\n`, "utf8");
   console.log("Updated deployment file:", deploymentPath);

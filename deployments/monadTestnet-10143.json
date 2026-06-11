@@ -1,0 +1,78 @@
+{
+  "chainId": 10143,
+  "deployer": "0x7A981A271E12Dd22B61f9028F8CAf526ba53c3C5",
+  "feeRecipient": "0x3870Fd628e43FbEE7f2a1a922ACa13b3f1B53329",
+  "contracts": {
+    "MondaloreToken": "0x9AbbC7e9c23CCC5C359732b9b05Ef4f510CAAd53",
+    "MondaloreFeeVault": "0x3870Fd628e43FbEE7f2a1a922ACa13b3f1B53329",
+    "MondaloreUSDC": "0x9adECb575C30eB841ad2fDd153FE859DF861c338",
+    "MondaloreParimutuelMarketFactory": "0x97DB87Bb6C4d83813cbc1Ae5E97d83001aFe279f",
+    "MondalorePriceMarketDeployer": "0x43a4EF9f800543F49099c62fa83156DBc7eF3069",
+    "MondaloreEventMarketDeployer": "0x797Ac51EF2869071E003654294D802Ea5691f4A5",
+    "MondaloreParimutuelDeployer": "0x837216b6c85CfC4D47585810Ee42da871A848DdB",
+    "MondaloreOrderBook": "0x4573d4C6C68ee5AAEC09f2f6F60b342A541dA06b",
+    "MockWETH": "0xF2760b7Fd5887f40F526200e3e435a63B7e5CAf8",
+    "MockBtcUsdFeed": "0xEF6BEC7127D1Ca73c1Db9a39FB0093E0894ac9FB"
+  },
+  "deploymentBlocks": {
+    "MockWETH": 37395453,
+    "MondaloreUSDC": 37395466,
+    "MondaloreToken": 37395478,
+    "MondaloreFeeVault": 37440162,
+    "MondaloreParimutuelMarketFactory": 37444065,
+    "MondaloreParimutuelDeployer": 37444084,
+    "MondalorePriceMarketDeployer": 37444072,
+    "MondaloreEventMarketDeployer": 37444078,
+    "MondaloreOrderBook": 37444128,
+    "MockBtcUsdFeed": 37438008
+  },
+  "external": {
+    "optimisticOracleV2": "0x0000000000000000000000000000000000000001",
+    "umaBondCurrencyCircleUSDC": "0x9adECb575C30eB841ad2fDd153FE859DF861c338",
+    "priceFeedAssets": [
+      {
+        "label": "BTC/USD",
+        "asset": "BTC",
+        "logo": "https://assets.coingecko.com/coins/images/1/large/bitcoin.png"
+      },
+      {
+        "label": "ETH/USD",
+        "asset": "ETH",
+        "logo": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"
+      }
+    ],
+    "vaultCollateralOptions": [
+      {
+        "label": "WETH",
+        "address": "0xF2760b7Fd5887f40F526200e3e435a63B7e5CAf8"
+      }
+    ]
+  },
+  "vault": {
+    "stakeToken": "0x9AbbC7e9c23CCC5C359732b9b05Ef4f510CAAd53",
+    "epochDuration": "604800",
+    "lockDuration": "604800",
+    "rewardTokens": [
+      "0x9adECb575C30eB841ad2fDd153FE859DF861c338",
+      "0xF2760b7Fd5887f40F526200e3e435a63B7e5CAf8",
+      "0x0000000000000000000000000000000000000000"
+    ]
+  },
+  "resolutionAdmins": [
+    "0x7360A1770146E5e4d41E322A474D498A5A7cfaa2",
+    "0x25908E06a5699776b28F4E258dFA1668D4Ee5aF2",
+    "0x8874c5A7F2d37fAF6bFc4b29C9A9594836138444",
+    "0x518AEeAe7641F403F25013D55227BE3014BB9d24"
+  ],
+  "suggestedUmaReward": "500000",
+  "notes": {
+    "tradingCollaterals": [
+      "MondaloreUSDC",
+      "WETH",
+      "MON (wraps to WETH)"
+    ],
+    "feeFlow": "Market deposit → 1.2% → MondaloreFeeVault.receiveFees() → 0.2% stakers / 1.0% treasury"
+  },
+  "network": "monadTestnet",
+  "deployedAt": "2026-06-10T21:31:42.720Z"
+}

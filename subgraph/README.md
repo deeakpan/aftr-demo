@@ -1,6 +1,6 @@
-# AFTR subgraph (The Graph)
+# Mondalore subgraph (The Graph)
 
-Indexes on Base Sepolia:
+Indexes on **Monad testnet** (chainId 10143):
 
 - **`MarketCreated`** on the factory — creates a `Market` row and a **dynamic `Market` template** per market.
 - **`Deposited`** / **`TokensRedeemed`** on each market — maintains:
@@ -13,8 +13,9 @@ Router trades are included because the router calls `market.deposit` / redeem, w
 
 ## Before you deploy
 
-1. **`subgraph.yaml` → `startBlock`** on Factory and Vault must match `deployments/baseSepolia-84532.json` (`npm run subgraph:update-config` from repo root).
-2. **`source.address`** must match deployed factory and vault.
+1. Deploy stack → `deployments/monadTestnet-10143.json` must be current.
+2. Run **`npm run subgraph:update-config`** — patches `subgraph.yaml` addresses + `startBlock` from that JSON.
+3. Refresh ABIs after contract changes (from `artifacts/…/Mondalore*.json` → `subgraph/abis/`).
 
 ## Commands (repo root)
 
@@ -22,12 +23,12 @@ Router trades are included because the router calls `market.deposit` / redeem, w
 npm run subgraph:update-config
 npm run subgraph:codegen
 npm run subgraph:build
-SUBGRAPH_VERSION_LABEL=v0.09 npm run subgraph:deploy-studio
+STUDIO_SUBGRAPH_SLUG=mondalore-testnet SUBGRAPH_VERSION_LABEL=v0.01 npm run subgraph:deploy-studio
 ```
 
 Set `SUBGRAPH_DEPLOY_KEY` in `.env`. After sync, point the app at:
 
-`https://api.studio.thegraph.com/query/1749057/aftr/v0.09`
+`https://api.studio.thegraph.com/query/1749057/mondalore-testnet/v0.01`
 
 ## Trade activity chart query
 
