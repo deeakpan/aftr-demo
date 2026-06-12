@@ -27,15 +27,17 @@ const MARKET_ABI = parseAbi([
 
 const ERC20_ABI = parseAbi(["function balanceOf(address account) view returns (uint256)"]);
 
+type TraderMarketPositionRow = {
+  market: { id: string };
+  collateralIn: string;
+  collateralOut: string;
+  sharesIn: string;
+  sharesOut: string;
+};
+
 type SubgraphResponse = {
   data?: {
-    traderMarketPositions?: Array<{
-      market: { id: string };
-      collateralIn: string;
-      collateralOut: string;
-      sharesIn: string;
-      sharesOut: string;
-    }>;
+    traderMarketPositions?: TraderMarketPositionRow[];
   };
 };
 
@@ -75,7 +77,7 @@ async function marketRedemptionTotal(
 async function buildRowsForMarket(
   wallet: `0x${string}`,
   marketAddress: string,
-  pos: NonNullable<SubgraphResponse["data"]>["traderMarketPositions"][number],
+  pos: TraderMarketPositionRow,
 ): Promise<Array<Record<string, unknown>>> {
   const market = marketAddress as `0x${string}`;
   const publicClient = deploymentPublicClient;
