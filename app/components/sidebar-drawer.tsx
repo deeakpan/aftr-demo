@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -13,8 +14,13 @@ type SidebarDrawerProps = {
 };
 
 export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawerProps) {
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const logoSrc = theme === "light" ? "/light.png" : "/logo.png";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const navClass = (href: string) =>
     `group flex w-full items-center gap-2 rounded-full px-3 py-3 text-left text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] ${
@@ -29,16 +35,18 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
     };
   }, [isOpen]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       <div
         onClick={onClose}
-        className={`fixed inset-0 z-40 bg-black/65 transition-opacity ${
+        className={`fixed inset-0 z-[100] bg-black/65 transition-opacity ${
           isOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
       <aside
-        className={`sidebar-scroll fixed inset-y-0 left-0 z-50 flex h-dvh w-[280px] max-w-[82vw] flex-col overflow-y-auto overscroll-contain border-r border-[var(--border)] bg-[var(--card)] p-5 transition-transform duration-300 ${
+        className={`sidebar-scroll fixed inset-y-0 left-0 z-[110] flex h-dvh w-[280px] max-w-[82vw] flex-col overflow-y-auto overscroll-contain border-r border-[var(--border)] bg-[var(--card)] p-5 transition-transform duration-300 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -114,6 +122,7 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
           <p className="mt-3 text-sm text-[var(--foreground)]">© 2026 Mondalore Market. All rights reserved.</p>
         </div>
       </aside>
-    </>
+    </>,
+    document.body,
   );
 }

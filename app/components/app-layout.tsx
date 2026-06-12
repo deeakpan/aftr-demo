@@ -12,8 +12,6 @@ import deployment, { DEPLOYMENT_CHAIN_ID } from "@/lib/deployment";
 import {
   BookOpenText,
   CopySimple,
-  Coins,
-  CrosshairSimple,
   DiamondsFour,
   Gear,
   Gift,
@@ -27,6 +25,7 @@ import {
 } from "@phosphor-icons/react";
 import { getUserProfileByAddress, saveUserProfile } from "@/lib/supabase/profiles";
 import { SidebarDrawer } from "@/app/components/sidebar-drawer";
+import { SidebarOpenContext } from "@/app/components/sidebar-context";
 
 export function buildWalletGradient(input: string) {
   let hash = 0;
@@ -340,20 +339,21 @@ export function AppLayout({
   }, []);
 
   return (
-    <main
-      className={`mx-auto flex w-full flex-col py-4 pb-24 md:pb-4 ${
-        viewportLocked ? "h-dvh max-h-dvh min-h-0 overflow-hidden" : "min-h-screen"
-      } ${pageBackgroundClassName ?? "bg-[var(--background)]"}`}
-    >
-      <SidebarDrawer
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-        theme={theme}
-      />
-
-      <div
-        className={`flex min-w-0 flex-1 flex-col ${viewportLocked ? "relative min-h-0 overflow-hidden" : ""}`}
+    <SidebarOpenContext.Provider value={isSidebarOpen}>
+      <main
+        className={`mx-auto flex w-full flex-col py-4 pb-24 md:pb-4 ${
+          viewportLocked ? "h-dvh max-h-dvh min-h-0 overflow-hidden" : "min-h-screen"
+        } ${pageBackgroundClassName ?? "bg-[var(--background)]"}`}
       >
+        <SidebarDrawer
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+          theme={theme}
+        />
+
+        <div
+          className={`flex min-w-0 flex-1 flex-col ${viewportLocked ? "relative min-h-0 overflow-hidden" : ""}`}
+        >
         <header
           className={`z-30 w-full shrink-0 px-3 md:px-6 ${
             viewportLocked
@@ -730,42 +730,28 @@ export function AppLayout({
         )}
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border)] bg-[var(--background)]/90 px-2 py-2 backdrop-blur-md md:hidden">
-        <div className="grid grid-cols-5 gap-1">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border)] bg-[var(--background)]/90 px-3 py-2 backdrop-blur-md md:hidden">
+        <div className="grid grid-cols-3 gap-1">
           <Link
             href="/"
-            className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+            className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
           >
             <Rows size={18} weight="regular" />
             <span>Markets</span>
           </Link>
           <Link
             href="/create"
-            className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+            className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
           >
             <DiamondsFour size={18} weight="regular" />
             <span>Create</span>
           </Link>
           <Link
             href="/trades"
-            className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+            className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
           >
             <PlusMinus size={18} weight="regular" />
             <span>Trades</span>
-          </Link>
-          <Link
-            href="/stake"
-            className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-          >
-            <Coins size={18} weight="regular" />
-            <span>Stake</span>
-          </Link>
-          <Link
-            href="/bounty-board"
-            className="flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-          >
-            <CrosshairSimple size={18} weight="regular" />
-            <span>Bounty</span>
           </Link>
         </div>
       </nav>
@@ -842,6 +828,7 @@ export function AppLayout({
           </div>
         </div>
       )}
-    </main>
+      </main>
+    </SidebarOpenContext.Provider>
   );
 }

@@ -1,6 +1,8 @@
 import { formatUnits, parseAbi } from "viem";
 import deployment from "@/lib/deployment";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
+import { fetchIpfsMetadata, ipfsToHttp } from "@/lib/ipfs-metadata";
+import { isListableMarket } from "@/lib/market-metadata";
 
 const FACTORY_ADDRESS = deployment.contracts.MondaloreParimutuelMarketFactory as `0x${string}`;
 
@@ -22,7 +24,17 @@ const MARKET_ABI = parseAbi([
   "function priceOf(uint8 outcomeIndex) view returns (uint256)",
   "function priceBinLower(uint256) view returns (uint256)",
   "function priceBinUpper(uint256) view returns (uint256)",
+  "function chainlinkFeed() view returns (address)",
+  "function priceThreshold() view returns (uint256)",
+  "function priceThresholdKind() view returns (uint8)",
+  "function priceUpperBound() view returns (uint256)",
+  "function winningOutcomeIndex() view returns (uint256)",
+  "function settledOraclePrice() view returns (int256)",
+  "function settlementTimestamp() view returns (uint256)",
+  "function redemptionRate() view returns (uint256)",
 ]);
+
+const FEED_ABI = parseAbi(["function decimals() view returns (uint8)"]);
 
 export type MarketListItem = {
   address: `0x${string}`;
@@ -44,15 +56,6 @@ export type MarketListItem = {
   collateralDecimals: number;
   priceBinByOutcome?: string[];
   outcomeChancePcts: number[];
-  slug?: string;
-  categories?: string[];
-};
-
-type IpfsMetadata = {
-  title?: string;
-  description?: string;
-  image?: string;
-  outcomes?: string[];
   slug?: string;
   categories?: string[];
 };
@@ -83,33 +86,152 @@ function clampPct(v: number) {
   return Math.max(0, Math.min(100, v));
 }
 
-function ipfsToHttp(uri: string) {
-  if (!uri) return "";
-  if (uri.startsWith("ipfs://")) {
-    return `https://gateway.lighthouse.storage/ipfs/${uri.replace("ipfs://", "")}`;
-  }
-  return uri;
-}
-
 function fmtUsdBin(value: bigint): string {
   const n = Number(formatUnits(value, 8));
   if (!Number.isFinite(n)) return "—";
   return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
 
-async function fetchIpfsMetadata(uri: string): Promise<IpfsMetadata | null> {
-  const httpUrl = ipfsToHttp(uri);
-  if (!httpUrl) return null;
-  try {
-    const res = await fetch(httpUrl, { next: { revalidate: 60 } });
-    if (!res.ok) return null;
-    return (await res.json()) as IpfsMetadata;
-  } catch {
-    return null;
-  }
+function fmtTsDetail(value: bigint) {
+  const ms = Number(value) * 1000;
+  if (!Number.isFinite(ms) || ms <= 0) return "—";
+  return new Date(ms).toLocaleString();
 }
 
-async function loadMarketRow(marketAddress: `0x${string}`): Promise<MarketListItem> {
+export type MarketDetailItem = MarketListItem & {
+  winningOutcomeIndex: number | null;
+  settledOraclePrice: bigint;
+  settlementTimestamp: number;
+  redemptionRate: bigint;
+  priceThreshold: bigint;
+  priceThresholdKind: number;
+  priceUpperBound: bigint;
+  chainlinkFeed: `0x${string}`;
+  feedDecimals: number;
+  usesBins: boolean;
+};
+
+/** JSON-safe market detail for API responses. */
+export type MarketDetailDto = Omit<
+  MarketDetailItem,
+  "settledOraclePrice" | "redemptionRate" | "priceThreshold" | "priceUpperBound"
+> & {
+  settledOraclePrice: string;
+  redemptionRate: string;
+  priceThreshold: string;
+  priceUpperBound: string;
+};
+
+export function serializeMarketDetail(market: MarketDetailItem): MarketDetailDto {
+  return {
+    ...market,
+    settledOraclePrice: market.settledOraclePrice.toString(),
+    redemptionRate: market.redemptionRate.toString(),
+    priceThreshold: market.priceThreshold.toString(),
+    priceUpperBound: market.priceUpperBound.toString(),
+  };
+}
+
+export function parseMarketDetailDto(dto: MarketDetailDto): MarketDetailItem {
+  return {
+    ...dto,
+    settledOraclePrice: BigInt(dto.settledOraclePrice),
+    redemptionRate: BigInt(dto.redemptionRate),
+    priceThreshold: BigInt(dto.priceThreshold),
+    priceUpperBound: BigInt(dto.priceUpperBound),
+  };
+}
+
+/** Same metadata + card fields as the markets grid; adds settlement extras for detail view. */
+export async function loadMarketDetail(marketAddress: `0x${string}`): Promise<MarketDetailItem> {
+  const publicClient = deploymentPublicClient;
+  const code = await publicClient.getBytecode({ address: marketAddress });
+  if (!code || code === "0x") {
+    throw new Error(`Market contract not found for ${marketAddress}`);
+  }
+
+  const row = await loadMarketRow(marketAddress, { requireListable: false });
+  if (!row) {
+    throw new Error(`Incomplete market data for ${marketAddress}`);
+  }
+
+  const settlement = await publicClient.multicall({
+    contracts: [
+      { address: marketAddress, abi: MARKET_ABI, functionName: "winningOutcomeIndex" },
+      { address: marketAddress, abi: MARKET_ABI, functionName: "settledOraclePrice" },
+      { address: marketAddress, abi: MARKET_ABI, functionName: "settlementTimestamp" },
+      { address: marketAddress, abi: MARKET_ABI, functionName: "redemptionRate" },
+      { address: marketAddress, abi: MARKET_ABI, functionName: "priceThreshold" },
+      { address: marketAddress, abi: MARKET_ABI, functionName: "priceThresholdKind" },
+      { address: marketAddress, abi: MARKET_ABI, functionName: "priceUpperBound" },
+      { address: marketAddress, abi: MARKET_ABI, functionName: "chainlinkFeed" },
+    ],
+  });
+
+  const winningRaw = settlement[0]?.result as bigint | undefined;
+  const settledRaw = settlement[1]?.result as bigint | undefined;
+  const settlementTs = settlement[2]?.result as bigint | undefined;
+  const redemptionRate = settlement[3]?.result as bigint | undefined;
+  const priceThreshold = settlement[4]?.result as bigint | undefined;
+  const priceKind = settlement[5]?.result as number | undefined;
+  const priceUpper = settlement[6]?.result as bigint | undefined;
+  const feed = settlement[7]?.result as `0x${string}` | undefined;
+
+  if (
+    winningRaw === undefined ||
+    settledRaw === undefined ||
+    settlementTs === undefined ||
+    redemptionRate === undefined ||
+    priceThreshold === undefined ||
+    priceKind === undefined ||
+    priceUpper === undefined ||
+    !feed
+  ) {
+    throw new Error(`Incomplete market data for ${marketAddress}`);
+  }
+
+  const st = row.marketState;
+  const outcomeCount = row.outcomes;
+  const isPrice = row.kind === "Price";
+  const wr = winningRaw;
+  const winIdx = st === 2 && wr < BigInt(outcomeCount) ? Number(wr) : null;
+
+  let feedDec = 8;
+  if (isPrice && feed !== "0x0000000000000000000000000000000000000000") {
+    feedDec = Number(
+      await publicClient.readContract({
+        address: feed,
+        abi: FEED_ABI,
+        functionName: "decimals",
+      }),
+    );
+  }
+
+  return {
+    ...row,
+    winningOutcomeIndex: winIdx,
+    settledOraclePrice: settledRaw,
+    settlementTimestamp: Number(settlementTs),
+    redemptionRate,
+    priceThreshold,
+    priceThresholdKind: Number(priceKind),
+    priceUpperBound: priceUpper,
+    chainlinkFeed: feed,
+    feedDecimals: feedDec,
+    usesBins: Boolean(row.priceBinByOutcome && row.priceBinByOutcome.length > 0),
+  };
+}
+
+type LoadMarketRowOptions = {
+  /** When true (default), skip markets without valid IPFS cover metadata (markets grid). */
+  requireListable?: boolean;
+};
+
+async function loadMarketRow(
+  marketAddress: `0x${string}`,
+  options: LoadMarketRowOptions = {},
+): Promise<MarketListItem | null> {
+  const { requireListable = true } = options;
   const publicClient = deploymentPublicClient;
 
   const base = await publicClient.multicall({
@@ -146,7 +268,6 @@ async function loadMarketRow(marketAddress: `0x${string}`): Promise<MarketListIt
     throw new Error(`Incomplete market data for ${marketAddress}`);
   }
 
-  const md = await fetchIpfsMetadata(uri);
   const outcomeCount = Number(outcomes);
   const dec = Number(collateralDecimals);
   const isPrice = Number(kind) === 0;
@@ -156,9 +277,16 @@ async function loadMarketRow(marketAddress: `0x${string}`): Promise<MarketListIt
     { address: marketAddress, abi: MARKET_ABI, functionName: "priceOf" as const, args: [i] as const },
   ]).flat();
 
-  const outcomeReads = outcomeContracts.length
-    ? await publicClient.multicall({ contracts: outcomeContracts })
-    : [];
+  const [md, outcomeReads] = await Promise.all([
+    fetchIpfsMetadata(uri),
+    outcomeContracts.length
+      ? publicClient.multicall({ contracts: outcomeContracts })
+      : Promise.resolve([]),
+  ]);
+
+  if (requireListable && !isListableMarket(uri, md?.image)) {
+    return null;
+  }
 
   let poolTvlRaw = BigInt(0);
   const priceResults: bigint[] = [];
@@ -263,7 +391,8 @@ export async function loadMarketsList(): Promise<MarketListItem[]> {
 
   const rows: MarketListItem[] = [];
   for (const marketAddress of addresses) {
-    rows.push(await loadMarketRow(marketAddress));
+    const row = await loadMarketRow(marketAddress);
+    if (row) rows.push(row);
   }
   return rows;
 }

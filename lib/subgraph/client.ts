@@ -1,5 +1,5 @@
 const DEFAULT_SUBGRAPH_URL =
-  "https://api.studio.thegraph.com/query/1749057/mondalore-testnet/v1.02";
+  "https://api.studio.thegraph.com/query/1749057/mondalore-testnet/v0.03";
 
 const SUBGRAPH_TIMEOUT_MS = 20_000;
 

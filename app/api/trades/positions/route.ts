@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPublicClient, formatUnits, http, isAddress, parseAbi, parseAbiItem } from "viem";
+import { formatUnits, isAddress, parseAbi, parseAbiItem } from "viem";
 import deployment from "@/lib/deployment";
+import { deploymentPublicClient } from "@/lib/deployment-public-client";
+import { fetchIpfsMetadata, ipfsToHttp } from "@/lib/ipfs-metadata";
+import { isListableMarket } from "@/lib/market-metadata";
 import { querySubgraph } from "@/lib/subgraph/client";
-const RPC_URL = process.env.RPC_URL ?? process.env.NEXT_PUBLIC_RPC_URL;
 
 const TOKENS_REDEEMED_EVENT = parseAbiItem(
-  "event TokensRedeemed(address indexed user, uint8 outcomeIndex, uint256 shareAmount, uint256 payoutAmount)",
+  "event TokensRedeemed(address indexed user, uint8 indexed outcomeIndex, uint256 shares, uint256 payout)",
 );
 
 const MARKET_ABI = parseAbi([
@@ -37,32 +39,6 @@ type SubgraphResponse = {
   };
 };
 
-type IpfsMetadata = {
-  title?: string;
-  outcomes?: string[];
-  image?: string;
-};
-
-function ipfsToHttp(uri: string) {
-  if (!uri) return "";
-  if (uri.startsWith("ipfs://")) {
-    return `https://gateway.lighthouse.storage/ipfs/${uri.replace("ipfs://", "")}`;
-  }
-  return uri;
-}
-
-async function fetchMetadata(uri: string): Promise<IpfsMetadata | null> {
-  const url = ipfsToHttp(uri);
-  if (!url) return null;
-  try {
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return null;
-    return (await res.json()) as IpfsMetadata;
-  } catch {
-    return null;
-  }
-}
-
 function fmtTs(seconds: number) {
   if (!Number.isFinite(seconds) || seconds <= 0) return "—";
   return new Date(seconds * 1000).toLocaleString();
@@ -74,12 +50,11 @@ function clampPct(v: number) {
 }
 
 async function marketRedemptionTotal(
-  publicClient: ReturnType<typeof createPublicClient>,
   wallet: `0x${string}`,
   market: `0x${string}`,
 ): Promise<bigint> {
   try {
-    const logs = await publicClient.getLogs({
+    const logs = await deploymentPublicClient.getLogs({
       address: market,
       event: TOKENS_REDEEMED_EVENT,
       args: { user: wallet },
@@ -88,7 +63,7 @@ async function marketRedemptionTotal(
     });
     let total = BigInt(0);
     for (const log of logs) {
-      const payout = log.args.payoutAmount;
+      const payout = log.args.payout;
       if (typeof payout === "bigint") total += payout;
     }
     return total;
@@ -97,231 +72,235 @@ async function marketRedemptionTotal(
   }
 }
 
-export async function GET(req: NextRequest) {
-  const wallet = req.nextUrl.searchParams.get("wallet")?.trim() ?? "";
-  if (!wallet || !isAddress(wallet)) {
-    return NextResponse.json({ error: "Invalid wallet" }, { status: 400 });
-  }
-  if (!RPC_URL) {
-    return NextResponse.json({ error: "Missing RPC URL" }, { status: 500 });
-  }
+async function buildRowsForMarket(
+  wallet: `0x${string}`,
+  marketAddress: string,
+  pos: NonNullable<SubgraphResponse["data"]>["traderMarketPositions"][number],
+): Promise<Array<Record<string, unknown>>> {
+  const market = marketAddress as `0x${string}`;
+  const publicClient = deploymentPublicClient;
 
-  const graph = await querySubgraph<NonNullable<SubgraphResponse["data"]>>(
-    `query WalletPositions($wallet: String!) {
-      traderMarketPositions(where: { trader: $wallet }, first: 500) {
-        market { id }
-        collateralIn
-        collateralOut
-        sharesIn
-        sharesOut
-      }
-    }`,
-    { wallet: wallet.toLowerCase() },
-  );
-
-  if (!graph.ok) {
-    return NextResponse.json({
-      rows: [],
-      chainId: deployment.chainId,
-      unavailable: true,
-      reason: graph.reason,
-    });
-  }
-
-  const positionRows = graph.data.traderMarketPositions ?? [];
-  if (positionRows.length === 0) {
-    return NextResponse.json({ rows: [], chainId: deployment.chainId });
-  }
-
-  const byMarket = new Map<string, (typeof positionRows)[number]>();
-  for (const p of positionRows) {
-    byMarket.set(p.market.id.toLowerCase(), p);
-  }
-
-  const publicClient = createPublicClient({
-    chain: undefined,
-    transport: http(RPC_URL),
+  const base = await publicClient.multicall({
+    contracts: [
+      { address: market, abi: MARKET_ABI, functionName: "marketKind" },
+      { address: market, abi: MARKET_ABI, functionName: "state" },
+      { address: market, abi: MARKET_ABI, functionName: "stakeEndTimestamp" },
+      { address: market, abi: MARKET_ABI, functionName: "collateralAddress" },
+      { address: market, abi: MARKET_ABI, functionName: "numOutcomes" },
+      { address: market, abi: MARKET_ABI, functionName: "collateralDecimals" },
+      { address: market, abi: MARKET_ABI, functionName: "winningOutcomeIndex" },
+      { address: market, abi: MARKET_ABI, functionName: "redemptionRate" },
+      { address: market, abi: MARKET_ABI, functionName: "metadataURI" },
+    ],
   });
 
-  const outRows: Array<Record<string, unknown>> = [];
-  for (const [marketAddress, pos] of byMarket.entries()) {
-    const market = marketAddress as `0x${string}`;
-    const [
-      kindRaw,
-      stateRaw,
-      stakeEndRaw,
-      collateralAddressRaw,
-      outcomesRaw,
-      collateralDecimalsRaw,
-      winningRaw,
-      redemptionRate,
-      metadataUri,
-    ] = await Promise.all([
-      publicClient.readContract({ address: market, abi: MARKET_ABI, functionName: "marketKind" }),
-      publicClient.readContract({ address: market, abi: MARKET_ABI, functionName: "state" }),
-      publicClient.readContract({ address: market, abi: MARKET_ABI, functionName: "stakeEndTimestamp" }),
-      publicClient.readContract({ address: market, abi: MARKET_ABI, functionName: "collateralAddress" }),
-      publicClient.readContract({ address: market, abi: MARKET_ABI, functionName: "numOutcomes" }),
-      publicClient.readContract({ address: market, abi: MARKET_ABI, functionName: "collateralDecimals" }),
-      publicClient.readContract({ address: market, abi: MARKET_ABI, functionName: "winningOutcomeIndex" }),
-      publicClient.readContract({ address: market, abi: MARKET_ABI, functionName: "redemptionRate" }),
-      publicClient.readContract({ address: market, abi: MARKET_ABI, functionName: "metadataURI" }),
-    ]);
+  const kindRaw = base[0]?.result;
+  const stateRaw = base[1]?.result;
+  const stakeEndRaw = base[2]?.result;
+  const collateralAddressRaw = base[3]?.result;
+  const outcomesRaw = base[4]?.result;
+  const collateralDecimalsRaw = base[5]?.result;
+  const winningRaw = base[6]?.result;
+  const redemptionRate = base[7]?.result;
+  const metadataUri = base[8]?.result;
 
-    const numOutcomes = Number(outcomesRaw);
-    const collateralDecimals = Number(collateralDecimalsRaw);
-    const state = Number(stateRaw);
-    const kind = Number(kindRaw) === 0 ? "Price" : "Event";
-    const metadata = await fetchMetadata(String(metadataUri || ""));
-    const marketTitle = metadata?.title?.trim() || `${kind} market`;
-    const labels = metadata?.outcomes?.filter((x): x is string => typeof x === "string") ?? [];
-    const fallbackLabels = Array.from({ length: numOutcomes }, (_, i) => `Outcome ${i + 1}`);
-    const outcomeLabels = labels.length > 0 ? labels : fallbackLabels;
-
-    let chancePct = numOutcomes >= 2 ? 50 : Math.max(1, Math.round(100 / Math.max(1, numOutcomes)));
-    let outcomeChancePcts = Array.from({ length: numOutcomes }, (_, i) =>
-      i === 0 ? chancePct : Math.round((100 - chancePct) / Math.max(1, numOutcomes - 1)),
-    );
-    try {
-      const priceReads = await Promise.all(
-        Array.from({ length: numOutcomes }, (_, i) =>
-          publicClient.readContract({
-            address: market,
-            abi: MARKET_ABI,
-            functionName: "priceOf",
-            args: [i],
-          }),
-        ),
-      );
-      outcomeChancePcts = priceReads.map((p) => clampPct(Number(formatUnits(p as bigint, 18)) * 100));
-      chancePct = outcomeChancePcts[0] ?? chancePct;
-    } catch {
-      // keep fallback
-    }
-
-    const realPoolParts = await Promise.all(
-      Array.from({ length: numOutcomes }, (_, i) =>
-        publicClient.readContract({
-          address: market,
-          abi: MARKET_ABI,
-          functionName: "realPool",
-          args: [BigInt(i)],
-        }),
-      ),
-    );
-    const poolTvlRaw = realPoolParts.reduce((acc, v) => acc + (v as bigint), BigInt(0));
-    const poolTvlDisplay = Number(formatUnits(poolTvlRaw, collateralDecimals)).toLocaleString(undefined, {
-      maximumFractionDigits: 2,
-    });
-    const stakeEndUnix = Number(stakeEndRaw);
-    const stakeEndsLabel = fmtTs(stakeEndUnix);
-    const imageUrl = ipfsToHttp(metadata?.image?.trim() || "");
-    const winningOutcomeIndex = state === 2 ? Number(winningRaw) : null;
-
-    const outcomeTokens = await Promise.all(
-      Array.from({ length: numOutcomes }, (_, i) =>
-        publicClient.readContract({
-          address: market,
-          abi: MARKET_ABI,
-          functionName: "outcomeToken",
-          args: [BigInt(i)],
-        }) as Promise<`0x${string}`>,
-      ),
-    );
-
-    const balances: bigint[] = [];
-    for (let i = 0; i < outcomeTokens.length; i += 1) {
-      const bal = (await publicClient.readContract({
-        address: outcomeTokens[i]!,
-        abi: ERC20_ABI,
-        functionName: "balanceOf",
-        args: [wallet as `0x${string}`],
-      })) as bigint;
-      balances.push(bal);
-    }
-
-    const collateralIn = BigInt(pos.collateralIn || "0");
-    let collateralOut = BigInt(pos.collateralOut || "0");
-    const sharesIn = BigInt(pos.sharesIn || "0");
-    const sharesOut = BigInt(pos.sharesOut || "0");
-    if (state === 2 && collateralOut === BigInt(0)) {
-      const marketOut = await marketRedemptionTotal(
-        publicClient,
-        wallet as `0x${string}`,
-        market,
-      );
-      if (marketOut > collateralOut) collateralOut = marketOut;
-    }
-    const participated = collateralIn > BigInt(0) || sharesIn > BigInt(0);
-    const indexerShowsRedeem = collateralOut > BigInt(0) || sharesOut > BigInt(0);
-    const emittedPositiveBalance = balances.some((b) => b > BigInt(0));
-    let settlementDisplay: "claimed" | "settled_no_shares" | undefined;
-    if (state === 2 && participated && winningOutcomeIndex !== null) {
-      if (indexerShowsRedeem) settlementDisplay = "claimed";
-      else if (!emittedPositiveBalance) settlementDisplay = "settled_no_shares";
-    }
-
-    for (let i = 0; i < outcomeTokens.length; i += 1) {
-      const bal = balances[i]!;
-      if (bal <= BigInt(0)) continue;
-      outRows.push({
-        marketAddress: market,
-        marketTitle,
-        marketKind: kind,
-        marketState: state,
-        stakeEndUnix,
-        collateralAddress: collateralAddressRaw as `0x${string}`,
-        winningOutcomeIndex,
-        redemptionRate: redemptionRate.toString(),
-        outcomeIndex: i,
-        outcomeLabel: outcomeLabels[i] ?? `Outcome ${i + 1}`,
-        outcomeLabels,
-        balance: bal.toString(),
-        collateralDecimals,
-        chancePct,
-        outcomeChancePcts,
-        poolTvlDisplay,
-        stakeEndsLabel,
-        imageUrl,
-        indexedCollateralIn: pos.collateralIn,
-        indexedCollateralOut: collateralOut.toString(),
-        indexedSharesIn: pos.sharesIn,
-        indexedSharesOut: pos.sharesOut,
-        settlementDisplay,
-      });
-    }
-
-    // Settled market, no outcome tokens left, but subgraph shows this wallet traded — keep the card (e.g. claimed winnings).
-    if (state === 2 && !emittedPositiveBalance && winningOutcomeIndex !== null && participated) {
-      const winIdx = winningOutcomeIndex as number;
-      outRows.push({
-        marketAddress: market,
-        marketTitle,
-        marketKind: kind,
-        marketState: state,
-        stakeEndUnix,
-        collateralAddress: collateralAddressRaw as `0x${string}`,
-        winningOutcomeIndex,
-        redemptionRate: redemptionRate.toString(),
-        outcomeIndex: winIdx,
-        outcomeLabel: outcomeLabels[winIdx] ?? `Outcome ${winIdx + 1}`,
-        outcomeLabels,
-        balance: "0",
-        collateralDecimals,
-        chancePct,
-        outcomeChancePcts,
-        poolTvlDisplay,
-        stakeEndsLabel,
-        imageUrl,
-        indexedCollateralIn: pos.collateralIn,
-        indexedCollateralOut: collateralOut.toString(),
-        indexedSharesIn: pos.sharesIn,
-        indexedSharesOut: pos.sharesOut,
-        settlementDisplay,
-      });
-    }
+  if (
+    kindRaw === undefined ||
+    stateRaw === undefined ||
+    stakeEndRaw === undefined ||
+    collateralAddressRaw === undefined ||
+    outcomesRaw === undefined ||
+    collateralDecimalsRaw === undefined ||
+    winningRaw === undefined ||
+    redemptionRate === undefined
+  ) {
+    return [];
   }
 
-  return NextResponse.json({ rows: outRows, chainId: deployment.chainId });
+  const numOutcomes = Number(outcomesRaw);
+  const collateralDecimals = Number(collateralDecimalsRaw);
+  const state = Number(stateRaw);
+  const kind = Number(kindRaw) === 0 ? "Price" : "Event";
+  const metadataUriStr = String(metadataUri || "");
+  const metadata = await fetchIpfsMetadata(metadataUriStr);
+  if (!isListableMarket(metadataUriStr, metadata?.image)) {
+    return [];
+  }
+  const marketTitle = metadata?.title?.trim() || `${kind} market`;
+  const labels = metadata?.outcomes?.filter((x): x is string => typeof x === "string") ?? [];
+  const fallbackLabels = Array.from({ length: numOutcomes }, (_, i) => `Outcome ${i + 1}`);
+  const outcomeLabels = labels.length > 0 ? labels : fallbackLabels;
+
+  const outcomeContracts = Array.from({ length: numOutcomes }, (_, i) => [
+    { address: market, abi: MARKET_ABI, functionName: "priceOf" as const, args: [i] as const },
+    { address: market, abi: MARKET_ABI, functionName: "realPool" as const, args: [BigInt(i)] as const },
+    { address: market, abi: MARKET_ABI, functionName: "outcomeToken" as const, args: [BigInt(i)] as const },
+  ]).flat();
+
+  const outcomeReads = outcomeContracts.length
+    ? await publicClient.multicall({ contracts: outcomeContracts })
+    : [];
+
+  let chancePct = numOutcomes >= 2 ? 50 : Math.max(1, Math.round(100 / Math.max(1, numOutcomes)));
+  let outcomeChancePcts = Array.from({ length: numOutcomes }, (_, i) =>
+    i === 0 ? chancePct : Math.round((100 - chancePct) / Math.max(1, numOutcomes - 1)),
+  );
+
+  let poolTvlRaw = BigInt(0);
+  const outcomeTokens: `0x${string}`[] = [];
+  for (let i = 0; i < numOutcomes; i += 1) {
+    const price = outcomeReads[i * 3]?.result as bigint | undefined;
+    const pool = outcomeReads[i * 3 + 1]?.result as bigint | undefined;
+    const token = outcomeReads[i * 3 + 2]?.result as `0x${string}` | undefined;
+    if (pool !== undefined) poolTvlRaw += pool;
+    if (price !== undefined) {
+      outcomeChancePcts[i] = clampPct(Number(formatUnits(price, 18)) * 100);
+    }
+    if (token) outcomeTokens.push(token);
+  }
+  if (outcomeChancePcts.length === numOutcomes) {
+    chancePct = outcomeChancePcts[0] ?? chancePct;
+  }
+
+  const poolTvlDisplay = Number(formatUnits(poolTvlRaw, collateralDecimals)).toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+  });
+  const stakeEndUnix = Number(stakeEndRaw);
+  const stakeEndsLabel = fmtTs(stakeEndUnix);
+  const imageUrl = ipfsToHttp(metadata?.image?.trim() || "");
+  const winningOutcomeIndex = state === 2 ? Number(winningRaw) : null;
+
+  const balanceReads = outcomeTokens.length
+    ? await publicClient.multicall({
+        contracts: outcomeTokens.map((token) => ({
+          address: token,
+          abi: ERC20_ABI,
+          functionName: "balanceOf" as const,
+          args: [wallet] as const,
+        })),
+      })
+    : [];
+
+  const balances = balanceReads.map((r) => (r.result as bigint | undefined) ?? BigInt(0));
+
+  const collateralIn = BigInt(pos.collateralIn || "0");
+  let collateralOut = BigInt(pos.collateralOut || "0");
+  const sharesIn = BigInt(pos.sharesIn || "0");
+  const sharesOut = BigInt(pos.sharesOut || "0");
+  if (state === 2 && collateralOut === BigInt(0)) {
+    const marketOut = await marketRedemptionTotal(wallet, market);
+    if (marketOut > collateralOut) collateralOut = marketOut;
+  }
+
+  const participated = collateralIn > BigInt(0) || sharesIn > BigInt(0);
+  const indexerShowsRedeem = collateralOut > BigInt(0) || sharesOut > BigInt(0);
+  const emittedPositiveBalance = balances.some((b) => b > BigInt(0));
+  let settlementDisplay: "claimed" | "settled_no_shares" | undefined;
+  if (state === 2 && participated && winningOutcomeIndex !== null) {
+    if (indexerShowsRedeem) settlementDisplay = "claimed";
+    else if (!emittedPositiveBalance) settlementDisplay = "settled_no_shares";
+  }
+
+  const outRows: Array<Record<string, unknown>> = [];
+  const rowBase = {
+    marketAddress: market,
+    marketTitle,
+    marketKind: kind,
+    marketState: state,
+    stakeEndUnix,
+    collateralAddress: collateralAddressRaw as `0x${string}`,
+    winningOutcomeIndex,
+    redemptionRate: redemptionRate.toString(),
+    outcomeLabels,
+    collateralDecimals,
+    chancePct,
+    outcomeChancePcts,
+    poolTvlDisplay,
+    stakeEndsLabel,
+    imageUrl,
+    indexedCollateralIn: pos.collateralIn,
+    indexedCollateralOut: collateralOut.toString(),
+    indexedSharesIn: pos.sharesIn,
+    indexedSharesOut: pos.sharesOut,
+    settlementDisplay,
+  };
+
+  for (let i = 0; i < balances.length; i += 1) {
+    const bal = balances[i]!;
+    if (bal <= BigInt(0)) continue;
+    outRows.push({
+      ...rowBase,
+      outcomeIndex: i,
+      outcomeLabel: outcomeLabels[i] ?? `Outcome ${i + 1}`,
+      balance: bal.toString(),
+    });
+  }
+
+  if (state === 2 && !emittedPositiveBalance && winningOutcomeIndex !== null && participated) {
+    const winIdx = winningOutcomeIndex as number;
+    outRows.push({
+      ...rowBase,
+      outcomeIndex: winIdx,
+      outcomeLabel: outcomeLabels[winIdx] ?? `Outcome ${winIdx + 1}`,
+      balance: "0",
+    });
+  }
+
+  return outRows;
 }
 
+export async function GET(req: NextRequest) {
+  try {
+    const wallet = req.nextUrl.searchParams.get("wallet")?.trim() ?? "";
+    if (!wallet || !isAddress(wallet)) {
+      return NextResponse.json({ error: "Invalid wallet" }, { status: 400 });
+    }
+
+    const graph = await querySubgraph<NonNullable<SubgraphResponse["data"]>>(
+      `query WalletPositions($wallet: String!) {
+        traderMarketPositions(where: { trader: $wallet }, first: 500) {
+          market { id }
+          collateralIn
+          collateralOut
+          sharesIn
+          sharesOut
+        }
+      }`,
+      { wallet: wallet.toLowerCase() },
+    );
+
+    if (!graph.ok) {
+      return NextResponse.json({
+        rows: [],
+        chainId: deployment.chainId,
+        unavailable: true,
+        reason: graph.reason,
+      });
+    }
+
+    const positionRows = graph.data.traderMarketPositions ?? [];
+    if (positionRows.length === 0) {
+      return NextResponse.json({ rows: [], chainId: deployment.chainId });
+    }
+
+    const byMarket = new Map<string, (typeof positionRows)[number]>();
+    for (const p of positionRows) {
+      byMarket.set(p.market.id.toLowerCase(), p);
+    }
+
+    const outRows: Array<Record<string, unknown>> = [];
+    for (const [marketAddress, pos] of byMarket.entries()) {
+      try {
+        const rows = await buildRowsForMarket(wallet as `0x${string}`, marketAddress, pos);
+        outRows.push(...rows);
+      } catch {
+        // Skip markets that fail to load (stale address, RPC hiccup, etc.)
+      }
+    }
+
+    return NextResponse.json({ rows: outRows, chainId: deployment.chainId });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not load trades.";
+    return NextResponse.json({ error: message, rows: [], chainId: deployment.chainId }, { status: 500 });
+  }
+}

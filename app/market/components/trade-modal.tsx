@@ -25,6 +25,8 @@ type TradeModalProps = {
   onClose: () => void;
   /** When true renders inline (no overlay), ignores open/onClose */
   inline?: boolean;
+  /** Bottom sheet on mobile (full width, partial height, scrollable). */
+  presentation?: "modal" | "sheet";
   marketTitle: string;
   priceRangeLine: string | null;
   stakeEnds: string;
@@ -64,6 +66,7 @@ export function TradeModal({
   open,
   onClose,
   inline = false,
+  presentation = "modal",
   marketTitle,
   priceRangeLine,
   stakeEnds,
@@ -565,52 +568,76 @@ export function TradeModal({
     return <>{panelContent}</>;
   }
 
-  // ── Modal mode ───────────────────────────────────────────────────────────
+  const isSheet = presentation === "sheet";
+
+  const modalHeader = (
+    <div className="shrink-0 border-b border-[var(--border)] px-4 pb-3 pt-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <h2 id="trade-modal-title" className="line-clamp-2 text-sm font-semibold tracking-tight text-[var(--foreground)]">
+              {marketTitle}
+            </h2>
+            <span
+              className={`rounded border px-1.5 py-0.5 text-[9px] font-bold tracking-wide
+              ${selectedOutcomeIndex === 0
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 [html[data-theme=light]_&]:text-emerald-800 [html[data-theme=light]_&]:bg-emerald-50"
+                : selectedOutcomeIndex === 1
+                  ? "border-rose-500/30 bg-rose-500/10 text-rose-300 [html[data-theme=light]_&]:text-rose-800 [html[data-theme=light]_&]:bg-rose-50"
+                  : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]"}`}
+            >
+              {selectedLabel.toUpperCase()}
+            </span>
+          </div>
+          {priceRangeLine && (
+            <p className="mt-1 text-base font-semibold tabular-nums text-[var(--foreground)]">{priceRangeLine}</p>
+          )}
+          <p className="mt-1 text-[10px] leading-snug text-[var(--muted)]">
+            Staking ends <span className="text-[var(--foreground)]/90">{stakeEnds}</span>
+            <span className="mx-1.5 text-[var(--border)]">·</span>
+            Expires <span className="text-[var(--foreground)]/90">{resolveAfter}</span>
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="shrink-0 rounded-full p-1 text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+          aria-label="Close"
+        >
+          <X size={18} weight="bold" />
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── Modal / sheet overlay ────────────────────────────────────────────────
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-[var(--overlay-scrim)] p-3 backdrop-blur-[2px] md:items-center"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className={
+        isSheet
+          ? "fixed inset-0 z-50 flex flex-col justify-end bg-[var(--overlay-scrim)] backdrop-blur-[2px] md:items-center md:justify-center md:p-3"
+          : "fixed inset-0 z-50 flex items-end justify-center bg-[var(--overlay-scrim)] p-3 backdrop-blur-[2px] md:items-center"
+      }
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
       role="presentation"
     >
       <div
-        className="relative w-full max-w-[400px] overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)]"
-        role="dialog" aria-modal="true" aria-labelledby="trade-modal-title"
+        className={
+          isSheet
+            ? "trade-sheet-panel relative flex max-h-[min(88dvh,34rem)] w-full flex-col overflow-hidden rounded-t-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)] md:max-h-none md:max-w-[400px] md:rounded-3xl"
+            : "relative flex w-full max-w-[400px] max-h-[min(92dvh,40rem)] flex-col overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)]"
+        }
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="trade-modal-title"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="border-b border-[var(--border)] px-4 pb-3 pt-4">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <h2 id="trade-modal-title" className="text-sm font-semibold tracking-tight text-[var(--foreground)]">
-                  {marketTitle}
-                </h2>
-                <span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold tracking-wide
-                  ${selectedOutcomeIndex === 0
-                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 [html[data-theme=light]_&]:text-emerald-800 [html[data-theme=light]_&]:bg-emerald-50"
-                    : selectedOutcomeIndex === 1
-                      ? "border-rose-500/30 bg-rose-500/10 text-rose-300 [html[data-theme=light]_&]:text-rose-800 [html[data-theme=light]_&]:bg-rose-50"
-                      : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]"}`}>
-                  {selectedLabel.toUpperCase()}
-                </span>
-              </div>
-              {priceRangeLine && (
-                <p className="mt-1 text-base font-semibold tabular-nums text-[var(--foreground)]">{priceRangeLine}</p>
-              )}
-              <p className="mt-1 text-[10px] leading-snug text-[var(--muted)]">
-                Staking ends <span className="text-[var(--foreground)]/90">{stakeEnds}</span>
-                <span className="mx-1.5 text-[var(--border)]">·</span>
-                Expires <span className="text-[var(--foreground)]/90">{resolveAfter}</span>
-              </p>
-            </div>
-            <button type="button" onClick={onClose}
-              className="shrink-0 rounded-full p-1 text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-              aria-label="Close">
-              <X size={18} weight="bold" />
-            </button>
-          </div>
+        {modalHeader}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[var(--border)]">
+          {panelContent}
         </div>
-        {panelContent}
       </div>
     </div>
   );

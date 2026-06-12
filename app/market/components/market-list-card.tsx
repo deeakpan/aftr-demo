@@ -86,12 +86,12 @@ export function MarketListCard({
           <button
             type="button"
             onClick={onTitleClick}
-            className="line-clamp-2 w-full text-left text-[15px] font-semibold leading-snug text-[var(--foreground)] underline-offset-2 hover:underline"
+            className="line-clamp-2 w-full text-left text-[13px] font-semibold leading-snug text-[var(--foreground)] underline-offset-2 hover:underline md:text-[15px]"
           >
             {title || "Untitled market"}
           </button>
         ) : (
-          <p className="line-clamp-2 text-[15px] font-semibold leading-snug text-[var(--foreground)]">
+          <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-[var(--foreground)] md:text-[15px]">
             {title || "Untitled market"}
           </p>
         )}

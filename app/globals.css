@@ -150,3 +150,22 @@ html[data-theme="light"] input[type="datetime-local"],
 html[data-theme="light"] input[type="time"] {
   color-scheme: light;
 }
+
+@keyframes tradeSheetUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.trade-sheet-panel {
+  animation: tradeSheetUp 0.28s ease-out;
+}
+
+@media (min-width: 768px) {
+  .trade-sheet-panel {
+    animation: none;
+  }
+}

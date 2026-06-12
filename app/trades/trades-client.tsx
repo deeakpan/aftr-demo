@@ -2,12 +2,13 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowsClockwise, BookmarkSimple, PlusMinus } from "@phosphor-icons/react";
+import { ArrowsClockwise, BookmarkSimple, CircleNotch, PlusMinus } from "@phosphor-icons/react";
 import { formatUnits, parseAbi, zeroAddress } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
 import { collateralTickerFromDeployment } from "@/lib/deployment-collateral";
+import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
 
 const MARKET_ABI = parseAbi([
   "function marketKind() view returns (uint8)",
@@ -458,7 +459,8 @@ export function TradesClient() {
       setError("");
       try {
         const res = await fetch(`/api/trades/positions?wallet=${address}`, { cache: "no-store" });
-        const json = (await res.json()) as {
+        const raw = await res.text();
+        let json: {
           rows?: Array<{
             marketAddress: `0x${string}`;
             collateralAddress: `0x${string}`;
@@ -483,7 +485,13 @@ export function TradesClient() {
             settlementDisplay?: "claimed" | "settled_no_shares";
           }>;
           error?: string;
+          unavailable?: boolean;
         };
+        try {
+          json = raw ? (JSON.parse(raw) as typeof json) : {};
+        } catch {
+          throw new Error("Could not load trades.");
+        }
         if (!res.ok) {
           throw new Error(json.error || "Could not load trades.");
         }
@@ -549,7 +557,13 @@ export function TradesClient() {
           </p>
         )}
         {isConnected && chainId === DEPLOYMENT_CHAIN_ID && isLoading && (
-          <p className="max-w-xl text-sm leading-relaxed text-[var(--muted)]">Loading your positions...</p>
+          <div
+            className="flex min-h-[45vh] items-center justify-center"
+            aria-busy="true"
+            aria-label="Loading positions"
+          >
+            <CircleNotch size={36} weight="bold" className="animate-spin text-[var(--accent)]" />
+          </div>
         )}
         {error && <p className="max-w-xl text-sm leading-relaxed text-red-400">{error}</p>}
         {!isLoading && !error && isConnected && chainId === DEPLOYMENT_CHAIN_ID && groups.length === 0 && (
@@ -558,8 +572,8 @@ export function TradesClient() {
           </p>
         )}
 
-        {groups.length > 0 && (
-          <div className="mt-5 grid max-w-[760px] gap-3 md:grid-cols-2">
+        {!isLoading && groups.length > 0 && (
+          <div className="mt-5 grid w-full max-w-7xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {groups.map((g) => {
               const winIdx = g.winningOutcomeIndex;
               const winBal =
@@ -575,18 +589,22 @@ export function TradesClient() {
                   key={g.marketAddress}
                   className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] p-0 shadow-[var(--elevated-card-shadow)] transition hover:border-[var(--accent)]/35"
                 >
-                  <div className="aspect-[16/7] w-full overflow-hidden border-b border-[var(--border)] bg-[var(--surface)]">
+                  <div className={`${MARKET_COVER_ASPECT_CLASS} w-full overflow-hidden bg-[var(--surface)]`}>
                     {g.imageUrl ? (
-                      <img src={g.imageUrl} alt={g.marketTitle} className="h-full w-full object-cover object-center" />
+                      <img
+                        src={g.imageUrl}
+                        alt={g.marketTitle}
+                        className="h-full w-full object-cover object-center"
+                      />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-[11px] text-[var(--muted)]">
-                        No image
+                        No cover image
                       </div>
                     )}
                   </div>
 
                   <div className="p-2.5">
-                    <p className="line-clamp-2 cursor-pointer text-base leading-snug font-semibold text-[var(--foreground)] underline-offset-2 hover:underline" onClick={() => router.push(`/market/${g.marketAddress}`)}>{g.marketTitle}</p>
+                    <p className="line-clamp-2 cursor-pointer text-[13px] font-semibold leading-snug text-[var(--foreground)] underline-offset-2 hover:underline md:text-[15px]" onClick={() => router.push(`/market/${g.marketAddress}`)}>{g.marketTitle}</p>
                     <p className="mt-0.5 text-[11px] text-[var(--muted)]">
                       {g.marketKind} · {stateLabel(g.marketState, g.stakeEndUnix)}
                     </p>

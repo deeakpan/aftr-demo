@@ -13,11 +13,18 @@ import {
 } from "viem";
 import { useAccount, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
+import { useSidebarOpen } from "@/app/components/sidebar-context";
 import { MarketChartPanel } from "@/app/market/components/market-chart-panel";
 import { LimitOrderParams, TradeModal, type TradeSuccessResult } from "@/app/market/components/trade-modal";
 import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import { collateralTickerFromDeployment, isUsdStyledCollateralTicker } from "@/lib/deployment-collateral";
-import { deploymentPublicClient, assertMarketContract, readMarketPrice } from "@/lib/deployment-public-client";
+import { deploymentPublicClient, readMarketPrice } from "@/lib/deployment-public-client";
+import {
+  parseMarketDetailDto,
+  type MarketDetailDto,
+  type MarketDetailItem,
+} from "@/lib/markets/load-markets";
+import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
 import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
 const WAD = BigInt("1000000000000000000");
 const SLIPPAGE_PRESETS = [50, 100, 200, 300] as const;
@@ -65,109 +72,20 @@ const MARKET_ABI = parseAbi([
   "function outcomeToken(uint256) view returns (address)",
   "function redeem(uint8 outcomeIndex, uint256 shareAmount)",
 ]);
-const FEED_ABI = parseAbi(["function decimals() view returns (uint8)"]);
-
 const ERC20_ABI = parseAbi([
   "function allowance(address owner, address spender) view returns (uint256)",
   "function approve(address spender, uint256 amount) returns (bool)",
   "function balanceOf(address account) view returns (uint256)",
 ]);
 
-type IpfsMetadata = {
-  title?: string;
-  description?: string;
-  image?: string;
-  outcomes?: string[];
-  slug?: string;
-};
-
-type DetailModel = {
-  address: `0x${string}`;
-  kind: "Event" | "Price";
-  title: string;
-  description: string;
-  imageUrl: string;
-  outcomeLabels: string[];
-  outcomes: number;
-  stakeEndUnix: number;
-  resolveAfterUnix: number;
-  stakeEnds: string;
-  resolveAfter: string;
-  marketState: number;
-  stateLabel: string;
-  poolTvl: string;
-  chancePct: number;
-  collateralAddress: `0x${string}`;
-  collateralDecimals: number;
-  priceBinByOutcome?: string[];
-  winningOutcomeIndex: number | null;
-  settledOraclePrice: bigint;
-  settlementTimestamp: number;
-  redemptionRate: bigint;
-  priceThreshold: bigint;
-  priceThresholdKind: number;
-  priceUpperBound: bigint;
-  chainlinkFeed: `0x${string}`;
-  feedDecimals: number;
-  usesBins: boolean;
-  slug?: string;
-};
-
-function ipfsToHttp(uri: string) {
-  if (!uri) return "";
-  if (uri.startsWith("ipfs://")) {
-    return `https://gateway.lighthouse.storage/ipfs/${uri.replace("ipfs://", "")}`;
-  }
-  return uri;
-}
-
-async function fetchIpfsMetadata(uri: string): Promise<IpfsMetadata | null> {
-  const httpUrl = ipfsToHttp(uri);
-  if (!httpUrl) return null;
-  try {
-    const res = await fetch(httpUrl, { cache: "no-store" });
-    if (!res.ok) return null;
-    return (await res.json()) as IpfsMetadata;
-  } catch {
-    return null;
-  }
-}
-
 function fmtTsFromUnix(seconds: number) {
   if (!Number.isFinite(seconds) || seconds <= 0) return "—";
   return new Date(seconds * 1000).toLocaleString();
 }
 
-function fmtTs(value: bigint) {
-  const ms = Number(value) * 1000;
-  if (!Number.isFinite(ms) || ms <= 0) return "—";
-  return new Date(ms).toLocaleString();
-}
-
-function stateLabel(state: number) {
-  switch (state) {
-    case 0:
-      return "Open";
-    case 1:
-      return "Awaiting resolution";
-    case 2:
-      return "Settled";
-    case 3:
-      return "Cancelled";
-    default:
-      return `State ${state}`;
-  }
-}
-
 function clampPct(v: number) {
   if (!Number.isFinite(v)) return 50;
   return Math.max(0, Math.min(100, v));
-}
-
-function fmtUsdBin(value: bigint): string {
-  const n = Number(formatUnits(value, 8));
-  if (!Number.isFinite(n)) return "—";
-  return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
 
 function formatMoneyAmount(unformatted: string, ticker: string): string {
@@ -187,8 +105,11 @@ function priceKindName(kind: number): string {
 
 function formatLoadError(error: unknown): string {
   const msg = error instanceof Error ? error.message : String(error);
-  if (msg.includes("returned no data") || msg.includes("not a contract") || msg.includes(`not found on ${DEPLOYMENT_NETWORK_LABEL}`)) {
+  if (msg.includes("returned no data") || msg.includes("not a contract") || msg.includes("not found")) {
     return `Market not found on ${DEPLOYMENT_NETWORK_LABEL}. Check the address or try again in a moment.`;
+  }
+  if (msg.includes("15/sec") || msg.includes("rate limit") || msg.includes("too many")) {
+    return "Network busy — refresh in a moment.";
   }
   return msg.length > 280 ? "Could not load market." : msg;
 }
@@ -204,12 +125,57 @@ function formatTradeError(error: unknown): string {
 
 type Props = { address: string };
 
+function MobileOutcomeBar({
+  market,
+  onSelectOutcome,
+}: {
+  market: MarketDetailItem;
+  onSelectOutcome: (index: number) => void;
+}) {
+  const sidebarOpen = useSidebarOpen();
+
+  if (market.marketState !== 0 || sidebarOpen) return null;
+
+  return (
+    <div className="fixed bottom-[64px] left-0 right-0 z-20 bg-[var(--background)] px-4 py-2 md:bottom-0 lg:hidden">
+      <div className="flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={() => onSelectOutcome(0)}
+          className="flex min-h-[2.125rem] w-full items-center justify-between rounded-lg px-0.5 py-0.5 text-left transition active:bg-[var(--surface-hover)]"
+        >
+          <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-[var(--foreground)]">
+            {market.outcomeLabels[0] ?? "Yes"}
+          </span>
+          <span className="shrink-0 text-[12px] font-bold tabular-nums text-[var(--foreground)]">
+            {(market.outcomeChancePcts?.[0] ?? market.chancePct).toFixed(0)}%
+          </span>
+        </button>
+        {market.outcomes >= 2 && (
+          <button
+            type="button"
+            onClick={() => onSelectOutcome(1)}
+            className="flex min-h-[2.125rem] w-full items-center justify-between rounded-lg px-0.5 py-0.5 text-left transition active:bg-[var(--surface-hover)]"
+          >
+            <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-[var(--foreground)]">
+              {market.outcomeLabels[1] ?? "No"}
+            </span>
+            <span className="shrink-0 text-[12px] font-bold tabular-nums text-[var(--foreground)]">
+              {(market.outcomeChancePcts?.[1] ?? 100 - market.chancePct).toFixed(0)}%
+            </span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function MarketDetailClient({ address: addressProp }: Props) {
   const publicClient = deploymentPublicClient;
   const { address, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
 
-  const [market, setMarket] = useState<DetailModel | null>(null);
+  const [market, setMarket] = useState<MarketDetailItem | null>(null);
   const [loadError, setLoadError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -254,7 +220,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
   }, [addressProp]);
 
   const reload = useCallback(async () => {
-    if (!publicClient || !marketAddress) {
+    if (!marketAddress) {
       setMarket(null);
       setIsLoading(false);
       return;
@@ -262,169 +228,25 @@ export function MarketDetailClient({ address: addressProp }: Props) {
     setIsLoading(true);
     setLoadError("");
     try {
-      await assertMarketContract(marketAddress);
-      const [
-        kind,
-        uri,
-        stake,
-        resolveAfter,
-        outcomes,
-        state,
-        collateralDecimals,
-        collateralAddress,
-        winningRaw,
-        settledRaw,
-        settlementTs,
-        redemptionRate,
-        priceThreshold,
-        priceKind,
-        priceUpper,
-        feed,
-      ] = await Promise.all([
-        publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "marketKind" }),
-        publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "metadataURI" }),
-        publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "stakeEndTimestamp" }),
-        publicClient.readContract({
-          address: marketAddress,
-          abi: MARKET_ABI,
-          functionName: "resolveAfterTimestamp",
-        }),
-        publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "numOutcomes" }),
-        publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "state" }),
-        publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "collateralDecimals" }),
-        publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "collateralAddress" }),
-        publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "winningOutcomeIndex" }),
-        publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "settledOraclePrice" }),
-        publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "settlementTimestamp" }),
-        publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "redemptionRate" }),
-        publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "priceThreshold" }),
-        publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "priceThresholdKind" }),
-        publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "priceUpperBound" }),
-        publicClient.readContract({ address: marketAddress, abi: MARKET_ABI, functionName: "chainlinkFeed" }),
-      ]);
-
-      const outcomeCount = Number(outcomes);
-      const dec = Number(collateralDecimals);
-      const st = Number(state);
-      const isPrice = Number(kind) === 0;
-
-      const feedDec = isPrice
-        ? Number(
-            await publicClient.readContract({
-              address: feed as `0x${string}`,
-              abi: FEED_ABI,
-              functionName: "decimals",
-            }),
-          )
-        : 8;
-
-      const realParts = await Promise.all(
-        Array.from({ length: outcomeCount }, (_, i) =>
-          publicClient.readContract({
-            address: marketAddress,
-            abi: MARKET_ABI,
-            functionName: "realPool",
-            args: [BigInt(i)],
-          }),
-        ),
-      );
-      const poolTvlRaw = realParts.reduce((a, v) => a + (v as bigint), BigInt(0));
-      const poolTvl = Number(formatUnits(poolTvlRaw, dec)).toLocaleString(undefined, {
-        maximumFractionDigits: 2,
-      });
-
-      const md = await fetchIpfsMetadata(String(uri || ""));
-      const fallbackLabels = Array.from({ length: outcomeCount }, (_, i) => `Outcome ${i + 1}`);
-      const labelsFromIpfs =
-        md?.outcomes && md.outcomes.length > 0 ? md.outcomes.filter((x): x is string => typeof x === "string") : [];
-      const outcomeLabels = labelsFromIpfs.length > 0 ? labelsFromIpfs : fallbackLabels;
-
-      let usesBins = false;
-      let priceBinByOutcome: string[] | undefined;
-      if (isPrice) {
-        try {
-          await publicClient.readContract({
-            address: marketAddress,
-            abi: MARKET_ABI,
-            functionName: "priceBinLower",
-            args: [BigInt(0)],
-          });
-          usesBins = true;
-          const lowers = await Promise.all(
-            Array.from({ length: outcomeCount }, (_, i) =>
-              publicClient.readContract({
-                address: marketAddress,
-                abi: MARKET_ABI,
-                functionName: "priceBinLower",
-                args: [BigInt(i)],
-              }),
-            ),
-          );
-          const uppers = await Promise.all(
-            Array.from({ length: outcomeCount }, (_, i) =>
-              publicClient.readContract({
-                address: marketAddress,
-                abi: MARKET_ABI,
-                functionName: "priceBinUpper",
-                args: [BigInt(i)],
-              }),
-            ),
-          );
-          priceBinByOutcome = lowers.map((lo, i) => `$${fmtUsdBin(lo as bigint)} — $${fmtUsdBin(uppers[i] as bigint)}`);
-        } catch {
-          usesBins = false;
-        }
-      }
-
-      let leftPct = outcomeCount >= 2 ? 50 : Math.max(1, Math.round(100 / Math.max(1, outcomeCount)));
+      const res = await fetch(`/api/markets/${marketAddress}`, { cache: "no-store" });
+      const raw = await res.text();
+      let json: { market?: MarketDetailDto; error?: string };
       try {
-        const p0 = await readMarketPrice(marketAddress, 0, MARKET_ABI);
-        leftPct = clampPct(Number(formatUnits(p0, 18)) * 100);
+        json = raw ? (JSON.parse(raw) as typeof json) : {};
       } catch {
-        // keep
+        throw new Error("Could not load market.");
       }
-
-      const wr = winningRaw as bigint;
-      const winIdx = st === 2 && wr < BigInt(outcomeCount) ? Number(wr) : null;
-
-      setMarket({
-        address: marketAddress,
-        kind: isPrice ? "Price" : "Event",
-        slug: md?.slug?.trim() || undefined,
-        title: md?.title?.trim() || `${isPrice ? "Price" : "Event"} market`,
-        description: md?.description?.trim() || "",
-        imageUrl: ipfsToHttp(md?.image?.trim() || ""),
-        outcomeLabels,
-        outcomes: outcomeCount,
-        stakeEndUnix: Number(stake),
-        resolveAfterUnix: Number(resolveAfter),
-        stakeEnds: fmtTs(stake as bigint),
-        resolveAfter: fmtTs(resolveAfter as bigint),
-        marketState: st,
-        stateLabel: stateLabel(st),
-        poolTvl,
-        chancePct: leftPct,
-        collateralAddress: collateralAddress as `0x${string}`,
-        collateralDecimals: dec,
-        priceBinByOutcome,
-        winningOutcomeIndex: winIdx,
-        settledOraclePrice: settledRaw as bigint,
-        settlementTimestamp: Number(settlementTs),
-        redemptionRate: redemptionRate as bigint,
-        priceThreshold: priceThreshold as bigint,
-        priceThresholdKind: Number(priceKind),
-        priceUpperBound: priceUpper as bigint,
-        chainlinkFeed: feed as `0x${string}`,
-        feedDecimals: feedDec,
-        usesBins,
-      });
+      if (!res.ok || !json.market) {
+        throw new Error(json.error || "Could not load market.");
+      }
+      setMarket(parseMarketDetailDto(json.market));
     } catch (e) {
       setLoadError(formatLoadError(e));
       setMarket(null);
     } finally {
       setIsLoading(false);
     }
-  }, [publicClient, marketAddress]);
+  }, [marketAddress]);
 
   useEffect(() => {
     void reload();
@@ -828,9 +650,9 @@ export function MarketDetailClient({ address: addressProp }: Props) {
     <AppLayout showSearch={false} viewportLocked>
       {isLoading && (
         <div className="no-scrollbar h-full overflow-y-auto">
-          <div className="space-y-4 px-4 py-6 pt-2 md:px-6">
-          <div className="h-8 w-2/3 animate-pulse rounded-lg bg-[var(--card)]" />
-          <div className="h-5 w-1/3 animate-pulse rounded-lg bg-[var(--card)]" />
+          <div className="px-4 pt-2 md:px-6">
+            <div className="mb-4 h-4 w-24 animate-pulse rounded bg-[var(--border)]/50" />
+            <div className={`${MARKET_COVER_ASPECT_CLASS} w-full animate-pulse rounded-2xl bg-[var(--border)]/50`} />
             <div className="mt-6 h-[400px] animate-pulse rounded-xl bg-[var(--card)]" />
           </div>
         </div>
@@ -846,28 +668,43 @@ export function MarketDetailClient({ address: addressProp }: Props) {
           {/* ── Left: scrolls under app header; trade panel stays fixed ── */}
           <div className="no-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
             <div className="px-4 pb-36 pt-2 md:px-6 md:pb-24 lg:pb-6">
-            <Link
-              href="/market"
-              className="mb-4 inline-flex items-center gap-1.5 text-sm text-[var(--muted)] transition hover:text-[var(--foreground)]"
+            {/* Cover hero — aspect box sized by ratio; all layers absolute so title stays at bottom on mobile */}
+            <div
+              className={`relative isolate mb-5 w-full shrink-0 overflow-hidden rounded-2xl bg-[var(--surface)] ${MARKET_COVER_ASPECT_CLASS}`}
             >
-              <ArrowLeft size={14} weight="bold" /> Markets
-            </Link>
-
-            {/* Market header */}
-            <div className="mb-1 flex items-start gap-3">
-              {market.imageUrl && (
-                <img src={market.imageUrl} alt="" className="h-11 w-11 shrink-0 rounded-xl object-cover" />
+              {market.imageUrl ? (
+                <img
+                  src={market.imageUrl}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover object-center"
+                />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-br from-[var(--surface)] to-[var(--border)]/40" />
               )}
-              <div>
-                <h1 className="text-xl font-bold leading-snug text-[var(--foreground)] md:text-2xl">
+
+              <div
+                className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent [html[data-theme=light]_&]:from-black/75 [html[data-theme=light]_&]:via-black/25"
+                aria-hidden
+              />
+
+              <Link
+                href="/market"
+                className="absolute left-3 top-3 z-20 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/35 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur-sm transition hover:bg-black/50 md:left-4 md:top-4"
+              >
+                <ArrowLeft size={14} weight="bold" /> Markets
+              </Link>
+
+              <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end px-4 pb-3.5 pt-16 md:px-5 md:pb-4 md:pt-20">
+                <h1 className="line-clamp-3 text-base font-bold leading-snug text-white drop-shadow-md md:text-2xl">
                   {market.title}
                 </h1>
                 {market.slug && (
-                  <p className="mt-0.5 font-mono text-[11px] text-[var(--muted)]">/{market.slug}</p>
+                  <p className="mt-1 line-clamp-1 font-mono text-[10px] text-white/85 drop-shadow-sm md:text-[11px]">
+                    /{market.slug}
+                  </p>
                 )}
               </div>
             </div>
-
 
             {/* Outcome hero */}
             {market.outcomes > 2 ? (
@@ -920,7 +757,6 @@ export function MarketDetailClient({ address: addressProp }: Props) {
                   <div className="flex max-w-[55%] flex-wrap justify-end gap-1">
                     {(market.outcomes > 2 ? market.outcomeLabels : market.outcomeLabels.slice(0, 2)).map(
                       (label, i) => {
-                        const isMulti = market.outcomes > 2;
                         const active = selectedOutcome === i;
                         return (
                           <button
@@ -928,15 +764,9 @@ export function MarketDetailClient({ address: addressProp }: Props) {
                             type="button"
                             onClick={() => setSelectedOutcome(i)}
                             className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide transition ${
-                              isMulti
-                                ? active
-                                  ? "bg-[var(--accent)] text-white"
-                                  : "text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-                                : active
-                                  ? i === 0
-                                    ? "bg-emerald-600 text-white"
-                                    : "bg-rose-600 text-white"
-                                  : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                              active
+                                ? "bg-[var(--accent)] text-white"
+                                : "text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
                             }`}
                           >
                             {label}
@@ -1079,38 +909,16 @@ export function MarketDetailClient({ address: addressProp }: Props) {
         </div>
       )}
 
-      {/* ── Mobile bottom bar ── */}
-      {market && market.marketState === 0 && (
-        <div className="fixed bottom-[64px] left-0 right-0 z-50 border-t border-[var(--border)] bg-[var(--card)]/95 px-4 py-3 backdrop-blur-md md:bottom-0 lg:hidden [html[data-theme=light]_&]:bg-[var(--card)]/98">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => { setSelectedOutcome(0); setTradeOpen(true); setTradeStatus(""); setTradeSuccess(null); }}
-              className="group flex flex-1 items-center justify-between rounded-full border border-emerald-600 bg-emerald-700 px-4 py-3 transition hover:bg-emerald-600 active:scale-[0.97]"
-            >
-              <span className="text-xs font-bold uppercase tracking-widest text-emerald-200">
-                {market.outcomeLabels[0] ?? "Yes"}
-              </span>
-              <span className="text-sm font-bold text-white tabular-nums">
-                ${(market.chancePct / 100).toFixed(2)}
-              </span>
-            </button>
-            {market.outcomes >= 2 && (
-              <button
-                type="button"
-                onClick={() => { setSelectedOutcome(1); setTradeOpen(true); setTradeStatus(""); setTradeSuccess(null); }}
-                className="group flex flex-1 items-center justify-between rounded-full border border-rose-600 bg-rose-700 px-4 py-3 transition hover:bg-rose-600 active:scale-[0.97]"
-              >
-                <span className="text-xs font-bold uppercase tracking-widest text-rose-200">
-                  {market.outcomeLabels[1] ?? "No"}
-                </span>
-                <span className="text-sm font-bold text-white tabular-nums">
-                  ${((100 - market.chancePct) / 100).toFixed(2)}
-                </span>
-              </button>
-            )}
-          </div>
-        </div>
+      {market && !tradeOpen && (
+        <MobileOutcomeBar
+          market={market}
+          onSelectOutcome={(index) => {
+            setSelectedOutcome(index);
+            setTradeOpen(true);
+            setTradeStatus("");
+            setTradeSuccess(null);
+          }}
+        />
       )}
 
       {!hasWalletConnectProjectId && (
@@ -1121,6 +929,7 @@ export function MarketDetailClient({ address: addressProp }: Props) {
 
       {market && (
         <TradeModal
+          presentation="sheet"
           open={tradeOpen}
           onClose={() => {
             setTradeOpen(false);

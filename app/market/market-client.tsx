@@ -628,6 +628,7 @@ export function MarketClient() {
         )}
       </section>
       <TradeModal
+        presentation="sheet"
         open={Boolean(selectedMarket)}
         onClose={() => {
           setSelectedMarket(null);

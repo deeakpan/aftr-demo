@@ -16,7 +16,6 @@ import {
   toBytes,
   zeroAddress,
   type Address,
-  type WalletClient,
 } from "viem";
 import { useAccount, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
@@ -189,7 +188,7 @@ function formatCreateError(error: unknown, collateralSymbol = "collateral"): str
       return "Transaction cancelled in wallet.";
     }
     if (msg.includes("Review alert") || msg.includes("blocked")) {
-      return "MetaMask blocked this transaction (Security alerts / Blockaid). Settings → Security & Privacy → turn off security alerts, or try Rabby wallet. The red “buy MON” fee warning on Monad testnet is often a false alarm if you already have MON.";
+      return "Wallet security blocked this transaction (Rabby Review alert / MetaMask Blockaid). Rabby: Settings → Security → disable the pre-sign check for testnet, or confirm anyway if you have enough MON for gas. Approving USDC still costs MON gas (~0.005 MON).";
     }
     if (msg.includes("reverted with the following signature")) {
       return "Market creation reverted onchain. Check seed amount, times, and token approval.";
@@ -217,25 +216,6 @@ async function waitForErc20Allowance(
     await new Promise((resolve) => setTimeout(resolve, 600));
   }
   throw new Error("Token approval not detected yet. Wait a few seconds and try again.");
-}
-
-async function submitFactoryCreateTx(
-  walletClient: WalletClient,
-  address: Address,
-  request: { address: Address; data?: `0x${string}`; value?: bigint },
-  gas: bigint,
-): Promise<`0x${string}`> {
-  if (!request.data) {
-    throw new Error("Missing transaction data for market creation.");
-  }
-  return walletClient.sendTransaction({
-    account: address,
-    chain: monadTestnet,
-    to: request.address,
-    data: request.data,
-    value: request.value ?? BigInt(0),
-    gas,
-  });
 }
 
 const CIRCLE_USDC_BASE_SEPOLIA = deployment.external.umaBondCurrencyCircleUSDC as `0x${string}`;
@@ -372,7 +352,6 @@ export function CreateClient() {
   const [collateralBalanceLabel, setCollateralBalanceLabel] = useState("0.00");
   const [isSubmittingMarket, setIsSubmittingMarket] = useState(false);
   const [submitStatus, setSubmitStatus] = useState("");
-  const [createdMarketAddress, setCreatedMarketAddress] = useState("");
   const [isCreateComplete, setIsCreateComplete] = useState(false);
 
   useEffect(() => {
@@ -712,7 +691,6 @@ export function CreateClient() {
     try {
       setIsSubmittingMarket(true);
       setSubmitStatus("Preparing transaction...");
-      setCreatedMarketAddress("");
       setIsCreateComplete(false);
 
       const seedUnits = parseUnits(seedAmount || "0", collateral.decimals);
@@ -801,9 +779,6 @@ export function CreateClient() {
         })) as bigint;
 
         if (factoryAllowance < seedUnits) {
-          setSubmitStatus(
-            `Approve ${formatUnits(seedUnits, collateral.decimals)} ${collateral.symbol} (exact seed amount only)…`,
-          );
           const approveSimulation = await publicClient.simulateContract({
             address: collateral.address,
             abi: ERC20_ABI,
@@ -820,10 +795,22 @@ export function CreateClient() {
               args: [FACTORY_ADDRESS, seedUnits],
               account: address,
             }));
+          const approveGasLimit = baseApproveGas + baseApproveGas / BigInt(5);
+          const monBalance = await publicClient.getBalance({ address });
+          if (monBalance < approveGasLimit) {
+            setSubmitStatus(
+              `Need ~${formatUnits(approveGasLimit, 18)} MON for approval gas. You have ${formatUnits(monBalance, 18)} MON on ${DEPLOYMENT_NETWORK_LABEL}.`,
+            );
+            return;
+          }
+
+          setSubmitStatus(
+            `Approve ${formatUnits(seedUnits, collateral.decimals)} ${collateral.symbol} (exact seed amount only)…`,
+          );
           const approveHash = await walletClient.writeContract({
             ...approveSimulation.request,
             chain: walletClient.chain,
-            gas: baseApproveGas + baseApproveGas / BigInt(5),
+            gas: approveGasLimit,
           });
           await publicClient.waitForTransactionReceipt({ hash: approveHash });
           setSubmitStatus("Waiting for approval to confirm...");
@@ -903,7 +890,11 @@ export function CreateClient() {
         if (collateral.isNative && !(await assertNativeMonAffordable(seedUnits, eventGas))) {
           return;
         }
-        createHash = await submitFactoryCreateTx(walletClient, address, simulation.request, eventGas);
+        createHash = await walletClient.writeContract({
+          ...simulation.request,
+          chain: walletClient.chain ?? monadTestnet,
+          gas: eventGas,
+        });
       } else {
         if (!feed?.assetKey) {
           setSubmitStatus("No registered price feed for this asset on the factory.");
@@ -940,7 +931,11 @@ export function CreateClient() {
         if (collateral.isNative && !(await assertNativeMonAffordable(seedUnits, priceGas))) {
           return;
         }
-        createHash = await submitFactoryCreateTx(walletClient, address, simulation.request, priceGas);
+        createHash = await walletClient.writeContract({
+          ...simulation.request,
+          chain: walletClient.chain ?? monadTestnet,
+          gas: priceGas,
+        });
       }
 
       const createReceipt = await publicClient.waitForTransactionReceipt({ hash: createHash });
@@ -957,7 +952,6 @@ export function CreateClient() {
           if (parsed.eventName === "MarketCreated") {
             const market = (parsed.args.market ?? "") as string;
             createdMarket = market;
-            setCreatedMarketAddress(market);
             break;
           }
         } catch {
@@ -970,7 +964,7 @@ export function CreateClient() {
         return;
       }
 
-      setSubmitStatus("Market created and liquidity seeded successfully.");
+      setSubmitStatus("Market created successfully.");
       setIsCreateComplete(true);
       void (async () => {
         try {
@@ -1610,7 +1604,7 @@ export function CreateClient() {
                 </p>
               )}
               <p className="mt-3 text-xs text-[var(--muted)]">
-                Seed-liquidity funder receives 0.5% of losing-side collateral at settlement.
+                As creator, you earn 0.3% of each trade.
               </p>
               <div className="mt-6 flex flex-wrap items-center gap-3">
                 {isCreateComplete ? (
@@ -1646,9 +1640,6 @@ export function CreateClient() {
                 >
                   {submitStatus}
                 </p>
-              )}
-              {createdMarketAddress && (
-                <p className="mt-2 font-mono text-xs text-[var(--muted)]">{createdMarketAddress}</p>
               )}
             </section>
           )}
