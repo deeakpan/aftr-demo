@@ -17,6 +17,7 @@ import {
   Gift,
   Lifebuoy,
   List,
+  MagnifyingGlass,
   PlusMinus,
   Rows,
   SignOut,
@@ -98,6 +99,8 @@ export function AppLayout({
   const { signMessageAsync } = useSignMessage();
   const [mounted, setMounted] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const desktopSearchInputRef = useRef<HTMLInputElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
   const hasRunAuthRef = useRef(false);
   const profileCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showNameModal, setShowNameModal] = useState(false);
@@ -108,6 +111,7 @@ export function AppLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState("Trending");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [profileName, setProfileName] = useState("");
@@ -205,11 +209,23 @@ export function AppLayout({
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         searchInputRef.current?.focus();
+        desktopSearchInputRef.current?.focus();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    if (!isMobileSearchOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!mobileSearchRef.current?.contains(event.target as Node)) {
+        setIsMobileSearchOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [isMobileSearchOpen]);
 
   useEffect(() => {
     if (!showFilterStrip) return;
@@ -384,7 +400,7 @@ export function AppLayout({
               </Link>
               {showSearch && (
                 <input
-                  ref={searchInputRef}
+                  ref={desktopSearchInputRef}
                   type="search"
                   placeholder={searchPlaceholder}
                   value={searchQuery}
@@ -405,6 +421,43 @@ export function AppLayout({
             </div>
 
             <div className="flex shrink-0 items-center gap-1.5 md:gap-3">
+              {showSearch && (
+                <div ref={mobileSearchRef} className="relative md:hidden">
+                  <button
+                    type="button"
+                    aria-label="Search markets"
+                    aria-expanded={isMobileSearchOpen}
+                    onClick={() => {
+                      setIsMobileSearchOpen((open) => {
+                        const next = !open;
+                        if (next) {
+                          requestAnimationFrame(() => searchInputRef.current?.focus());
+                        }
+                        return next;
+                      });
+                    }}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                  >
+                    <MagnifyingGlass size={20} weight="bold" />
+                  </button>
+                  {isMobileSearchOpen && (
+                    <div className="absolute right-0 top-full z-[60] mt-2 w-[min(92vw,320px)] rounded-2xl border border-[var(--border)] bg-[var(--card)] p-2 shadow-2xl">
+                      <input
+                        ref={searchInputRef}
+                        type="search"
+                        placeholder={searchPlaceholder}
+                        value={searchQuery}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setSearchQuery(v);
+                          updateMarketQuery({ q: v.trim() ? v : null });
+                        }}
+                        className="h-10 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
               {isWalletConnected ? (
                 <>
                   <button
@@ -417,15 +470,6 @@ export function AppLayout({
                     <p className="text-sm font-semibold text-[var(--foreground)] transition group-hover:text-[var(--accent)]">
                       {availableBalanceLabel} MON
                     </p>
-                  </button>
-                  <button type="button" className="deposit-ring relative rounded-full p-[1px]">
-                    <span
-                      className={`relative z-10 flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold tracking-wide md:px-4 md:py-1.5 md:text-sm ${
-                        theme === "light" ? "bg-transparent text-[#b5861d]" : "bg-[#090909] text-[#d8b654]"
-                      }`}
-                    >
-                      Deposit
-                    </span>
                   </button>
                   <div
                     className="relative"
@@ -656,22 +700,6 @@ export function AppLayout({
               )}
             </div>
           </div>
-
-          {showSearch && (
-            <div className="mt-2 flex items-center justify-start gap-3 md:hidden">
-              <input
-                type="search"
-                placeholder={searchPlaceholder}
-                value={searchQuery}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setSearchQuery(v);
-                  updateMarketQuery({ q: v.trim() ? v : null });
-                }}
-                className="h-9 w-full max-w-[240px] rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 text-xs text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
-              />
-            </div>
-          )}
         </header>
 
         {showFilterStrip && (

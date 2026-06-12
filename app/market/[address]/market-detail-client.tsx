@@ -137,32 +137,24 @@ function MobileOutcomeBar({
   if (market.marketState !== 0 || sidebarOpen) return null;
 
   return (
-    <div className="fixed bottom-[64px] left-0 right-0 z-20 bg-[var(--background)] px-4 py-2 md:bottom-0 lg:hidden">
-      <div className="flex flex-col gap-1">
+    <div className="fixed bottom-[64px] left-0 right-0 z-20 bg-[var(--background)] px-4 py-3 md:bottom-0 lg:hidden">
+      <div className="flex items-stretch gap-2">
         <button
           type="button"
           onClick={() => onSelectOutcome(0)}
-          className="flex min-h-[2.125rem] w-full items-center justify-between rounded-lg px-0.5 py-0.5 text-left transition active:bg-[var(--surface-hover)]"
+          className="flex flex-1 items-center justify-center rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 active:scale-[0.98]"
         >
-          <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-[var(--foreground)]">
-            {market.outcomeLabels[0] ?? "Yes"}
-          </span>
-          <span className="shrink-0 text-[12px] font-bold tabular-nums text-[var(--foreground)]">
-            {(market.outcomeChancePcts?.[0] ?? market.chancePct).toFixed(0)}%
-          </span>
+          {market.outcomeLabels[0] ?? "Yes"}{" "}
+          {(market.outcomeChancePcts?.[0] ?? market.chancePct).toFixed(0)}%
         </button>
         {market.outcomes >= 2 && (
           <button
             type="button"
             onClick={() => onSelectOutcome(1)}
-            className="flex min-h-[2.125rem] w-full items-center justify-between rounded-lg px-0.5 py-0.5 text-left transition active:bg-[var(--surface-hover)]"
+            className="flex flex-1 items-center justify-center rounded-full bg-rose-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-rose-500 active:scale-[0.98]"
           >
-            <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-[var(--foreground)]">
-              {market.outcomeLabels[1] ?? "No"}
-            </span>
-            <span className="shrink-0 text-[12px] font-bold tabular-nums text-[var(--foreground)]">
-              {(market.outcomeChancePcts?.[1] ?? 100 - market.chancePct).toFixed(0)}%
-            </span>
+            {market.outcomeLabels[1] ?? "No"}{" "}
+            {(market.outcomeChancePcts?.[1] ?? 100 - market.chancePct).toFixed(0)}%
           </button>
         )}
       </div>
