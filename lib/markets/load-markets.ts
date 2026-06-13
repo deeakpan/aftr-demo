@@ -142,6 +142,45 @@ export function parseMarketDetailDto(dto: MarketDetailDto): MarketDetailItem {
   };
 }
 
+/** Card fields from the markets grid override detail — same source as trade modal. */
+export function mergeListItemIntoDetail(
+  listItem: MarketListItem,
+  detail: MarketDetailItem,
+): MarketDetailItem {
+  return {
+    ...detail,
+    title: listItem.title,
+    description: listItem.description,
+    imageUrl: listItem.imageUrl,
+    slug: listItem.slug ?? detail.slug,
+    outcomeLabels: listItem.outcomeLabels,
+    categories: listItem.categories ?? detail.categories,
+    outcomeChancePcts: listItem.outcomeChancePcts,
+    chancePct: listItem.chancePct,
+    poolTvl: listItem.poolTvl,
+    stakeEnds: listItem.stakeEnds,
+    resolveAfter: listItem.resolveAfter,
+    stakeEndUnix: listItem.stakeEndUnix,
+    resolveAfterUnix: listItem.resolveAfterUnix,
+    priceBinByOutcome: listItem.priceBinByOutcome ?? detail.priceBinByOutcome,
+  };
+}
+
+/** Detail page: grid card metadata + settlement extras (same card data as trade modal). */
+export async function loadMarketDetailForPage(
+  marketAddress: `0x${string}`,
+): Promise<MarketDetailItem> {
+  const detail = await loadMarketDetail(marketAddress);
+  try {
+    const list = await loadMarketsList();
+    const hit = list.find((m) => m.address.toLowerCase() === marketAddress.toLowerCase());
+    if (hit) return mergeListItemIntoDetail(hit, detail);
+  } catch {
+    // list unavailable — return detail row metadata
+  }
+  return detail;
+}
+
 /** Same metadata + card fields as the markets grid; adds settlement extras for detail view. */
 export async function loadMarketDetail(marketAddress: `0x${string}`): Promise<MarketDetailItem> {
   const publicClient = deploymentPublicClient;
@@ -155,39 +194,40 @@ export async function loadMarketDetail(marketAddress: `0x${string}`): Promise<Ma
     throw new Error(`Incomplete market data for ${marketAddress}`);
   }
 
-  const settlement = await publicClient.multicall({
-    contracts: [
-      { address: marketAddress, abi: MARKET_ABI, functionName: "winningOutcomeIndex" },
-      { address: marketAddress, abi: MARKET_ABI, functionName: "settledOraclePrice" },
-      { address: marketAddress, abi: MARKET_ABI, functionName: "settlementTimestamp" },
-      { address: marketAddress, abi: MARKET_ABI, functionName: "redemptionRate" },
-      { address: marketAddress, abi: MARKET_ABI, functionName: "priceThreshold" },
-      { address: marketAddress, abi: MARKET_ABI, functionName: "priceThresholdKind" },
-      { address: marketAddress, abi: MARKET_ABI, functionName: "priceUpperBound" },
-      { address: marketAddress, abi: MARKET_ABI, functionName: "chainlinkFeed" },
-    ],
-  });
+  const zero = "0x0000000000000000000000000000000000000000" as `0x${string}`;
+  let winningRaw = BigInt(0);
+  let settledRaw = BigInt(0);
+  let settlementTs = BigInt(0);
+  let redemptionRate = BigInt(0);
+  let priceThreshold = BigInt(0);
+  let priceKind = 0;
+  let priceUpper = BigInt(0);
+  let feed: `0x${string}` = zero;
 
-  const winningRaw = settlement[0]?.result as bigint | undefined;
-  const settledRaw = settlement[1]?.result as bigint | undefined;
-  const settlementTs = settlement[2]?.result as bigint | undefined;
-  const redemptionRate = settlement[3]?.result as bigint | undefined;
-  const priceThreshold = settlement[4]?.result as bigint | undefined;
-  const priceKind = settlement[5]?.result as number | undefined;
-  const priceUpper = settlement[6]?.result as bigint | undefined;
-  const feed = settlement[7]?.result as `0x${string}` | undefined;
+  try {
+    const settlement = await publicClient.multicall({
+      contracts: [
+        { address: marketAddress, abi: MARKET_ABI, functionName: "winningOutcomeIndex" },
+        { address: marketAddress, abi: MARKET_ABI, functionName: "settledOraclePrice" },
+        { address: marketAddress, abi: MARKET_ABI, functionName: "settlementTimestamp" },
+        { address: marketAddress, abi: MARKET_ABI, functionName: "redemptionRate" },
+        { address: marketAddress, abi: MARKET_ABI, functionName: "priceThreshold" },
+        { address: marketAddress, abi: MARKET_ABI, functionName: "priceThresholdKind" },
+        { address: marketAddress, abi: MARKET_ABI, functionName: "priceUpperBound" },
+        { address: marketAddress, abi: MARKET_ABI, functionName: "chainlinkFeed" },
+      ],
+    });
 
-  if (
-    winningRaw === undefined ||
-    settledRaw === undefined ||
-    settlementTs === undefined ||
-    redemptionRate === undefined ||
-    priceThreshold === undefined ||
-    priceKind === undefined ||
-    priceUpper === undefined ||
-    !feed
-  ) {
-    throw new Error(`Incomplete market data for ${marketAddress}`);
+    winningRaw = (settlement[0]?.result as bigint | undefined) ?? BigInt(0);
+    settledRaw = (settlement[1]?.result as bigint | undefined) ?? BigInt(0);
+    settlementTs = (settlement[2]?.result as bigint | undefined) ?? BigInt(0);
+    redemptionRate = (settlement[3]?.result as bigint | undefined) ?? BigInt(0);
+    priceThreshold = (settlement[4]?.result as bigint | undefined) ?? BigInt(0);
+    priceKind = Number(settlement[5]?.result ?? 0);
+    priceUpper = (settlement[6]?.result as bigint | undefined) ?? BigInt(0);
+    feed = (settlement[7]?.result as `0x${string}` | undefined) ?? zero;
+  } catch {
+    // Settlement reads are optional — card metadata from loadMarketRow still returns.
   }
 
   const st = row.marketState;
@@ -197,14 +237,18 @@ export async function loadMarketDetail(marketAddress: `0x${string}`): Promise<Ma
   const winIdx = st === 2 && wr < BigInt(outcomeCount) ? Number(wr) : null;
 
   let feedDec = 8;
-  if (isPrice && feed !== "0x0000000000000000000000000000000000000000") {
-    feedDec = Number(
-      await publicClient.readContract({
-        address: feed,
-        abi: FEED_ABI,
-        functionName: "decimals",
-      }),
-    );
+  if (isPrice && feed !== zero) {
+    try {
+      feedDec = Number(
+        await publicClient.readContract({
+          address: feed,
+          abi: FEED_ABI,
+          functionName: "decimals",
+        }),
+      );
+    } catch {
+      feedDec = 8;
+    }
   }
 
   return {
@@ -214,7 +258,7 @@ export async function loadMarketDetail(marketAddress: `0x${string}`): Promise<Ma
     settlementTimestamp: Number(settlementTs),
     redemptionRate,
     priceThreshold,
-    priceThresholdKind: Number(priceKind),
+    priceThresholdKind: priceKind,
     priceUpperBound: priceUpper,
     chainlinkFeed: feed,
     feedDecimals: feedDec,
@@ -338,7 +382,10 @@ async function loadMarketRow(
     outcomes: outcomeCount,
     outcomeLabels: safeOutcomeLabels,
     slug: md?.slug?.trim() || undefined,
-    title: md?.title?.trim() || `${isPrice ? "Price" : "Event"} market`,
+    title:
+      md?.title?.trim() ||
+      md?.question?.trim() ||
+      `${isPrice ? "Price" : "Event"} market`,
     description: md?.description?.trim() || "No description provided.",
     imageUrl: ipfsToHttp(md?.image?.trim() || ""),
     stakeEnds: fmtTs(stake),

@@ -49,6 +49,9 @@ AGENTS.md
 CLAUDE.md
 contracts-changes.md
 
+# standalone resolution app (separate Next.js project)
+website/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

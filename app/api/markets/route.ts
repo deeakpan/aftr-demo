@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import deployment from "@/lib/deployment";
 import { loadMarketsList } from "@/lib/markets/load-markets";
 
-export const revalidate = 15;
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {

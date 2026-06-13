@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowsClockwise, CaretDown, CheckCircle, PencilSimple, WarningCircle, X } from "@phosphor-icons/react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ArrowsClockwise, CaretDown, CheckCircle, Gear, WarningCircle, X } from "@phosphor-icons/react";
 import { formatUnits } from "viem";
 import { txExplorerUrl } from "@/lib/chain";
 import { isUsdStyledCollateralTicker } from "@/lib/deployment-collateral";
@@ -57,10 +57,88 @@ type TradeModalProps = {
   onSubmitLimit?: (params: LimitOrderParams) => Promise<void>;
   tradeSuccess?: TradeSuccessResult | null;
   onDismissSuccess?: () => void;
+  /** Implied % per outcome (same order as labels). */
+  outcomeChancePcts?: number[];
+  /** When true, outcome is picked on the page (multi-outcome markets). */
+  hideOutcomeSelector?: boolean;
+  isWalletConnected?: boolean;
 };
 
-const QUICK_AMOUNTS = ["10", "25", "50", "100"] as const;
+const QUICK_INCREMENTS = [1, 5, 10, 100] as const;
 const ORDERBOOK_FEE_BPS = 50; // 0.5% per side, matches MondaloreOrderBook default.
+const AMOUNT_INPUT_MAX_CHARS = 11;
+
+function sanitizeDecimalInput(raw: string) {
+  let cleaned = raw.replace(/[^\d.]/g, "");
+  const parts = cleaned.split(".");
+  if (parts.length > 2) {
+    cleaned = `${parts[0]}.${parts.slice(1).join("")}`;
+  }
+  return cleaned.slice(0, AMOUNT_INPUT_MAX_CHARS + 4);
+}
+
+function amountInputWidthChars(value: string, placeholder = "0") {
+  return Math.min(AMOUNT_INPUT_MAX_CHARS, Math.max(1, (value || placeholder).length));
+}
+
+function RightAlignedAmountInput({
+  value,
+  onChange,
+  placeholder = "0",
+  textSizeClass = "text-3xl",
+  valueColorClass = "text-[var(--muted)]",
+  showDollar = false,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  textSizeClass?: string;
+  valueColorClass?: string;
+  showDollar?: boolean;
+}) {
+  const widthCh = amountInputWidthChars(value, placeholder);
+  return (
+    <div className="flex min-w-0 max-w-[46%] shrink-0 justify-end overflow-hidden sm:max-w-[10.5rem]">
+      <div className="inline-flex min-w-0 max-w-full items-baseline justify-end overflow-x-auto no-scrollbar">
+        {showDollar && (
+          <span className={`shrink-0 ${textSizeClass} font-semibold tabular-nums text-[var(--muted)]`}>$</span>
+        )}
+        <input
+          type="text"
+          inputMode="decimal"
+          autoComplete="off"
+          value={value}
+          onChange={(e) => onChange(sanitizeDecimalInput(e.target.value))}
+          placeholder={placeholder}
+          style={{ width: `${widthCh}ch` }}
+          className={`max-w-full shrink-0 bg-transparent text-right ${textSizeClass} font-semibold tabular-nums outline-none placeholder:text-[var(--muted)]/70 ${valueColorClass}`}
+        />
+      </div>
+    </div>
+  );
+}
+
+function TradeSummaryBox({
+  rows,
+}: {
+  rows: { label: string; value: ReactNode; valueClass?: string }[];
+}) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="glass-panel-inset space-y-3 rounded-2xl px-4 py-3.5">
+      {rows.map(({ label, value, valueClass }) => (
+        <div key={label} className="flex items-center justify-between gap-3 text-[13px]">
+          <span className="shrink-0 text-[var(--muted)]">{label}</span>
+          <span
+            className={`min-w-0 text-right font-mono tabular-nums ${valueClass ?? "font-semibold text-[var(--foreground)]"}`}
+          >
+            {value}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function TradeModal({
   open,
@@ -96,6 +174,9 @@ export function TradeModal({
   onSubmitLimit,
   tradeSuccess = null,
   onDismissSuccess,
+  outcomeChancePcts,
+  hideOutcomeSelector = false,
+  isWalletConnected = true,
 }: TradeModalProps) {
   const [orderMode, setOrderMode] = useState<"market" | "limit">("market");
   const [limitSide, setLimitSide] = useState<"buy" | "sell">("buy");
@@ -112,6 +193,30 @@ export function TradeModal({
   const balanceFormatted = balanceNum != null
     ? balanceNum.toLocaleString(undefined, { maximumFractionDigits: 2 })
     : null;
+  const isBinary = labels.length === 2 && !hideOutcomeSelector;
+  const binaryPcts = useMemo(() => {
+    if (!isBinary) return [50, 50];
+    const p0 = outcomeChancePcts?.[0];
+    const p1 = outcomeChancePcts?.[1];
+    if (Number.isFinite(p0) && Number.isFinite(p1)) {
+      return [Math.max(0, Math.min(100, p0!)), Math.max(0, Math.min(100, p1!))];
+    }
+    if (Number.isFinite(p0)) {
+      return [p0!, Math.max(0, 100 - p0!)];
+    }
+    return [50, 50];
+  }, [isBinary, outcomeChancePcts]);
+
+  const addMarketAmount = (delta: number) => {
+    const cur = Number(amount);
+    const next = (Number.isFinite(cur) ? cur : 0) + delta;
+    setAmount(next > 0 ? String(Number(next.toFixed(6))) : "");
+  };
+
+  const setMarketAmountMax = () => {
+    if (balanceNum == null || !Number.isFinite(balanceNum)) return;
+    setAmount(balanceNum.toFixed(2));
+  };
   const tokenBalanceNum = outcomeTokenBalanceWei != null
     ? Number(formatUnits(outcomeTokenBalanceWei, collateralDecimals))
     : null;
@@ -123,29 +228,37 @@ export function TradeModal({
   const marketPriceReady = Boolean(priceOfRaw && priceOfRaw > BigInt(0));
   const marketCtaLabel = busy
     ? "Processing…"
-    : !marketPriceReady
-      ? "Loading price…"
-      : needsApproval && hasTradeAmount
-        ? `Approve & Buy ${selectedLabel}`
-        : `Buy ${selectedLabel}`;
+    : !isWalletConnected
+      ? "Sign up to trade"
+      : !marketPriceReady
+        ? "Loading price…"
+        : needsApproval && hasTradeAmount
+          ? `Approve & Buy ${selectedLabel}`
+          : `Buy ${selectedLabel}`;
 
-  const limitDerived = useMemo(() => {
+  const limitTokensNum = useMemo(() => {
     const p = Number(limitPrice);
     const a = Number(limitAmount);
-    if (!Number.isFinite(p) || !Number.isFinite(a) || p <= 0 || a <= 0) {
+    if (!Number.isFinite(p) || !Number.isFinite(a) || p <= 0 || a <= 0) return null;
+    return limitAmountUnit === "tokens" ? a : a / p;
+  }, [limitAmount, limitAmountUnit, limitPrice]);
+
+  const limitNotionalNum = useMemo(() => {
+    const p = Number(limitPrice);
+    const a = Number(limitAmount);
+    if (!Number.isFinite(p) || !Number.isFinite(a) || p <= 0 || a <= 0) return null;
+    return limitAmountUnit === "tokens" ? p * a : a;
+  }, [limitAmount, limitAmountUnit, limitPrice]);
+
+  const limitDerived = useMemo(() => {
+    if (limitNotionalNum == null || limitTokensNum == null) {
       return { notionalUsdc: null as string | null, tokens: null as string | null };
     }
-    if (limitAmountUnit === "tokens") {
-      return {
-        notionalUsdc: (p * a).toFixed(2),
-        tokens: a.toFixed(4),
-      };
-    }
     return {
-      notionalUsdc: a.toFixed(2),
-      tokens: (a / p).toFixed(4),
+      notionalUsdc: limitNotionalNum.toFixed(2),
+      tokens: limitTokensNum.toFixed(4),
     };
-  }, [limitAmount, limitAmountUnit, limitPrice]);
+  }, [limitNotionalNum, limitTokensNum]);
   const minReceive = useMemo(() => {
     if (!limitDerived.notionalUsdc || !limitDerived.tokens) return null;
     const notional = Number(limitDerived.notionalUsdc);
@@ -153,31 +266,21 @@ export function TradeModal({
     if (!Number.isFinite(notional) || !Number.isFinite(tokens) || notional <= 0 || tokens <= 0) return null;
     if (limitSide === "sell") {
       const netUsdc = notional * (1 - ORDERBOOK_FEE_BPS / 10000);
-      return {
-        label: "Min receive",
-        value: isUsdStyledCollateralTicker(collateralTicker)
-          ? `$${netUsdc.toFixed(2)} ${collateralTicker}`
-          : `${netUsdc.toFixed(2)} ${collateralTicker}`,
-      };
+      return isUsdStyledCollateralTicker(collateralTicker)
+        ? `$${netUsdc.toFixed(2)} ${collateralTicker}`
+        : `${netUsdc.toFixed(2)} ${collateralTicker}`;
     }
-    return {
-      label: "Min receive",
-      value: `${tokens.toFixed(4)} tokens`,
-    };
+    return `${tokens.toFixed(1)} tokens`;
   }, [limitDerived.notionalUsdc, limitDerived.tokens, limitSide, collateralTicker]);
   const sellValidationMessage = useMemo(() => {
     if (limitSide !== "sell") return "";
-    const p = Number(limitPrice);
-    const a = Number(limitAmount);
-    const tokenBal = tokenBalanceNum;
-    if (!Number.isFinite(p) || !Number.isFinite(a) || p <= 0 || a <= 0 || tokenBal === null) return "";
-    const sellTokens = limitAmountUnit === "tokens" ? a : a / p;
-    if (!Number.isFinite(sellTokens) || sellTokens <= 0) return "";
-    if (sellTokens > tokenBal) {
+    if (limitTokensNum == null || tokenBalanceNum == null) return "";
+    if (limitTokensNum > tokenBalanceNum) {
       if (limitAmountUnit === "tokens") {
-        return `Insufficient ${selectedLabel} balance. Max: ${tokenBal.toFixed(4)} tokens.`;
+        return `Insufficient ${selectedLabel} balance. Max: ${tokenBalanceNum.toFixed(4)} tokens.`;
       }
-      const maxUsdc = tokenBal * p;
+      const p = Number(limitPrice);
+      const maxUsdc = tokenBalanceNum * p;
       return isUsdStyledCollateralTicker(collateralTicker)
         ? `Insufficient ${selectedLabel} balance. Max sell value at this price: $${maxUsdc.toFixed(2)} ${collateralTicker}.`
         : `Insufficient ${selectedLabel} balance. Max sell value at this price: ${maxUsdc.toFixed(2)} ${collateralTicker}.`;
@@ -185,19 +288,43 @@ export function TradeModal({
     return "";
   }, [
     limitSide,
-    limitPrice,
-    limitAmount,
+    limitTokensNum,
     limitAmountUnit,
     tokenBalanceNum,
     selectedLabel,
     collateralTicker,
+    limitPrice,
   ]);
+
+  const buyValidationMessage = useMemo(() => {
+    if (limitSide !== "buy") return "";
+    if (limitNotionalNum == null || balanceNum == null) return "";
+    const totalWithFee = limitNotionalNum * (1 + ORDERBOOK_FEE_BPS / 10000);
+    if (totalWithFee > balanceNum) {
+      const maxSpend = balanceNum / (1 + ORDERBOOK_FEE_BPS / 10000);
+      return isUsdStyledCollateralTicker(collateralTicker)
+        ? `Insufficient ${collateralTicker} balance. Max order total: $${maxSpend.toFixed(2)} ${collateralTicker}.`
+        : `Insufficient ${collateralTicker} balance. Max order total: ${maxSpend.toFixed(2)} ${collateralTicker}.`;
+    }
+    return "";
+  }, [limitSide, limitNotionalNum, balanceNum, collateralTicker]);
+
+  const limitValidationMessage = sellValidationMessage || buyValidationMessage;
+  const limitInputsValid = limitNotionalNum != null && limitTokensNum != null;
   const marketPrice = useMemo(() => {
     if (!priceOfRaw || priceOfRaw <= BigInt(0)) return null;
     const n = Number(formatUnits(priceOfRaw, 18));
     if (!Number.isFinite(n) || n <= 0) return null;
     return n;
   }, [priceOfRaw]);
+
+  const limitPriceLabel = useMemo(() => {
+    const p = Number(limitPrice);
+    if (!Number.isFinite(p) || p <= 0) return "—";
+    return isUsdStyledCollateralTicker(collateralTicker)
+      ? `$${p.toFixed(4)}`
+      : `${p.toFixed(4)} ${collateralTicker}`;
+  }, [limitPrice, collateralTicker]);
 
   useEffect(() => {
     if (!marketPrice) return;
@@ -233,6 +360,13 @@ export function TradeModal({
             : `Amount exceeds sellable value at this price.`,
         );
       }
+      if (limitSide === "buy" && balanceNum != null) {
+        const notional = limitAmountUnit === "tokens" ? priceNum * amountNum : amountNum;
+        const totalWithFee = notional * (1 + ORDERBOOK_FEE_BPS / 10000);
+        if (totalWithFee > balanceNum) {
+          throw new Error(`Insufficient ${collateralTicker} balance for this order.`);
+        }
+      }
       await onSubmitLimit({
         side: limitSide,
         outcomeIndex: selectedOutcomeIndex,
@@ -249,10 +383,55 @@ export function TradeModal({
     }
   };
 
-  // ── Outcome selector ─────────────────────────────────────────────────────
-  const outcomeSelector =
-    labels.length > 2 ? (
-      <div ref={outcomeMenuRef} className="relative">
+  // ── Outcome selector (binary bar + pills; multi picked on page) ─────────
+  const outcomeSelector = hideOutcomeSelector ? (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+        Outcome
+      </p>
+      <p className="mt-0.5 truncate text-sm font-semibold text-[var(--foreground)]">{selectedLabel}</p>
+    </div>
+  ) : isBinary ? (
+    <div className="space-y-3">
+      <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-[var(--surface)]">
+        <div
+          className="absolute inset-y-0 left-0 bg-[var(--outcome-yes)] transition-all duration-300"
+          style={{ width: `${binaryPcts[0]}%` }}
+        />
+        <div
+          className="absolute inset-y-0 right-0 bg-[var(--outcome-no)] transition-all duration-300"
+          style={{ width: `${binaryPcts[1]}%` }}
+        />
+      </div>
+      <div className="flex justify-between text-xs font-bold tabular-nums">
+        <span className="text-[var(--outcome-yes)]">{Math.round(binaryPcts[0]!)}%</span>
+        <span className="text-[var(--outcome-no)]">{Math.round(binaryPcts[1]!)}%</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {labels.slice(0, 2).map((label, idx) => {
+          const active = idx === selectedOutcomeIndex;
+          const isSecond = idx === 1;
+          return (
+            <button
+              key={`${label}-${idx}`}
+              type="button"
+              onClick={() => onSelectOutcome(idx)}
+              className={`rounded-full py-3 text-center text-sm font-bold transition ${
+                active
+                  ? isSecond
+                    ? "bg-[var(--outcome-no)] text-white hover:bg-[var(--outcome-no-hover)]"
+                    : "bg-[var(--outcome-yes)] text-white hover:bg-[var(--outcome-yes-hover)]"
+                  : "bg-[var(--surface)] text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  ) : labels.length > 2 ? (
+    <div ref={outcomeMenuRef} className="relative">
         <button
           type="button"
           onClick={() => setOutcomeMenuOpen((o) => !o)}
@@ -287,32 +466,53 @@ export function TradeModal({
           </div>
         )}
       </div>
-    ) : (
-      <div className="grid grid-cols-2 gap-1.5">
-        {labels.slice(0, 2).map((label, idx) => {
-          const active = idx === selectedOutcomeIndex;
-          const isNo = idx === 1;
-          const baseYes =
-            "border-emerald-500/25 bg-emerald-500/[0.06] text-emerald-300/80 hover:border-emerald-500/60 hover:bg-emerald-600 hover:text-white [html[data-theme=light]_&]:bg-emerald-50 [html[data-theme=light]_&]:text-emerald-800 [html[data-theme=light]_&]:hover:bg-emerald-600 [html[data-theme=light]_&]:hover:text-white";
-          const activeYes = "border-emerald-500 bg-emerald-600 text-white";
-          const baseNo =
-            "border-rose-500/25 bg-rose-500/[0.06] text-rose-300/80 hover:border-rose-500/60 hover:bg-rose-600 hover:text-white [html[data-theme=light]_&]:bg-rose-50 [html[data-theme=light]_&]:text-rose-800 [html[data-theme=light]_&]:hover:bg-rose-600 [html[data-theme=light]_&]:hover:text-white";
-          const activeNo = "border-rose-500 bg-rose-600 text-white";
-          const cls =
-            "rounded-lg border py-2 text-center text-[11px] font-semibold uppercase tracking-wider transition " +
-            (isNo ? (active ? activeNo : baseNo) : active ? activeYes : baseYes);
-          return (
-            <button key={`${label}-${idx}`} type="button" onClick={() => onSelectOutcome(idx)} className={cls}>
-              {label}
-            </button>
-          );
-        })}
+  ) : null;
+
+  const amountInputMarket = (
+    <div>
+      <div className="mb-3 flex items-end justify-between gap-3">
+        <span className="shrink-0 pb-1 text-sm font-medium text-[var(--foreground)]">Amount</span>
+        <RightAlignedAmountInput
+          value={amount}
+          onChange={setAmount}
+          showDollar={isUsdStyledCollateralTicker(collateralTicker)}
+        />
       </div>
-    );
+      {balanceFormatted != null && (
+        <p className="mb-2 text-[10px] text-[var(--muted)]">
+          Balance{" "}
+          <span className="font-mono text-[var(--foreground)]/80">
+            {isUsdStyledCollateralTicker(collateralTicker) ? "$" : ""}
+            {balanceFormatted}
+            {!isUsdStyledCollateralTicker(collateralTicker) ? ` ${collateralTicker}` : ""}
+          </span>
+        </p>
+      )}
+      <div className="flex gap-1.5">
+        {QUICK_INCREMENTS.map((q) => (
+          <button
+            key={q}
+            type="button"
+            onClick={() => addMarketAmount(q)}
+            className="flex-1 rounded-lg bg-[var(--surface)] py-2 text-xs font-semibold text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+          >
+            {isUsdStyledCollateralTicker(collateralTicker) ? `+$${q}` : `+${q}`}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={setMarketAmountMax}
+          className="flex-1 rounded-lg bg-[var(--surface)] py-2 text-xs font-semibold text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+        >
+          Max
+        </button>
+      </div>
+    </div>
+  );
 
   const successPanel = tradeSuccess ? (
     <div className="flex flex-col items-center px-4 py-8 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 [html[data-theme=light]_&]:text-emerald-600">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--outcome-yes)]/15 text-[var(--outcome-yes)]">
         <CheckCircle size={36} weight="fill" />
       </div>
       <h3 className="mt-4 text-lg font-bold text-[var(--foreground)]">Trade complete</h3>
@@ -350,171 +550,157 @@ export function TradeModal({
     </div>
   ) : null;
 
-  // ── Panel content (shared between modal + inline) ────────────────────────
-  const panelContent = tradeSuccess ? (
+  // ── Panel: single scroll area (CTA scrolls with content) ─────────────────
+  const tradeScrollBody = tradeSuccess ? (
     successPanel
   ) : (
-    <div
-      className={
-        inline ? "space-y-3.5 px-4 py-4" : "space-y-3.5 bg-[var(--card)] px-4 py-4"
-      }
-    >
-
-      {/* Mode tabs — text style, underline active */}
-      <div className="flex border-b border-[var(--border)]">
-        {(["market", "limit"] as const).map((m) => (
-          <button key={m} type="button" onClick={() => setOrderMode(m)}
-            className={`-mb-px border-b-2 pb-2.5 pr-5 text-[11px] font-semibold capitalize tracking-wide transition
-              ${orderMode === m
-                ? "border-[var(--accent)] text-[var(--foreground)]"
-                : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"}`}>
-            {m}
+    <div className="space-y-3.5">
+      {/* Market / Limit + settings */}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-5">
+          {(["market", "limit"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setOrderMode(m)}
+              className={`text-sm font-semibold capitalize transition ${
+                orderMode === m
+                  ? "text-[var(--foreground)]"
+                  : "text-[var(--muted)] hover:text-[var(--foreground)]/75"
+              }`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+        {orderMode === "market" && (
+          <button
+            type="button"
+            onClick={onCycleSlippage}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+            title={`Slippage ${(slippageBps / 100).toFixed(1)}%`}
+          >
+            <Gear size={18} weight="bold" />
           </button>
-        ))}
+        )}
       </div>
 
-      {/* Buy / Sell sub-tabs — only in limit mode */}
       {orderMode === "limit" && (
-        <div className="flex border-b border-[var(--border)]/70">
+        <div className="flex gap-5">
           {(["buy", "sell"] as const).map((s) => (
-            <button key={s} type="button" onClick={() => setLimitSide(s)}
-              className={`-mb-px border-b-2 pb-2 pr-4 text-[10px] font-semibold capitalize tracking-wide transition
-                ${limitSide === s
+            <button
+              key={s}
+              type="button"
+              onClick={() => setLimitSide(s)}
+              className={`text-sm font-semibold capitalize transition ${
+                limitSide === s
                   ? s === "buy"
-                    ? "border-emerald-500 text-emerald-600 [html[data-theme=dark]_&]:text-emerald-400"
-                    : "border-rose-500 text-rose-600 [html[data-theme=dark]_&]:text-rose-400"
-                  : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"}`}>
+                    ? "text-[var(--outcome-yes)]"
+                    : "text-[var(--outcome-no)]"
+                  : "text-[var(--muted)] hover:text-[var(--foreground)]/75"
+              }`}
+            >
               {s}
             </button>
           ))}
         </div>
       )}
 
-      {/* Outcome selector */}
       {outcomeSelector}
 
       {orderMode === "market" ? (
         <>
-          {/* Amount input */}
-          <div>
-            <div className="flex overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] transition focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/20">
-              <input
-                type="text" inputMode="decimal" autoComplete="off"
-                value={amount} onChange={(e) => setAmount(e.target.value)}
-                placeholder="0"
-                className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm font-semibold tabular-nums text-[var(--foreground)] outline-none placeholder:text-[var(--muted)]"
-              />
-              <div className="flex items-center border-l border-[var(--border)] bg-transparent px-3 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-                {collateralTicker}
-              </div>
-            </div>
-            {/* Balance below input */}
-            {balanceFormatted != null && (
-              <p className="mt-1 text-[10px] text-[var(--muted)]">
-                Balance{" "}
-                <span className="font-mono text-[var(--foreground)]/80">
-                  {isUsdStyledCollateralTicker(collateralTicker) ? "$" : ""}{balanceFormatted}
-                  {!isUsdStyledCollateralTicker(collateralTicker) ? ` ${collateralTicker}` : ""}
-                </span>
-              </p>
-            )}
-            {/* Quick amounts */}
-            <div className="mt-2 flex gap-1">
-              {QUICK_AMOUNTS.map((q) => (
-                <button key={q} type="button" onClick={() => setAmount(q)}
-                  className="flex-1 rounded-md border border-[var(--border)] bg-[var(--surface)] py-1.5 text-[10px] font-semibold text-[var(--muted)] transition hover:border-[var(--accent)]/30 hover:text-[var(--accent)]">
-                  {isUsdStyledCollateralTicker(collateralTicker) ? `$${q}` : q}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Approval notice */}
+          {amountInputMarket}
           {approvalLine ? (
-            <div className={`flex items-start gap-2 rounded-lg border px-2.5 py-1.5 ${approvalIcon === "warn" ? "border-amber-500/30 bg-amber-500/10 [html[data-theme=dark]_&]:bg-amber-500/8" : "border-[var(--border)] bg-[var(--surface)]"}`}>
+            <div className={`flex items-start gap-2 rounded-lg px-2.5 py-1.5 ${approvalIcon === "warn" ? "bg-amber-500/10 [html[data-theme=dark]_&]:bg-amber-500/8" : "glass-panel-inset"}`}>
               {approvalIcon === "warn" && <WarningCircle className="mt-0.5 shrink-0 text-amber-400/80" size={13} weight="bold" />}
-              {approvalIcon === "ok" && <CheckCircle className="mt-0.5 shrink-0 text-emerald-400/80" size={13} weight="bold" />}
+              {approvalIcon === "ok" && <CheckCircle className="mt-0.5 shrink-0 text-[var(--outcome-yes)]/80" size={13} weight="bold" />}
               <p className={`min-w-0 flex-1 text-[10px] leading-snug ${approvalIcon === "warn" ? "text-amber-900 [html[data-theme=dark]_&]:text-amber-200/80" : "text-[var(--muted)]"}`}>
                 {approvalLine}
               </p>
             </div>
           ) : null}
-
-          {/* Trade summary — inline rows, no box */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-[10px]">
-              <span className="text-[var(--muted)]">Est. tokens</span>
-              <span className="font-mono text-[var(--foreground)]">{tokensFormatted ?? "—"}</span>
-            </div>
-            <div className="flex items-center justify-between text-[10px]">
-              <span className="text-[var(--muted)]">Price / token</span>
-              <span className="font-mono text-emerald-600 [html[data-theme=dark]_&]:text-emerald-500">{pricePerTokenLabel ?? "—"}</span>
-            </div>
-            <div className="flex items-center justify-between text-[10px]">
-              <button type="button" onClick={onCycleSlippage} className="text-[var(--muted)] hover:text-[var(--foreground)] transition">
-                Slippage
-              </button>
-              <button type="button" onClick={onCycleSlippage}
-                className="flex items-center gap-0.5 font-mono text-[var(--muted)] tabular-nums transition hover:text-[var(--foreground)]">
-                {(slippageBps / 100).toFixed(1)}%
-                <PencilSimple size={11} className="text-[var(--muted)]" weight="bold" />
-              </button>
-            </div>
-          </div>
-
+          <TradeSummaryBox
+            rows={[
+              {
+                label: "Est. tokens",
+                value: tokensFormatted ?? "—",
+                valueClass: "font-semibold text-[var(--muted)]",
+              },
+              {
+                label: "Price / token",
+                value: pricePerTokenLabel ?? "—",
+                valueClass: "font-semibold text-[var(--foreground)]",
+              },
+              {
+                label: "Slippage",
+                value: `${(slippageBps / 100).toFixed(1)}%`,
+                valueClass: "font-semibold text-[var(--muted)]",
+              },
+            ]}
+          />
           {status && <p className="text-center text-[10px] text-[var(--muted)]">{status}</p>}
-
-          <button type="button" onClick={onSubmit} disabled={busy || tradeDisabled || !marketPriceReady}
-            className="w-full rounded-lg bg-[var(--accent)] py-2.5 text-center text-xs font-bold text-white shadow-[0_0_18px_rgba(139,92,246,0.28)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40">
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={busy || tradeDisabled || !marketPriceReady}
+            className="w-full rounded-xl bg-[var(--outcome-yes)] py-3.5 text-center text-sm font-bold text-white transition hover:bg-[var(--outcome-yes-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
             {tradeDisabled ? "Trading closed" : marketCtaLabel}
           </button>
         </>
       ) : (
         <>
-          {/* Limit inputs */}
-          <div className="space-y-2.5">
+          <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                Price per token
-              </label>
-              <div className="flex overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] transition focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/20">
-                <input type="text" inputMode="decimal" value={limitPrice} onChange={(e) => setLimitPrice(e.target.value)}
+              <div className="mb-2 flex items-end justify-between gap-3">
+                <span className="shrink-0 text-sm font-medium text-[var(--foreground)]">Price</span>
+                <RightAlignedAmountInput
+                  value={limitPrice}
+                  onChange={setLimitPrice}
                   placeholder="0.50"
-                  className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm font-semibold text-[var(--foreground)] outline-none placeholder:text-[var(--muted)]" />
-                <div className="flex items-center border-l border-[var(--border)] bg-transparent px-3 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-                  {collateralTicker}
-                </div>
+                  textSizeClass="text-2xl"
+                  valueColorClass="text-[var(--foreground)]"
+                  showDollar={isUsdStyledCollateralTicker(collateralTicker)}
+                />
               </div>
-              <p className="mt-1 text-[10px] text-[var(--muted)]">
-                Market: <span className="font-mono text-[var(--foreground)]/85">{marketPrice != null ? (isUsdStyledCollateralTicker(collateralTicker) ? `$${marketPrice.toFixed(4)} ${collateralTicker}` : `${marketPrice.toFixed(4)} ${collateralTicker}`) : "—"}</span>
+              <p className="text-[10px] text-[var(--muted)]">
+                Market{" "}
+                <span className="font-mono tabular-nums text-[var(--foreground)]/85">
+                  {marketPrice != null
+                    ? isUsdStyledCollateralTicker(collateralTicker)
+                      ? `$${marketPrice.toFixed(4)}`
+                      : `${marketPrice.toFixed(4)} ${collateralTicker}`
+                    : "—"}
+                </span>
               </p>
             </div>
             <div>
-              <div className="mb-1 flex items-center justify-between">
-                <label className="block text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  Amount
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setLimitAmountUnit((u) => (u === "tokens" ? "quote" : "tokens"))}
-                  className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--foreground)]"
-                  title="Switch amount unit"
-                >
-                  <ArrowsClockwise size={11} weight="bold" />
-                  {limitAmountUnit === "tokens" ? "TOKENS" : collateralTicker}
-                </button>
-              </div>
-              <div className="flex overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] transition focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/20">
-                <input type="text" inputMode="decimal" value={limitAmount} onChange={(e) => setLimitAmount(e.target.value)}
-                  placeholder={limitAmountUnit === "tokens" ? "100" : "50"}
-                  className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm font-semibold text-[var(--foreground)] outline-none placeholder:text-[var(--muted)]" />
-                <div className="flex items-center border-l border-[var(--border)] bg-transparent px-3 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-                  {limitAmountUnit === "tokens" ? "TOKENS" : collateralTicker}
+              <div className="mb-2 flex items-end justify-between gap-3">
+                <div className="flex min-w-0 shrink items-center gap-2">
+                  <span className="text-sm font-medium text-[var(--foreground)]">Amount</span>
+                  <button
+                    type="button"
+                    onClick={() => setLimitAmountUnit((u) => (u === "tokens" ? "quote" : "tokens"))}
+                    className="inline-flex items-center gap-1 rounded-md bg-[var(--surface)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                    title="Switch amount unit"
+                  >
+                    <ArrowsClockwise size={10} weight="bold" />
+                    {limitAmountUnit === "tokens" ? "Tokens" : collateralTicker}
+                  </button>
                 </div>
+                <RightAlignedAmountInput
+                  value={limitAmount}
+                  onChange={setLimitAmount}
+                  placeholder="0"
+                  textSizeClass="text-2xl"
+                  valueColorClass="text-[var(--foreground)]"
+                  showDollar={limitAmountUnit === "quote" && isUsdStyledCollateralTicker(collateralTicker)}
+                />
               </div>
-              <p className="mt-1 text-[10px] text-[var(--muted)]">
-                Balance:{" "}
-                <span className="font-mono text-[var(--foreground)]/85">
+              <p className="text-[10px] text-[var(--muted)]">
+                Balance{" "}
+                <span className="font-mono tabular-nums text-[var(--foreground)]/85">
                   {limitAmountUnit === "tokens"
                     ? (tokenBalanceFormatted ?? "—")
                     : isUsdStyledCollateralTicker(collateralTicker)
@@ -522,40 +708,43 @@ export function TradeModal({
                       : `${balanceFormatted ?? "—"} ${collateralTicker}`}
                 </span>
               </p>
-              {limitSide === "sell" && sellValidationMessage && (
-                <p className="mt-1 text-[10px] text-rose-400">{sellValidationMessage}</p>
+              {limitValidationMessage && (
+                <p className="mt-1 text-[10px] text-[var(--outcome-no)]">{limitValidationMessage}</p>
               )}
             </div>
-            {limitDerived.notionalUsdc && (
-              <div className="flex items-center justify-between text-[10px]">
-                <span className="text-[var(--muted)]">Total</span>
-                <span className="font-mono text-[var(--foreground)]">
-                  {isUsdStyledCollateralTicker(collateralTicker) ? `$${limitDerived.notionalUsdc}` : `${limitDerived.notionalUsdc} ${collateralTicker}`}{" "}
-                  <span className="text-[var(--muted)]">+ 0.5% fee</span>
-                </span>
-              </div>
-            )}
-            {limitDerived.tokens && (
-              <div className="flex items-center justify-between text-[10px]">
-                <span className="text-[var(--muted)]">Est. tokens</span>
-                <span className="font-mono text-[var(--foreground)]">{limitDerived.tokens}</span>
-              </div>
-            )}
-            {minReceive && (
-              <div className="flex items-center justify-between text-[10px]">
-                <span className="text-[var(--muted)]">{minReceive.label}</span>
-                <span className="font-mono text-[var(--foreground)]">{minReceive.value}</span>
-              </div>
-            )}
+            <TradeSummaryBox
+              rows={[
+                {
+                  label: "Est. tokens",
+                  value: limitDerived.tokens ?? "—",
+                  valueClass: "font-semibold text-[var(--muted)]",
+                },
+                {
+                  label: "Min receive (at limit)",
+                  value: minReceive ?? "—",
+                  valueClass: minReceive
+                    ? "font-semibold text-[var(--trade-highlight)]"
+                    : "font-semibold text-[var(--muted)]",
+                },
+                {
+                  label: "Price / token",
+                  value: limitPriceLabel,
+                  valueClass: "font-semibold text-[var(--foreground)]",
+                },
+              ]}
+            />
           </div>
-
           {limitStatus && <p className="text-center text-[10px] text-[var(--muted)]">{limitStatus}</p>}
-
-          <button type="button" disabled={limitBusy || !onSubmitLimit || Boolean(sellValidationMessage)} onClick={() => void handleLimitSubmit()}
-            className={`w-full rounded-lg py-2.5 text-xs font-bold text-white transition disabled:opacity-40
-              ${limitSide === "buy"
-                ? "bg-emerald-600 shadow-[0_0_16px_rgba(16,185,129,0.22)] hover:bg-emerald-500"
-                : "bg-rose-600 shadow-[0_0_16px_rgba(244,63,94,0.22)] hover:bg-rose-500"}`}>
+          <button
+            type="button"
+            disabled={limitBusy || !onSubmitLimit || !limitInputsValid || Boolean(limitValidationMessage)}
+            onClick={() => void handleLimitSubmit()}
+            className={`w-full rounded-xl py-3.5 text-sm font-bold text-white transition disabled:opacity-40 ${
+              limitSide === "buy"
+                ? "bg-[var(--outcome-yes)] hover:bg-[var(--outcome-yes-hover)]"
+                : "bg-[var(--outcome-no)] hover:bg-[var(--outcome-no-hover)]"
+            }`}
+          >
             {limitBusy ? "Submitting…" : `${limitSide === "buy" ? "Buy" : "Sell"} ${selectedLabel}`}
           </button>
         </>
@@ -563,15 +752,23 @@ export function TradeModal({
     </div>
   );
 
+  const tradePanelLayout = (
+    <div className="trade-panel-scroll no-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {tradeScrollBody}
+    </div>
+  );
+
   // ── Inline mode ──────────────────────────────────────────────────────────
   if (inline) {
-    return <>{panelContent}</>;
+    return (
+      <div className="flex h-full min-h-0 flex-col overflow-hidden">{tradePanelLayout}</div>
+    );
   }
 
   const isSheet = presentation === "sheet";
 
   const modalHeader = (
-    <div className="shrink-0 border-b border-[var(--border)] px-4 pb-3 pt-4">
+    <div className="shrink-0 px-4 pb-3 pt-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -581,9 +778,9 @@ export function TradeModal({
             <span
               className={`rounded border px-1.5 py-0.5 text-[9px] font-bold tracking-wide
               ${selectedOutcomeIndex === 0
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 [html[data-theme=light]_&]:text-emerald-800 [html[data-theme=light]_&]:bg-emerald-50"
+                ? "border-[var(--outcome-yes)]/35 bg-[var(--outcome-yes)]/10 text-[var(--outcome-yes)] [html[data-theme=light]_&]:text-green-800 [html[data-theme=light]_&]:bg-green-50"
                 : selectedOutcomeIndex === 1
-                  ? "border-rose-500/30 bg-rose-500/10 text-rose-300 [html[data-theme=light]_&]:text-rose-800 [html[data-theme=light]_&]:bg-rose-50"
+                  ? "border-[var(--outcome-no)]/35 bg-[var(--outcome-no)]/10 text-[var(--outcome-no)] [html[data-theme=light]_&]:text-rose-800 [html[data-theme=light]_&]:bg-rose-50"
                   : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]"}`}
             >
               {selectedLabel.toUpperCase()}
@@ -626,8 +823,8 @@ export function TradeModal({
       <div
         className={
           isSheet
-            ? "trade-sheet-panel relative flex max-h-[min(88dvh,34rem)] w-full flex-col overflow-hidden rounded-t-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)] md:max-h-none md:max-w-[400px] md:rounded-3xl"
-            : "relative flex w-full max-w-[400px] max-h-[min(92dvh,40rem)] flex-col overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)]"
+            ? "trade-sheet-panel relative flex max-h-[min(88dvh,36rem)] min-h-0 w-full flex-col overflow-hidden rounded-t-2xl bg-[var(--card)] shadow-[var(--elevated-card-shadow)] md:max-w-[400px] md:rounded-3xl"
+            : "relative flex min-h-0 w-full max-w-[400px] max-h-[min(92dvh,40rem)] flex-col overflow-hidden rounded-3xl bg-[var(--card)] shadow-[var(--elevated-card-shadow)]"
         }
         role="dialog"
         aria-modal="true"
@@ -635,9 +832,7 @@ export function TradeModal({
         onClick={(e) => e.stopPropagation()}
       >
         {modalHeader}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[var(--border)]">
-          {panelContent}
-        </div>
+        {tradePanelLayout}
       </div>
     </div>
   );

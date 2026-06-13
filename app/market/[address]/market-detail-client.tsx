@@ -15,15 +15,30 @@ import { useAccount, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import { useSidebarOpen } from "@/app/components/sidebar-context";
 import { MarketChartPanel } from "@/app/market/components/market-chart-panel";
+import { MultiOutcomePicker } from "@/app/market/components/multi-outcome-picker";
 import { LimitOrderParams, TradeModal, type TradeSuccessResult } from "@/app/market/components/trade-modal";
 import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import { collateralTickerFromDeployment, isUsdStyledCollateralTicker } from "@/lib/deployment-collateral";
 import { deploymentPublicClient, readMarketPrice } from "@/lib/deployment-public-client";
 import {
+  mergeListItemIntoDetail,
   parseMarketDetailDto,
   type MarketDetailDto,
   type MarketDetailItem,
+  type MarketListItem,
 } from "@/lib/markets/load-markets";
+import {
+  fetchIpfsMetadataClient,
+  isWeakMarketMetadata,
+  metadataImageUrl,
+  metadataOutcomeLabels,
+  metadataTitle,
+} from "@/lib/markets/fetch-metadata-client";
+import {
+  cacheMarketCardForDetail,
+  readCachedMarketCard,
+  type CachedMarketCard,
+} from "@/lib/markets/market-card-cache";
 import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
 import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
 const WAD = BigInt("1000000000000000000");
@@ -83,11 +98,6 @@ function fmtTsFromUnix(seconds: number) {
   return new Date(seconds * 1000).toLocaleString();
 }
 
-function clampPct(v: number) {
-  if (!Number.isFinite(v)) return 50;
-  return Math.max(0, Math.min(100, v));
-}
-
 function formatMoneyAmount(unformatted: string, ticker: string): string {
   const n = Number(unformatted);
   if (!Number.isFinite(n)) return unformatted;
@@ -123,7 +133,23 @@ function formatTradeError(error: unknown): string {
   return msg.length > 240 ? "Trade failed. Try again." : msg;
 }
 
-type Props = { address: string };
+type Props = {
+  address: string;
+  initialMarket?: MarketDetailDto | null;
+  initialLoadError?: string | null;
+};
+
+function applyCachedCard(detail: MarketDetailItem, cached: CachedMarketCard): MarketDetailItem {
+  return {
+    ...detail,
+    title: cached.title || detail.title,
+    description: cached.description || detail.description,
+    imageUrl: cached.imageUrl || detail.imageUrl,
+    slug: cached.slug ?? detail.slug,
+    outcomeLabels: cached.outcomeLabels?.length ? cached.outcomeLabels : detail.outcomeLabels,
+    categories: cached.categories?.length ? cached.categories : detail.categories,
+  };
+}
 
 function MobileOutcomeBar({
   market,
@@ -134,7 +160,7 @@ function MobileOutcomeBar({
 }) {
   const sidebarOpen = useSidebarOpen();
 
-  if (market.marketState !== 0 || sidebarOpen) return null;
+  if (market.marketState !== 0 || sidebarOpen || market.outcomes !== 2) return null;
 
   return (
     <div className="fixed bottom-[64px] left-0 right-0 z-20 bg-[var(--background)] px-4 py-3 md:bottom-0 lg:hidden">
@@ -142,7 +168,7 @@ function MobileOutcomeBar({
         <button
           type="button"
           onClick={() => onSelectOutcome(0)}
-          className="flex flex-1 items-center justify-center rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 active:scale-[0.98]"
+          className="flex flex-1 items-center justify-center rounded-full bg-[var(--outcome-yes)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--outcome-yes-hover)] active:scale-[0.98]"
         >
           {market.outcomeLabels[0] ?? "Yes"}{" "}
           {(market.outcomeChancePcts?.[0] ?? market.chancePct).toFixed(0)}%
@@ -151,7 +177,7 @@ function MobileOutcomeBar({
           <button
             type="button"
             onClick={() => onSelectOutcome(1)}
-            className="flex flex-1 items-center justify-center rounded-full bg-rose-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-rose-500 active:scale-[0.98]"
+            className="flex flex-1 items-center justify-center rounded-full bg-[var(--outcome-no)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--outcome-no-hover)] active:scale-[0.98]"
           >
             {market.outcomeLabels[1] ?? "No"}{" "}
             {(market.outcomeChancePcts?.[1] ?? 100 - market.chancePct).toFixed(0)}%
@@ -162,14 +188,31 @@ function MobileOutcomeBar({
   );
 }
 
-export function MarketDetailClient({ address: addressProp }: Props) {
+export function MarketDetailClient({
+  address: addressProp,
+  initialMarket = null,
+  initialLoadError = null,
+}: Props) {
   const publicClient = deploymentPublicClient;
   const { address, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
 
-  const [market, setMarket] = useState<MarketDetailItem | null>(null);
-  const [loadError, setLoadError] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [market, setMarket] = useState<MarketDetailItem | null>(() => {
+    if (!initialMarket) return null;
+    let parsed = parseMarketDetailDto(initialMarket);
+    const raw = (addressProp || "").trim();
+    if (raw && isAddress(raw)) {
+      try {
+        const cached = readCachedMarketCard(getAddress(raw));
+        if (cached) parsed = applyCachedCard(parsed, cached);
+      } catch {
+        // ignore
+      }
+    }
+    return parsed;
+  });
+  const [loadError, setLoadError] = useState(initialLoadError ?? "");
+  const [isLoading, setIsLoading] = useState(!initialMarket && !initialLoadError);
 
   const [tradeOpen, setTradeOpen] = useState(false);
   const [selectedOutcome, setSelectedOutcome] = useState(0);
@@ -217,32 +260,90 @@ export function MarketDetailClient({ address: addressProp }: Props) {
       setIsLoading(false);
       return;
     }
-    setIsLoading(true);
+    setIsLoading((loading) => loading || !initialMarket);
     setLoadError("");
     try {
-      const res = await fetch(`/api/markets/${marketAddress}`, { cache: "no-store" });
-      const raw = await res.text();
-      let json: { market?: MarketDetailDto; error?: string };
+      // Same metadata source as market grid + trade modal (`/api/markets`), plus settlement from detail.
+      const [listRes, detailRes] = await Promise.all([
+        fetch("/api/markets", { cache: "no-store" }),
+        fetch(`/api/markets/${marketAddress}`, { cache: "no-store" }),
+      ]);
+
+      const listJson = (await listRes.json()) as { markets?: MarketListItem[] };
+      const detailRaw = await detailRes.text();
+      let detailJson: { market?: MarketDetailDto; error?: string };
       try {
-        json = raw ? (JSON.parse(raw) as typeof json) : {};
+        detailJson = detailRaw ? (JSON.parse(detailRaw) as typeof detailJson) : {};
       } catch {
         throw new Error("Could not load market.");
       }
-      if (!res.ok || !json.market) {
-        throw new Error(json.error || "Could not load market.");
+      if (!detailRes.ok || !detailJson.market) {
+        throw new Error(detailJson.error || "Could not load market.");
       }
-      setMarket(parseMarketDetailDto(json.market));
+
+      let next = parseMarketDetailDto(detailJson.market);
+      const card = listJson.markets?.find(
+        (m) => m.address.toLowerCase() === marketAddress.toLowerCase(),
+      );
+      if (card) {
+        next = mergeListItemIntoDetail(card, next);
+      }
+
+      const cached = readCachedMarketCard(marketAddress);
+      if (cached) {
+        next = applyCachedCard(next, cached);
+      }
+
+      setMarket(next);
     } catch (e) {
       setLoadError(formatLoadError(e));
-      setMarket(null);
+      setMarket((current) => current ?? null);
     } finally {
       setIsLoading(false);
     }
-  }, [marketAddress]);
+  }, [marketAddress, initialMarket]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  /** Browser IPFS fetch when server/API metadata is missing (same JSON the grid uses). */
+  useEffect(() => {
+    if (!marketAddress || !market || !isWeakMarketMetadata(market)) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const uri = await publicClient.readContract({
+          address: marketAddress,
+          abi: MARKET_ABI,
+          functionName: "metadataURI",
+        });
+        const md = await fetchIpfsMetadataClient(String(uri));
+        if (cancelled || !md) return;
+        setMarket((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            title: metadataTitle(md, prev.kind),
+            description: md.description?.trim() || prev.description,
+            imageUrl: metadataImageUrl(md) || prev.imageUrl,
+            slug: md.slug?.trim() || prev.slug,
+            outcomeLabels: metadataOutcomeLabels(md, prev.outcomes),
+            categories:
+              md.categories
+                ?.filter((x): x is string => typeof x === "string")
+                .map((x) => x.trim())
+                .filter(Boolean) ?? prev.categories,
+          };
+        });
+      } catch {
+        // keep API/cached values
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [marketAddress, market?.title, market?.imageUrl, publicClient]);
 
   useEffect(() => {
     if (!market) return;
@@ -660,66 +761,47 @@ export function MarketDetailClient({ address: addressProp }: Props) {
           {/* ── Left: scrolls under app header; trade panel stays fixed ── */}
           <div className="no-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
             <div className="px-4 pb-36 pt-2 md:px-6 md:pb-24 lg:pb-6">
-            {/* Cover hero — aspect box sized by ratio; all layers absolute so title stays at bottom on mobile */}
-            <div
-              className={`relative isolate mb-5 w-full shrink-0 overflow-hidden rounded-2xl bg-[var(--surface)] ${MARKET_COVER_ASPECT_CLASS}`}
+            <Link
+              href="/market"
+              className="mb-3 inline-flex items-center gap-1.5 text-sm text-[var(--muted)] transition hover:text-[var(--foreground)]"
             >
-              {market.imageUrl ? (
+              <ArrowLeft size={14} weight="bold" /> Markets
+            </Link>
+
+            <div className="mb-5">
+              <h1 className="text-xl font-bold leading-snug text-[var(--foreground)] md:text-2xl">
+                {market.title}
+              </h1>
+              {market.slug && (
+                <p className="mt-1 font-mono text-[11px] text-[var(--muted)]">/{market.slug}</p>
+              )}
+            </div>
+
+            {market.imageUrl ? (
+            <div
+              className={`relative isolate mb-5 w-full shrink-0 overflow-hidden rounded-2xl bg-[var(--surface)] ${MARKET_COVER_ASPECT_CLASS} min-h-[120px] md:min-h-[160px]`}
+            >
                 <img
                   src={market.imageUrl}
                   alt=""
                   className="absolute inset-0 h-full w-full object-cover object-center"
                 />
-              ) : (
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--surface)] to-[var(--border)]/40" />
-              )}
 
               <div
-                className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent [html[data-theme=light]_&]:from-black/75 [html[data-theme=light]_&]:via-black/25"
+                className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"
                 aria-hidden
               />
-
-              <Link
-                href="/market"
-                className="absolute left-3 top-3 z-20 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/35 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur-sm transition hover:bg-black/50 md:left-4 md:top-4"
-              >
-                <ArrowLeft size={14} weight="bold" /> Markets
-              </Link>
-
-              <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end px-4 pb-3.5 pt-16 md:px-5 md:pb-4 md:pt-20">
-                <h1 className="line-clamp-3 text-base font-bold leading-snug text-white drop-shadow-md md:text-2xl">
-                  {market.title}
-                </h1>
-                {market.slug && (
-                  <p className="mt-1 line-clamp-1 font-mono text-[10px] text-white/85 drop-shadow-sm md:text-[11px]">
-                    /{market.slug}
-                  </p>
-                )}
-              </div>
             </div>
+            ) : null}
 
-            {/* Outcome hero */}
-            {market.outcomes > 2 ? (
+            {/* Outcome hero — binary only */}
+            {market.outcomes === 2 && (
               <>
                 <div className="mb-1 flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-[var(--foreground)]">
-                    {market.outcomeLabels[selectedOutcome] ?? `Outcome ${selectedOutcome + 1}`}
-                  </span>
-                  {tradePriceRaw && tradePriceRaw > BigInt(0) && (
-                    <span className="text-sm font-semibold tabular-nums text-[var(--muted)]">
-                      {clampPct(Number(formatUnits(tradePriceRaw, 18)) * 100).toFixed(1)}%
-                    </span>
-                  )}
-                </div>
-                <p className="mb-5 text-sm text-[var(--muted)]">Select an outcome to trade or view the order book</p>
-              </>
-            ) : (
-              <>
-                <div className="mb-1 flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-emerald-400">
+                  <span className="text-3xl font-bold text-[var(--outcome-yes)]">
                     {market.outcomeLabels[0] ?? "Yes"}
                   </span>
-                  <span className="text-sm font-semibold text-emerald-400 [html[data-theme=light]_&]:text-emerald-700">
+                  <span className="text-sm font-semibold text-[var(--outcome-yes)] [html[data-theme=light]_&]:text-green-700">
                     ↑ {market.chancePct.toFixed(1)}%
                   </span>
                 </div>
@@ -729,15 +811,31 @@ export function MarketDetailClient({ address: addressProp }: Props) {
               </>
             )}
 
-            <MarketChartPanel
-              marketKind={market.kind}
-              marketAddress={market.address}
-              collateralDecimals={market.collateralDecimals}
-              collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
-              outcomeLabels={market.outcomeLabels}
-              tvSymbol={tvSymbol}
-              chartThemeKey={chartThemeKey}
-            />
+            {market.outcomes > 2 ? (
+              <MultiOutcomePicker
+                labels={market.outcomeLabels}
+                chancePcts={market.outcomeChancePcts ?? []}
+                selectedIndex={selectedOutcome}
+                onSelect={(index) => {
+                  setSelectedOutcome(index);
+                  if (typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
+                    setTradeOpen(true);
+                    setTradeStatus("");
+                    setTradeSuccess(null);
+                  }
+                }}
+              />
+            ) : (
+              <MarketChartPanel
+                marketKind={market.kind}
+                marketAddress={market.address}
+                collateralDecimals={market.collateralDecimals}
+                collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
+                outcomeLabels={market.outcomeLabels}
+                tvSymbol={tvSymbol}
+                chartThemeKey={chartThemeKey}
+              />
+            )}
 
             {/* Order book */}
             {market.marketState === 0 && outcomeTokens[selectedOutcome] && (
@@ -858,8 +956,8 @@ export function MarketDetailClient({ address: addressProp }: Props) {
 
           {/* ── Right: trade panel (desktop only, active markets) ── */}
           {market.marketState !== 2 && (
-            <div className="hidden w-full shrink-0 lg:flex lg:w-[380px] lg:flex-col lg:justify-start lg:overflow-hidden">
-              <div className="m-4 shrink-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)]">
+            <div className="hidden w-full shrink-0 lg:flex lg:sticky lg:top-4 lg:h-[min(calc(100dvh-5rem),36rem)] lg:w-[380px] lg:flex-col lg:self-start">
+              <div className="glass-panel m-4 flex h-[calc(100%-2rem)] min-h-0 w-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl">
                 <TradeModal
                   inline
                   open={false}
@@ -871,6 +969,9 @@ export function MarketDetailClient({ address: addressProp }: Props) {
                   outcomeLabels={market.outcomeLabels}
                   selectedOutcomeIndex={selectedOutcome}
                   onSelectOutcome={setSelectedOutcome}
+                  outcomeChancePcts={market.outcomeChancePcts}
+                  hideOutcomeSelector={market.outcomes > 2}
+                  isWalletConnected={Boolean(address)}
                   collateralDecimals={market.collateralDecimals}
                   collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
                   amount={tradeAmount}
@@ -936,6 +1037,9 @@ export function MarketDetailClient({ address: addressProp }: Props) {
           outcomeLabels={market.outcomeLabels}
           selectedOutcomeIndex={selectedOutcome}
           onSelectOutcome={setSelectedOutcome}
+          outcomeChancePcts={market.outcomeChancePcts}
+          hideOutcomeSelector={market.outcomes > 2}
+          isWalletConnected={Boolean(address)}
           collateralDecimals={market.collateralDecimals}
           collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
           amount={tradeAmount}

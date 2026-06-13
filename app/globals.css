@@ -10,6 +10,16 @@
   --surface: #100a1f;
   --surface-hover: #1a1230;
   --elevated-card-shadow: 0 10px 28px rgb(2 6 23 / 0.45);
+  --outcome-yes: #22c55e;
+  --outcome-yes-hover: #16a34a;
+  --outcome-no: #ef4444;
+  --outcome-no-hover: #dc2626;
+  --trade-highlight: #facc15;
+  --glass-bg: color-mix(in srgb, var(--surface) 80%, rgb(139 92 246 / 0.1));
+  --glass-border: color-mix(in srgb, var(--border) 60%, rgb(255 255 255 / 0.08));
+  --glass-inset-bg: color-mix(in srgb, var(--card) 70%, rgb(139 92 246 / 0.06));
+  --glass-highlight: color-mix(in srgb, var(--foreground) 8%, transparent);
+  --glass-shadow: 0 12px 32px rgb(2 6 23 / 0.28);
 }
 
 :root[data-theme="light"] {
@@ -22,6 +32,16 @@
   --surface: #f2f0ff;
   --surface-hover: #ece7ff;
   --elevated-card-shadow: 0 10px 28px rgb(23 18 42 / 0.1);
+  --outcome-yes: #22c55e;
+  --outcome-yes-hover: #16a34a;
+  --outcome-no: #ef4444;
+  --outcome-no-hover: #dc2626;
+  --trade-highlight: #facc15;
+  --glass-bg: color-mix(in srgb, var(--card) 88%, rgb(124 77 255 / 0.05));
+  --glass-border: color-mix(in srgb, var(--border) 75%, transparent);
+  --glass-inset-bg: color-mix(in srgb, var(--surface) 82%, transparent);
+  --glass-highlight: rgb(255 255 255 / 0.92);
+  --glass-shadow: 0 10px 28px rgb(23 18 42 / 0.08);
 }
 
 @theme inline {
@@ -162,6 +182,34 @@ html[data-theme="light"] input[type="time"] {
 
 .trade-sheet-panel {
   animation: tradeSheetUp 0.28s ease-out;
+}
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), var(--glass-shadow);
+}
+
+.glass-panel-inset {
+  background: var(--glass-inset-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+
+.trade-panel-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.trade-panel-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 @media (min-width: 768px) {

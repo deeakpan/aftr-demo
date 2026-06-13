@@ -109,7 +109,7 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
         <div className="mt-4 border-t border-[var(--border)] pt-4">
           <p className="text-base font-medium text-[var(--foreground)]">Mondalore Market</p>
           <p className="mt-1 text-sm text-[var(--foreground)]">
-            Prediction markets on Base. Built for transparent market participation.
+            Prediction markets on Monad. Built for transparent market participation.
           </p>
           <div className="mt-3 flex items-center gap-3 text-[var(--muted)]">
             <a href="#" aria-label="Telegram" className="hover:text-[var(--foreground)]">

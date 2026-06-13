@@ -48,6 +48,25 @@ function formatTokenAmount(raw: bigint, decimals: number, maxFrac = 4) {
   return n.toLocaleString(undefined, { maximumFractionDigits: maxFrac });
 }
 
+function StatusMessage({ message, className = "" }: { message: string; className?: string }) {
+  if (!message) return null;
+  const isSuccess = /succeeded/i.test(message);
+  const isError = /cancelled|failed|Connect|Switch|valid|exceeds/i.test(message);
+  return (
+    <p
+      className={`text-xs leading-relaxed ${
+        isSuccess
+          ? "font-semibold text-[var(--outcome-yes)]"
+          : isError
+            ? "text-[var(--outcome-no)]"
+            : "text-[var(--muted)]"
+      } ${className}`}
+    >
+      {message}
+    </p>
+  );
+}
+
 function StatRow({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="flex items-start justify-between gap-3 border-b border-[var(--border)]/80 py-3.5 last:border-0 sm:gap-4">
@@ -76,7 +95,8 @@ export function StakeClient() {
   const [amount, setAmount] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState("");
+  const [stakeStatus, setStakeStatus] = useState("");
+  const [secondaryStatus, setSecondaryStatus] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   const [loadError, setLoadError] = useState("");
   const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
@@ -170,21 +190,25 @@ export function StakeClient() {
         ? formatTimeRemaining(nextUnlockAt, nowSec)
         : "—";
 
-  const runTx = async (label: string, fn: () => Promise<`0x${string}`>) => {
+  const runTx = async (
+    label: string,
+    fn: () => Promise<`0x${string}`>,
+    setAreaStatus: (value: string) => void,
+  ) => {
     setBusy(true);
-    setStatus(`${label}…`);
+    setAreaStatus(`${label}…`);
     try {
       if (chainId !== DEPLOYMENT_CHAIN_ID) throw new Error(wrongNetworkMessage());
       if (!walletClient || !address) throw new Error("Connect wallet first.");
       const hash = await fn();
-      setStatus(`Waiting for confirmation…`);
+      setAreaStatus(`Waiting for confirmation…`);
       await publicClient!.waitForTransactionReceipt({ hash });
-      setStatus(`${label} succeeded.`);
+      setAreaStatus(`${label} succeeded.`);
       setRefreshKey((k) => k + 1);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (/user rejected/i.test(msg)) setStatus("Transaction cancelled.");
-      else setStatus(msg.length > 180 ? `${label} failed.` : msg);
+      if (/user rejected/i.test(msg)) setAreaStatus("Transaction cancelled.");
+      else setAreaStatus(msg.length > 180 ? `${label} failed.` : msg);
     } finally {
       setBusy(false);
     }
@@ -192,14 +216,16 @@ export function StakeClient() {
 
   const handleStake = async () => {
     if (!parsedAmount || parsedAmount <= BigInt(0)) {
-      setStatus("Enter a valid stake amount.");
+      setStakeStatus("Enter a valid stake amount.");
       return;
     }
     const vault = VAULT_ADDRESS;
     const stakeToken = STAKE_TOKEN_ADDRESS;
     if (!vault || !stakeToken) return;
 
-    await runTx("Stake", async () => {
+    await runTx(
+      "Stake",
+      async () => {
       const allowance = (await publicClient!.readContract({
         address: stakeToken,
         abi: ERC20_ABI,
@@ -227,14 +253,18 @@ export function StakeClient() {
         account: address!,
         chain: walletClient!.chain,
       });
-    });
+    },
+      setStakeStatus,
+    );
     setAmount("");
   };
 
   const handleClaim = async () => {
     const vault = VAULT_ADDRESS;
     if (!vault) return;
-    await runTx("Claim rewards", () =>
+    await runTx(
+      "Claim rewards",
+      () =>
       walletClient!.writeContract({
         address: vault,
         abi: VAULT_ABI,
@@ -242,20 +272,23 @@ export function StakeClient() {
         account: address!,
         chain: walletClient!.chain,
       }),
+      setSecondaryStatus,
     );
   };
 
   const handleWithdraw = async () => {
     const vault = VAULT_ADDRESS;
     if (!parsedWithdraw || parsedWithdraw <= BigInt(0) || !vault) {
-      setStatus("Enter a valid withdraw amount.");
+      setSecondaryStatus("Enter a valid withdraw amount.");
       return;
     }
     if (parsedWithdraw > withdrawable) {
-      setStatus("Amount exceeds withdrawable balance.");
+      setSecondaryStatus("Amount exceeds withdrawable balance.");
       return;
     }
-    await runTx("Withdraw", () =>
+    await runTx(
+      "Withdraw",
+      () =>
       walletClient!.writeContract({
         address: vault,
         abi: VAULT_ABI,
@@ -264,6 +297,7 @@ export function StakeClient() {
         account: address!,
         chain: walletClient!.chain,
       }),
+      setSecondaryStatus,
     );
     setWithdrawAmount("");
   };
@@ -289,10 +323,10 @@ export function StakeClient() {
         </div>
 
         {/* Primary stake card */}
-        <section className="overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)]">
-          <div className="border-b border-[var(--border)] px-4 py-4 sm:px-5 sm:py-5">
+        <section className="glass-panel overflow-hidden rounded-3xl">
+          <div className="px-4 py-4 sm:px-5 sm:py-5">
             <label className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">MONDO amount</label>
-            <div className="mt-2 flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 sm:gap-3 sm:px-4">
+            <div className="glass-panel-inset mt-2 flex items-center gap-2 rounded-2xl px-3 py-3 sm:gap-3 sm:px-4">
               <img src={MON_COINGECKO_LOGO} alt="MONDO" className="h-7 w-7 shrink-0 rounded-full object-cover sm:h-8 sm:w-8" />
               <input
                 type="text"
@@ -308,11 +342,12 @@ export function StakeClient() {
                   setAmount(formatUnits(walletBalance, stakeDecimals).replace(/(\.\d{6})\d+$/, "$1"))
                 }
                 disabled={!address || walletBalance === BigInt(0)}
-                className="shrink-0 rounded-full border border-[var(--border)] bg-[var(--card)] px-3 py-1 text-xs font-bold uppercase tracking-wide text-[var(--foreground)] transition hover:border-[var(--accent)] disabled:opacity-40"
+                className="shrink-0 rounded-full bg-[var(--glass-inset-bg)] px-3 py-1 text-xs font-bold uppercase tracking-wide text-[var(--foreground)] transition hover:brightness-110 disabled:opacity-40"
               >
                 Max
               </button>
             </div>
+            <StatusMessage message={stakeStatus} className="mt-2" />
             {address && (
               <p className="mt-2 text-xs text-[var(--muted)]">
                 Wallet balance: {formatTokenAmount(walletBalance, stakeDecimals)} MONDO
@@ -341,7 +376,7 @@ export function StakeClient() {
             )}
           </div>
 
-          <div className="border-t border-[var(--border)] bg-[var(--surface)]/60 px-4 py-2 pb-5 sm:px-5 sm:pb-6">
+          <div className="px-4 py-2 pb-5 sm:px-5 sm:pb-6">
             <StatRow
               label="You will receive"
               value={`${formatTokenAmount(willReceive, stakeDecimals)} sMONDO`}
@@ -363,7 +398,7 @@ export function StakeClient() {
         </div>
 
         {/* Stats + actions card */}
-        <section className="overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)]">
+        <section className="glass-panel overflow-hidden rounded-3xl">
           <div className="px-4 py-2 pb-1 sm:px-5 sm:py-3">
             <StatRow
               label="Total staked (protocol)"
@@ -400,7 +435,7 @@ export function StakeClient() {
           </div>
 
           {address && (
-            <div className="space-y-4 border-t border-[var(--border)] px-4 py-4 pb-5 sm:px-5 sm:py-5 sm:pb-6">
+            <div className="space-y-4 px-4 py-4 pb-5 sm:px-5 sm:py-5 sm:pb-6">
               <button
                 type="button"
                 disabled={busy || totalRewardsWei === BigInt(0)}
@@ -421,7 +456,7 @@ export function StakeClient() {
                     placeholder="0.0"
                     value={withdrawAmount}
                     onChange={(e) => setWithdrawAmount(e.target.value.replace(/[^\d.]/g, ""))}
-                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2.5 pl-3 pr-12 text-sm tabular-nums text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
+                    className="glass-panel-inset w-full rounded-xl py-2.5 pl-3 pr-12 text-sm tabular-nums text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
                   />
                   <button
                     type="button"
@@ -445,7 +480,7 @@ export function StakeClient() {
                     parsedWithdraw > withdrawable
                   }
                   onClick={() => void handleWithdraw()}
-                  className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] py-3 text-sm font-semibold text-[var(--foreground)] transition hover:border-[var(--accent)] disabled:opacity-40"
+                  className="mt-2 w-full rounded-xl bg-[var(--glass-inset-bg)] py-3 text-sm font-semibold text-[var(--foreground)] transition hover:brightness-110 disabled:opacity-40"
                 >
                   Withdraw MONDO
                 </button>
@@ -456,25 +491,14 @@ export function StakeClient() {
                       : `Each deposit unlocks after ${formatDuration(lockDuration)}.`}
                   </p>
                 )}
+                <StatusMessage message={secondaryStatus} className="mt-2" />
               </div>
             </div>
           )}
         </section>
 
-        {(status || loadError) && (
-          <p
-            className={`mt-4 text-center text-sm ${
-              /succeeded/i.test(status)
-                ? "font-semibold text-emerald-400"
-                : /cancelled|failed|Connect|Switch|valid|exceeds/i.test(status)
-                  ? "text-rose-400"
-                  : loadError
-                    ? "text-amber-400"
-                    : "text-[var(--muted)]"
-            }`}
-          >
-            {loadError || status}
-          </p>
+        {loadError && (
+          <p className="mt-4 text-center text-sm text-amber-400">{loadError}</p>
         )}
 
         <p className="mt-6 text-center text-xs leading-relaxed text-[var(--muted)] sm:text-sm">

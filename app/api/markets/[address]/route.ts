@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { getAddress, isAddress } from "viem";
 import deployment from "@/lib/deployment";
-import { loadMarketDetail, serializeMarketDetail } from "@/lib/markets/load-markets";
+import {
+  loadMarketDetailForPage,
+  serializeMarketDetail,
+} from "@/lib/markets/load-markets";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +18,7 @@ export async function GET(_req: Request, context: RouteContext) {
 
   try {
     const marketAddress = getAddress(raw) as `0x${string}`;
-    const market = await loadMarketDetail(marketAddress);
+    const market = await loadMarketDetailForPage(marketAddress);
     return NextResponse.json({
       market: serializeMarketDetail(market),
       chainId: deployment.chainId,

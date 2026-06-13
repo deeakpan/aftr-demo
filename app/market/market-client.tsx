@@ -17,6 +17,7 @@ import { deploymentPublicClient, readMarketPrice } from "@/lib/deployment-public
 import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
 import { brandPageTitle } from "@/lib/brand-font";
 import { formatMarketCardDate } from "@/lib/market-cover";
+import { cacheMarketCardForDetail } from "@/lib/markets/market-card-cache";
 const ORDERBOOK_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts.MondaloreOrderBook as `0x${string}`;
 const ORDERBOOK_ABI = parseAbi([
   "function placeSellOrder(address market, address token, uint256 price, uint256 amount) returns (bytes32)",
@@ -611,7 +612,17 @@ export function MarketClient() {
                     return !Number.isFinite(v) || v <= 0;
                   })()
                 }
-                onTitleClick={() => router.push(`/market/${m.address}`)}
+                onTitleClick={() => {
+                  cacheMarketCardForDetail(m.address, {
+                    title: m.title,
+                    description: m.description,
+                    imageUrl: m.imageUrl,
+                    slug: m.slug,
+                    outcomeLabels: m.outcomeLabels,
+                    categories: m.categories,
+                  });
+                  router.push(`/market/${m.address}`);
+                }}
                 onTrade={(idx) => openTrade(m, idx)}
                 onRefreshTvl={() => void refreshTvl(m)}
                 tvlRefreshing={Boolean(tvlRefreshing[m.address])}
@@ -644,6 +655,9 @@ export function MarketClient() {
         outcomeLabels={selectedMarket?.outcomeLabels ?? []}
         selectedOutcomeIndex={selectedOutcome}
         onSelectOutcome={setSelectedOutcome}
+        outcomeChancePcts={selectedMarket?.outcomeChancePcts}
+        hideOutcomeSelector={(selectedMarket?.outcomeLabels.length ?? 0) > 2}
+        isWalletConnected={Boolean(address)}
         collateralDecimals={selectedMarket?.collateralDecimals ?? 6}
         collateralTicker={selectedMarket ? collateralTickerFromDeployment(selectedMarket.collateralAddress) : "TOKEN"}
         amount={tradeAmount}
