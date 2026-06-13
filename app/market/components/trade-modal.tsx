@@ -5,6 +5,7 @@ import { ArrowsClockwise, CaretDown, CheckCircle, Gear, WarningCircle, X } from 
 import { formatUnits } from "viem";
 import { txExplorerUrl } from "@/lib/chain";
 import { isUsdStyledCollateralTicker } from "@/lib/deployment-collateral";
+import { BinaryProbabilityPipe } from "@/app/market/components/market-list-card";
 
 export type LimitOrderParams = {
   side: "buy" | "sell";
@@ -224,6 +225,13 @@ export function TradeModal({
     ? tokenBalanceNum.toLocaleString(undefined, { maximumFractionDigits: 4 })
     : null;
   const selectedLabel = labels[selectedOutcomeIndex] ?? labels[0] ?? "Outcome";
+
+  const outcomePct = (idx: number) => {
+    const raw = outcomeChancePcts?.[idx];
+    if (Number.isFinite(raw)) return Math.round(Math.max(0, Math.min(100, raw!)));
+    return Math.round(100 / Math.max(labels.length, 1));
+  };
+
   const hasTradeAmount = Boolean(tokensFormatted);
   const marketPriceReady = Boolean(priceOfRaw && priceOfRaw > BigInt(0));
   const marketCtaLabel = busy
@@ -392,22 +400,9 @@ export function TradeModal({
       <p className="mt-0.5 truncate text-sm font-semibold text-[var(--foreground)]">{selectedLabel}</p>
     </div>
   ) : isBinary ? (
-    <div className="space-y-3">
-      <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-[var(--surface)]">
-        <div
-          className="absolute inset-y-0 left-0 bg-[var(--outcome-yes)] transition-all duration-300"
-          style={{ width: `${binaryPcts[0]}%` }}
-        />
-        <div
-          className="absolute inset-y-0 right-0 bg-[var(--outcome-no)] transition-all duration-300"
-          style={{ width: `${binaryPcts[1]}%` }}
-        />
-      </div>
-      <div className="flex justify-between text-xs font-bold tabular-nums">
-        <span className="text-[var(--outcome-yes)]">{Math.round(binaryPcts[0]!)}%</span>
-        <span className="text-[var(--outcome-no)]">{Math.round(binaryPcts[1]!)}%</span>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
+    <div className="space-y-4">
+      <BinaryProbabilityPipe yesPct={binaryPcts[0]!} noPct={binaryPcts[1]!} />
+      <div className="grid grid-cols-2 gap-2.5">
         {labels.slice(0, 2).map((label, idx) => {
           const active = idx === selectedOutcomeIndex;
           const isSecond = idx === 1;
@@ -416,12 +411,12 @@ export function TradeModal({
               key={`${label}-${idx}`}
               type="button"
               onClick={() => onSelectOutcome(idx)}
-              className={`rounded-full py-3 text-center text-sm font-bold transition ${
+              className={`rounded-full py-3.5 text-center text-sm font-bold transition ${
                 active
                   ? isSecond
                     ? "bg-[var(--outcome-no)] text-white hover:bg-[var(--outcome-no-hover)]"
                     : "bg-[var(--outcome-yes)] text-white hover:bg-[var(--outcome-yes-hover)]"
-                  : "bg-[var(--surface)] text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                  : "bg-[var(--surface)] text-[var(--muted)] ring-1 ring-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
               }`}
             >
               {label}
@@ -432,21 +427,31 @@ export function TradeModal({
     </div>
   ) : labels.length > 2 ? (
     <div ref={outcomeMenuRef} className="relative">
-        <button
-          type="button"
-          onClick={() => setOutcomeMenuOpen((o) => !o)}
-          className="flex w-full items-center justify-between gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-left transition hover:border-[var(--accent)]/40 hover:bg-[var(--surface-hover)]"
-        >
-          <span className="min-w-0 truncate text-sm font-semibold text-[var(--foreground)]">{selectedLabel}</span>
-          <CaretDown
-            size={14}
-            weight="bold"
-            className={`shrink-0 text-[var(--muted)] transition ${outcomeMenuOpen ? "rotate-180" : ""}`}
-          />
-        </button>
-        {outcomeMenuOpen && (
-          <div className="no-scrollbar absolute left-0 right-0 z-20 mt-1 max-h-44 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--card)] py-1 shadow-lg">
-            {labels.map((label, idx) => (
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+        Outcome
+      </p>
+      <button
+        type="button"
+        onClick={() => setOutcomeMenuOpen((o) => !o)}
+        className="glass-panel-inset flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:ring-1 hover:ring-[var(--accent)]/30"
+      >
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--foreground)]">
+          {selectedLabel}
+        </span>
+        <span className="shrink-0 rounded-full bg-[var(--accent)]/15 px-2 py-0.5 text-xs font-bold tabular-nums text-[var(--accent)]">
+          {outcomePct(selectedOutcomeIndex)}%
+        </span>
+        <CaretDown
+          size={14}
+          weight="bold"
+          className={`shrink-0 text-[var(--muted)] transition ${outcomeMenuOpen ? "rotate-180" : ""}`}
+        />
+      </button>
+      {outcomeMenuOpen && (
+        <div className="no-scrollbar absolute left-0 right-0 z-30 mt-1.5 max-h-52 overflow-y-auto rounded-xl border border-[var(--glass-border)] bg-[var(--glass-inset-bg)] py-1.5 shadow-[var(--glass-shadow)] backdrop-blur-md">
+          {labels.map((label, idx) => {
+            const active = idx === selectedOutcomeIndex;
+            return (
               <button
                 key={`${label}-${idx}`}
                 type="button"
@@ -454,18 +459,27 @@ export function TradeModal({
                   onSelectOutcome(idx);
                   setOutcomeMenuOpen(false);
                 }}
-                className={`flex w-full items-center px-3 py-2 text-left text-sm transition hover:bg-[var(--surface-hover)] ${
-                  idx === selectedOutcomeIndex
-                    ? "font-semibold text-[var(--accent)]"
-                    : "font-medium text-[var(--foreground)]"
+                className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition hover:bg-[var(--surface-hover)] ${
+                  active ? "bg-[var(--accent)]/10" : ""
                 }`}
               >
-                {label}
+                <span
+                  className={`min-w-0 flex-1 truncate ${active ? "font-semibold text-[var(--accent)]" : "font-medium text-[var(--foreground)]"}`}
+                >
+                  {label}
+                </span>
+                <span className="shrink-0 text-xs font-bold tabular-nums text-[var(--muted)]">
+                  {outcomePct(idx)}%
+                </span>
+                {active && (
+                  <CheckCircle size={14} weight="fill" className="shrink-0 text-[var(--accent)]" />
+                )}
               </button>
-            ))}
-          </div>
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   ) : null;
 
   const amountInputMarket = (

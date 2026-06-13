@@ -35,7 +35,7 @@ function evenSplitPct(count: number, index: number) {
   return index === 0 ? 100 - base * (count - 1) : base;
 }
 
-function BinaryProbabilityPipe({ yesPct, noPct }: { yesPct: number; noPct: number }) {
+export function BinaryProbabilityPipe({ yesPct, noPct }: { yesPct: number; noPct: number }) {
   const yes = clampPct(yesPct);
   const no = clampPct(noPct);
   const yesFlex = Math.max(yes, 4);

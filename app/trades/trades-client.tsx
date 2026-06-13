@@ -9,6 +9,7 @@ import { AppLayout } from "@/app/components/app-layout";
 import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
 import { collateralTickerFromDeployment } from "@/lib/deployment-collateral";
 import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
+import { BinaryProbabilityPipe } from "@/app/market/components/market-list-card";
 
 const MARKET_ABI = parseAbi([
   "function marketKind() view returns (uint8)",
@@ -190,11 +191,51 @@ function OpenPositionHoldings({
   labels,
   positions,
   collateralDecimals,
+  outcomeChancePcts,
 }: {
   labels: string[];
   positions: MarketPositionGroup["positions"];
   collateralDecimals: number;
+  outcomeChancePcts: number[];
 }) {
+  const isBinary = labels.length === 2;
+  const yesPct = clampPct(outcomeChancePcts[0] ?? 50);
+  const noPct = clampPct(outcomeChancePcts[1] ?? 50);
+
+  if (isBinary) {
+    return (
+      <div className="mt-3 flex min-h-[7.5rem] flex-1 flex-col justify-between gap-4">
+        <BinaryProbabilityPipe yesPct={yesPct} noPct={noPct} />
+        <div className="grid grid-cols-2 gap-2.5">
+          {labels.slice(0, 2).map((label, idx) => {
+            const bal = balanceForOutcome(positions, idx);
+            const isNo = idx === 1;
+            const hasShares = bal > BigInt(0);
+            return (
+              <div
+                key={`${label}-${idx}`}
+                className={`rounded-2xl px-2 py-3.5 text-center ${
+                  isNo
+                    ? "bg-[var(--outcome-no)]/12 ring-1 ring-[var(--outcome-no)]/25"
+                    : "bg-[var(--outcome-yes)]/12 ring-1 ring-[var(--outcome-yes)]/25"
+                }`}
+              >
+                <p className="truncate text-xs font-bold text-[var(--foreground)]">{label}</p>
+                <p
+                  className={`mt-1 text-[11px] font-semibold tabular-nums ${
+                    hasShares ? "text-[var(--foreground)]" : "text-[var(--muted)]"
+                  }`}
+                >
+                  {hasShares ? formatShareAmount(bal, collateralDecimals) : "No shares"}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   const held = labels
     .map((label, idx) => ({
       label,
@@ -203,21 +244,15 @@ function OpenPositionHoldings({
     .filter((h) => h.bal > BigInt(0));
 
   if (held.length === 0) {
-    return (
-      <p className="mt-2 text-[10px] text-[var(--muted)]">No open positions</p>
-    );
+    return <p className="mt-2 text-[10px] text-[var(--muted)]">No open positions</p>;
   }
 
-  const scrollable = held.length > 1;
-
   return (
-    <div
-      className={`mt-2 space-y-0.5 ${scrollable ? "no-scrollbar max-h-[88px] overflow-y-auto pr-0.5" : ""}`}
-    >
+    <div className="no-scrollbar mt-2 max-h-[9.5rem] space-y-0.5 overflow-y-auto">
       {held.map((h, i) => (
         <div
           key={`${h.label}-${i}`}
-          className="flex items-center justify-between gap-2 rounded-md px-1.5 py-1 transition hover:bg-[var(--surface-hover)]"
+          className="flex min-h-[2.125rem] items-center justify-between gap-2 rounded-lg px-1.5 py-1 transition hover:bg-[var(--surface-hover)]"
         >
           <span className="min-w-0 truncate text-[11px] font-medium text-[var(--foreground)]">{h.label}</span>
           <span className="shrink-0 text-[10px] font-medium tabular-nums text-[var(--muted)]">
@@ -587,7 +622,7 @@ export function TradesClient() {
               return (
                 <article
                   key={g.marketAddress}
-                  className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] p-0 shadow-[var(--elevated-card-shadow)] transition hover:border-[var(--accent)]/35"
+                  className="flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)] transition duration-200 hover:-translate-y-1 hover:border-[var(--accent)] hover:shadow-[0_16px_40px_rgb(139_92_246_/_0.28)] [html[data-theme=light]_&]:hover:shadow-[0_16px_40px_rgb(124_77_255_/_0.14)]"
                 >
                   <div className={`${MARKET_COVER_ASPECT_CLASS} w-full overflow-hidden bg-[var(--surface)]`}>
                     {g.imageUrl ? (
@@ -603,51 +638,59 @@ export function TradesClient() {
                     )}
                   </div>
 
-                  <div className="p-2.5">
-                    <p className="line-clamp-2 cursor-pointer text-[13px] font-semibold leading-snug text-[var(--foreground)] underline-offset-2 hover:underline md:text-[15px]" onClick={() => router.push(`/market/${g.marketAddress}`)}>{g.marketTitle}</p>
-                    <p className="mt-0.5 text-[11px] text-[var(--muted)]">
+                  <div className="flex min-h-[10.5rem] flex-1 flex-col px-3 pb-3 pt-3">
+                    <p
+                      className="line-clamp-2 cursor-pointer text-[13px] font-semibold leading-snug text-[var(--foreground)] underline-offset-2 hover:underline md:text-[15px]"
+                      onClick={() => router.push(`/market/${g.marketAddress}`)}
+                    >
+                      {g.marketTitle}
+                    </p>
+                    <p className="mt-1 shrink-0 text-[11px] text-[var(--muted)]">
                       {g.marketKind} · {stateLabel(g.marketState, g.stakeEndUnix)}
                     </p>
 
-                    {g.marketState === 2 ? (
-                      winIdx !== null && winBal > BigInt(0) ? (
-                        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                          <ClaimWinningsButton
-                            marketAddress={g.marketAddress}
-                            winningOutcomeIndex={winIdx}
-                            maxShares={winBal}
-                            shareDecimals={g.collateralDecimals}
-                            redemptionRate={g.redemptionRate}
-                            collateralTicker={tick}
-                            onDone={() => setRefreshKey((k) => k + 1)}
-                          />
-                          {g.indexedCollateralOut > BigInt(0) && (
-                            <SettledMarketSummary
-                              invested={g.indexedCollateralIn}
-                              redeemed={g.indexedCollateralOut}
-                              tick={tick}
-                              fmtAmount={fmtIndexed}
+                    <div className="flex min-h-0 flex-1 flex-col">
+                      {g.marketState === 2 ? (
+                        winIdx !== null && winBal > BigInt(0) ? (
+                          <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                            <ClaimWinningsButton
+                              marketAddress={g.marketAddress}
+                              winningOutcomeIndex={winIdx}
+                              maxShares={winBal}
+                              shareDecimals={g.collateralDecimals}
+                              redemptionRate={g.redemptionRate}
+                              collateralTicker={tick}
+                              onDone={() => setRefreshKey((k) => k + 1)}
                             />
-                          )}
-                        </div>
+                            {g.indexedCollateralOut > BigInt(0) && (
+                              <SettledMarketSummary
+                                invested={g.indexedCollateralIn}
+                                redeemed={g.indexedCollateralOut}
+                                tick={tick}
+                                fmtAmount={fmtIndexed}
+                              />
+                            )}
+                          </div>
+                        ) : (
+                          <SettledMarketSummary
+                            invested={g.indexedCollateralIn}
+                            redeemed={g.indexedCollateralOut}
+                            tick={tick}
+                            fmtAmount={fmtIndexed}
+                          />
+                        )
                       ) : (
-                        <SettledMarketSummary
-                          invested={g.indexedCollateralIn}
-                          redeemed={g.indexedCollateralOut}
-                          tick={tick}
-                          fmtAmount={fmtIndexed}
+                        <OpenPositionHoldings
+                          labels={g.outcomeLabels}
+                          positions={g.positions}
+                          collateralDecimals={g.collateralDecimals}
+                          outcomeChancePcts={g.outcomeChancePcts}
                         />
-                      )
-                    ) : (
-                      <OpenPositionHoldings
-                        labels={g.outcomeLabels}
-                        positions={g.positions}
-                        collateralDecimals={g.collateralDecimals}
-                      />
-                    )}
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[11px] text-[var(--muted)]">
+                  <div className="mt-auto flex shrink-0 items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[11px] text-[var(--muted)]">
                     <Tip label="Total Value Locked">
                       <div className="inline-flex items-center gap-1.5 font-semibold text-[var(--foreground)]">
                         <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-[#4f7cff] to-[#6dff8e]" />
