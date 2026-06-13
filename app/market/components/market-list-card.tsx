@@ -117,7 +117,7 @@ export function MarketListCard({
 
   return (
     <article
-      className={`flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)] transition duration-200 ${
+      className={`flex w-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)] transition duration-200 ${
         interactive
           ? "hover:-translate-y-1 hover:border-[var(--accent)] hover:shadow-[0_16px_40px_rgb(139_92_246_/_0.28)] [html[data-theme=light]_&]:hover:shadow-[0_16px_40px_rgb(124_77_255_/_0.14)]"
           : ""
@@ -271,7 +271,7 @@ export function MarketListCard({
 export function MarketListCardSkeleton({ className = "" }: { className?: string }) {
   return (
     <article
-      className={`flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)] ${className}`}
+      className={`flex w-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)] ${className}`}
     >
       <div className={`${MARKET_COVER_ASPECT_CLASS} w-full shrink-0 animate-pulse bg-[var(--border)]/50`} />
       <div className="flex flex-col px-3 py-2.5">

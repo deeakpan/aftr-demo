@@ -630,7 +630,7 @@ export function TradesClient() {
         )}
 
         {!isLoading && groups.length > 0 && (
-          <div className="mt-5 grid w-full max-w-7xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-5 grid w-full max-w-7xl grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {groups.map((g) => {
               const winIdx = g.winningOutcomeIndex;
               const winBal =
@@ -646,7 +646,7 @@ export function TradesClient() {
               return (
                 <article
                   key={g.marketAddress}
-                  className="flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)] transition duration-200 hover:-translate-y-1 hover:border-[var(--accent)] hover:shadow-[0_16px_40px_rgb(139_92_246_/_0.28)] [html[data-theme=light]_&]:hover:shadow-[0_16px_40px_rgb(124_77_255_/_0.14)]"
+                  className="flex w-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)] transition duration-200 hover:-translate-y-1 hover:border-[var(--accent)] hover:shadow-[0_16px_40px_rgb(139_92_246_/_0.28)] [html[data-theme=light]_&]:hover:shadow-[0_16px_40px_rgb(124_77_255_/_0.14)]"
                 >
                   <div className={`${MARKET_COVER_ASPECT_CLASS} w-full overflow-hidden bg-[var(--surface)]`}>
                     {g.imageUrl ? (

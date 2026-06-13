@@ -579,7 +579,7 @@ export function MarketClient() {
           <h1 className={`text-xl tracking-tight md:text-2xl ${brandPageTitle}`}>Markets</h1>
         </div>
         {isLoading && (
-          <div className="mt-5 grid w-full max-w-7xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-5 grid w-full max-w-7xl grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }, (_, i) => (
               <MarketListCardSkeleton key={i} />
             ))}
@@ -596,7 +596,7 @@ export function MarketClient() {
           </div>
         )}
         {!isLoading && visibleMarkets.length > 0 && (
-          <div className="mt-5 grid w-full max-w-7xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-5 grid w-full max-w-7xl grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {visibleMarkets.map((m) => (
               <MarketListCard
                 key={m.address}
