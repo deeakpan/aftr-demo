@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CaretDown } from "@phosphor-icons/react";
+import { ArrowLeft, CaretDown, Plus, Trash } from "@phosphor-icons/react";
 import {
   BaseError,
   decodeErrorResult,
@@ -28,6 +28,10 @@ import { brandPageTitle, brandSectionLabel } from "@/lib/brand-font";
 import { formatMarketCardDate, MARKET_COVER_RATIO_LABEL } from "@/lib/market-cover";
 import { MON_COINGECKO_LOGO } from "@/lib/brand-assets";
 import { priceAssetKey } from "@/lib/price-asset-key";
+import {
+  isValidSourceUrl,
+  sanitizeResolutionSourcesForMetadata,
+} from "@/lib/market-resolution-sources";
 
 const fieldClass =
   "mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)]";
@@ -317,6 +321,7 @@ export function CreateClient() {
   const [eventMode, setEventMode] = useState<"binary" | "multiple">("binary");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [resolutionSources, setResolutionSources] = useState([{ label: "", url: "" }]);
   const [outcomes, setOutcomes] = useState(["Yes", "No"]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [feeds, setFeeds] = useState<Feed[]>([]);
@@ -1039,6 +1044,8 @@ export function CreateClient() {
             }
           : null,
       resolution: marketKind === "event" ? "community-3-of-10-admins" : null,
+      resolutionSources:
+        marketKind === "event" ? sanitizeResolutionSourcesForMetadata(resolutionSources) : [],
     };
     const fd = new FormData();
     fd.append("kind", "json");
@@ -1054,6 +1061,12 @@ export function CreateClient() {
     const errors: string[] = [];
     if (marketKind === "event" && !title.trim()) errors.push("Title is required.");
     if (!description.trim()) errors.push("Description is required.");
+    if (marketKind === "event") {
+      const validSources = sanitizeResolutionSourcesForMetadata(resolutionSources);
+      if (validSources.length === 0) {
+        errors.push("Add at least one resolution source URL (https://…) for event markets.");
+      }
+    }
     const filledOutcomes = outcomes.map((o) => o.trim()).filter(Boolean);
     if (filledOutcomes.length < 2) errors.push("At least 2 outcome labels are required.");
     if (outcomes.some((o) => !o.trim())) errors.push("All outcome labels must be filled in.");
@@ -1218,6 +1231,72 @@ export function CreateClient() {
               placeholder="Add a clear resolution description"
             />
           </section>
+
+          {marketKind === "event" && (
+            <section className="py-8">
+              <label className={labelClass}>Resolution sources</label>
+              <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
+                Public links where the official result will be published — admins use these when
+                signing the outcome.
+              </p>
+              <div className="mt-3 space-y-3">
+                {resolutionSources.map((source, idx) => (
+                  <div
+                    key={idx}
+                    className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:flex-row sm:items-center"
+                  >
+                    <input
+                      className="w-full min-w-0 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] sm:max-w-[11rem]"
+                      placeholder="Label (optional)"
+                      value={source.label}
+                      onChange={(e) => {
+                        const next = [...resolutionSources];
+                        next[idx] = { ...next[idx]!, label: e.target.value };
+                        setResolutionSources(next);
+                      }}
+                    />
+                    <input
+                      className="w-full min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
+                      placeholder="https://official-results.example.com/…"
+                      value={source.url}
+                      onChange={(e) => {
+                        const next = [...resolutionSources];
+                        next[idx] = { ...next[idx]!, url: e.target.value };
+                        setResolutionSources(next);
+                      }}
+                    />
+                    {resolutionSources.length > 1 && (
+                      <button
+                        type="button"
+                        aria-label="Remove source"
+                        onClick={() =>
+                          setResolutionSources((prev) => prev.filter((_, i) => i !== idx))
+                        }
+                        className="flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-lg text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--outcome-no)] sm:self-center"
+                      >
+                        <Trash size={16} weight="bold" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setResolutionSources((prev) => [...prev, { label: "", url: "" }])
+                  }
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--accent)] transition hover:underline"
+                >
+                  <Plus size={14} weight="bold" />
+                  Add source
+                </button>
+              </div>
+              {resolutionSources.some((s) => s.url.trim() && !isValidSourceUrl(s.url)) && (
+                <p className="mt-2 text-xs text-[var(--outcome-no)]">
+                  Each source must be a valid http or https URL.
+                </p>
+              )}
+            </section>
+          )}
 
           {marketKind === "event" && (
             <section className="py-8">

@@ -18,6 +18,8 @@ export type IpfsMarketMetadata = {
   outcomes?: string[];
   slug?: string;
   categories?: string[];
+  /** Public URLs admins should use when resolving event markets. */
+  resolutionSources?: Array<{ label?: string; url: string } | string>;
 };
 
 export function ipfsToHttp(uri: string): string {
