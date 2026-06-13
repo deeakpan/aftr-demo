@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { formatUnits } from "viem";
 import { MarketTradeVolumeChart } from "@/app/market/components/market-trade-volume-chart";
-import { MultiOutcomePicker } from "@/app/market/components/multi-outcome-picker";
+import { outcomeColor } from "@/app/market/lib/outcome-colors";
 
 export type OutcomeOrderBookSnapshot = {
   bidPrices: bigint[];
@@ -24,6 +24,11 @@ type MultiOutcomeMarketSectionProps = {
   obSnapshot: OutcomeOrderBookSnapshot | null;
 };
 
+function clampPct(v: number) {
+  if (!Number.isFinite(v)) return 0;
+  return Math.max(0, Math.min(100, v));
+}
+
 function OutcomeOrderBook({
   snapshot,
   collateralDecimals,
@@ -32,7 +37,7 @@ function OutcomeOrderBook({
   collateralDecimals: number;
 }) {
   if (!snapshot || (snapshot.bidPrices.length === 0 && snapshot.askPrices.length === 0)) {
-    return <p className="py-6 text-sm text-[var(--muted)]">No open orders for this outcome yet.</p>;
+    return <p className="py-4 text-sm text-[var(--muted)]">No open orders for this outcome yet.</p>;
   }
 
   return (
@@ -87,6 +92,73 @@ function OutcomeOrderBook({
   );
 }
 
+function OutcomeExpandPanel({
+  tab,
+  setTab,
+  tradingOpen,
+  marketAddress,
+  collateralDecimals,
+  collateralTicker,
+  outcomeLabels,
+  outcomeIndex,
+  obSnapshot,
+}: {
+  tab: "activity" | "orderbook";
+  setTab: (tab: "activity" | "orderbook") => void;
+  tradingOpen: boolean;
+  marketAddress: string;
+  collateralDecimals: number;
+  collateralTicker: string;
+  outcomeLabels: string[];
+  outcomeIndex: number;
+  obSnapshot: OutcomeOrderBookSnapshot | null;
+}) {
+  return (
+    <div className="border-t border-[var(--border)] bg-[var(--surface)]/40 px-1 pb-4 pt-3">
+      <div className="mb-3 flex gap-5 text-[11px] font-medium uppercase tracking-wider">
+        <button
+          type="button"
+          onClick={() => setTab("activity")}
+          className={`transition ${
+            tab === "activity"
+              ? "text-[var(--foreground)]"
+              : "text-[var(--muted)] hover:text-[var(--foreground)]"
+          }`}
+        >
+          Activity
+        </button>
+        {tradingOpen && (
+          <button
+            type="button"
+            onClick={() => setTab("orderbook")}
+            className={`transition ${
+              tab === "orderbook"
+                ? "text-[var(--foreground)]"
+                : "text-[var(--muted)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            Order book
+          </button>
+        )}
+      </div>
+
+      {tab === "activity" ? (
+        <MarketTradeVolumeChart
+          marketAddress={marketAddress}
+          collateralDecimals={collateralDecimals}
+          collateralTicker={collateralTicker}
+          outcomeLabels={outcomeLabels}
+          highlightOutcomeIndex={outcomeIndex}
+          hideLegend
+          height={280}
+        />
+      ) : (
+        <OutcomeOrderBook snapshot={obSnapshot} collateralDecimals={collateralDecimals} />
+      )}
+    </div>
+  );
+}
+
 export function MultiOutcomeMarketSection({
   labels,
   chancePcts,
@@ -98,62 +170,76 @@ export function MultiOutcomeMarketSection({
   marketState,
   obSnapshot,
 }: MultiOutcomeMarketSectionProps) {
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [tab, setTab] = useState<"activity" | "orderbook">("activity");
   const tradingOpen = marketState === 0;
-  const selectedLabel = labels[selectedIndex] ?? `Outcome ${selectedIndex + 1}`;
+
+  const pcts = labels.map((_, i) =>
+    clampPct(chancePcts[i] ?? (i === 0 ? 50 : Math.round(50 / Math.max(1, labels.length - 1)))),
+  );
+
+  function handleRowClick(index: number) {
+    onSelect(index);
+    if (expandedIndex === index) {
+      setExpandedIndex(null);
+      return;
+    }
+    setExpandedIndex(index);
+    setTab("activity");
+  }
 
   return (
     <div className="mb-6">
-      <MultiOutcomePicker
-        labels={labels}
-        chancePcts={chancePcts}
-        selectedIndex={selectedIndex}
-        onSelect={onSelect}
-      />
+      <div className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
+        {labels.map((label, i) => {
+          const active = selectedIndex === i;
+          const expanded = expandedIndex === i;
+          const dot = outcomeColor(i);
 
-      <div className="mt-5 border-t border-[var(--border)] pt-4">
-        <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px] font-medium uppercase tracking-wider">
-          <button
-            type="button"
-            onClick={() => setTab("activity")}
-            className={`transition ${
-              tab === "activity"
-                ? "text-[var(--foreground)]"
-                : "text-[var(--muted)] hover:text-[var(--foreground)]"
-            }`}
-          >
-            Activity
-          </button>
-          {tradingOpen && (
-            <button
-              type="button"
-              onClick={() => setTab("orderbook")}
-              className={`transition ${
-                tab === "orderbook"
-                  ? "text-[var(--foreground)]"
-                  : "text-[var(--muted)] hover:text-[var(--foreground)]"
-              }`}
-            >
-              Order book
-            </button>
-          )}
-          <span className="ml-auto text-[10px] normal-case tracking-normal text-[var(--muted)]">
-            {selectedLabel}
-          </span>
-        </div>
+          return (
+            <div key={`${label}-${i}`}>
+              <button
+                type="button"
+                onClick={() => handleRowClick(i)}
+                className={`flex w-full items-center gap-3 px-0 py-3.5 text-left transition ${
+                  active || expanded
+                    ? "bg-[var(--surface-hover)]/60"
+                    : "hover:bg-[var(--surface-hover)]/35"
+                }`}
+              >
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-[var(--background)]"
+                  style={{ backgroundColor: dot }}
+                  aria-hidden
+                />
+                <span
+                  className={`min-w-0 flex-1 truncate text-sm font-semibold ${
+                    active ? "text-[var(--foreground)]" : "text-[var(--foreground)]/90"
+                  }`}
+                >
+                  {label}
+                </span>
+                <span className="shrink-0 text-lg font-bold tabular-nums tracking-tight text-[var(--foreground)]">
+                  {pcts[i]!.toFixed(0)}%
+                </span>
+              </button>
 
-        {tab === "activity" ? (
-          <MarketTradeVolumeChart
-            marketAddress={marketAddress}
-            collateralDecimals={collateralDecimals}
-            collateralTicker={collateralTicker}
-            outcomeLabels={labels}
-            highlightOutcomeIndex={selectedIndex}
-            height={320}
-          />
-        ) : (
-          <OutcomeOrderBook snapshot={obSnapshot} collateralDecimals={collateralDecimals} />
-        )}
+              {expanded && (
+                <OutcomeExpandPanel
+                  tab={tab}
+                  setTab={setTab}
+                  tradingOpen={tradingOpen}
+                  marketAddress={marketAddress}
+                  collateralDecimals={collateralDecimals}
+                  collateralTicker={collateralTicker}
+                  outcomeLabels={labels}
+                  outcomeIndex={i}
+                  obSnapshot={selectedIndex === i ? obSnapshot : null}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

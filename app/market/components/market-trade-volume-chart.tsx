@@ -20,6 +20,8 @@ type Props = {
   height?: number;
   /** Emphasize one outcome line when viewing multi-outcome detail. */
   highlightOutcomeIndex?: number;
+  /** Hide the multi-outcome legend (e.g. inline accordion already shows the label). */
+  hideLegend?: boolean;
 };
 
 type SeriesPoint = { t: number; pct: number };
@@ -134,6 +136,7 @@ export function MarketTradeVolumeChart({
   outcomeLabels,
   height = 340,
   highlightOutcomeIndex,
+  hideLegend = false,
 }: Props) {
   const [trades, setTrades] = useState<MarketTradePoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -234,31 +237,34 @@ export function MarketTradeVolumeChart({
     highlightOutcomeIndex >= 0 &&
     highlightOutcomeIndex < series.length;
 
+  const chartAreaHeight = hideLegend ? height : height - 40;
+
   return (
     <div className="relative z-0 w-full select-none" style={{ minHeight: height }}>
-      {/* Legend — inline, no box */}
-      <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1.5">
-        {series.map((s) => {
-          const dimmed = emphasizeOne && s.index !== highlightOutcomeIndex;
-          return (
-          <div
-            key={s.index}
-            className={`flex items-center gap-2 text-sm transition-opacity ${dimmed ? "opacity-40" : ""}`}
-          >
-            <span
-              className="h-2 w-2 shrink-0 rounded-full"
-              style={{ backgroundColor: s.color }}
-            />
-            <span className="text-[var(--foreground)]/90">{s.label}</span>
-            <span className="tabular-nums text-[var(--muted)]">
-              {s.currentPct.toFixed(0)}%
-            </span>
-          </div>
-          );
-        })}
-      </div>
+      {!hideLegend && (
+        <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1.5">
+          {series.map((s) => {
+            const dimmed = emphasizeOne && s.index !== highlightOutcomeIndex;
+            return (
+              <div
+                key={s.index}
+                className={`flex items-center gap-2 text-sm transition-opacity ${dimmed ? "opacity-40" : ""}`}
+              >
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: s.color }}
+                />
+                <span className="text-[var(--foreground)]/90">{s.label}</span>
+                <span className="tabular-nums text-[var(--muted)]">
+                  {s.currentPct.toFixed(0)}%
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-      <div className="relative w-full" style={{ height: height - 40 }}>
+      <div className="relative w-full" style={{ height: chartAreaHeight }}>
         {loading && (
           <div className="flex h-full items-center justify-center text-sm text-[var(--muted)]">
             Loading…
