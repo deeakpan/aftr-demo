@@ -42,25 +42,35 @@ export function BinaryProbabilityPipe({ yesPct, noPct }: { yesPct: number; noPct
   const noFlex = Math.max(no, 4);
 
   return (
-    <div className="flex items-center gap-2.5">
-      <span className="w-9 shrink-0 text-right text-sm font-bold tabular-nums text-[var(--outcome-yes)]">
+    <div className="flex items-center gap-2">
+      <span className="w-8 shrink-0 text-right text-xs font-bold tabular-nums text-[var(--outcome-yes)]">
         {Math.round(yes)}%
       </span>
-      <div className="flex h-8 min-w-0 flex-1 items-stretch gap-1 rounded-full border border-[var(--border)] bg-[var(--surface)] p-1">
+      <div className="flex h-[0.625rem] min-w-0 flex-1 items-stretch gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface)] p-px">
         <div
-          className="min-w-[6px] rounded-full bg-[var(--outcome-yes)] transition-all duration-300"
+          className="min-w-[4px] rounded-full bg-[var(--outcome-yes)] transition-all duration-300"
           style={{ flex: yesFlex }}
         />
         <div
-          className="min-w-[6px] rounded-full bg-[var(--outcome-no)] transition-all duration-300"
+          className="min-w-[4px] rounded-full bg-[var(--outcome-no)] transition-all duration-300"
           style={{ flex: noFlex }}
         />
       </div>
-      <span className="w-9 shrink-0 text-sm font-bold tabular-nums text-[var(--outcome-no)]">
+      <span className="w-8 shrink-0 text-xs font-bold tabular-nums text-[var(--outcome-no)]">
         {Math.round(no)}%
       </span>
     </div>
   );
+}
+
+/** Shared binary outcome pill — rounded rect, matches trade panel on market detail. */
+export function binaryOutcomePillClass(active: boolean, isNo: boolean) {
+  if (active) {
+    return isNo
+      ? "bg-[var(--outcome-no)] text-white hover:bg-[var(--outcome-no-hover)]"
+      : "bg-[var(--outcome-yes)] text-white hover:bg-[var(--outcome-yes-hover)]";
+  }
+  return "bg-[var(--surface)] text-[var(--muted)] ring-1 ring-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]";
 }
 
 export function MarketListCard({
@@ -130,17 +140,13 @@ export function MarketListCard({
         )}
 
         {isBinary ? (
-          <div className="mt-4 flex flex-1 flex-col justify-between gap-5">
+          <div className="mt-4 flex flex-1 flex-col justify-between gap-3">
             <BinaryProbabilityPipe yesPct={pcts[0] ?? 50} noPct={pcts[1] ?? 50} />
 
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
               {displayLabels.map((label, idx) => {
                 const isNo = idx === 1;
-                const btnClass = `rounded-full py-3.5 text-center text-sm font-bold transition ${
-                  isNo
-                    ? "bg-[var(--outcome-no)] text-white hover:bg-[var(--outcome-no-hover)]"
-                    : "bg-[var(--outcome-yes)] text-white hover:bg-[var(--outcome-yes-hover)]"
-                }`;
+                const btnClass = `flex items-center justify-center rounded-xl py-2.5 text-center text-sm font-bold transition ${binaryOutcomePillClass(true, isNo)}`;
 
                 if (onTrade && interactive) {
                   return (

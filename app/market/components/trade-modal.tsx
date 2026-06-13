@@ -5,7 +5,7 @@ import { ArrowsClockwise, CaretDown, CheckCircle, Gear, WarningCircle, X } from 
 import { formatUnits } from "viem";
 import { txExplorerUrl } from "@/lib/chain";
 import { isUsdStyledCollateralTicker } from "@/lib/deployment-collateral";
-import { BinaryProbabilityPipe } from "@/app/market/components/market-list-card";
+import { BinaryProbabilityPipe, binaryOutcomePillClass } from "@/app/market/components/market-list-card";
 
 export type LimitOrderParams = {
   side: "buy" | "sell";
@@ -400,9 +400,9 @@ export function TradeModal({
       <p className="mt-0.5 truncate text-sm font-semibold text-[var(--foreground)]">{selectedLabel}</p>
     </div>
   ) : isBinary ? (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <BinaryProbabilityPipe yesPct={binaryPcts[0]!} noPct={binaryPcts[1]!} />
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-2 gap-2">
         {labels.slice(0, 2).map((label, idx) => {
           const active = idx === selectedOutcomeIndex;
           const isSecond = idx === 1;
@@ -411,13 +411,7 @@ export function TradeModal({
               key={`${label}-${idx}`}
               type="button"
               onClick={() => onSelectOutcome(idx)}
-              className={`rounded-full py-3.5 text-center text-sm font-bold transition ${
-                active
-                  ? isSecond
-                    ? "bg-[var(--outcome-no)] text-white hover:bg-[var(--outcome-no-hover)]"
-                    : "bg-[var(--outcome-yes)] text-white hover:bg-[var(--outcome-yes-hover)]"
-                  : "bg-[var(--surface)] text-[var(--muted)] ring-1 ring-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-              }`}
+              className={`flex items-center justify-center rounded-xl py-2.5 text-center text-sm font-bold transition ${binaryOutcomePillClass(active, isSecond)}`}
             >
               {label}
             </button>

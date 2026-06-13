@@ -9,7 +9,7 @@ import { AppLayout } from "@/app/components/app-layout";
 import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
 import { collateralTickerFromDeployment } from "@/lib/deployment-collateral";
 import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
-import { BinaryProbabilityPipe } from "@/app/market/components/market-list-card";
+import { BinaryProbabilityPipe, binaryOutcomePillClass } from "@/app/market/components/market-list-card";
 
 const MARKET_ABI = parseAbi([
   "function marketKind() view returns (uint8)",
@@ -89,7 +89,32 @@ function formatShareAmount(raw: bigint, decimals: number): string {
   const s = formatUnits(raw, decimals);
   const n = Number(s);
   if (!Number.isFinite(n)) return `${s} shares`;
-  return `${n.toLocaleString(undefined, { maximumFractionDigits: 6 })} shares`;
+  return `${formatCompactCount(n)} shares`;
+}
+
+/** Compact display for share counts: 1k, 1.2k, 10k, 20k, etc. */
+function formatCompactCount(n: number): string {
+  if (!Number.isFinite(n)) return "0";
+  if (n >= 1_000_000) {
+    const v = n / 1_000_000;
+    return v >= 10 ? `${Math.round(v)}M` : `${trimTrailingZero(v.toFixed(1))}M`;
+  }
+  if (n >= 1_000) {
+    const v = n / 1_000;
+    return v >= 10 ? `${Math.round(v)}k` : `${trimTrailingZero(v.toFixed(1))}k`;
+  }
+  if (n >= 100) return Math.round(n).toLocaleString();
+  return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function trimTrailingZero(s: string) {
+  return s.replace(/\.0$/, "");
+}
+
+function formatCompactSharesInline(raw: bigint, decimals: number): string | null {
+  const n = Number(formatUnits(raw, decimals));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return formatCompactCount(n);
 }
 
 function fmtTs(seconds: number) {
@@ -204,30 +229,25 @@ function OpenPositionHoldings({
 
   if (isBinary) {
     return (
-      <div className="mt-3 flex min-h-[7.5rem] flex-1 flex-col justify-between gap-4">
+      <div className="mt-3 flex min-h-[6.5rem] flex-1 flex-col justify-between gap-3">
         <BinaryProbabilityPipe yesPct={yesPct} noPct={noPct} />
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-2">
           {labels.slice(0, 2).map((label, idx) => {
             const bal = balanceForOutcome(positions, idx);
             const isNo = idx === 1;
             const hasShares = bal > BigInt(0);
+            const shareLabel = formatCompactSharesInline(bal, collateralDecimals);
             return (
               <div
                 key={`${label}-${idx}`}
-                className={`rounded-2xl px-2 py-3.5 text-center ${
-                  isNo
-                    ? "bg-[var(--outcome-no)]/12 ring-1 ring-[var(--outcome-no)]/25"
-                    : "bg-[var(--outcome-yes)]/12 ring-1 ring-[var(--outcome-yes)]/25"
-                }`}
+                className={`flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-sm font-bold ${binaryOutcomePillClass(hasShares, isNo)}`}
               >
-                <p className="truncate text-xs font-bold text-[var(--foreground)]">{label}</p>
-                <p
-                  className={`mt-1 text-[11px] font-semibold tabular-nums ${
-                    hasShares ? "text-[var(--foreground)]" : "text-[var(--muted)]"
-                  }`}
-                >
-                  {hasShares ? formatShareAmount(bal, collateralDecimals) : "No shares"}
-                </p>
+                <span className="truncate">{label}</span>
+                {shareLabel && (
+                  <span className="shrink-0 text-xs font-semibold tabular-nums opacity-90">
+                    {shareLabel}
+                  </span>
+                )}
               </div>
             );
           })}
