@@ -15,7 +15,7 @@ import { useAccount, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import { useSidebarOpen } from "@/app/components/sidebar-context";
 import { MarketChartPanel } from "@/app/market/components/market-chart-panel";
-import { MultiOutcomePicker } from "@/app/market/components/multi-outcome-picker";
+import { MultiOutcomeMarketSection } from "@/app/market/components/multi-outcome-market-section";
 import { LimitOrderParams, TradeModal, type TradeSuccessResult } from "@/app/market/components/trade-modal";
 import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import { collateralTickerFromDeployment, isUsdStyledCollateralTicker } from "@/lib/deployment-collateral";
@@ -812,7 +812,7 @@ export function MarketDetailClient({
             )}
 
             {market.outcomes > 2 ? (
-              <MultiOutcomePicker
+              <MultiOutcomeMarketSection
                 labels={market.outcomeLabels}
                 chancePcts={market.outcomeChancePcts ?? []}
                 selectedIndex={selectedOutcome}
@@ -824,6 +824,11 @@ export function MarketDetailClient({
                     setTradeSuccess(null);
                   }
                 }}
+                marketAddress={market.address}
+                collateralDecimals={market.collateralDecimals}
+                collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
+                marketState={market.marketState}
+                obSnapshot={obSnapshot}
               />
             ) : (
               <MarketChartPanel
@@ -837,16 +842,15 @@ export function MarketDetailClient({
               />
             )}
 
-            {/* Order book */}
-            {market.marketState === 0 && outcomeTokens[selectedOutcome] && (
+            {/* Order book — binary markets only (multi uses tabbed panel above) */}
+            {market.marketState === 0 && outcomeTokens[selectedOutcome] && market.outcomes === 2 && (
               <div className="mt-8">
-                <div className="mb-3 border-t border-[var(--border)] pt-5 flex items-center justify-between">
+                <div className="mb-3 flex items-center justify-between border-t border-[var(--border)] pt-5">
                   <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">
                     Order Book · {market.outcomeLabels[selectedOutcome] ?? `Outcome ${selectedOutcome}`}
                   </p>
                   <div className="flex max-w-[55%] flex-wrap justify-end gap-1">
-                    {(market.outcomes > 2 ? market.outcomeLabels : market.outcomeLabels.slice(0, 2)).map(
-                      (label, i) => {
+                    {market.outcomeLabels.slice(0, 2).map((label, i) => {
                         const active = selectedOutcome === i;
                         return (
                           <button
@@ -862,8 +866,7 @@ export function MarketDetailClient({
                             {label}
                           </button>
                         );
-                      },
-                    )}
+                    })}
                   </div>
                 </div>
                 {obSnapshot && (obSnapshot.bidPrices.length > 0 || obSnapshot.askPrices.length > 0) ? (

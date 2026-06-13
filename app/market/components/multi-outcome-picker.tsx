@@ -1,5 +1,7 @@
 "use client";
 
+import { outcomeColor } from "@/app/market/lib/outcome-colors";
+
 type MultiOutcomePickerProps = {
   labels: string[];
   chancePcts: number[];
@@ -23,41 +25,41 @@ export function MultiOutcomePicker({
   );
 
   return (
-    <div className="mb-6">
-      <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">
-        Outcomes
-      </p>
-      <div className="flex flex-col gap-2">
+    <div>
+      <div className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
         {labels.map((label, i) => {
           const active = selectedIndex === i;
+          const dot = outcomeColor(i);
           return (
             <button
               key={`${label}-${i}`}
               type="button"
               onClick={() => onSelect(i)}
-              className={`flex min-h-[3rem] w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
+              className={`flex w-full items-center gap-3 px-0 py-3.5 text-left transition ${
                 active
-                  ? "border-[var(--accent)] bg-[var(--accent)]/10 shadow-[0_0_0_1px_var(--accent)]"
-                  : "border-[var(--border)] bg-[var(--card)] hover:border-[var(--accent)]/30 hover:bg-[var(--surface-hover)]"
+                  ? "bg-[var(--surface-hover)]/60"
+                  : "hover:bg-[var(--surface-hover)]/35"
               }`}
             >
               <span
-                className={`min-w-0 flex-1 truncate pr-3 text-sm font-semibold ${
+                className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-[var(--background)]"
+                style={{ backgroundColor: dot }}
+                aria-hidden
+              />
+              <span
+                className={`min-w-0 flex-1 truncate text-sm font-semibold ${
                   active ? "text-[var(--foreground)]" : "text-[var(--foreground)]/90"
                 }`}
               >
                 {label}
               </span>
-              <span className="shrink-0 text-sm font-bold tabular-nums text-[var(--foreground)]">
+              <span className="shrink-0 text-lg font-bold tabular-nums tracking-tight text-[var(--foreground)]">
                 {pcts[i]!.toFixed(0)}%
               </span>
             </button>
           );
         })}
       </div>
-      <p className="mt-2 text-xs text-[var(--muted)]">
-        Tap an outcome to select it for trading.
-      </p>
     </div>
   );
 }

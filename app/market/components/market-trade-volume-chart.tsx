@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatUnits } from "viem";
+import { OUTCOME_COLORS } from "@/app/market/lib/outcome-colors";
 
 export type MarketTradePoint = {
   id: string;
@@ -17,6 +18,8 @@ type Props = {
   collateralTicker?: string;
   outcomeLabels: string[];
   height?: number;
+  /** Emphasize one outcome line when viewing multi-outcome detail. */
+  highlightOutcomeIndex?: number;
 };
 
 type SeriesPoint = { t: number; pct: number };
@@ -30,7 +33,7 @@ type OutcomeSeries = {
 };
 
 /** Polymarket-adjacent palette on dark backgrounds. */
-const OUTCOME_COLORS = ["#7eb6ff", "#e8a54b", "#6ee7b7", "#f472b6", "#c4b5fd", "#fb7185"];
+const OUTCOME_COLORS_CHART = OUTCOME_COLORS;
 
 const VB = { w: 1000, h: 300 };
 const PAD = { top: 12, right: 56, bottom: 36, left: 12 };
@@ -63,7 +66,7 @@ function buildOutcomeSeries(
     return Array.from({ length: n }, (_, i) => ({
       index: i,
       label: outcomeLabels[i] ?? `Outcome ${i + 1}`,
-      color: OUTCOME_COLORS[i % OUTCOME_COLORS.length]!,
+      color: OUTCOME_COLORS_CHART[i % OUTCOME_COLORS_CHART.length]!,
       points: [],
       currentPct: 100 / n,
     }));
@@ -93,7 +96,7 @@ function buildOutcomeSeries(
     return {
       index: i,
       label: outcomeLabels[i] ?? `Outcome ${i + 1}`,
-      color: OUTCOME_COLORS[i % OUTCOME_COLORS.length]!,
+      color: OUTCOME_COLORS_CHART[i % OUTCOME_COLORS_CHART.length]!,
       points,
       currentPct: last,
     };
@@ -130,6 +133,7 @@ export function MarketTradeVolumeChart({
   collateralDecimals,
   outcomeLabels,
   height = 340,
+  highlightOutcomeIndex,
 }: Props) {
   const [trades, setTrades] = useState<MarketTradePoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -225,13 +229,22 @@ export function MarketTradeVolumeChart({
 
   const innerH = VB.h - PAD.top - PAD.bottom;
   const innerW = VB.w - PAD.left - PAD.right;
+  const emphasizeOne =
+    highlightOutcomeIndex !== undefined &&
+    highlightOutcomeIndex >= 0 &&
+    highlightOutcomeIndex < series.length;
 
   return (
     <div className="relative z-0 w-full select-none" style={{ minHeight: height }}>
       {/* Legend — inline, no box */}
       <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1.5">
-        {series.map((s) => (
-          <div key={s.index} className="flex items-center gap-2 text-sm">
+        {series.map((s) => {
+          const dimmed = emphasizeOne && s.index !== highlightOutcomeIndex;
+          return (
+          <div
+            key={s.index}
+            className={`flex items-center gap-2 text-sm transition-opacity ${dimmed ? "opacity-40" : ""}`}
+          >
             <span
               className="h-2 w-2 shrink-0 rounded-full"
               style={{ backgroundColor: s.color }}
@@ -241,7 +254,8 @@ export function MarketTradeVolumeChart({
               {s.currentPct.toFixed(0)}%
             </span>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="relative w-full" style={{ height: height - 40 }}>
@@ -322,28 +336,34 @@ export function MarketTradeVolumeChart({
             })}
 
             {/* Outcome lines */}
-            {series.map((s) => (
+            {series.map((s) => {
+              const highlighted = !emphasizeOne || s.index === highlightOutcomeIndex;
+              return (
               <polyline
                 key={s.index}
                 fill="none"
                 stroke={s.color}
-                strokeWidth={1.75}
+                strokeWidth={highlighted ? 2.25 : 1.25}
+                strokeOpacity={highlighted ? 1 : 0.28}
                 strokeLinejoin="round"
                 strokeLinecap="round"
                 vectorEffect="non-scaling-stroke"
                 points={polylinePoints(s.points, chart.minT, chart.maxT, innerW, innerH)}
               />
-            ))}
+              );
+            })}
 
             {/* End markers + labels */}
             {series.map((s) => {
               const last = s.points[s.points.length - 1];
               if (!last) return null;
+              const highlighted = !emphasizeOne || s.index === highlightOutcomeIndex;
               const x = PAD.left + ((last.t - chart.minT) / chart.span) * innerW;
               const y = PAD.top + innerH * (1 - last.pct / 100);
               return (
-                <g key={`end-${s.index}`}>
-                  <circle cx={x} cy={y} r={3.5} fill={s.color} />
+                <g key={`end-${s.index}`} opacity={highlighted ? 1 : 0.35}>
+                  <circle cx={x} cy={y} r={highlighted ? 4 : 2.5} fill={s.color} />
+                  {highlighted && (
                   <text
                     x={PAD.left + innerW + 8}
                     y={y + 4}
@@ -352,6 +372,7 @@ export function MarketTradeVolumeChart({
                   >
                     {last.pct.toFixed(0)}%
                   </text>
+                  )}
                 </g>
               );
             })}
