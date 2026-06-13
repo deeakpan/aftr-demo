@@ -626,7 +626,6 @@ export function MarketClient() {
                 onTrade={(idx) => openTrade(m, idx)}
                 onRefreshTvl={() => void refreshTvl(m)}
                 tvlRefreshing={Boolean(tvlRefreshing[m.address])}
-                className="transition hover:border-[var(--accent)]/35"
               />
             ))}
           </div>
