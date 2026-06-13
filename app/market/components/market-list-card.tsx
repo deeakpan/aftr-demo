@@ -52,6 +52,15 @@ export const MARKET_CARD_META_CLASS =
 export const MARKET_CARD_OUTCOMES_BOX =
   "flex h-[6rem] min-h-[6rem] max-h-[6rem] flex-col overflow-hidden";
 
+export const MARKET_CARD_MULTI_ROW_CLASS =
+  "flex min-h-[2rem] w-full items-center gap-2 rounded-lg px-1 py-0.5";
+
+export const MARKET_CARD_MULTI_LABEL_CLASS =
+  "min-w-0 flex-1 truncate text-[12px] font-medium text-[var(--foreground)]";
+
+export const MARKET_CARD_MULTI_PCT_CLASS =
+  "shrink-0 text-[12px] font-bold tabular-nums text-[var(--foreground)]";
+
 export const MARKET_CARD_GRID_CLASS =
   "mt-5 grid w-full max-w-7xl grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3";
 
@@ -206,17 +215,13 @@ export function MarketListCard({
             </div>
           </div>
         ) : (
-          <div className={`${MARKET_CARD_OUTCOMES_BOX} no-scrollbar gap-0 overflow-y-auto`}>
+          <div className={`${MARKET_CARD_OUTCOMES_BOX} no-scrollbar gap-0.5 overflow-y-auto`}>
             {displayLabels.map((label, idx) => {
               const pct = pcts[idx] ?? 0;
               const rowContent = (
                 <>
-                  <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-[var(--foreground)]">
-                    {label}
-                  </span>
-                  <span className="shrink-0 text-[11px] font-bold tabular-nums text-[var(--foreground)]">
-                    {pct.toFixed(0)}%
-                  </span>
+                  <span className={MARKET_CARD_MULTI_LABEL_CLASS}>{label}</span>
+                  <span className={MARKET_CARD_MULTI_PCT_CLASS}>{pct.toFixed(0)}%</span>
                 </>
               );
 
@@ -229,7 +234,7 @@ export function MarketListCard({
                       e.stopPropagation();
                       onTrade(idx);
                     }}
-                    className="flex min-h-[1.375rem] w-full items-center gap-2 rounded-md px-0.5 py-0 text-left transition hover:bg-[var(--surface-hover)]"
+                    className={`${MARKET_CARD_MULTI_ROW_CLASS} text-left transition hover:bg-[var(--surface-hover)]`}
                   >
                     {rowContent}
                   </button>
@@ -237,10 +242,7 @@ export function MarketListCard({
               }
 
               return (
-                <div
-                  key={`${label}-${idx}`}
-                  className="flex min-h-[1.375rem] items-center gap-2 rounded-md px-0.5 py-0"
-                >
+                <div key={`${label}-${idx}`} className={MARKET_CARD_MULTI_ROW_CLASS}>
                   {rowContent}
                 </div>
               );

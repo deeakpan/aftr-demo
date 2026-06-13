@@ -15,6 +15,9 @@ import {
   MARKET_CARD_BODY_CLASS,
   MARKET_CARD_GRID_CLASS,
   MARKET_CARD_META_CLASS,
+  MARKET_CARD_MULTI_LABEL_CLASS,
+  MARKET_CARD_MULTI_PCT_CLASS,
+  MARKET_CARD_MULTI_ROW_CLASS,
   MARKET_CARD_OUTCOMES_BOX,
   MARKET_CARD_SHELL_CLASS,
   MARKET_CARD_TITLE_CLASS,
@@ -283,14 +286,14 @@ function OpenPositionHoldings({
   }
 
   return (
-    <div className={`${MARKET_CARD_OUTCOMES_BOX} no-scrollbar gap-0 overflow-y-auto`}>
+    <div className={`${MARKET_CARD_OUTCOMES_BOX} no-scrollbar gap-0.5 overflow-y-auto`}>
       {held.map((h, i) => (
         <div
           key={`${h.label}-${i}`}
-          className="flex min-h-[1.375rem] items-center justify-between gap-2 rounded-md px-0.5 py-0 transition hover:bg-[var(--surface-hover)]"
+          className={`${MARKET_CARD_MULTI_ROW_CLASS} justify-between transition hover:bg-[var(--surface-hover)]`}
         >
-          <span className="min-w-0 truncate text-[11px] font-medium text-[var(--foreground)]">{h.label}</span>
-          <span className="shrink-0 text-[10px] font-medium tabular-nums text-[var(--muted)]">
+          <span className={MARKET_CARD_MULTI_LABEL_CLASS}>{h.label}</span>
+          <span className="shrink-0 text-[12px] font-medium tabular-nums text-[var(--muted)]">
             {formatShareAmount(h.bal, collateralDecimals)}
           </span>
         </div>
