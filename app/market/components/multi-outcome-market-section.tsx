@@ -114,7 +114,7 @@ function OutcomeExpandPanel({
   obSnapshot: OutcomeOrderBookSnapshot | null;
 }) {
   return (
-    <div className="border-t border-[var(--border)] bg-[var(--surface)]/40 px-1 pb-4 pt-3">
+    <div className="bg-[var(--surface)]/40 px-3 pb-4 pt-3">
       <div className="mb-3 flex gap-5 text-[11px] font-medium uppercase tracking-wider">
         <button
           type="button"
@@ -190,21 +190,21 @@ export function MultiOutcomeMarketSection({
 
   return (
     <div className="mb-6">
-      <div className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
+      <div className="flex flex-col">
         {labels.map((label, i) => {
           const active = selectedIndex === i;
           const expanded = expandedIndex === i;
           const dot = outcomeColor(i);
 
           return (
-            <div key={`${label}-${i}`}>
+            <div key={`${label}-${i}`} className="border-b border-[var(--border)] py-0.5 last:border-b-0">
               <button
                 type="button"
                 onClick={() => handleRowClick(i)}
-                className={`flex w-full items-center gap-3 px-0 py-3.5 text-left transition ${
-                  active || expanded
-                    ? "bg-[var(--surface-hover)]/60"
-                    : "hover:bg-[var(--surface-hover)]/35"
+                className={`flex w-full items-center gap-3 px-3 py-3.5 text-left transition ${
+                  expanded
+                    ? "rounded-xl border border-[var(--accent)] bg-[var(--surface-hover)]/40"
+                    : "rounded-lg border border-transparent hover:bg-[var(--surface-hover)]/35"
                 }`}
               >
                 <span
