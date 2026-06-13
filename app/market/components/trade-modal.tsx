@@ -400,7 +400,7 @@ export function TradeModal({
       <p className="mt-0.5 truncate text-sm font-semibold text-[var(--foreground)]">{selectedLabel}</p>
     </div>
   ) : isBinary ? (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       <BinaryProbabilityPipe yesPct={binaryPcts[0]!} noPct={binaryPcts[1]!} />
       <div className="grid grid-cols-2 gap-2">
         {labels.slice(0, 2).map((label, idx) => {
@@ -411,7 +411,7 @@ export function TradeModal({
               key={`${label}-${idx}`}
               type="button"
               onClick={() => onSelectOutcome(idx)}
-              className={`flex items-center justify-center rounded-xl py-2.5 text-center text-sm font-bold transition ${binaryOutcomePillClass(active, isSecond)}`}
+              className={`flex items-center justify-center rounded-xl py-2 text-center text-sm font-bold transition ${binaryOutcomePillClass(active, isSecond)}`}
             >
               {label}
             </button>

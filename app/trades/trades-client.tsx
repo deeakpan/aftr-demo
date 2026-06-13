@@ -217,11 +217,13 @@ function OpenPositionHoldings({
   positions,
   collateralDecimals,
   outcomeChancePcts,
+  tradingClosed,
 }: {
   labels: string[];
   positions: MarketPositionGroup["positions"];
   collateralDecimals: number;
   outcomeChancePcts: number[];
+  tradingClosed: boolean;
 }) {
   const isBinary = labels.length === 2;
   const yesPct = clampPct(outcomeChancePcts[0] ?? 50);
@@ -229,7 +231,7 @@ function OpenPositionHoldings({
 
   if (isBinary) {
     return (
-      <div className="mt-3 flex min-h-[6.5rem] flex-1 flex-col justify-between gap-3">
+      <div className="mt-2 flex flex-col gap-2">
         <BinaryProbabilityPipe yesPct={yesPct} noPct={noPct} />
         <div className="grid grid-cols-2 gap-2">
           {labels.slice(0, 2).map((label, idx) => {
@@ -240,7 +242,7 @@ function OpenPositionHoldings({
             return (
               <div
                 key={`${label}-${idx}`}
-                className={`flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-sm font-bold ${binaryOutcomePillClass(hasShares, isNo)}`}
+                className={`flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-sm font-bold ${binaryOutcomePillClass(hasShares, isNo, tradingClosed)}`}
               >
                 <span className="truncate">{label}</span>
                 {shareLabel && (
@@ -638,6 +640,8 @@ export function TradesClient() {
                 Number(formatUnits(v, g.collateralDecimals)).toLocaleString(undefined, {
                   maximumFractionDigits: 6,
                 });
+              const tradingClosed =
+                g.marketState !== 0 || Math.floor(Date.now() / 1000) >= g.stakeEndUnix;
 
               return (
                 <article
@@ -658,18 +662,18 @@ export function TradesClient() {
                     )}
                   </div>
 
-                  <div className="flex min-h-[10.5rem] flex-1 flex-col px-3 pb-3 pt-3">
+                  <div className="flex flex-col px-3 pb-2 pt-2.5">
                     <p
                       className="line-clamp-2 cursor-pointer text-[13px] font-semibold leading-snug text-[var(--foreground)] underline-offset-2 hover:underline md:text-[15px]"
                       onClick={() => router.push(`/market/${g.marketAddress}`)}
                     >
                       {g.marketTitle}
                     </p>
-                    <p className="mt-1 shrink-0 text-[11px] text-[var(--muted)]">
+                    <p className="mt-0.5 text-[11px] text-[var(--muted)]">
                       {g.marketKind} · {stateLabel(g.marketState, g.stakeEndUnix)}
                     </p>
 
-                    <div className="flex min-h-0 flex-1 flex-col">
+                    <div>
                       {g.marketState === 2 ? (
                         winIdx !== null && winBal > BigInt(0) ? (
                           <div className="mt-2" onClick={(e) => e.stopPropagation()}>
@@ -705,12 +709,13 @@ export function TradesClient() {
                           positions={g.positions}
                           collateralDecimals={g.collateralDecimals}
                           outcomeChancePcts={g.outcomeChancePcts}
+                          tradingClosed={tradingClosed}
                         />
                       )}
                     </div>
                   </div>
 
-                  <div className="mt-auto flex shrink-0 items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[11px] text-[var(--muted)]">
+                  <div className="flex shrink-0 items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] text-[var(--muted)]">
                     <Tip label="Total Value Locked">
                       <div className="inline-flex items-center gap-1.5 font-semibold text-[var(--foreground)]">
                         <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-[#4f7cff] to-[#6dff8e]" />

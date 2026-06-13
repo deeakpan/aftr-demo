@@ -21,6 +21,8 @@ export type MarketListCardProps = {
   onRefreshTvl?: () => void;
   tvlRefreshing?: boolean;
   interactive?: boolean;
+  /** Muted pill colors when staking/trading has closed. */
+  tradingClosed?: boolean;
   className?: string;
 };
 
@@ -46,13 +48,13 @@ export function BinaryProbabilityPipe({ yesPct, noPct }: { yesPct: number; noPct
       <span className="w-8 shrink-0 text-right text-xs font-bold tabular-nums text-[var(--outcome-yes)]">
         {Math.round(yes)}%
       </span>
-      <div className="flex h-[0.625rem] min-w-0 flex-1 items-stretch gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface)] p-px">
+      <div className="flex h-2.5 min-w-0 flex-1 items-stretch gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface)] p-0.5">
         <div
-          className="min-w-[4px] rounded-full bg-[var(--outcome-yes)] transition-all duration-300"
+          className="min-w-[5px] rounded-full bg-[var(--outcome-yes)] transition-all duration-300"
           style={{ flex: yesFlex }}
         />
         <div
-          className="min-w-[4px] rounded-full bg-[var(--outcome-no)] transition-all duration-300"
+          className="min-w-[5px] rounded-full bg-[var(--outcome-no)] transition-all duration-300"
           style={{ flex: noFlex }}
         />
       </div>
@@ -64,7 +66,17 @@ export function BinaryProbabilityPipe({ yesPct, noPct }: { yesPct: number; noPct
 }
 
 /** Shared binary outcome pill — rounded rect, matches trade panel on market detail. */
-export function binaryOutcomePillClass(active: boolean, isNo: boolean) {
+export function binaryOutcomePillClass(active: boolean, isNo: boolean, tradingClosed = false) {
+  if (tradingClosed) {
+    if (active) {
+      return isNo
+        ? "bg-[var(--outcome-no)]/50 text-white/95"
+        : "bg-[var(--outcome-yes)]/50 text-white/95";
+    }
+    return isNo
+      ? "bg-[var(--outcome-no)]/12 text-[var(--outcome-no)] ring-1 ring-[var(--outcome-no)]/25"
+      : "bg-[var(--outcome-yes)]/12 text-[var(--outcome-yes)] ring-1 ring-[var(--outcome-yes)]/25";
+  }
   if (active) {
     return isNo
       ? "bg-[var(--outcome-no)] text-white hover:bg-[var(--outcome-no-hover)]"
@@ -87,6 +99,7 @@ export function MarketListCard({
   onRefreshTvl,
   tvlRefreshing = false,
   interactive = true,
+  tradingClosed = false,
   className = "",
 }: MarketListCardProps) {
   const labels = outcomeLabels.filter((l) => l.trim()).slice(0, 8);
@@ -124,29 +137,29 @@ export function MarketListCard({
         )}
       </div>
 
-      <div className="flex min-h-[10.5rem] flex-1 flex-col px-3 pb-3 pt-3">
+      <div className="flex flex-col px-3 pb-2 pt-2.5">
         {onTitleClick ? (
           <button
             type="button"
             onClick={onTitleClick}
-            className="line-clamp-2 w-full shrink-0 text-left text-[13px] font-semibold leading-snug text-[var(--foreground)] underline-offset-2 hover:underline md:text-[15px]"
+            className="line-clamp-2 w-full text-left text-[13px] font-semibold leading-snug text-[var(--foreground)] underline-offset-2 hover:underline md:text-[15px]"
           >
             {title || "Untitled market"}
           </button>
         ) : (
-          <p className="line-clamp-2 shrink-0 text-[13px] font-semibold leading-snug text-[var(--foreground)] md:text-[15px]">
+          <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-[var(--foreground)] md:text-[15px]">
             {title || "Untitled market"}
           </p>
         )}
 
         {isBinary ? (
-          <div className="mt-4 flex flex-1 flex-col justify-between gap-3">
+          <div className="mt-2.5 flex flex-col gap-2">
             <BinaryProbabilityPipe yesPct={pcts[0] ?? 50} noPct={pcts[1] ?? 50} />
 
             <div className="grid grid-cols-2 gap-2">
               {displayLabels.map((label, idx) => {
                 const isNo = idx === 1;
-                const btnClass = `flex items-center justify-center rounded-xl py-2.5 text-center text-sm font-bold transition ${binaryOutcomePillClass(true, isNo)}`;
+                const btnClass = `flex items-center justify-center rounded-xl py-2 text-center text-sm font-bold transition ${binaryOutcomePillClass(true, isNo, tradingClosed)}`;
 
                 if (onTrade && interactive) {
                   return (
@@ -173,7 +186,7 @@ export function MarketListCard({
             </div>
           </div>
         ) : (
-          <div className="no-scrollbar mt-2.5 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
+          <div className="no-scrollbar mt-2 flex max-h-[9rem] flex-col gap-0.5 overflow-y-auto">
             {displayLabels.map((label, idx) => {
               const pct = pcts[idx] ?? 0;
               const rowContent = (
@@ -196,7 +209,7 @@ export function MarketListCard({
                       e.stopPropagation();
                       onTrade(idx);
                     }}
-                    className="flex min-h-[2.125rem] w-full items-center gap-2 rounded-lg px-0.5 py-0.5 text-left transition hover:bg-[var(--surface-hover)]"
+                    className="flex min-h-[2rem] w-full items-center gap-2 rounded-lg px-0.5 py-0.5 text-left transition hover:bg-[var(--surface-hover)]"
                   >
                     {rowContent}
                   </button>
@@ -206,7 +219,7 @@ export function MarketListCard({
               return (
                 <div
                   key={`${label}-${idx}`}
-                  className="flex min-h-[2.125rem] items-center gap-2 rounded-lg px-0.5 py-0.5"
+                  className="flex min-h-[2rem] items-center gap-2 rounded-lg px-0.5 py-0.5"
                 >
                   {rowContent}
                 </div>
@@ -216,7 +229,7 @@ export function MarketListCard({
         )}
       </div>
 
-      <div className="mt-auto flex shrink-0 items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[11px] text-[var(--muted)]">
+      <div className="flex shrink-0 items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] text-[var(--muted)]">
         {showVolume ? (
           <span className="inline-flex items-center gap-1.5 font-semibold text-[var(--foreground)]">
             <ChartBar size={14} weight="bold" className="text-[var(--accent)]" />
@@ -261,20 +274,19 @@ export function MarketListCardSkeleton({ className = "" }: { className?: string 
       className={`flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)] ${className}`}
     >
       <div className={`${MARKET_COVER_ASPECT_CLASS} w-full shrink-0 animate-pulse bg-[var(--border)]/50`} />
-      <div className="flex min-h-[10.5rem] flex-1 flex-col px-3 py-3">
+      <div className="flex flex-col px-3 py-2.5">
         <div className="h-4 w-full animate-pulse rounded bg-[var(--border)]/50" />
-        <div className="mt-4 h-4 w-[70%] animate-pulse rounded bg-[var(--border)]/50" />
-        <div className="mt-5 flex items-center gap-2">
-          <div className="h-4 w-8 animate-pulse rounded bg-[var(--border)]/50" />
-          <div className="h-8 flex-1 animate-pulse rounded-full bg-[var(--border)]/50" />
-          <div className="h-4 w-8 animate-pulse rounded bg-[var(--border)]/50" />
+        <div className="mt-2.5 flex items-center gap-2">
+          <div className="h-3.5 w-8 animate-pulse rounded bg-[var(--border)]/50" />
+          <div className="h-2.5 flex-1 animate-pulse rounded-full bg-[var(--border)]/50" />
+          <div className="h-3.5 w-8 animate-pulse rounded bg-[var(--border)]/50" />
         </div>
-        <div className="mt-auto grid grid-cols-2 gap-2.5 pt-5">
-          <div className="h-11 animate-pulse rounded-full bg-[var(--border)]/50" />
-          <div className="h-11 animate-pulse rounded-full bg-[var(--border)]/50" />
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <div className="h-9 animate-pulse rounded-xl bg-[var(--border)]/50" />
+          <div className="h-9 animate-pulse rounded-xl bg-[var(--border)]/50" />
         </div>
       </div>
-      <div className="flex shrink-0 items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+      <div className="flex shrink-0 items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-3 py-1.5">
         <div className="h-3 w-12 animate-pulse rounded bg-[var(--border)]/50" />
         <div className="h-3 w-16 animate-pulse rounded bg-[var(--border)]/50" />
       </div>

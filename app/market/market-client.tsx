@@ -626,6 +626,10 @@ export function MarketClient() {
                 onTrade={(idx) => openTrade(m, idx)}
                 onRefreshTvl={() => void refreshTvl(m)}
                 tvlRefreshing={Boolean(tvlRefreshing[m.address])}
+                tradingClosed={
+                  m.marketState !== 0 ||
+                  Math.floor(Date.now() / 1000) >= m.stakeEndUnix
+                }
               />
             ))}
           </div>
