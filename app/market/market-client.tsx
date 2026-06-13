@@ -7,7 +7,7 @@ import { formatUnits, parseAbi, parseUnits, zeroAddress } from "viem";
 import { useAccount, useWalletClient } from "wagmi";
 import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import { AppLayout } from "@/app/components/app-layout";
-import { MarketListCard, MarketListCardSkeleton } from "@/app/market/components/market-list-card";
+import { MarketListCard, MarketListCardSkeleton, MARKET_CARD_GRID_CLASS } from "@/app/market/components/market-list-card";
 import { LimitOrderParams, TradeModal, type TradeSuccessResult } from "@/app/market/components/trade-modal";
 import {
   collateralTickerFromDeployment,
@@ -579,7 +579,7 @@ export function MarketClient() {
           <h1 className={`text-xl tracking-tight md:text-2xl ${brandPageTitle}`}>Markets</h1>
         </div>
         {isLoading && (
-          <div className="mt-5 grid w-full max-w-7xl grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={MARKET_CARD_GRID_CLASS}>
             {Array.from({ length: 6 }, (_, i) => (
               <MarketListCardSkeleton key={i} />
             ))}
@@ -596,7 +596,7 @@ export function MarketClient() {
           </div>
         )}
         {!isLoading && visibleMarkets.length > 0 && (
-          <div className="mt-5 grid w-full max-w-7xl grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={MARKET_CARD_GRID_CLASS}>
             {visibleMarkets.map((m) => (
               <MarketListCard
                 key={m.address}

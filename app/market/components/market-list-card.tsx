@@ -37,6 +37,24 @@ function evenSplitPct(count: number, index: number) {
   return index === 0 ? 100 - base * (count - 1) : base;
 }
 
+/** Shared card body sizing — markets & trades use the same fixed outcome block height. */
+export const MARKET_CARD_SHELL_CLASS =
+  "flex h-full w-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)]";
+
+export const MARKET_CARD_BODY_CLASS = "flex flex-1 flex-col px-3 pb-2 pt-2.5";
+
+export const MARKET_CARD_TITLE_CLASS =
+  "line-clamp-2 min-h-[2.5rem] text-[13px] font-semibold leading-snug text-[var(--foreground)] md:min-h-[2.75rem] md:text-[15px]";
+
+export const MARKET_CARD_META_CLASS =
+  "mt-0.5 min-h-[1.125rem] text-[11px] leading-tight text-[var(--muted)]";
+
+export const MARKET_CARD_OUTCOMES_BOX =
+  "flex h-[6rem] min-h-[6rem] max-h-[6rem] flex-col overflow-hidden";
+
+export const MARKET_CARD_GRID_CLASS =
+  "mt-5 grid w-full max-w-7xl grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3";
+
 export function BinaryProbabilityPipe({ yesPct, noPct }: { yesPct: number; noPct: number }) {
   const yes = clampPct(yesPct);
   const no = clampPct(noPct);
@@ -48,7 +66,7 @@ export function BinaryProbabilityPipe({ yesPct, noPct }: { yesPct: number; noPct
       <span className="w-8 shrink-0 text-right text-xs font-bold tabular-nums text-[var(--outcome-yes)]">
         {Math.round(yes)}%
       </span>
-      <div className="flex h-2.5 min-w-0 flex-1 items-stretch gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface)] p-0.5">
+      <div className="flex h-3 min-w-0 flex-1 items-stretch gap-0.5 rounded-full border border-[var(--border)] bg-[var(--surface)] p-0.5">
         <div
           className="min-w-[5px] rounded-full bg-[var(--outcome-yes)] transition-all duration-300"
           style={{ flex: yesFlex }}
@@ -117,7 +135,7 @@ export function MarketListCard({
 
   return (
     <article
-      className={`flex w-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)] transition duration-200 ${
+      className={`${MARKET_CARD_SHELL_CLASS} transition duration-200 ${
         interactive
           ? "hover:-translate-y-1 hover:border-[var(--accent)] hover:shadow-[0_16px_40px_rgb(139_92_246_/_0.28)] [html[data-theme=light]_&]:hover:shadow-[0_16px_40px_rgb(124_77_255_/_0.14)]"
           : ""
@@ -137,29 +155,31 @@ export function MarketListCard({
         )}
       </div>
 
-      <div className="flex flex-col px-3 pb-2 pt-2.5">
+      <div className={MARKET_CARD_BODY_CLASS}>
         {onTitleClick ? (
           <button
             type="button"
             onClick={onTitleClick}
-            className="line-clamp-2 w-full text-left text-[13px] font-semibold leading-snug text-[var(--foreground)] underline-offset-2 hover:underline md:text-[15px]"
+            className={`${MARKET_CARD_TITLE_CLASS} w-full text-left underline-offset-2 hover:underline`}
           >
             {title || "Untitled market"}
           </button>
         ) : (
-          <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-[var(--foreground)] md:text-[15px]">
-            {title || "Untitled market"}
-          </p>
+          <p className={MARKET_CARD_TITLE_CLASS}>{title || "Untitled market"}</p>
         )}
 
+        <p className={`${MARKET_CARD_META_CLASS} invisible`} aria-hidden>
+          ·
+        </p>
+
         {isBinary ? (
-          <div className="mt-2.5 flex flex-col gap-2">
+          <div className={`${MARKET_CARD_OUTCOMES_BOX} justify-center gap-2.5`}>
             <BinaryProbabilityPipe yesPct={pcts[0] ?? 50} noPct={pcts[1] ?? 50} />
 
             <div className="grid grid-cols-2 gap-2">
               {displayLabels.map((label, idx) => {
                 const isNo = idx === 1;
-                const btnClass = `flex items-center justify-center rounded-xl py-2 text-center text-sm font-bold transition ${binaryOutcomePillClass(true, isNo, tradingClosed)}`;
+                const btnClass = `flex min-h-[2.5rem] items-center justify-center rounded-xl px-2 py-2.5 text-center text-sm font-bold transition ${binaryOutcomePillClass(true, isNo, tradingClosed)}`;
 
                 if (onTrade && interactive) {
                   return (
@@ -186,15 +206,15 @@ export function MarketListCard({
             </div>
           </div>
         ) : (
-          <div className="no-scrollbar mt-2 flex max-h-[9rem] flex-col gap-0.5 overflow-y-auto">
+          <div className={`${MARKET_CARD_OUTCOMES_BOX} no-scrollbar gap-0 overflow-y-auto`}>
             {displayLabels.map((label, idx) => {
               const pct = pcts[idx] ?? 0;
               const rowContent = (
                 <>
-                  <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-[var(--foreground)]">
+                  <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-[var(--foreground)]">
                     {label}
                   </span>
-                  <span className="shrink-0 text-[12px] font-bold tabular-nums text-[var(--foreground)]">
+                  <span className="shrink-0 text-[11px] font-bold tabular-nums text-[var(--foreground)]">
                     {pct.toFixed(0)}%
                   </span>
                 </>
@@ -209,7 +229,7 @@ export function MarketListCard({
                       e.stopPropagation();
                       onTrade(idx);
                     }}
-                    className="flex min-h-[2rem] w-full items-center gap-2 rounded-lg px-0.5 py-0.5 text-left transition hover:bg-[var(--surface-hover)]"
+                    className="flex min-h-[1.375rem] w-full items-center gap-2 rounded-md px-0.5 py-0 text-left transition hover:bg-[var(--surface-hover)]"
                   >
                     {rowContent}
                   </button>
@@ -219,7 +239,7 @@ export function MarketListCard({
               return (
                 <div
                   key={`${label}-${idx}`}
-                  className="flex min-h-[2rem] items-center gap-2 rounded-lg px-0.5 py-0.5"
+                  className="flex min-h-[1.375rem] items-center gap-2 rounded-md px-0.5 py-0"
                 >
                   {rowContent}
                 </div>
@@ -270,20 +290,21 @@ export function MarketListCard({
 
 export function MarketListCardSkeleton({ className = "" }: { className?: string }) {
   return (
-    <article
-      className={`flex w-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)] ${className}`}
-    >
+    <article className={`${MARKET_CARD_SHELL_CLASS} ${className}`}>
       <div className={`${MARKET_COVER_ASPECT_CLASS} w-full shrink-0 animate-pulse bg-[var(--border)]/50`} />
-      <div className="flex flex-col px-3 py-2.5">
-        <div className="h-4 w-full animate-pulse rounded bg-[var(--border)]/50" />
-        <div className="mt-2.5 flex items-center gap-2">
-          <div className="h-3.5 w-8 animate-pulse rounded bg-[var(--border)]/50" />
-          <div className="h-2.5 flex-1 animate-pulse rounded-full bg-[var(--border)]/50" />
-          <div className="h-3.5 w-8 animate-pulse rounded bg-[var(--border)]/50" />
-        </div>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <div className="h-9 animate-pulse rounded-xl bg-[var(--border)]/50" />
-          <div className="h-9 animate-pulse rounded-xl bg-[var(--border)]/50" />
+      <div className={MARKET_CARD_BODY_CLASS}>
+        <div className={`${MARKET_CARD_TITLE_CLASS} animate-pulse rounded bg-[var(--border)]/50`} />
+        <div className={`${MARKET_CARD_META_CLASS} animate-pulse rounded bg-[var(--border)]/30`} />
+        <div className={`${MARKET_CARD_OUTCOMES_BOX} justify-center gap-2.5`}>
+          <div className="flex items-center gap-2">
+            <div className="h-3.5 w-8 animate-pulse rounded bg-[var(--border)]/50" />
+            <div className="h-2.5 flex-1 animate-pulse rounded-full bg-[var(--border)]/50" />
+            <div className="h-3.5 w-8 animate-pulse rounded bg-[var(--border)]/50" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="h-[2.5rem] animate-pulse rounded-xl bg-[var(--border)]/50" />
+            <div className="h-[2.5rem] animate-pulse rounded-xl bg-[var(--border)]/50" />
+          </div>
         </div>
       </div>
       <div className="flex shrink-0 items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-3 py-1.5">

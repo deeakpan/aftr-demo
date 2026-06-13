@@ -9,7 +9,16 @@ import { AppLayout } from "@/app/components/app-layout";
 import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
 import { collateralTickerFromDeployment } from "@/lib/deployment-collateral";
 import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
-import { BinaryProbabilityPipe, binaryOutcomePillClass } from "@/app/market/components/market-list-card";
+import {
+  BinaryProbabilityPipe,
+  binaryOutcomePillClass,
+  MARKET_CARD_BODY_CLASS,
+  MARKET_CARD_GRID_CLASS,
+  MARKET_CARD_META_CLASS,
+  MARKET_CARD_OUTCOMES_BOX,
+  MARKET_CARD_SHELL_CLASS,
+  MARKET_CARD_TITLE_CLASS,
+} from "@/app/market/components/market-list-card";
 
 const MARKET_ABI = parseAbi([
   "function marketKind() view returns (uint8)",
@@ -231,7 +240,7 @@ function OpenPositionHoldings({
 
   if (isBinary) {
     return (
-      <div className="mt-2 flex flex-col gap-2">
+      <div className={`${MARKET_CARD_OUTCOMES_BOX} justify-center gap-2.5`}>
         <BinaryProbabilityPipe yesPct={yesPct} noPct={noPct} />
         <div className="grid grid-cols-2 gap-2">
           {labels.slice(0, 2).map((label, idx) => {
@@ -242,7 +251,7 @@ function OpenPositionHoldings({
             return (
               <div
                 key={`${label}-${idx}`}
-                className={`flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-sm font-bold ${binaryOutcomePillClass(hasShares, isNo, tradingClosed)}`}
+                className={`flex min-h-[2.5rem] min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-sm font-bold ${binaryOutcomePillClass(hasShares, isNo, tradingClosed)}`}
               >
                 <span className="truncate">{label}</span>
                 {shareLabel && (
@@ -266,15 +275,19 @@ function OpenPositionHoldings({
     .filter((h) => h.bal > BigInt(0));
 
   if (held.length === 0) {
-    return <p className="mt-2 text-[10px] text-[var(--muted)]">No open positions</p>;
+    return (
+      <div className={`${MARKET_CARD_OUTCOMES_BOX} items-center justify-center`}>
+        <p className="text-[10px] text-[var(--muted)]">No open positions</p>
+      </div>
+    );
   }
 
   return (
-    <div className="no-scrollbar mt-2 max-h-[9.5rem] space-y-0.5 overflow-y-auto">
+    <div className={`${MARKET_CARD_OUTCOMES_BOX} no-scrollbar gap-0 overflow-y-auto`}>
       {held.map((h, i) => (
         <div
           key={`${h.label}-${i}`}
-          className="flex min-h-[2.125rem] items-center justify-between gap-2 rounded-lg px-1.5 py-1 transition hover:bg-[var(--surface-hover)]"
+          className="flex min-h-[1.375rem] items-center justify-between gap-2 rounded-md px-0.5 py-0 transition hover:bg-[var(--surface-hover)]"
         >
           <span className="min-w-0 truncate text-[11px] font-medium text-[var(--foreground)]">{h.label}</span>
           <span className="shrink-0 text-[10px] font-medium tabular-nums text-[var(--muted)]">
@@ -630,7 +643,7 @@ export function TradesClient() {
         )}
 
         {!isLoading && groups.length > 0 && (
-          <div className="mt-5 grid w-full max-w-7xl grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={MARKET_CARD_GRID_CLASS}>
             {groups.map((g) => {
               const winIdx = g.winningOutcomeIndex;
               const winBal =
@@ -646,7 +659,7 @@ export function TradesClient() {
               return (
                 <article
                   key={g.marketAddress}
-                  className="flex w-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)] transition duration-200 hover:-translate-y-1 hover:border-[var(--accent)] hover:shadow-[0_16px_40px_rgb(139_92_246_/_0.28)] [html[data-theme=light]_&]:hover:shadow-[0_16px_40px_rgb(124_77_255_/_0.14)]"
+                  className={`${MARKET_CARD_SHELL_CLASS} transition duration-200 hover:-translate-y-1 hover:border-[var(--accent)] hover:shadow-[0_16px_40px_rgb(139_92_246_/_0.28)] [html[data-theme=light]_&]:hover:shadow-[0_16px_40px_rgb(124_77_255_/_0.14)]`}
                 >
                   <div className={`${MARKET_COVER_ASPECT_CLASS} w-full overflow-hidden bg-[var(--surface)]`}>
                     {g.imageUrl ? (
@@ -662,21 +675,21 @@ export function TradesClient() {
                     )}
                   </div>
 
-                  <div className="flex flex-col px-3 pb-2 pt-2.5">
+                  <div className={MARKET_CARD_BODY_CLASS}>
                     <p
-                      className="line-clamp-2 cursor-pointer text-[13px] font-semibold leading-snug text-[var(--foreground)] underline-offset-2 hover:underline md:text-[15px]"
+                      className={`${MARKET_CARD_TITLE_CLASS} cursor-pointer underline-offset-2 hover:underline`}
                       onClick={() => router.push(`/market/${g.marketAddress}`)}
                     >
                       {g.marketTitle}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-[var(--muted)]">
+                    <p className={MARKET_CARD_META_CLASS}>
                       {g.marketKind} · {stateLabel(g.marketState, g.stakeEndUnix)}
                     </p>
 
-                    <div>
+                    <div className={g.marketState === 2 ? `${MARKET_CARD_OUTCOMES_BOX} justify-center` : undefined}>
                       {g.marketState === 2 ? (
                         winIdx !== null && winBal > BigInt(0) ? (
-                          <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="w-full overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                             <ClaimWinningsButton
                               marketAddress={g.marketAddress}
                               winningOutcomeIndex={winIdx}
