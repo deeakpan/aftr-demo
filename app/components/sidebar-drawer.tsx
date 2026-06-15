@@ -112,7 +112,7 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
             Prediction markets on Monad. Built for transparent market participation.
           </p>
           <div className="mt-3 flex items-center gap-3 text-[var(--muted)]">
-            <a href="#" aria-label="Telegram" className="hover:text-[var(--foreground)]">
+            <a href="https://t.me/mondalorecommunity" target="_blank" rel="noopener noreferrer" aria-label="Telegram" className="hover:text-[var(--foreground)]">
               <TelegramLogo size={22} weight="regular" />
             </a>
             <a href="#" aria-label="Twitter" className="hover:text-[var(--foreground)]">

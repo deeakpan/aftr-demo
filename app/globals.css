@@ -171,6 +171,20 @@ html[data-theme="light"] input[type="time"] {
   color-scheme: light;
 }
 
+/** datetime-local has a large intrinsic width on mobile — keep it inside the viewport */
+input[type="datetime-local"].create-datetime-input {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+input[type="datetime-local"].create-datetime-input::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
+}
+
 @keyframes tradeSheetUp {
   from {
     transform: translateY(100%);

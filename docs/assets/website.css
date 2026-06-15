@@ -1,0 +1,117 @@
+/* Mondalore docs — deployment tables (GitBook / static markdown) */
+
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 1.25rem 0;
+}
+
+.deployments-table {
+  width: 100%;
+  min-width: 280px;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.deployments-table caption {
+  caption-side: top;
+  font-weight: 600;
+  text-align: left;
+  padding: 0 0 0.65rem;
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.deployments-table th,
+.deployments-table td {
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.deployments-table thead th {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, currentColor 6%, transparent);
+}
+
+.deployments-table tbody th {
+  font-weight: 500;
+  white-space: nowrap;
+  width: 38%;
+}
+
+.deployments-table .ca {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+.deployments-table .tba {
+  font-style: italic;
+  opacity: 0.75;
+}
+
+.deployments-table a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.network-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.35rem;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 560px) {
+  .deployments-table--stack-sm thead {
+    display: none;
+  }
+
+  .deployments-table--stack-sm tbody tr {
+    display: block;
+    border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+    border-radius: 0.5rem;
+    margin-bottom: 0.65rem;
+    overflow: hidden;
+  }
+
+  .deployments-table--stack-sm tbody td {
+    display: block;
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  }
+
+  .deployments-table--stack-sm tbody td:last-child {
+    border-bottom: none;
+  }
+
+  .deployments-table--stack-sm tbody td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.65;
+    margin-bottom: 0.35rem;
+  }
+
+  .deployments-table--stack-sm .ca {
+    font-size: 0.75rem;
+  }
+}

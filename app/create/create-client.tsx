@@ -36,6 +36,9 @@ import {
 const fieldClass =
   "mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-base text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)] sm:text-sm";
 
+const dateTimeFieldClass =
+  "create-datetime-input mt-2 box-border w-full min-w-0 max-w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] sm:px-4 sm:text-sm";
+
 const inlineFieldClass =
   "w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-base text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)] sm:text-sm";
 
@@ -1125,7 +1128,7 @@ export function CreateClient() {
       showSearch={false}
       pageBackgroundClassName="aftr-page-bg-gradient"
     >
-      <div className="mx-auto max-w-3xl px-3 pb-14 md:px-6 md:pb-16">
+      <div className="mx-auto min-w-0 max-w-3xl overflow-x-clip px-3 pb-14 md:px-6 md:pb-16">
         {step === "seed" ? (
           <button
             type="button"
@@ -1151,7 +1154,7 @@ export function CreateClient() {
           </div>
         </div>
 
-        <div className="space-y-0 divide-y divide-[var(--border)] border-t border-[var(--border)]">
+        <div className="min-w-0 space-y-0 divide-y divide-[var(--border)] border-t border-[var(--border)]">
           {step === "details" ? (
             <>
           <section className="py-8">
@@ -1509,8 +1512,8 @@ export function CreateClient() {
             </div>
           </section>
 
-          <section className="grid gap-6 py-8 sm:grid-cols-2">
-            <div>
+          <section className="grid min-w-0 gap-6 py-8 md:grid-cols-2">
+            <div className="min-w-0">
               <label className={labelClass} htmlFor="stake-end">
                 Stake ends
               </label>
@@ -1520,10 +1523,10 @@ export function CreateClient() {
                 value={stakeEndAt}
                 onChange={(e) => setStakeEndAt(e.target.value)}
                 min={minDateTimeLocal}
-                className={fieldClass}
+                className={dateTimeFieldClass}
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className={labelClass} htmlFor="resolve-after">
                 Resolve after
               </label>
@@ -1533,10 +1536,10 @@ export function CreateClient() {
                 value={resolveAfterAt}
                 onChange={(e) => setResolveAfterAt(e.target.value)}
                 min={minDateTimeLocal}
-                className={fieldClass}
+                className={dateTimeFieldClass}
               />
             </div>
-            <p className="text-xs text-[var(--muted)] sm:col-span-2">
+            <p className="min-w-0 text-xs text-[var(--muted)] md:col-span-2">
               Times are entered in your local timezone and converted to UTC for onchain settlement.
             </p>
           </section>

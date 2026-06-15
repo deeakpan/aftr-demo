@@ -1,0 +1,63 @@
+# How settlement works
+
+Settlement is the moment a market picks a single winning outcome and enables redemption. Until then, shares are bets in flux.
+
+## After settlement
+
+- One outcome is marked **winner**
+- Winning shares become redeemable for collateral
+- Losing shares have zero value
+- No further trading on the pool
+
+## Price market settlement
+
+1. **Resolve after** time passes.
+2. The system reads the configured **official price** for the asset.
+3. The outcome that matches the price rule (above/below/range) wins.
+4. Anyone can trigger finalization once conditions are met; the market updates to settled within seconds.
+
+Price markets do not rely on human judgment for the outcome — the rule and the price at resolve time decide.
+
+## Event market settlement
+
+1. **Resolve after** time passes.
+2. Resolution admins review **resolution sources** the creator listed (official websites, results pages, etc.).
+3. Admins sign their agreement on which outcome index won.
+4. When enough valid signatures are collected (a majority threshold of the admin set), settlement finalizes on-chain.
+5. Winners can claim.
+
+This model ties settlement to **public, credible sources** rather than one individual. Admins who sign incorrectly risk reputation and protocol penalties described in platform advisories.
+
+### What traders should do
+
+Before trading an event market:
+
+- Read the market description carefully
+- Open each **resolution source** link and understand what “official” means for this question
+- Be comfortable that admins can verify the result from those sources
+
+Ambiguous questions or missing sources increase dispute risk.
+
+## Redemption mechanics
+
+Winners submit a **claim** that burns winning shares and returns collateral. The per-share value is determined at settlement based on the pool — not a fixed $1 per share.
+
+Parimutuel math means:
+
+- Winners split the redeemable collateral pool
+- Your payout scales with how many winning shares you hold relative to other winners
+
+## Can settlement be wrong?
+
+- **Price markets:** Outcome follows the configured rule and price feed at resolve time. If the feed is delayed or the rule ambiguous, edge cases are possible — read the market text.
+- **Event markets:** Admins aim to match resolution sources. Contested real-world events carry inherent risk. Trade size accordingly.
+
+## What if nobody settles?
+
+Settlement can be triggered by any participant once conditions are met. Markets do not require the creator or original traders to finalize.
+
+## Related
+
+- [Claiming winnings](../positions/claiming-winnings.md)
+- [Event markets](../creating-markets/event-markets.md)
+- [FAQ](../reference/faq.md)
