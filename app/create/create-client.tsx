@@ -36,9 +36,6 @@ import {
 const fieldClass =
   "mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-base text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)] sm:text-sm";
 
-const dateTimeFieldClass =
-  "create-datetime-input mt-2 box-border w-full min-w-0 max-w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] sm:px-4 sm:text-sm";
-
 const inlineFieldClass =
   "w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-base text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)] sm:text-sm";
 
@@ -320,6 +317,95 @@ function parseLocalDateTimeToMs(input: string): number {
   ).getTime();
 }
 
+function toDateTimeLocalValue(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function defaultDateTimeLocal(daysFromNow: number, hour = 12, minute = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  d.setHours(hour, minute, 0, 0);
+  return toDateTimeLocalValue(d);
+}
+
+function splitDateTimeLocal(value: string): { date: string; time: string } {
+  if (!value) return { date: "", time: "" };
+  const [date, time] = value.split("T");
+  return { date: date ?? "", time: time?.slice(0, 5) ?? "" };
+}
+
+function joinDateTimeLocal(date: string, time: string): string {
+  if (!date) return "";
+  const t = time && /^\d{2}:\d{2}$/.test(time) ? time : "12:00";
+  return `${date}T${t}`;
+}
+
+function formatLocalDateTimeLabel(value: string): string {
+  const ms = parseLocalDateTimeToMs(value);
+  if (!Number.isFinite(ms)) return "";
+  return new Date(ms).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+function DateTimePicker({
+  id,
+  label,
+  value,
+  onChange,
+  min,
+  hint,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  min: string;
+  hint: string;
+}) {
+  const { date: minDate, time: minTime } = splitDateTimeLocal(min);
+  const { date, time } = splitDateTimeLocal(value);
+  const summary = formatLocalDateTimeLabel(value);
+
+  return (
+    <div className="min-w-0">
+      <label className={labelClass} htmlFor={`${id}-date`}>
+        {label}
+      </label>
+      <div className="create-datetime-group mt-2 flex min-w-0 max-w-full items-stretch overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] focus-within:border-[var(--accent)]">
+        <input
+          id={`${id}-date`}
+          type="date"
+          value={date}
+          min={minDate || undefined}
+          onChange={(e) => onChange(joinDateTimeLocal(e.target.value, time))}
+          className="create-date-input min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-sm text-[var(--foreground)] outline-none"
+          aria-label={`${label} date`}
+        />
+        <span className="w-px shrink-0 self-stretch bg-[var(--border)]" aria-hidden />
+        <input
+          id={`${id}-time`}
+          type="time"
+          value={time}
+          min={date && date === minDate && minTime ? minTime : undefined}
+          onChange={(e) => onChange(joinDateTimeLocal(date, e.target.value))}
+          className="create-time-input w-[4.85rem] shrink-0 border-0 bg-transparent px-2 py-3 text-sm text-[var(--foreground)] outline-none sm:w-[6.25rem]"
+          aria-label={`${label} time`}
+        />
+      </div>
+      <p className="mt-1.5 text-xs leading-relaxed text-[var(--muted)]">
+        {summary ? (
+          <>
+            <span className="font-medium text-[var(--foreground)]">{summary}</span>
+            <span className="text-[var(--muted)]"> · local time</span>
+          </>
+        ) : (
+          hint
+        )}
+      </p>
+    </div>
+  );
+}
+
 export function CreateClient() {
   const publicClient = deploymentPublicClient;
   const { address, chainId } = useAccount();
@@ -347,8 +433,8 @@ export function CreateClient() {
   const [cropFileName, setCropFileName] = useState("");
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [seedAmount, setSeedAmount] = useState("10");
-  const [stakeEndAt, setStakeEndAt] = useState("");
-  const [resolveAfterAt, setResolveAfterAt] = useState("");
+  const [stakeEndAt, setStakeEndAt] = useState(() => defaultDateTimeLocal(7));
+  const [resolveAfterAt, setResolveAfterAt] = useState(() => defaultDateTimeLocal(8));
   const [step, setStep] = useState<"details" | "seed">("details");
   const [isNextLoading, setIsNextLoading] = useState(false);
   const [isAssetDropdownOpen, setIsAssetDropdownOpen] = useState(false);
@@ -1513,32 +1599,22 @@ export function CreateClient() {
           </section>
 
           <section className="grid min-w-0 gap-6 py-8 md:grid-cols-2">
-            <div className="min-w-0">
-              <label className={labelClass} htmlFor="stake-end">
-                Stake ends
-              </label>
-              <input
-                id="stake-end"
-                type="datetime-local"
-                value={stakeEndAt}
-                onChange={(e) => setStakeEndAt(e.target.value)}
-                min={minDateTimeLocal}
-                className={dateTimeFieldClass}
-              />
-            </div>
-            <div className="min-w-0">
-              <label className={labelClass} htmlFor="resolve-after">
-                Resolve after
-              </label>
-              <input
-                id="resolve-after"
-                type="datetime-local"
-                value={resolveAfterAt}
-                onChange={(e) => setResolveAfterAt(e.target.value)}
-                min={minDateTimeLocal}
-                className={dateTimeFieldClass}
-              />
-            </div>
+            <DateTimePicker
+              id="stake-end"
+              label="Stake ends"
+              value={stakeEndAt}
+              onChange={setStakeEndAt}
+              min={minDateTimeLocal}
+              hint="When pool trading closes"
+            />
+            <DateTimePicker
+              id="resolve-after"
+              label="Resolve after"
+              value={resolveAfterAt}
+              onChange={setResolveAfterAt}
+              min={minDateTimeLocal}
+              hint="Earliest settlement time"
+            />
             <p className="min-w-0 text-xs text-[var(--muted)] md:col-span-2">
               Times are entered in your local timezone and converted to UTC for onchain settlement.
             </p>

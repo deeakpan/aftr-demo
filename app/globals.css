@@ -171,16 +171,20 @@ html[data-theme="light"] input[type="time"] {
   color-scheme: light;
 }
 
-/** datetime-local has a large intrinsic width on mobile — keep it inside the viewport */
-input[type="datetime-local"].create-datetime-input {
+/** Compact date/time inputs on create market — split fields fit mobile viewports */
+.create-datetime-group {
+  max-width: 100%;
+}
+
+.create-date-input,
+.create-time-input {
   box-sizing: border-box;
-  display: block;
-  width: 100%;
   min-width: 0;
   max-width: 100%;
 }
 
-input[type="datetime-local"].create-datetime-input::-webkit-date-and-time-value {
+.create-date-input::-webkit-date-and-time-value,
+.create-time-input::-webkit-date-and-time-value {
   min-width: 0;
   text-align: left;
 }
