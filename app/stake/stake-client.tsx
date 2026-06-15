@@ -314,7 +314,7 @@ export function StakeClient() {
 
   return (
     <AppLayout showSearch={false} pageBackgroundClassName="aftr-page-bg-gradient">
-      <div className="mx-auto w-full max-w-lg px-4 pb-20 pt-8 sm:px-5 md:pt-12">
+      <div className="mx-auto w-full max-w-lg px-4 pb-8 pt-8 sm:px-5 md:pb-12 md:pt-12">
         <div className="mb-8 text-center">
           <h1 className={`text-3xl font-bold tracking-tight md:text-4xl ${brandPageTitle}`}>Stake MONDO</h1>
           <p className="mt-2 text-sm text-[var(--muted)] md:text-base">

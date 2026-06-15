@@ -34,7 +34,10 @@ import {
 } from "@/lib/market-resolution-sources";
 
 const fieldClass =
-  "mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)]";
+  "mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-base text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)] sm:text-sm";
+
+const inlineFieldClass =
+  "w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-base text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)] sm:text-sm";
 
 const labelClass = brandSectionLabel;
 
@@ -97,6 +100,7 @@ const CATEGORIES = [
   "Sports",
   "Gaming",
   "Culture",
+  "Entertainment",
 ] as const;
 
 const CHAINLINK_ABI = parseAbi([
@@ -1241,12 +1245,9 @@ export function CreateClient() {
               </p>
               <div className="mt-3 space-y-3">
                 {resolutionSources.map((source, idx) => (
-                  <div
-                    key={idx}
-                    className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:flex-row sm:items-center"
-                  >
+                  <div key={idx} className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <input
-                      className="w-full min-w-0 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] sm:max-w-[11rem]"
+                      className={`${inlineFieldClass} sm:max-w-[11rem]`}
                       placeholder="Label (optional)"
                       value={source.label}
                       onChange={(e) => {
@@ -1256,7 +1257,7 @@ export function CreateClient() {
                       }}
                     />
                     <input
-                      className="w-full min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
+                      className={`${inlineFieldClass} min-w-0 flex-1`}
                       placeholder="https://official-results.example.com/…"
                       value={source.url}
                       onChange={(e) => {
@@ -1272,7 +1273,7 @@ export function CreateClient() {
                         onClick={() =>
                           setResolutionSources((prev) => prev.filter((_, i) => i !== idx))
                         }
-                        className="flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-lg text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--outcome-no)] sm:self-center"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center self-end rounded-xl text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--outcome-no)] sm:self-center"
                       >
                         <Trash size={16} weight="bold" />
                       </button>
@@ -1508,8 +1509,8 @@ export function CreateClient() {
             </div>
           </section>
 
-          <section className="grid gap-4 py-8 sm:grid-cols-2 sm:gap-6">
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:border-0 sm:bg-transparent sm:p-0">
+          <section className="grid gap-6 py-8 sm:grid-cols-2">
+            <div>
               <label className={labelClass} htmlFor="stake-end">
                 Stake ends
               </label>
@@ -1519,10 +1520,10 @@ export function CreateClient() {
                 value={stakeEndAt}
                 onChange={(e) => setStakeEndAt(e.target.value)}
                 min={minDateTimeLocal}
-                className={`${fieldClass} mt-2 h-11 py-2.5 text-sm sm:h-auto sm:py-3`}
+                className={fieldClass}
               />
             </div>
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:border-0 sm:bg-transparent sm:p-0">
+            <div>
               <label className={labelClass} htmlFor="resolve-after">
                 Resolve after
               </label>
@@ -1532,10 +1533,10 @@ export function CreateClient() {
                 value={resolveAfterAt}
                 onChange={(e) => setResolveAfterAt(e.target.value)}
                 min={minDateTimeLocal}
-                className={`${fieldClass} mt-2 h-11 py-2.5 text-sm sm:h-auto sm:py-3`}
+                className={fieldClass}
               />
             </div>
-            <p className="pb-2 text-xs text-[var(--muted)] sm:col-span-2">
+            <p className="text-xs text-[var(--muted)] sm:col-span-2">
               Times are entered in your local timezone and converted to UTC for onchain settlement.
             </p>
           </section>

@@ -212,6 +212,15 @@ html[data-theme="light"] input[type="time"] {
   height: 0;
 }
 
+/** Fixed mobile tab bar — solid layer avoids backdrop-blur flicker over page gradients. */
+.mobile-bottom-nav {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
 @media (min-width: 768px) {
   .trade-sheet-panel {
     animation: none;

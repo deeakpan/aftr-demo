@@ -307,7 +307,16 @@ export function MarketClient() {
       });
     }
 
-    const categoryFilters = new Set(["Crypto", "Politics", "Finance", "Tech", "Economy", "Sports", "Gaming"]);
+    const categoryFilters = new Set([
+      "Crypto",
+      "Politics",
+      "Finance",
+      "Tech",
+      "Economy",
+      "Sports",
+      "Gaming",
+      "Entertainment",
+    ]);
     if (categoryFilters.has(filter)) {
       rows = rows.filter((m) =>
         (m.categories ?? []).some((c) => c.toLowerCase() === filter.toLowerCase()),

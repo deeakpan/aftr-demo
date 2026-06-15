@@ -716,6 +716,7 @@ export function AppLayout({
                   "Economy",
                   "Sports",
                   "Gaming",
+                  "Entertainment",
                   "Breaking",
                 ].map((filter) => (
                   <span
@@ -758,7 +759,7 @@ export function AppLayout({
         )}
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border)] bg-[var(--background)]/90 px-3 py-2 backdrop-blur-md md:hidden">
+      <nav className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border)] bg-[var(--background)] px-3 pt-2 md:hidden">
         <div className="grid grid-cols-3 gap-1">
           <Link
             href="/"
