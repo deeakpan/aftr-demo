@@ -26,6 +26,7 @@
     "market:propose": "node scripts/propose-market.cjs",
     "market:settle": "node scripts/settle-market.cjs",
     "market:sign-resolution": "node scripts/sign-event-resolution.cjs",
+    "market:resolve-admins": "node scripts/resolve-market-admins.cjs",
     "market:set-resolution-admins": "hardhat run scripts/set-resolution-admins.cjs",
     "market:bootstrap": "node scripts/bootstrap-market.cjs",
     "drp:enable-router-manager": "hardhat run scripts/drp-enable-router-manager.cjs",

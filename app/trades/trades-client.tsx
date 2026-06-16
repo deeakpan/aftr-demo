@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowsClockwise, BookmarkSimple, CircleNotch, PlusMinus } from "@phosphor-icons/react";
-import { formatUnits, parseAbi, zeroAddress } from "viem";
+import { formatUnits, parseAbi, parseEventLogs } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
@@ -19,6 +19,7 @@ import {
   MARKET_CARD_MULTI_PCT_CLASS,
   MARKET_CARD_MULTI_ROW_CLASS,
   MARKET_CARD_OUTCOMES_BOX,
+  MARKET_CARD_SETTLED_BOX,
   MARKET_CARD_SHELL_CLASS,
   MARKET_CARD_TITLE_CLASS,
 } from "@/app/market/components/market-list-card";
@@ -37,6 +38,7 @@ const MARKET_ABI = parseAbi([
   "function priceOf(uint8 outcomeIndex) view returns (uint256)",
   "function realPool(uint256 outcomeIndex) view returns (uint256)",
   "function redeem(uint8 outcomeIndex, uint256 shareAmount)",
+  "event TokensRedeemed(address indexed user, uint8 indexed outcomeIndex, uint256 shares, uint256 payout)",
 ]);
 const ERC20_ABI = parseAbi([
   "function allowance(address owner, address spender) view returns (uint256)",
@@ -302,20 +304,47 @@ function OpenPositionHoldings({
   );
 }
 
+type ClaimOverride = {
+  payout: bigint;
+  claimedAt: number;
+};
+
 function SettledMarketSummary({
   invested,
   redeemed,
   tick,
   fmtAmount,
+  justClaimed = false,
 }: {
   invested: bigint;
   redeemed: bigint;
   tick: string;
   fmtAmount: (v: bigint) => string;
+  justClaimed?: boolean;
 }) {
   const net = redeemed - invested;
   const hasRedeemed = redeemed > BigInt(0);
   const hasInvested = invested > BigInt(0);
+
+  if (justClaimed && hasRedeemed) {
+    return (
+      <div className="rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-2">
+        <p className="text-sm font-bold text-emerald-400 [html[data-theme=light]_&]:text-emerald-700">
+          Successfully claimed
+        </p>
+        <p className="mt-0.5 text-[11px] font-semibold text-[var(--foreground)]">
+          {fmtAmount(redeemed)} {tick}
+        </p>
+        {hasInvested && (
+          <p className="mt-1 text-[11px] text-[var(--muted)]">
+            {net >= BigInt(0)
+              ? `Net on this market: +${fmtAmount(net)} ${tick}`
+              : `Net on this market: −${fmtAmount(-net)} ${tick} (includes losing positions)`}
+          </p>
+        )}
+      </div>
+    );
+  }
 
   if (hasRedeemed) {
     const netPositive = net > BigInt(0);
@@ -370,6 +399,7 @@ function ClaimWinningsButton({
   shareDecimals,
   redemptionRate,
   collateralTicker,
+  onClaimed,
   onDone,
 }: {
   marketAddress: `0x${string}`;
@@ -378,6 +408,7 @@ function ClaimWinningsButton({
   shareDecimals: number;
   redemptionRate: bigint;
   collateralTicker: string;
+  onClaimed: (result: { payout: bigint }) => void;
   onDone: () => void;
 }) {
   const publicClient = usePublicClient({ chainId: DEPLOYMENT_CHAIN_ID });
@@ -444,9 +475,27 @@ function ClaimWinningsButton({
         account: address,
         gas: BigInt(500_000),
       });
-      await publicClient.waitForTransactionReceipt({ hash: tx });
-      setStatus("Claimed!");
-      onDone();
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
+      let payout = BigInt(0);
+      try {
+        const logs = parseEventLogs({
+          abi: MARKET_ABI,
+          logs: receipt.logs,
+          eventName: "TokensRedeemed",
+        });
+        for (const log of logs) {
+          if (log.args.payout) payout += log.args.payout;
+        }
+      } catch {
+        /* fallback to estimate */
+      }
+      if (payout <= BigInt(0) && redemptionRate > BigInt(0) && maxShares > BigInt(0)) {
+        payout = (maxShares * redemptionRate) / BigInt(10 ** 18);
+      }
+      setStatusIsError(false);
+      setStatus("Successfully claimed!");
+      onClaimed({ payout });
+      window.setTimeout(() => onDone(), 2800);
     } catch (e) {
       setStatusIsError(true);
       setStatus(friendlyWalletError(e));
@@ -496,6 +545,7 @@ export function TradesClient() {
   const [error, setError] = useState("");
   const [clock, setClock] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [claimOverrides, setClaimOverrides] = useState<Record<string, ClaimOverride>>({});
   const [tvlOverrides, setTvlOverrides] = useState<Record<string, string>>({});
   const [tvlRefreshing, setTvlRefreshing] = useState<Record<string, boolean>>({});
 
@@ -592,6 +642,18 @@ export function TradesClient() {
           settlementDisplay: (r as { settlementDisplay?: "claimed" | "settled_no_shares" }).settlementDisplay,
         }));
         setRows(parsed);
+        setClaimOverrides((prev) => {
+          const next = { ...prev };
+          for (const row of parsed) {
+            const key = row.marketAddress.toLowerCase();
+            const override = next[key];
+            if (!override) continue;
+            if (row.indexedCollateralOut >= override.payout) {
+              delete next[key];
+            }
+          }
+          return next;
+        });
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not load trades.");
       } finally {
@@ -651,6 +713,14 @@ export function TradesClient() {
               const winIdx = g.winningOutcomeIndex;
               const winBal =
                 g.marketState === 2 && winIdx !== null ? balanceForOutcome(g.positions, winIdx) : BigInt(0);
+              const claimOverride = claimOverrides[g.marketAddress.toLowerCase()];
+              const effectiveRedeemed =
+                claimOverride && claimOverride.payout > g.indexedCollateralOut
+                  ? claimOverride.payout
+                  : g.indexedCollateralOut;
+              const canClaim =
+                winIdx !== null && winBal > BigInt(0) && !claimOverride && g.marketState === 2;
+              const justClaimed = Boolean(claimOverride);
               const tick = collateralTickerFromDeployment(g.collateralAddress);
               const fmtIndexed = (v: bigint) =>
                 Number(formatUnits(v, g.collateralDecimals)).toLocaleString(undefined, {
@@ -689,34 +759,36 @@ export function TradesClient() {
                       {g.marketKind} · {stateLabel(g.marketState, g.stakeEndUnix)}
                     </p>
 
-                    <div className={g.marketState === 2 ? `${MARKET_CARD_OUTCOMES_BOX} justify-center` : undefined}>
+                    <div className={g.marketState === 2 ? MARKET_CARD_SETTLED_BOX : undefined}>
                       {g.marketState === 2 ? (
-                        winIdx !== null && winBal > BigInt(0) ? (
-                          <div className="w-full overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                        canClaim ? (
+                          <div className="w-full" onClick={(e) => e.stopPropagation()}>
                             <ClaimWinningsButton
                               marketAddress={g.marketAddress}
-                              winningOutcomeIndex={winIdx}
+                              winningOutcomeIndex={winIdx!}
                               maxShares={winBal}
                               shareDecimals={g.collateralDecimals}
                               redemptionRate={g.redemptionRate}
                               collateralTicker={tick}
+                              onClaimed={({ payout }) => {
+                                setClaimOverrides((prev) => ({
+                                  ...prev,
+                                  [g.marketAddress.toLowerCase()]: {
+                                    payout,
+                                    claimedAt: Date.now(),
+                                  },
+                                }));
+                              }}
                               onDone={() => setRefreshKey((k) => k + 1)}
                             />
-                            {g.indexedCollateralOut > BigInt(0) && (
-                              <SettledMarketSummary
-                                invested={g.indexedCollateralIn}
-                                redeemed={g.indexedCollateralOut}
-                                tick={tick}
-                                fmtAmount={fmtIndexed}
-                              />
-                            )}
                           </div>
                         ) : (
                           <SettledMarketSummary
                             invested={g.indexedCollateralIn}
-                            redeemed={g.indexedCollateralOut}
+                            redeemed={effectiveRedeemed}
                             tick={tick}
                             fmtAmount={fmtIndexed}
+                            justClaimed={justClaimed}
                           />
                         )
                       ) : (

@@ -189,7 +189,7 @@ async function buildRowsForMarket(
   let collateralOut = BigInt(pos.collateralOut || "0");
   const sharesIn = BigInt(pos.sharesIn || "0");
   const sharesOut = BigInt(pos.sharesOut || "0");
-  if (state === 2 && collateralOut === BigInt(0)) {
+  if (state === 2) {
     const marketOut = await marketRedemptionTotal(wallet, market);
     if (marketOut > collateralOut) collateralOut = marketOut;
   }
@@ -197,10 +197,17 @@ async function buildRowsForMarket(
   const participated = collateralIn > BigInt(0) || sharesIn > BigInt(0);
   const indexerShowsRedeem = collateralOut > BigInt(0) || sharesOut > BigInt(0);
   const emittedPositiveBalance = balances.some((b) => b > BigInt(0));
+  const holdsWinningShares =
+    winningOutcomeIndex !== null &&
+    balances[winningOutcomeIndex as number] !== undefined &&
+    balances[winningOutcomeIndex as number]! > BigInt(0);
   let settlementDisplay: "claimed" | "settled_no_shares" | undefined;
   if (state === 2 && participated && winningOutcomeIndex !== null) {
-    if (indexerShowsRedeem) settlementDisplay = "claimed";
-    else if (!emittedPositiveBalance) settlementDisplay = "settled_no_shares";
+    if (indexerShowsRedeem || collateralOut > BigInt(0)) {
+      settlementDisplay = "claimed";
+    } else if (!emittedPositiveBalance || !holdsWinningShares) {
+      settlementDisplay = "settled_no_shares";
+    }
   }
 
   const outRows: Array<Record<string, unknown>> = [];

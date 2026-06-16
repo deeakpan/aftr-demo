@@ -52,6 +52,10 @@ export const MARKET_CARD_META_CLASS =
 export const MARKET_CARD_OUTCOMES_BOX =
   "flex h-[6rem] min-h-[6rem] max-h-[6rem] flex-col overflow-hidden";
 
+/** Settled / claim UI — same min height as open cards but can grow (no inner scroll). */
+export const MARKET_CARD_SETTLED_BOX =
+  "flex min-h-[6rem] flex-1 flex-col justify-center";
+
 export const MARKET_CARD_MULTI_ROW_CLASS =
   "flex min-h-[2rem] w-full items-center gap-2 rounded-lg px-1 py-0.5";
 
