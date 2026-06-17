@@ -33,6 +33,8 @@ Market creation is **permissionless** — no allowlist application. You need:
 - Enough collateral for seed liquidity (if seeding)
 - Gas for the creation transaction
 
+The **minimum seed** (and creation gas) is intentional: it makes spamming duplicate markets costly and encourages creators to put real collateral behind markets they want traders to take seriously. See [Seed liquidity](seed-liquidity.md).
+
 ## Creator responsibilities
 
 - Write a **clear, unambiguous** question

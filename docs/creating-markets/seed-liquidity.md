@@ -9,6 +9,10 @@ Empty pools produce extreme or meaningless probabilities. A seed:
 - Establishes credible starting prices
 - Signals skin in the game from the creator
 - Helps the first traders get reasonable fills
+- **Supports early price discovery** — real collateral in the pool gives the first trades a meaningful starting odds curve instead of a blank slate
+- **Reduces low-quality spam** — the minimum seed and trade fee at creation cost gas and collateral, so duplicate or joke markets on the same topic are more expensive to flood than they are to ignore
+
+Permissionless creation stays open to everyone; seed requirements are the main economic filter against empty or repetitive markets (for example many copies predicting the same token with no liquidity).
 
 ## How it works
 
