@@ -15,6 +15,7 @@ import { useAccount, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import { useSidebarOpen } from "@/app/components/sidebar-context";
 import { MarketChartPanel } from "@/app/market/components/market-chart-panel";
+import { NadTokenPanel } from "@/app/market/components/nad-token-panel";
 import { MultiOutcomeMarketSection } from "@/app/market/components/multi-outcome-market-section";
 import { LimitOrderParams, TradeModal, type TradeSuccessResult } from "@/app/market/components/trade-modal";
 import { hasWalletConnectProjectId } from "@/app/wagmi-config";
@@ -334,6 +335,7 @@ export function MarketDetailClient({
                 ?.filter((x): x is string => typeof x === "string")
                 .map((x) => x.trim())
                 .filter(Boolean) ?? prev.categories,
+            nadMarket: md.nadMarket ?? prev.nadMarket,
           };
         });
       } catch {
@@ -830,6 +832,19 @@ export function MarketDetailClient({
                 marketState={market.marketState}
                 obSnapshot={obSnapshot}
               />
+            ) : market.nadMarket ? (
+              <div className="space-y-4">
+                <NadTokenPanel nadMarket={market.nadMarket} />
+                <MarketChartPanel
+                  marketKind={market.kind}
+                  marketAddress={market.address}
+                  collateralDecimals={market.collateralDecimals}
+                  collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
+                  outcomeLabels={market.outcomeLabels}
+                  tvSymbol={null}
+                  chartThemeKey={chartThemeKey}
+                />
+              </div>
             ) : (
               <MarketChartPanel
                 marketKind={market.kind}

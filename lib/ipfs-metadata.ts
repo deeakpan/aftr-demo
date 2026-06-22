@@ -20,6 +20,7 @@ export type IpfsMarketMetadata = {
   categories?: string[];
   /** Public URLs admins should use when resolving event markets. */
   resolutionSources?: Array<{ label?: string; url: string } | string>;
+  nadMarket?: import("@/lib/nad/types").NadMarketConfig;
 };
 
 export function ipfsToHttp(uri: string): string {

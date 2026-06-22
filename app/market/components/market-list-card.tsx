@@ -39,9 +39,9 @@ function evenSplitPct(count: number, index: number) {
 
 /** Shared card body sizing — markets & trades use the same fixed outcome block height. */
 export const MARKET_CARD_SHELL_CLASS =
-  "flex h-full w-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)]";
+  "flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)]";
 
-export const MARKET_CARD_BODY_CLASS = "flex flex-1 flex-col px-3 pb-2 pt-2.5";
+export const MARKET_CARD_BODY_CLASS = "flex min-h-0 flex-1 flex-col px-3 pb-2 pt-2.5";
 
 export const MARKET_CARD_TITLE_CLASS =
   "line-clamp-2 min-h-[2.5rem] text-[13px] font-semibold leading-snug text-[var(--foreground)] md:min-h-[2.75rem] md:text-[15px]";
@@ -50,14 +50,14 @@ export const MARKET_CARD_META_CLASS =
   "mt-0.5 min-h-[1.125rem] text-[11px] leading-tight text-[var(--muted)]";
 
 export const MARKET_CARD_OUTCOMES_BOX =
-  "flex h-[6rem] min-h-[6rem] max-h-[6rem] flex-col overflow-hidden";
+  "flex h-[6rem] min-h-[6rem] max-h-[6rem] shrink-0 flex-col overflow-hidden";
 
 /** Settled / claim UI — same min height as open cards but can grow (no inner scroll). */
 export const MARKET_CARD_SETTLED_BOX =
   "flex min-h-[6rem] flex-1 flex-col justify-center";
 
 export const MARKET_CARD_MULTI_ROW_CLASS =
-  "flex min-h-[2rem] w-full items-center gap-2 rounded-lg px-1 py-0.5";
+  "flex h-[2rem] max-h-[2rem] min-h-[2rem] w-full items-center gap-2 overflow-hidden rounded-lg px-1 py-0";
 
 export const MARKET_CARD_MULTI_LABEL_CLASS =
   "min-w-0 flex-1 truncate text-[12px] font-medium text-[var(--foreground)]";
@@ -67,6 +67,26 @@ export const MARKET_CARD_MULTI_PCT_CLASS =
 
 export const MARKET_CARD_GRID_CLASS =
   "mt-5 grid w-full max-w-7xl grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3";
+
+/** Trades page — equal-height cards per row (same shell/body slots as market cards). */
+export const MARKET_CARD_TRADES_GRID_CLASS =
+  "mt-5 grid w-full max-w-7xl grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3";
+
+export const MARKET_CARD_TRADES_SHELL_CLASS =
+  "flex h-full w-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)]";
+
+export const MARKET_CARD_TRADES_BODY_CLASS = "flex shrink-0 flex-col px-3 pb-2 pt-2.5";
+
+/** Fixed two-line title slot — keeps open and settled trade cards the same height. */
+export const MARKET_CARD_TRADES_TITLE_CLASS =
+  "line-clamp-2 h-[2.5rem] shrink-0 overflow-hidden text-[13px] font-semibold leading-snug text-[var(--foreground)] md:h-[2.75rem] md:text-[15px]";
+
+export const MARKET_CARD_TRADES_META_CLASS =
+  "mt-0.5 h-[1.125rem] shrink-0 truncate text-[11px] leading-tight text-[var(--muted)]";
+
+/** Grows on stretched rows and vertically centers the TVL footer in leftover space. */
+export const MARKET_CARD_TRADES_FOOTER_SLOT_CLASS =
+  "flex min-h-0 flex-1 flex-col justify-center";
 
 export function BinaryProbabilityPipe({ yesPct, noPct }: { yesPct: number; noPct: number }) {
   const yes = clampPct(yesPct);

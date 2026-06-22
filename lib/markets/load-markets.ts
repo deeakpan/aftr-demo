@@ -58,6 +58,7 @@ export type MarketListItem = {
   outcomeChancePcts: number[];
   slug?: string;
   categories?: string[];
+  nadMarket?: import("@/lib/nad/types").NadMarketConfig;
 };
 
 function fmtTs(value: bigint) {
@@ -163,6 +164,7 @@ export function mergeListItemIntoDetail(
     stakeEndUnix: listItem.stakeEndUnix,
     resolveAfterUnix: listItem.resolveAfterUnix,
     priceBinByOutcome: listItem.priceBinByOutcome ?? detail.priceBinByOutcome,
+    nadMarket: listItem.nadMarket ?? detail.nadMarket,
   };
 }
 
@@ -328,7 +330,7 @@ async function loadMarketRow(
       : Promise.resolve([]),
   ]);
 
-  if (requireListable && !isListableMarket(uri, md?.image)) {
+  if (requireListable && !isListableMarket(uri, md?.image, md?.nadMarket)) {
     return null;
   }
 
@@ -387,7 +389,10 @@ async function loadMarketRow(
       md?.question?.trim() ||
       `${isPrice ? "Price" : "Event"} market`,
     description: md?.description?.trim() || "No description provided.",
-    imageUrl: ipfsToHttp(md?.image?.trim() || ""),
+    imageUrl:
+      ipfsToHttp(md?.image?.trim() || "") ||
+      md?.nadMarket?.tokens?.[0]?.imageUri?.trim() ||
+      "",
     stakeEnds: fmtTs(stake),
     resolveAfter: fmtTs(resolveAfter),
     stakeEndUnix: Number(stake),
@@ -404,6 +409,7 @@ async function loadMarketRow(
         ?.filter((x): x is string => typeof x === "string")
         .map((x) => x.trim())
         .filter(Boolean) ?? [],
+    nadMarket: md?.nadMarket,
     collateralAddress,
     collateralDecimals: dec,
     priceBinByOutcome,

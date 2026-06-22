@@ -21,6 +21,11 @@ import { useAccount, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import { MarketCoverCropper } from "@/app/components/market-cover-cropper";
 import { MarketListCard } from "@/app/market/components/market-list-card";
+import { NadMarketListCard } from "@/app/market/components/nad-market-list-card";
+import {
+  NadMarketCreateSection,
+  type NadCreateDraft,
+} from "@/app/create/components/nad-market-create-section";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
 import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
 import { monadTestnet } from "@/lib/chain";
@@ -410,7 +415,7 @@ export function CreateClient() {
   const publicClient = deploymentPublicClient;
   const { address, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const [marketKind, setMarketKind] = useState<"event" | "price">("event");
+  const [marketKind, setMarketKind] = useState<"event" | "price" | "nad">("event");
   const [eventMode, setEventMode] = useState<"binary" | "multiple">("binary");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -451,6 +456,8 @@ export function CreateClient() {
   const [isSubmittingMarket, setIsSubmittingMarket] = useState(false);
   const [submitStatus, setSubmitStatus] = useState("");
   const [isCreateComplete, setIsCreateComplete] = useState(false);
+  const [nadDraft, setNadDraft] = useState<NadCreateDraft | null>(null);
+  const [nadDuplicateBlocked, setNadDuplicateBlocked] = useState(false);
 
   useEffect(() => {
     if (eventMode === "binary" && outcomes.length !== 2) {
@@ -672,8 +679,13 @@ export function CreateClient() {
   }, [collateral.isNative]);
 
   const effectiveTitle = useMemo(
-    () => (marketKind === "price" ? generatedPricePrompt : title),
-    [generatedPricePrompt, marketKind, title],
+    () =>
+      marketKind === "nad"
+        ? (nadDraft?.title ?? "")
+        : marketKind === "price"
+          ? generatedPricePrompt
+          : title,
+    [generatedPricePrompt, marketKind, title, nadDraft?.title],
   );
 
   // Auto-generate slug from title/prompt unless user has manually edited it
@@ -723,7 +735,12 @@ export function CreateClient() {
       return false;
     }
     const nOutcomes =
-      marketKind === "event" ? outcomes.map((o) => o.trim()).filter(Boolean).length : 2;
+      marketKind === "event" || marketKind === "nad"
+        ? (marketKind === "nad"
+            ? (nadDraft?.outcomes ?? [])
+            : outcomes.map((o) => o.trim()).filter(Boolean)
+          ).length
+        : 2;
     let seedUnits: bigint;
     try {
       seedUnits = parseUnits(seedAmount || "0", collateral.decimals);
@@ -757,15 +774,17 @@ export function CreateClient() {
 
     const cleanedThreshold = threshold.replaceAll(",", "").trim();
     const cleanOutcomes =
-      marketKind === "event"
-        ? outcomes.map((o) => o.trim()).filter(Boolean)
+      marketKind === "event" || marketKind === "nad"
+        ? marketKind === "nad"
+          ? (nadDraft?.outcomes ?? [])
+          : outcomes.map((o) => o.trim()).filter(Boolean)
         : ["YES", "NO"];
     if (cleanOutcomes.length < 2) {
       setSubmitStatus("Add at least 2 outcomes.");
       return;
     }
 
-    if (marketKind === "event") {
+    if (marketKind === "event" || marketKind === "nad") {
       const [adminCount, threshold] = await Promise.all([
         publicClient.readContract({
           address: FACTORY_ADDRESS,
@@ -967,7 +986,7 @@ export function CreateClient() {
         return false;
       };
 
-      if (marketKind === "event") {
+      if (marketKind === "event" || marketKind === "nad") {
         const eventArgs = [{ ...sharedParams }] as const;
 
         const simulation = await publicClient.simulateContract({
@@ -1109,20 +1128,26 @@ export function CreateClient() {
   };
 
   const uploadMetadata = async (imageUriForMetadata?: string) => {
-    const imageToUse = imageUriForMetadata || imageUri;
-    if (!imageToUse) {
+    const isNad = marketKind === "nad";
+    const imageToUse = isNad
+      ? nadDraft?.coverImageUrl ?? ""
+      : imageUriForMetadata || imageUri;
+    if (!imageToUse && !isNad) {
       throw new Error("Upload a cover image first so metadata includes image IPFS URI.");
     }
+    const nadTitle = isNad ? nadDraft?.title ?? "" : effectiveTitle;
+    const nadOutcomes = isNad ? (nadDraft?.outcomes ?? ["Yes", "No"]) : outcomes;
     const metadata = {
-      title: effectiveTitle,
-      description,
-      marketKind,
-      eventMode: marketKind === "event" ? eventMode : null,
-      question: marketKind === "price" ? generatedPricePrompt : title,
-      categories: selectedCategories,
-      slug: slug || slugify(effectiveTitle),
-      outcomes,
+      title: nadTitle,
+      description: isNad ? (nadDraft?.description ?? description) : description,
+      marketKind: isNad ? "event" : marketKind,
+      eventMode: marketKind === "event" ? eventMode : isNad ? (nadDraft?.nadMarket.mode === "comparison" ? "multiple" : "binary") : null,
+      question: marketKind === "price" ? generatedPricePrompt : nadTitle,
+      categories: isNad ? ["Crypto"] : selectedCategories,
+      slug: isNad ? (nadDraft?.slug ?? slug) : slug || slugify(effectiveTitle),
+      outcomes: nadOutcomes,
       image: imageToUse || null,
+      nadMarket: isNad ? nadDraft?.nadMarket : undefined,
       priceConfig:
         marketKind === "price"
           ? {
@@ -1136,9 +1161,12 @@ export function CreateClient() {
               generatedPrompt: generatedPricePrompt,
             }
           : null,
-      resolution: marketKind === "event" ? "community-3-of-10-admins" : null,
-      resolutionSources:
-        marketKind === "event" ? sanitizeResolutionSourcesForMetadata(resolutionSources) : [],
+      resolution: marketKind === "event" || isNad ? "community-3-of-10-admins" : null,
+      resolutionSources: isNad
+        ? nadDraft?.resolutionSources ?? []
+        : marketKind === "event"
+          ? sanitizeResolutionSourcesForMetadata(resolutionSources)
+          : [],
     };
     const fd = new FormData();
     fd.append("kind", "json");
@@ -1151,18 +1179,26 @@ export function CreateClient() {
   };
 
   const goToSeedStep = async () => {
+    const isNad = marketKind === "nad";
     const errors: string[] = [];
-    if (marketKind === "event" && !title.trim()) errors.push("Title is required.");
-    if (!description.trim()) errors.push("Description is required.");
-    if (marketKind === "event") {
+    if (isNad) {
+      if (!nadDraft) errors.push("Load Nad token(s) and complete the form.");
+      if (nadDuplicateBlocked) errors.push("Duplicate market exists for this question and resolve time.");
+    } else if (marketKind === "event" && !title.trim()) {
+      errors.push("Title is required.");
+    }
+    if (!isNad && !description.trim()) errors.push("Description is required.");
+    if (!isNad && marketKind === "event") {
       const validSources = sanitizeResolutionSourcesForMetadata(resolutionSources);
       if (validSources.length === 0) {
         errors.push("Add at least one resolution source URL (https://…) for event markets.");
       }
     }
-    const filledOutcomes = outcomes.map((o) => o.trim()).filter(Boolean);
+    const filledOutcomes = isNad
+      ? (nadDraft?.outcomes ?? [])
+      : outcomes.map((o) => o.trim()).filter(Boolean);
     if (filledOutcomes.length < 2) errors.push("At least 2 outcome labels are required.");
-    if (outcomes.some((o) => !o.trim())) errors.push("All outcome labels must be filled in.");
+    if (!isNad && outcomes.some((o) => !o.trim())) errors.push("All outcome labels must be filled in.");
     if (!stakeEndAt) errors.push("Stake end time is required.");
     if (!resolveAfterAt) errors.push("Resolve after time is required.");
     if (!slug.trim()) errors.push("Vanity slug is required.");
@@ -1190,6 +1226,20 @@ export function CreateClient() {
       return;
     }
     setTimeValidationError("");
+
+    if (isNad) {
+      setIsNextLoading(true);
+      setUploadState("");
+      try {
+        await uploadMetadata();
+        setStep("seed");
+      } catch (err) {
+        setUploadState(err instanceof Error ? err.message : "Could not prepare metadata.");
+      } finally {
+        setIsNextLoading(false);
+      }
+      return;
+    }
 
     if (!imageFile) {
       setUploadState("Please choose a cover image first.");
@@ -1245,30 +1295,59 @@ export function CreateClient() {
             <>
           <section className="py-8">
             <p className={labelClass}>Market type</p>
-            <div className="mt-4 inline-flex rounded-full bg-[var(--surface)] p-1">
+            <div className="mt-4 flex flex-wrap gap-x-7 gap-y-3">
               {(
                 [
                   { id: "event" as const, label: "Event (community)" },
                   { id: "price" as const, label: "Price (oracle)" },
+                  { id: "nad" as const, label: "Nad.fun token" },
                 ] as const
-              ).map(({ id, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setMarketKind(id)}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                    marketKind === id
-                      ? "bg-[var(--accent)] text-white shadow-sm"
-                      : "text-[var(--muted)] hover:text-[var(--foreground)]"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+              ).map(({ id, label }) => {
+                const active = marketKind === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setMarketKind(id)}
+                    className="group inline-flex items-center gap-2.5 text-sm transition"
+                  >
+                    <span
+                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition ${
+                        active
+                          ? "border-emerald-500"
+                          : "border-[var(--border)] group-hover:border-[var(--muted)]"
+                      }`}
+                    >
+                      {active ? <span className="h-2 w-2 rounded-full bg-emerald-500" /> : null}
+                    </span>
+                    <span
+                      className={
+                        active
+                          ? "font-medium text-[var(--foreground)]"
+                          : "text-[var(--muted)] group-hover:text-[var(--foreground)]"
+                      }
+                    >
+                      {label}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </section>
 
-          {marketKind === "event" ? (
+          {marketKind === "nad" ? (
+            <NadMarketCreateSection
+              stakeEndAt={stakeEndAt}
+              resolveAfterAt={resolveAfterAt}
+              slug={slug}
+              onSlugChange={(s, manual) => {
+                setSlug(s);
+                if (manual) setSlugManual(true);
+              }}
+              onDraftChange={setNadDraft}
+              onDuplicateBlock={setNadDuplicateBlocked}
+            />
+          ) : marketKind === "event" ? (
             <>
             <section className="py-8">
               <label className={labelClass} htmlFor="title">
@@ -1311,6 +1390,7 @@ export function CreateClient() {
             </section>
           )}
 
+          {marketKind !== "nad" && (
           <section className="py-8">
             <label className={labelClass} htmlFor="description">
               Description
@@ -1324,6 +1404,7 @@ export function CreateClient() {
               placeholder="Add a clear resolution description"
             />
           </section>
+          )}
 
           {marketKind === "event" && (
             <section className="py-8">
@@ -1575,6 +1656,7 @@ export function CreateClient() {
             </>
           ) : null}
 
+          {marketKind !== "nad" && (
           <section className="py-8">
             <label className={labelClass}>Categories</label>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -1597,6 +1679,7 @@ export function CreateClient() {
               })}
             </div>
           </section>
+          )}
 
           <section className="grid min-w-0 gap-6 py-8 md:grid-cols-2">
             <DateTimePicker
@@ -1620,6 +1703,7 @@ export function CreateClient() {
             </p>
           </section>
 
+          {marketKind !== "nad" && (
           <section className="py-8">
             <label className={labelClass} htmlFor="image">
               Cover image
@@ -1666,13 +1750,32 @@ export function CreateClient() {
               </div>
             )}
           </section>
+          )}
+
+          {marketKind === "nad" && nadDraft && (
+            <section className="py-8">
+              <p className={`mb-2 text-xs uppercase tracking-wider text-[var(--muted)] ${brandSectionLabel}`}>
+                Card preview
+              </p>
+              <div className="max-w-sm">
+                <NadMarketListCard
+                  title={nadDraft.title}
+                  nadMarket={nadDraft.nadMarket}
+                  outcomeLabels={nadDraft.outcomes}
+                  resolveAfter={previewResolveLabel}
+                  showNewBadge
+                  interactive={false}
+                />
+              </div>
+            </section>
+          )}
 
           <section className="py-10">
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={goToSeedStep}
-                disabled={isNextLoading}
+                disabled={isNextLoading || (marketKind === "nad" && (!nadDraft || nadDuplicateBlocked))}
                 className="rounded-full bg-[var(--accent)] py-3.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60 sm:px-10 w-full sm:w-auto"
               >
                 {isNextLoading ? (

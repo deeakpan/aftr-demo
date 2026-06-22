@@ -125,7 +125,7 @@ async function buildRowsForMarket(
   const kind = Number(kindRaw) === 0 ? "Price" : "Event";
   const metadataUriStr = String(metadataUri || "");
   const metadata = await fetchIpfsMetadata(metadataUriStr);
-  if (!isListableMarket(metadataUriStr, metadata?.image)) {
+  if (!isListableMarket(metadataUriStr, metadata?.image, metadata?.nadMarket)) {
     return [];
   }
   const marketTitle = metadata?.title?.trim() || `${kind} market`;
@@ -169,7 +169,12 @@ async function buildRowsForMarket(
   });
   const stakeEndUnix = Number(stakeEndRaw);
   const stakeEndsLabel = fmtTs(stakeEndUnix);
-  const imageUrl = ipfsToHttp(metadata?.image?.trim() || "");
+  const nadMarket = metadata?.nadMarket ?? null;
+  const imageUrl = nadMarket
+    ? ipfsToHttp(metadata?.image?.trim() || "")
+    : ipfsToHttp(metadata?.image?.trim() || "") ||
+      metadata?.nadMarket?.tokens?.[0]?.imageUri?.trim() ||
+      "";
   const winningOutcomeIndex = state === 2 ? Number(winningRaw) : null;
 
   const balanceReads = outcomeTokens.length
@@ -227,6 +232,7 @@ async function buildRowsForMarket(
     poolTvlDisplay,
     stakeEndsLabel,
     imageUrl,
+    nadMarket,
     indexedCollateralIn: pos.collateralIn,
     indexedCollateralOut: collateralOut.toString(),
     indexedSharesIn: pos.sharesIn,

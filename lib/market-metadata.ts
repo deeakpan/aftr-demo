@@ -26,6 +26,13 @@ export function isValidMarketImageRef(imageRef: string | undefined | null): bool
   }
 }
 
-export function isListableMarket(metadataUri: string, imageRef: string | undefined | null): boolean {
-  return isValidMetadataUri(metadataUri) && isValidMarketImageRef(imageRef);
+export function isListableMarket(
+  metadataUri: string,
+  imageRef: string | undefined | null,
+  nadMarket?: { tokens?: { imageUri?: string }[] } | null,
+): boolean {
+  if (!isValidMetadataUri(metadataUri)) return false;
+  if (isValidMarketImageRef(imageRef)) return true;
+  const nadImg = nadMarket?.tokens?.[0]?.imageUri?.trim();
+  return Boolean(nadImg && isValidMarketImageRef(nadImg));
 }

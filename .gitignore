@@ -52,6 +52,9 @@ contracts-changes.md
 # standalone resolution app (separate Next.js project)
 website/
 
+# resolution telegram bot (standalone — not committed to root repo)
+/bot/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

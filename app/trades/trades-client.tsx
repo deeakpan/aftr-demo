@@ -8,21 +8,26 @@ import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
 import { collateralTickerFromDeployment } from "@/lib/deployment-collateral";
-import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
 import {
   BinaryProbabilityPipe,
   binaryOutcomePillClass,
-  MARKET_CARD_BODY_CLASS,
-  MARKET_CARD_GRID_CLASS,
-  MARKET_CARD_META_CLASS,
   MARKET_CARD_MULTI_LABEL_CLASS,
-  MARKET_CARD_MULTI_PCT_CLASS,
   MARKET_CARD_MULTI_ROW_CLASS,
   MARKET_CARD_OUTCOMES_BOX,
-  MARKET_CARD_SETTLED_BOX,
-  MARKET_CARD_SHELL_CLASS,
-  MARKET_CARD_TITLE_CLASS,
+  MARKET_CARD_TRADES_BODY_CLASS,
+  MARKET_CARD_TRADES_FOOTER_SLOT_CLASS,
+  MARKET_CARD_TRADES_GRID_CLASS,
+  MARKET_CARD_TRADES_META_CLASS,
+  MARKET_CARD_TRADES_SHELL_CLASS,
+  MARKET_CARD_TRADES_TITLE_CLASS,
 } from "@/app/market/components/market-list-card";
+import {
+  NadMarketCardCover,
+  nadOutcomeDisplayLabel,
+  nadTokenForOutcome,
+} from "@/app/market/components/nad-market-list-card";
+import type { NadMarketConfig } from "@/lib/nad/types";
+import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
 
 const MARKET_ABI = parseAbi([
   "function marketKind() view returns (uint8)",
@@ -68,6 +73,7 @@ type PositionRow = {
   indexedCollateralOut: bigint;
   /** Synthetic row after claim — no ERC20 balance left */
   settlementDisplay?: "claimed" | "settled_no_shares";
+  nadMarket?: NadMarketConfig | null;
 };
 
 
@@ -86,6 +92,7 @@ type MarketPositionGroup = {
   poolTvlDisplay: string;
   stakeEndsLabel: string;
   imageUrl: string;
+  nadMarket?: NadMarketConfig | null;
   collateralDecimals: number;
   indexedCollateralIn: bigint;
   indexedCollateralOut: bigint;
@@ -204,6 +211,7 @@ function groupRows(rows: PositionRow[]): MarketPositionGroup[] {
       poolTvlDisplay: head.poolTvlDisplay,
       stakeEndsLabel: head.stakeEndsLabel,
       imageUrl: head.imageUrl,
+      nadMarket: head.nadMarket,
       collateralDecimals: head.collateralDecimals,
       indexedCollateralIn,
       indexedCollateralOut,
@@ -232,13 +240,18 @@ function OpenPositionHoldings({
   collateralDecimals,
   outcomeChancePcts,
   tradingClosed,
+  nadMarket,
 }: {
   labels: string[];
   positions: MarketPositionGroup["positions"];
   collateralDecimals: number;
   outcomeChancePcts: number[];
   tradingClosed: boolean;
+  nadMarket?: NadMarketConfig | null;
 }) {
+  const displayLabel = (label: string, idx: number) =>
+    nadMarket ? nadOutcomeDisplayLabel(nadMarket, label) : label;
+
   const isBinary = labels.length === 2;
   const yesPct = clampPct(outcomeChancePcts[0] ?? 50);
   const noPct = clampPct(outcomeChancePcts[1] ?? 50);
@@ -258,7 +271,7 @@ function OpenPositionHoldings({
                 key={`${label}-${idx}`}
                 className={`flex min-h-[2.5rem] min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-sm font-bold ${binaryOutcomePillClass(hasShares, isNo, tradingClosed)}`}
               >
-                <span className="truncate">{label}</span>
+                <span className="truncate">{displayLabel(label, idx)}</span>
                 {shareLabel && (
                   <span className="shrink-0 text-xs font-semibold tabular-nums opacity-90">
                     {shareLabel}
@@ -275,6 +288,7 @@ function OpenPositionHoldings({
   const held = labels
     .map((label, idx) => ({
       label,
+      idx,
       bal: balanceForOutcome(positions, idx),
     }))
     .filter((h) => h.bal > BigInt(0));
@@ -289,17 +303,29 @@ function OpenPositionHoldings({
 
   return (
     <div className={`${MARKET_CARD_OUTCOMES_BOX} no-scrollbar gap-0.5 overflow-y-auto`}>
-      {held.map((h, i) => (
+      {held.map((h) => {
+        const tok = nadMarket ? nadTokenForOutcome(nadMarket, h.label, h.idx) : undefined;
+        return (
         <div
-          key={`${h.label}-${i}`}
+          key={`${h.label}-${h.idx}`}
           className={`${MARKET_CARD_MULTI_ROW_CLASS} justify-between transition hover:bg-[var(--surface-hover)]`}
         >
-          <span className={MARKET_CARD_MULTI_LABEL_CLASS}>{h.label}</span>
+          <span className={`${MARKET_CARD_MULTI_LABEL_CLASS} inline-flex items-center gap-2`}>
+            {tok?.imageUri ? (
+              <img
+                src={tok.imageUri}
+                alt=""
+                className="h-5 w-5 shrink-0 rounded-full object-cover ring-1 ring-[var(--border)]"
+              />
+            ) : null}
+            {displayLabel(h.label, h.idx)}
+          </span>
           <span className="shrink-0 text-[12px] font-medium tabular-nums text-[var(--muted)]">
             {formatShareAmount(h.bal, collateralDecimals)}
           </span>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -328,15 +354,15 @@ function SettledMarketSummary({
 
   if (justClaimed && hasRedeemed) {
     return (
-      <div className="rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-2">
+      <div className={`${MARKET_CARD_OUTCOMES_BOX} justify-center gap-1 text-center`}>
         <p className="text-sm font-bold text-emerald-400 [html[data-theme=light]_&]:text-emerald-700">
           Successfully claimed
         </p>
-        <p className="mt-0.5 text-[11px] font-semibold text-[var(--foreground)]">
+        <p className="text-[13px] font-semibold tabular-nums text-[var(--foreground)]">
           {fmtAmount(redeemed)} {tick}
         </p>
         {hasInvested && (
-          <p className="mt-1 text-[11px] text-[var(--muted)]">
+          <p className="text-[11px] text-[var(--muted)]">
             {net >= BigInt(0)
               ? `Net on this market: +${fmtAmount(net)} ${tick}`
               : `Net on this market: −${fmtAmount(-net)} ${tick} (includes losing positions)`}
@@ -350,14 +376,14 @@ function SettledMarketSummary({
     const netPositive = net > BigInt(0);
     const netZero = net === BigInt(0);
     return (
-      <div className="mt-2 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-2 py-1.5">
-        <p className="text-sm font-bold text-emerald-400 [html[data-theme=light]_&]:text-emerald-700">Redeemed</p>
-        <p className="mt-0.5 text-[11px] font-semibold text-[var(--foreground)]">
+      <div className={`${MARKET_CARD_OUTCOMES_BOX} justify-center gap-0.5`}>
+        <p className="text-[11px] font-medium text-[var(--muted)]">Redeemed</p>
+        <p className="text-[13px] font-semibold tabular-nums text-[var(--foreground)]">
           {fmtAmount(redeemed)} {tick}
         </p>
         {hasInvested && (
           <p
-            className={`mt-0.5 text-[11px] font-semibold ${
+            className={`text-[11px] font-semibold tabular-nums ${
               netPositive
                 ? "text-emerald-400 [html[data-theme=light]_&]:text-emerald-700"
                 : netZero
@@ -378,16 +404,16 @@ function SettledMarketSummary({
 
   if (hasInvested) {
     return (
-      <div className="mt-2 rounded-lg border border-rose-500/25 bg-rose-500/5 px-2 py-1.5">
+      <div className={`${MARKET_CARD_OUTCOMES_BOX} items-center justify-center`}>
         <p className="text-sm font-bold text-rose-400 [html[data-theme=light]_&]:text-rose-700">You lost</p>
       </div>
     );
   }
 
   return (
-    <div className="mt-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5">
+    <div className={`${MARKET_CARD_OUTCOMES_BOX} items-center justify-center gap-0.5 text-center`}>
       <p className="text-sm font-semibold text-[var(--foreground)]">Settled</p>
-      <p className="mt-0.5 text-[11px] text-[var(--muted)]">No outcome tokens held on-chain anymore.</p>
+      <p className="text-[11px] text-[var(--muted)]">No outcome tokens held on-chain anymore.</p>
     </div>
   );
 }
@@ -548,6 +574,27 @@ export function TradesClient() {
   const [claimOverrides, setClaimOverrides] = useState<Record<string, ClaimOverride>>({});
   const [tvlOverrides, setTvlOverrides] = useState<Record<string, string>>({});
   const [tvlRefreshing, setTvlRefreshing] = useState<Record<string, boolean>>({});
+  const [nadMarketByAddress, setNadMarketByAddress] = useState<Record<string, NadMarketConfig>>({});
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/markets", { cache: "no-store" });
+        if (!res.ok) return;
+        const json = (await res.json()) as {
+          markets?: Array<{ address?: string; nadMarket?: NadMarketConfig }>;
+        };
+        const next: Record<string, NadMarketConfig> = {};
+        for (const market of json.markets ?? []) {
+          const addr = market.address?.toLowerCase();
+          if (addr && market.nadMarket) next[addr] = market.nadMarket;
+        }
+        setNadMarketByAddress(next);
+      } catch {
+        // Markets list is optional enrichment for Nad.fun card covers.
+      }
+    })();
+  }, []);
 
   const refreshTvl = async (g: { marketAddress: string; outcomeLabels: string[]; collateralDecimals: number }) => {
     if (!publicClient || tvlRefreshing[g.marketAddress]) return;
@@ -603,6 +650,7 @@ export function TradesClient() {
             poolTvlDisplay: string;
             stakeEndsLabel: string;
             imageUrl: string;
+            nadMarket?: NadMarketConfig | null;
             indexedCollateralIn?: string;
             indexedCollateralOut?: string;
             settlementDisplay?: "claimed" | "settled_no_shares";
@@ -637,6 +685,7 @@ export function TradesClient() {
           poolTvlDisplay: r.poolTvlDisplay,
           stakeEndsLabel: r.stakeEndsLabel || fmtTs(r.stakeEndUnix),
           imageUrl: r.imageUrl,
+          nadMarket: r.nadMarket ?? null,
           indexedCollateralIn: BigInt((r as { indexedCollateralIn?: string }).indexedCollateralIn ?? "0"),
           indexedCollateralOut: BigInt((r as { indexedCollateralOut?: string }).indexedCollateralOut ?? "0"),
           settlementDisplay: (r as { settlementDisplay?: "claimed" | "settled_no_shares" }).settlementDisplay,
@@ -708,7 +757,7 @@ export function TradesClient() {
         )}
 
         {!isLoading && groups.length > 0 && (
-          <div className={MARKET_CARD_GRID_CLASS}>
+          <div className={MARKET_CARD_TRADES_GRID_CLASS}>
             {groups.map((g) => {
               const winIdx = g.winningOutcomeIndex;
               const winBal =
@@ -728,13 +777,18 @@ export function TradesClient() {
                 });
               const tradingClosed =
                 g.marketState !== 0 || Math.floor(Date.now() / 1000) >= g.stakeEndUnix;
+              const nadMarket =
+                g.nadMarket ?? nadMarketByAddress[g.marketAddress.toLowerCase()] ?? null;
 
               return (
                 <article
                   key={g.marketAddress}
-                  className={`${MARKET_CARD_SHELL_CLASS} transition duration-200 hover:-translate-y-1 hover:border-[var(--accent)] hover:shadow-[0_16px_40px_rgb(139_92_246_/_0.28)] [html[data-theme=light]_&]:hover:shadow-[0_16px_40px_rgb(124_77_255_/_0.14)]`}
+                  className={`${MARKET_CARD_TRADES_SHELL_CLASS} transition duration-200 hover:-translate-y-1 hover:border-[var(--accent)] hover:shadow-[0_16px_40px_rgb(139_92_246_/_0.28)] [html[data-theme=light]_&]:hover:shadow-[0_16px_40px_rgb(124_77_255_/_0.14)]`}
                 >
-                  <div className={`${MARKET_COVER_ASPECT_CLASS} w-full overflow-hidden bg-[var(--surface)]`}>
+                  {nadMarket ? (
+                    <NadMarketCardCover nadMarket={nadMarket} />
+                  ) : (
+                  <div className={`${MARKET_COVER_ASPECT_CLASS} w-full shrink-0 overflow-hidden bg-[var(--surface)]`}>
                     {g.imageUrl ? (
                       <img
                         src={g.imageUrl}
@@ -747,23 +801,26 @@ export function TradesClient() {
                       </div>
                     )}
                   </div>
+                  )}
 
-                  <div className={MARKET_CARD_BODY_CLASS}>
+                  <div className={MARKET_CARD_TRADES_BODY_CLASS}>
                     <p
-                      className={`${MARKET_CARD_TITLE_CLASS} cursor-pointer underline-offset-2 hover:underline`}
+                      className={`${MARKET_CARD_TRADES_TITLE_CLASS} cursor-pointer underline-offset-2 hover:underline`}
                       onClick={() => router.push(`/market/${g.marketAddress}`)}
                     >
                       {g.marketTitle}
                     </p>
-                    <p className={MARKET_CARD_META_CLASS}>
+                    <p className={MARKET_CARD_TRADES_META_CLASS}>
                       {g.marketKind} · {stateLabel(g.marketState, g.stakeEndUnix)}
                     </p>
 
-                    <div className={g.marketState === 2 ? MARKET_CARD_SETTLED_BOX : undefined}>
-                      {g.marketState === 2 ? (
-                        canClaim ? (
-                          <div className="w-full" onClick={(e) => e.stopPropagation()}>
-                            <ClaimWinningsButton
+                    {g.marketState === 2 ? (
+                      canClaim ? (
+                        <div
+                          className={`${MARKET_CARD_OUTCOMES_BOX} justify-center`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <ClaimWinningsButton
                               marketAddress={g.marketAddress}
                               winningOutcomeIndex={winIdx!}
                               maxShares={winBal}
@@ -781,28 +838,29 @@ export function TradesClient() {
                               }}
                               onDone={() => setRefreshKey((k) => k + 1)}
                             />
-                          </div>
-                        ) : (
-                          <SettledMarketSummary
+                        </div>
+                      ) : (
+                        <SettledMarketSummary
                             invested={g.indexedCollateralIn}
                             redeemed={effectiveRedeemed}
                             tick={tick}
                             fmtAmount={fmtIndexed}
                             justClaimed={justClaimed}
                           />
-                        )
-                      ) : (
-                        <OpenPositionHoldings
+                      )
+                    ) : (
+                      <OpenPositionHoldings
                           labels={g.outcomeLabels}
                           positions={g.positions}
                           collateralDecimals={g.collateralDecimals}
                           outcomeChancePcts={g.outcomeChancePcts}
                           tradingClosed={tradingClosed}
+                          nadMarket={nadMarket}
                         />
-                      )}
-                    </div>
+                    )}
                   </div>
 
+                  <div className={MARKET_CARD_TRADES_FOOTER_SLOT_CLASS}>
                   <div className="flex shrink-0 items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] text-[var(--muted)]">
                     <Tip label="Total Value Locked">
                       <div className="inline-flex items-center gap-1.5 font-semibold text-[var(--foreground)]">
@@ -822,6 +880,7 @@ export function TradesClient() {
                       </Tip>
                       <BookmarkSimple size={12} />
                     </div>
+                  </div>
                   </div>
                 </article>
               );

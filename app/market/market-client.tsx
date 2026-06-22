@@ -8,6 +8,8 @@ import { useAccount, useWalletClient } from "wagmi";
 import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import { AppLayout } from "@/app/components/app-layout";
 import { MarketListCard, MarketListCardSkeleton, MARKET_CARD_GRID_CLASS } from "@/app/market/components/market-list-card";
+import { NadMarketListCard } from "@/app/market/components/nad-market-list-card";
+import type { NadMarketConfig } from "@/lib/nad/types";
 import { LimitOrderParams, TradeModal, type TradeSuccessResult } from "@/app/market/components/trade-modal";
 import {
   collateralTickerFromDeployment,
@@ -75,6 +77,7 @@ type UiMarket = {
   outcomeChancePcts: number[];
   slug?: string;
   categories?: string[];
+  nadMarket?: NadMarketConfig;
 };
 
 function stateLabel(state: number) {
@@ -606,7 +609,42 @@ export function MarketClient() {
         )}
         {!isLoading && visibleMarkets.length > 0 && (
           <div className={MARKET_CARD_GRID_CLASS}>
-            {visibleMarkets.map((m) => (
+            {visibleMarkets.map((m) =>
+              m.nadMarket ? (
+                <NadMarketListCard
+                  key={m.address}
+                  title={m.title}
+                  nadMarket={m.nadMarket}
+                  outcomeLabels={m.outcomeLabels ?? []}
+                  outcomeChancePcts={m.outcomeChancePcts}
+                  poolTvl={tvlOverrides[m.address] ?? m.poolTvl}
+                  resolveAfter={formatMarketCardDate(m.resolveAfterUnix * 1000) ?? m.resolveAfter}
+                  showNewBadge={
+                    (() => {
+                      const v = Number((tvlOverrides[m.address] ?? m.poolTvl).replace(/,/g, ""));
+                      return !Number.isFinite(v) || v <= 0;
+                    })()
+                  }
+                  onTitleClick={() => {
+                    cacheMarketCardForDetail(m.address, {
+                      title: m.title,
+                      description: m.description,
+                      imageUrl: m.imageUrl,
+                      slug: m.slug,
+                      outcomeLabels: m.outcomeLabels,
+                      categories: m.categories,
+                    });
+                    router.push(`/market/${m.address}`);
+                  }}
+                  onTrade={(idx) => openTrade(m, idx)}
+                  onRefreshTvl={() => void refreshTvl(m)}
+                  tvlRefreshing={Boolean(tvlRefreshing[m.address])}
+                  tradingClosed={
+                    m.marketState !== 0 ||
+                    Math.floor(Date.now() / 1000) >= m.stakeEndUnix
+                  }
+                />
+              ) : (
               <MarketListCard
                 key={m.address}
                 title={m.title}
@@ -640,7 +678,8 @@ export function MarketClient() {
                   Math.floor(Date.now() / 1000) >= m.stakeEndUnix
                 }
               />
-            ))}
+              ),
+            )}
           </div>
         )}
         {!hasWalletConnectProjectId && (
