@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CaretDown, CircleNotch, Plus, Trash, Warning } from "@phosphor-icons/react";
 import { getAddress, isAddress } from "viem";
 import type { NadQuestionType, NadTokenRef, NadMarketConfig } from "@/lib/nad/types";
-import { NAD_QUESTION_GROUPS, getQuestionDef } from "@/lib/nad/question-types";
+import { NAD_QUESTION_GROUPS, getQuestionDef, validateNadResolveAfter } from "@/lib/nad/question-types";
 import { knownNadInfraLabel } from "@/lib/nad/config";
 import {
   buildNadMarketConfig,
@@ -20,11 +20,9 @@ import {
   formatNadPriceUsd,
   formatUsdThresholdValue,
   parseNadMarketStats,
-  questionRequiresBondingCurve,
   usdThresholdSliderRange,
   validateMcapParity,
   maxTokenMcap,
-  validateTokenForQuestion,
   type NadLiveStats,
 } from "@/lib/nad/market-stats";
 
@@ -47,6 +45,7 @@ export type NadCreateDraft = {
   nadMarket: NadMarketConfig;
   coverImageUrl: string;
   slug: string;
+  previewTokenStats?: (NadLiveStats | null)[];
 };
 
 type Props = {
@@ -191,7 +190,7 @@ export function NadMarketCreateSection({
   onDraftChange,
   onDuplicateBlock,
 }: Props) {
-  const [questionType, setQuestionType] = useState<NadQuestionType>("graduate_by_date");
+  const [questionType, setQuestionType] = useState<NadQuestionType>("mcap_usd_above");
   const [tokenInputs, setTokenInputs] = useState<string[]>(["", ""]);
   const [tokens, setTokens] = useState<(NadTokenRef | null)[]>([]);
   const [tokenStats, setTokenStats] = useState<(NadLiveStats | null)[]>([]);
@@ -234,18 +233,19 @@ export function NadMarketCreateSection({
     [tokens],
   );
 
+  const resolveAfterUnix = useMemo(
+    () => Math.floor(parseLocalDateTimeToMs(resolveAfterAt) / 1000),
+    [resolveAfterAt],
+  );
+  const stakeEndUnix = useMemo(
+    () => Math.floor(parseLocalDateTimeToMs(stakeEndAt) / 1000),
+    [stakeEndAt],
+  );
+
   const questionValidationError = useMemo(() => {
-    for (let i = 0; i < tokens.length; i++) {
-      const tok = tokens[i];
-      if (!tok) continue;
-      const stats = tokenStats[i];
-      const err = validateTokenForQuestion(
-        questionType,
-        tok.symbol,
-        Boolean(tok.isGraduated),
-        Boolean(stats?.isOnDex),
-      );
-      if (err) return err;
+    const addrs = resolvedTokens.map((t) => t.address.toLowerCase());
+    if (new Set(addrs).size !== addrs.length) {
+      return "Each token address must be unique — remove duplicate entries.";
     }
 
     if (qDef.requiresMcapParity && resolvedTokens.length >= 2) {
@@ -264,15 +264,15 @@ export function NadMarketCreateSection({
       }
     }
 
+    const resolveErr = validateNadResolveAfter(questionType, resolveAfterUnix);
+    if (resolveErr) return resolveErr;
+
     return null;
-  }, [tokens, tokenStats, questionType, qDef.requiresMcapParity, resolvedTokens.length, thresholdUsd]);
+  }, [tokens, tokenStats, questionType, qDef.requiresMcapParity, resolvedTokens.length, thresholdUsd, resolveAfterUnix]);
 
   useEffect(() => {
     setQuestionError(questionValidationError ?? "");
   }, [questionValidationError]);
-
-  const resolveAfterUnix = Math.floor(parseLocalDateTimeToMs(resolveAfterAt) / 1000);
-  const stakeEndUnix = Math.floor(parseLocalDateTimeToMs(stakeEndAt) / 1000);
 
   const applyDefaultsForQuestion = useCallback(
     (nextType: NadQuestionType, stats?: NadLiveStats | null) => {
@@ -366,14 +366,6 @@ export function NadMarketCreateSection({
         next[idx] = stats;
         return next;
       });
-
-      const qErr = validateTokenForQuestion(
-        questionType,
-        ref.symbol,
-        ref.isGraduated ?? false,
-        stats.isOnDex,
-      );
-      if (qErr) setQuestionError(qErr);
 
       if (idx === 0) {
         applyDefaultsForQuestion(questionType, stats);
@@ -492,6 +484,10 @@ export function NadMarketCreateSection({
       nadMarket,
       coverImageUrl: resolvedTokens[0]!.imageUri,
       slug: slug || slugify(title),
+      previewTokenStats: resolvedTokens.map((t) => {
+        const i = tokens.findIndex((x) => x?.address === t.address);
+        return i >= 0 ? tokenStats[i] ?? null : null;
+      }),
     });
   }, [
     resolvedTokens,
@@ -506,6 +502,7 @@ export function NadMarketCreateSection({
     duplicateCheck.hits.length,
     qDef,
     questionValidationError,
+    tokenStats,
     onDraftChange,
   ]);
 
@@ -544,23 +541,12 @@ export function NadMarketCreateSection({
                   <ul>
                     {group.questions.map((q) => {
                       const selected = questionType === q.id;
-                      const incompatible =
-                        questionRequiresBondingCurve(q.id) &&
-                        tokens.some((t, i) => {
-                          if (!t) return false;
-                          const stats = tokenStats[i];
-                          return Boolean(t.isGraduated || stats?.isOnDex);
-                        });
                       return (
                         <li key={q.id} role="option" aria-selected={selected}>
                           <button
                             type="button"
-                            disabled={incompatible}
-                            onClick={() => {
-                              if (incompatible) return;
-                              selectQuestionType(q.id);
-                            }}
-                            className={`w-full px-3 py-2.5 text-left text-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                            onClick={() => selectQuestionType(q.id)}
+                            className={`w-full px-3 py-2.5 text-left text-sm transition ${
                               selected
                                 ? "bg-[var(--accent)]/15 font-medium text-[var(--foreground)]"
                                 : "text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
@@ -578,6 +564,11 @@ export function NadMarketCreateSection({
           )}
         </div>
         <p className="mt-2 max-w-md text-xs leading-relaxed text-[var(--muted)]">{qDef.description}</p>
+        {qDef.minResolveDays ? (
+          <p className="mt-1 max-w-md text-xs text-amber-400/90">
+            Resolve must be ≥ {qDef.minResolveDays} days from now.
+          </p>
+        ) : null}
       </section>
 
       <section className="py-8">

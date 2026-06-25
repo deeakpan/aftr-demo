@@ -54,7 +54,7 @@ type PositionRow = {
   marketAddress: `0x${string}`;
   collateralAddress: `0x${string}`;
   marketTitle: string;
-  marketKind: "Event" | "Price";
+  marketKind: "Event" | "Price" | "Nad";
   marketState: number;
   stakeEndUnix: number;
   winningOutcomeIndex: number | null;
@@ -81,7 +81,7 @@ type MarketPositionGroup = {
   marketAddress: `0x${string}`;
   collateralAddress: `0x${string}`;
   marketTitle: string;
-  marketKind: "Event" | "Price";
+  marketKind: "Event" | "Price" | "Nad";
   marketState: number;
   stakeEndUnix: number;
   winningOutcomeIndex: number | null;
@@ -635,7 +635,7 @@ export function TradesClient() {
             marketAddress: `0x${string}`;
             collateralAddress: `0x${string}`;
             marketTitle: string;
-            marketKind: "Event" | "Price";
+            marketKind: "Event" | "Price" | "Nad";
             marketState: number;
             stakeEndUnix: number;
             winningOutcomeIndex: number | null;

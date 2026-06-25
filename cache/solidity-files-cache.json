@@ -1572,8 +1572,8 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\core\\MondaloreVParimutuelMarket.sol": {
-      "lastModificationDate": 1781038720473,
-      "contentHash": "f67dba0278a40cd4cdd2d13b2bc9c53b",
+      "lastModificationDate": 1782201744049,
+      "contentHash": "c11b730b58fa870be675677a137ee3a5",
       "sourceName": "contracts/core/MondaloreVParimutuelMarket.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1706,8 +1706,8 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\interfaces\\IMondaloreMarketFactoryResolution.sol": {
-      "lastModificationDate": 1781038564873,
-      "contentHash": "51791f17fd0bd8844acb164976d59876",
+      "lastModificationDate": 1782201745000,
+      "contentHash": "3252db4f907cefa55147250d96ab39ed",
       "sourceName": "contracts/interfaces/IMondaloreMarketFactoryResolution.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1746,8 +1746,8 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\factory\\MondaloreParimutuelMarketFactory.sol": {
-      "lastModificationDate": 1781126946682,
-      "contentHash": "66f51a0a81ddacb001104856ff357733",
+      "lastModificationDate": 1782201760152,
+      "contentHash": "089db191de90cf7043e4c7348f27c4c2",
       "sourceName": "contracts/factory/MondaloreParimutuelMarketFactory.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1794,8 +1794,8 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\factory\\MondaloreParimutuelDeployer.sol": {
-      "lastModificationDate": 1781038565058,
-      "contentHash": "f11afdf42d0520fb31c86377977c4403",
+      "lastModificationDate": 1782201787995,
+      "contentHash": "9ab9dd9eb33e3b9f72924dceed85a04c",
       "sourceName": "contracts/factory/MondaloreParimutuelDeployer.sol",
       "solcConfig": {
         "version": "0.8.24",

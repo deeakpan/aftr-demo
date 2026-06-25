@@ -6,7 +6,9 @@ import { http } from "wagmi";
 import { deploymentRpcUrl, monadTestnet } from "@/lib/chain";
 
 const envProjectId = (process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "").trim();
-const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").trim();
+const envAppUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").trim();
+const appUrl =
+  envAppUrl || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
 
 export const hasWalletConnectProjectId = envProjectId.length > 0;
 export const walletConnectProjectId = hasWalletConnectProjectId ? envProjectId : "demo-project-id";

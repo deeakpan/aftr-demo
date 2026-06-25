@@ -27,6 +27,7 @@ import {
 import { getUserProfileByAddress, saveUserProfile } from "@/lib/supabase/profiles";
 import { SidebarDrawer } from "@/app/components/sidebar-drawer";
 import { SidebarOpenContext } from "@/app/components/sidebar-context";
+import { MarketSearchModal } from "@/app/components/market-search-modal";
 
 export function buildWalletGradient(input: string) {
   let hash = 0;
@@ -98,9 +99,6 @@ export function AppLayout({
   const { disconnect } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
   const [mounted, setMounted] = useState(false);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const desktopSearchInputRef = useRef<HTMLInputElement>(null);
-  const mobileSearchRef = useRef<HTMLDivElement>(null);
   const hasRunAuthRef = useRef(false);
   const profileCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showNameModal, setShowNameModal] = useState(false);
@@ -109,9 +107,9 @@ export function AppLayout({
   const [profileError, setProfileError] = useState<string | null>(null);
   const [nameModalError, setNameModalError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState("Trending");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [profileName, setProfileName] = useState("");
@@ -208,24 +206,12 @@ export function AppLayout({
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        searchInputRef.current?.focus();
-        desktopSearchInputRef.current?.focus();
+        if (showSearch) setIsSearchOpen(true);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  useEffect(() => {
-    if (!isMobileSearchOpen) return;
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!mobileSearchRef.current?.contains(event.target as Node)) {
-        setIsMobileSearchOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [isMobileSearchOpen]);
+  }, [showSearch]);
 
   useEffect(() => {
     if (!showFilterStrip) return;
@@ -399,18 +385,17 @@ export function AppLayout({
                 />
               </Link>
               {showSearch && (
-                <input
-                  ref={desktopSearchInputRef}
-                  type="search"
-                  placeholder={searchPlaceholder}
-                  value={searchQuery}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setSearchQuery(v);
-                    updateMarketQuery({ q: v.trim() ? v : null });
-                  }}
-                  className="hidden h-10 w-[380px] max-w-[52vw] rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] md:block"
-                />
+                <button
+                  type="button"
+                  onClick={() => setIsSearchOpen(true)}
+                  className="hidden h-10 w-[380px] max-w-[52vw] items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 text-left text-sm text-[var(--muted)] transition hover:border-[var(--accent)]/40 md:flex"
+                >
+                  <MagnifyingGlass size={16} weight="bold" className="shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">Search markets…</span>
+                  <kbd className="shrink-0 rounded border border-[var(--border)] bg-[var(--card)] px-1.5 py-0.5 text-[10px] font-medium">
+                    ⌘K
+                  </kbd>
+                </button>
               )}
               <Link href="/how-it-works" className="hidden items-center gap-2 text-sm md:flex">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full border border-[var(--accent)] text-xs font-semibold text-[var(--accent)]">
@@ -422,41 +407,14 @@ export function AppLayout({
 
             <div className="flex shrink-0 items-center gap-1.5 md:gap-3">
               {showSearch && (
-                <div ref={mobileSearchRef} className="relative md:hidden">
-                  <button
-                    type="button"
-                    aria-label="Search markets"
-                    aria-expanded={isMobileSearchOpen}
-                    onClick={() => {
-                      setIsMobileSearchOpen((open) => {
-                        const next = !open;
-                        if (next) {
-                          requestAnimationFrame(() => searchInputRef.current?.focus());
-                        }
-                        return next;
-                      });
-                    }}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
-                  >
-                    <MagnifyingGlass size={20} weight="bold" />
-                  </button>
-                  {isMobileSearchOpen && (
-                    <div className="absolute right-0 top-full z-[60] mt-2 w-[min(92vw,320px)] rounded-2xl border border-[var(--border)] bg-[var(--card)] p-2 shadow-2xl">
-                      <input
-                        ref={searchInputRef}
-                        type="search"
-                        placeholder={searchPlaceholder}
-                        value={searchQuery}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setSearchQuery(v);
-                          updateMarketQuery({ q: v.trim() ? v : null });
-                        }}
-                        className="h-10 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
-                      />
-                    </div>
-                  )}
-                </div>
+                <button
+                  type="button"
+                  aria-label="Search markets"
+                  onClick={() => setIsSearchOpen(true)}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] md:hidden"
+                >
+                  <MagnifyingGlass size={20} weight="bold" />
+                </button>
               )}
               {isWalletConnected ? (
                 <>
@@ -691,9 +649,11 @@ export function AppLayout({
                 <button
                   type="button"
                   onClick={() => {
-                    void open();
+                    void open({ view: "Connect" }).catch((error) => {
+                      console.error("Failed to open wallet modal", error);
+                    });
                   }}
-                  className="rounded-full bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 md:px-4 md:py-2 md:text-sm"
+                  className="cursor-pointer select-none rounded-full bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white caret-transparent hover:opacity-90 md:px-4 md:py-2 md:text-sm"
                 >
                   Sign in
                 </button>
@@ -856,6 +816,21 @@ export function AppLayout({
             </div>
           </div>
         </div>
+      )}
+      {showSearch && (
+        <MarketSearchModal
+          open={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+          initialQuery={searchQuery}
+          onQueryChange={
+            showFilterStrip
+              ? (q) => {
+                  setSearchQuery(q);
+                  updateMarketQuery({ q: q.trim() ? q : null });
+                }
+              : undefined
+          }
+        />
       )}
       </main>
     </SidebarOpenContext.Provider>

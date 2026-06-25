@@ -1,4 +1,5 @@
 import { ipfsToHttp, type IpfsMarketMetadata } from "@/lib/ipfs-metadata";
+import type { UiMarketKind } from "@/lib/markets/market-kind";
 
 const IPFS_GATEWAYS = [
   "https://gateway.lighthouse.storage/ipfs/",
@@ -40,10 +41,12 @@ export async function fetchIpfsMetadataClient(uri: string): Promise<IpfsMarketMe
   return null;
 }
 
-export function metadataTitle(md: IpfsMarketMetadata | null | undefined, kind: "Price" | "Event"): string {
+export function metadataTitle(md: IpfsMarketMetadata | null | undefined, kind: UiMarketKind): string {
   const title = md?.title?.trim() || md?.question?.trim();
   if (title) return title;
-  return kind === "Price" ? "Price market" : "Event market";
+  if (kind === "Price") return "Price market";
+  if (kind === "Nad") return "NAD market";
+  return "Event market";
 }
 
 export function metadataImageUrl(md: IpfsMarketMetadata | null | undefined): string {

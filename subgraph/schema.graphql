@@ -6,17 +6,21 @@ type PriceFeed @entity(immutable: false) {
   updatedAt: BigInt!
 }
 
-"""One row per deployed market (from factory `MarketCreated`)."""
+"""One row per deployed market (from factory `MarketCreated`). kind: 0=PRICE, 1=EVENT, 2=NAD_TOKEN."""
 type Market @entity(immutable: false) {
   id: ID!
   kind: Int!
+  """0=OPEN, 1=AWAITING_UMA, 2=SETTLED, 3=CANCELLED"""
+  state: Int!
   collateralToken: String!
   stakeEndTimestamp: BigInt!
   resolveAfterTimestamp: BigInt!
   metadataHash: String!
+  metadataURI: String
   creator: String!
   createdAt: BigInt!
   createdAtBlock: BigInt!
+  settledAt: BigInt
   positions: [TraderMarketPosition!]! @derivedFrom(field: "market")
   trades: [MarketTrade!]! @derivedFrom(field: "market")
 }

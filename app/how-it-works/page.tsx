@@ -15,6 +15,7 @@ const sections = [
   { id: "creators", label: "For Creators" },
   { id: "stakers", label: "For Stakers" },
   { id: "settlement", label: "Settlement" },
+  { id: "nad-markets", label: "Nad markets" },
 ];
 
 export default function HowItWorksPage() {
@@ -118,7 +119,7 @@ export default function HowItWorksPage() {
               </p>
               <ol className="space-y-2 text-sm text-[var(--foreground)] md:text-base">
                 <li>1. Create a market with title, metadata, outcomes, and times.</li>
-                <li>2. Choose market type: Price (Chainlink) or Event (community resolution).</li>
+                <li>2. Choose market type: Price (Chainlink), Event (community resolution), or Nad ([Nad.fun](https://nad.fun) token stats).</li>
                 <li>3. Set stake close and resolve-after timestamps.</li>
                 <li>4. Seed initial liquidity with one-time permissionless bootstrap liquidity.</li>
                 <li>5. Market opens for trading, and creator fees accrue as users trade.</li>
@@ -153,8 +154,68 @@ export default function HowItWorksPage() {
                   Each signature is bound to a specific market and outcome; anyone can submit
                   settlement once enough valid signatures are collected.
                 </li>
+                <li>
+                  - Nad markets settle from{" "}
+                  <a
+                    href="https://nad.fun"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--accent)] underline underline-offset-2"
+                  >
+                    Nad.fun
+                  </a>{" "}
+                  API data at resolve time (market cap, price, or holders per the question).
+                </li>
                 <li>- Winners redeem outcome shares for collateral after settlement.</li>
                 <li>- Market trades and pool moves are publicly verifiable onchain.</li>
+              </ul>
+            </section>
+
+            <section id="nad-markets" className="scroll-mt-24 space-y-3">
+              <h2 className="text-xl font-semibold text-[var(--foreground)]">Nad markets</h2>
+              <p className="text-sm text-[var(--muted)] md:text-base">
+                <strong>Nad markets</strong> are predictions on tokens launched on{" "}
+                <a
+                  href="https://nad.fun"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-[var(--accent)] underline underline-offset-2 hover:opacity-90"
+                >
+                  Nad.fun
+                </a>
+                , Monad&apos;s meme-token launchpad. You pick one or more token contract addresses from
+                Nad.fun; traders bet on outcomes like market cap, price, or holder count — or which
+                token wins a head-to-head (e.g. highest mcap at resolve).
+              </p>
+              <p className="text-sm text-[var(--muted)] md:text-base">
+                While a market is open, cards show live token stats from Nad.fun. After{" "}
+                <strong>resolve after</strong>, settlement reads a Nad.fun API snapshot and finalizes
+                the winner automatically — no manual admin vote.
+              </p>
+              <ul className="space-y-2 text-sm text-[var(--foreground)] md:text-base">
+                <li>
+                  - Browse tokens and copy addresses on{" "}
+                  <a
+                    href="https://nad.fun"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--accent)] underline underline-offset-2"
+                  >
+                    nad.fun
+                  </a>{" "}
+                  (testnet:{" "}
+                  <a
+                    href="https://testnet.nad.fun"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--accent)] underline underline-offset-2"
+                  >
+                    testnet.nad.fun
+                  </a>
+                  ).
+                </li>
+                <li>- Threshold markets: Yes/No on mcap, price, or holders above a target.</li>
+                <li>- Comparison markets: two to four tokens; highest mcap or first to hit a target wins.</li>
               </ul>
             </section>
           </main>

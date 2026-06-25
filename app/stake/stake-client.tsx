@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Info } from "@phosphor-icons/react";
+import { useWeb3Modal } from "@web3modal/wagmi/react";
 import { formatUnits, maxUint256, parseUnits, type Address } from "viem";
 import { useAccount, useWalletClient } from "wagmi";
-import { useWeb3Modal } from "@web3modal/wagmi/react";
 import { AppLayout } from "@/app/components/app-layout";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
 import { DEPLOYMENT_CHAIN_ID, wrongNetworkMessage } from "@/lib/deployment";
@@ -87,9 +87,9 @@ function StatRow({ label, value, hint }: { label: string; value: string; hint?: 
 
 export function StakeClient() {
   const publicClient = deploymentPublicClient;
+  const { open } = useWeb3Modal();
   const { address, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const { open } = useWeb3Modal();
   const refreshInFlight = useRef(false);
 
   const [amount, setAmount] = useState("");

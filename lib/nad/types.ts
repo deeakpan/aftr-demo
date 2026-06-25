@@ -1,10 +1,8 @@
 /** Nad.fun market question types — metadata drives resolution API/subgraph usage. */
 export type NadQuestionType =
-  | "graduate_by_date"
   | "mcap_usd_above"
   | "price_usd_above"
   | "holder_count_above"
-  | "graduate_first"
   | "mcap_highest"
   | "mcap_threshold_first";
 
@@ -24,8 +22,7 @@ export type NadResolutionEndpoint = {
     | "chart"
     | "metrics"
     | "swap_history"
-    | "holders"
-    | "subgraph_graduate";
+    | "holders";
   method: "GET";
   path: string;
   description: string;

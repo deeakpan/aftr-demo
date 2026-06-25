@@ -3,6 +3,7 @@ import { formatUnits, isAddress, parseAbi, parseAbiItem } from "viem";
 import deployment from "@/lib/deployment";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
 import { fetchIpfsMetadata, ipfsToHttp } from "@/lib/ipfs-metadata";
+import { marketKindFromChain } from "@/lib/markets/market-kind";
 import { isListableMarket } from "@/lib/market-metadata";
 import { querySubgraph } from "@/lib/subgraph/client";
 
@@ -122,7 +123,7 @@ async function buildRowsForMarket(
   const numOutcomes = Number(outcomesRaw);
   const collateralDecimals = Number(collateralDecimalsRaw);
   const state = Number(stateRaw);
-  const kind = Number(kindRaw) === 0 ? "Price" : "Event";
+  const kind = marketKindFromChain(Number(kindRaw));
   const metadataUriStr = String(metadataUri || "");
   const metadata = await fetchIpfsMetadata(metadataUriStr);
   if (!isListableMarket(metadataUriStr, metadata?.image, metadata?.nadMarket)) {

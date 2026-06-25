@@ -1,8 +1,11 @@
 import { formatUnits, parseAbi } from "viem";
+import { unstable_cache } from "next/cache";
+import { fetchMarketsFromSubgraph, type SubgraphMarketIndex } from "@/lib/subgraph/market-index";
 import deployment from "@/lib/deployment";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
-import { fetchIpfsMetadata, ipfsToHttp } from "@/lib/ipfs-metadata";
+import { fetchIpfsMetadata, ipfsToHttp, type IpfsMarketMetadata } from "@/lib/ipfs-metadata";
 import { isListableMarket } from "@/lib/market-metadata";
+import { isPriceMarketKind, marketKindFromChain, type UiMarketKind } from "@/lib/markets/market-kind";
 
 const FACTORY_ADDRESS = deployment.contracts.MondaloreParimutuelMarketFactory as `0x${string}`;
 
@@ -38,7 +41,7 @@ const FEED_ABI = parseAbi(["function decimals() view returns (uint8)"]);
 
 export type MarketListItem = {
   address: `0x${string}`;
-  kind: "Event" | "Price";
+  kind: UiMarketKind;
   outcomes: number;
   outcomeLabels: string[];
   title: string;
@@ -271,13 +274,308 @@ export async function loadMarketDetail(marketAddress: `0x${string}`): Promise<Ma
 type LoadMarketRowOptions = {
   /** When true (default), skip markets without valid IPFS cover metadata (markets grid). */
   requireListable?: boolean;
+  /** Price bin labels are only needed on detail/trade — skip on markets grid. */
+  includePriceBins?: boolean;
 };
+
+type MarketChainSlice = {
+  kind: number;
+  uri: string;
+  stake: bigint;
+  resolveAfter: bigint;
+  outcomeCount: number;
+  state: number;
+  dec: number;
+  collateralAddress: `0x${string}`;
+};
+
+type MarketLoadEntry = {
+  address: `0x${string}`;
+  subgraph: SubgraphMarketIndex | null;
+};
+
+function buildMarketListItem(
+  address: `0x${string}`,
+  slice: MarketChainSlice,
+  md: IpfsMarketMetadata | null,
+  poolTvlRaw: bigint,
+  priceResults: bigint[],
+  priceBinByOutcome?: string[],
+): MarketListItem {
+  const isPrice = isPriceMarketKind(slice.kind);
+  const uiKind = marketKindFromChain(slice.kind);
+  const outcomeCount = slice.outcomeCount;
+
+  const fallbackLabels = Array.from({ length: outcomeCount }, (_, i) => `Outcome ${i + 1}`);
+  const labelsFromIpfs =
+    md?.outcomes && md.outcomes.length > 0
+      ? md.outcomes.filter((x): x is string => typeof x === "string")
+      : [];
+  const safeOutcomeLabels = labelsFromIpfs.length > 0 ? labelsFromIpfs : fallbackLabels;
+
+  let leftPct = outcomeCount >= 2 ? 50 : Math.max(1, Math.round(100 / Math.max(1, outcomeCount)));
+  let outcomeChancePcts = Array.from({ length: outcomeCount }, (_, i) =>
+    i === 0 ? leftPct : Math.round((100 - leftPct) / Math.max(1, outcomeCount - 1)),
+  );
+  if (priceResults.length === outcomeCount) {
+    outcomeChancePcts = priceResults.map((p) => clampPct(Number(formatUnits(p, 18)) * 100));
+    leftPct = outcomeChancePcts[0] ?? leftPct;
+  }
+
+  return {
+    address,
+    kind: uiKind,
+    outcomes: outcomeCount,
+    outcomeLabels: safeOutcomeLabels,
+    slug: md?.slug?.trim() || undefined,
+    title:
+      md?.title?.trim() ||
+      md?.question?.trim() ||
+      `${isPrice ? "Price" : uiKind} market`,
+    description: md?.description?.trim() || "No description provided.",
+    imageUrl:
+      ipfsToHttp(md?.image?.trim() || "") ||
+      md?.nadMarket?.tokens?.[0]?.imageUri?.trim() ||
+      "",
+    stakeEnds: fmtTs(slice.stake),
+    resolveAfter: fmtTs(slice.resolveAfter),
+    stakeEndUnix: Number(slice.stake),
+    resolveAfterUnix: Number(slice.resolveAfter),
+    marketState: slice.state,
+    stateLabel: stateLabel(slice.state),
+    poolTvl: Number(formatUnits(poolTvlRaw, slice.dec)).toLocaleString(undefined, {
+      maximumFractionDigits: 2,
+    }),
+    chancePct: leftPct,
+    outcomeChancePcts,
+    categories:
+      md?.categories
+        ?.filter((x): x is string => typeof x === "string")
+        .map((x) => x.trim())
+        .filter(Boolean) ?? [],
+    nadMarket: md?.nadMarket,
+    collateralAddress: slice.collateralAddress,
+    collateralDecimals: slice.dec,
+    priceBinByOutcome,
+  };
+}
+
+async function multicallChunked(
+  contracts: readonly {
+    address: `0x${string}`;
+    abi: typeof MARKET_ABI | typeof FACTORY_ABI;
+    functionName: string;
+    args?: readonly unknown[];
+  }[],
+  chunkSize = 250,
+): Promise<{ result?: unknown; status: string }[]> {
+  const publicClient = deploymentPublicClient;
+  if (contracts.length === 0) return [];
+  const out: { result?: unknown; status: string }[] = [];
+  for (let i = 0; i < contracts.length; i += chunkSize) {
+    const chunk = contracts.slice(i, i + chunkSize);
+    const batch = await publicClient.multicall({
+      contracts: chunk as Parameters<typeof publicClient.multicall>[0]["contracts"],
+    });
+    out.push(...(batch as { result?: unknown; status: string }[]));
+  }
+  return out;
+}
+
+async function resolveMarketEntries(): Promise<MarketLoadEntry[]> {
+  const fromSubgraph = await fetchMarketsFromSubgraph(500);
+  if (fromSubgraph.length > 0) {
+    return fromSubgraph
+      .map((m) => ({
+        address: m.id.trim() as `0x${string}`,
+        subgraph: m,
+      }))
+      .filter((e) => /^0x[a-fA-F0-9]{40}$/i.test(e.address));
+  }
+
+  const publicClient = deploymentPublicClient;
+  const total = Number(
+    await publicClient.readContract({
+      address: FACTORY_ADDRESS,
+      abi: FACTORY_ABI,
+      functionName: "marketsLength",
+    }),
+  );
+  if (total <= 0) return [];
+
+  const addressReads = await publicClient.multicall({
+    contracts: Array.from({ length: total }, (_, idx) => ({
+      address: FACTORY_ADDRESS,
+      abi: FACTORY_ABI,
+      functionName: "markets" as const,
+      args: [BigInt(total - 1 - idx)] as const,
+    })),
+  });
+
+  return addressReads
+    .map((r) => r.result as `0x${string}` | undefined)
+    .filter((a): a is `0x${string}` => Boolean(a))
+    .map((address) => ({ address, subgraph: null }));
+}
+
+async function loadMarketsListUncached(): Promise<MarketListItem[]> {
+  const entries = await resolveMarketEntries();
+  if (entries.length === 0) return [];
+
+  const phase1Contracts = entries.flatMap(({ address, subgraph }) => {
+    if (subgraph) {
+      return [
+        { address, abi: MARKET_ABI, functionName: "numOutcomes" as const },
+        { address, abi: MARKET_ABI, functionName: "collateralDecimals" as const },
+      ];
+    }
+    return [
+      { address, abi: MARKET_ABI, functionName: "marketKind" as const },
+      { address, abi: MARKET_ABI, functionName: "metadataURI" as const },
+      { address, abi: MARKET_ABI, functionName: "stakeEndTimestamp" as const },
+      { address, abi: MARKET_ABI, functionName: "resolveAfterTimestamp" as const },
+      { address, abi: MARKET_ABI, functionName: "numOutcomes" as const },
+      { address, abi: MARKET_ABI, functionName: "state" as const },
+      { address, abi: MARKET_ABI, functionName: "collateralDecimals" as const },
+      { address, abi: MARKET_ABI, functionName: "collateralAddress" as const },
+    ];
+  });
+
+  const phase1 = await multicallChunked(phase1Contracts);
+
+  const slices: (MarketChainSlice | null)[] = [];
+  let phase1Idx = 0;
+  for (const entry of entries) {
+    const subgraph = entry.subgraph;
+    if (subgraph) {
+      const outcomes = phase1[phase1Idx++]?.result as number | undefined;
+      const dec = phase1[phase1Idx++]?.result as number | undefined;
+      const collateralRaw = subgraph.collateralToken?.trim();
+      if (
+        outcomes === undefined ||
+        dec === undefined ||
+        !collateralRaw ||
+        !/^0x[a-fA-F0-9]{40}$/.test(collateralRaw)
+      ) {
+        slices.push(null);
+        continue;
+      }
+      slices.push({
+        kind: subgraph.kind,
+        uri: subgraph.metadataURI?.trim() ?? "",
+        stake: BigInt(subgraph.stakeEndTimestamp),
+        resolveAfter: BigInt(subgraph.resolveAfterTimestamp),
+        outcomeCount: Number(outcomes),
+        state: subgraph.state,
+        dec: Number(dec),
+        collateralAddress: collateralRaw as `0x${string}`,
+      });
+      continue;
+    }
+
+    const kind = phase1[phase1Idx++]?.result as bigint | undefined;
+    const uri = String(phase1[phase1Idx++]?.result ?? "");
+    const stake = phase1[phase1Idx++]?.result as bigint | undefined;
+    const resolveAfter = phase1[phase1Idx++]?.result as bigint | undefined;
+    const outcomes = phase1[phase1Idx++]?.result as number | undefined;
+    const state = phase1[phase1Idx++]?.result as number | undefined;
+    const dec = phase1[phase1Idx++]?.result as number | undefined;
+    const collateralAddress = phase1[phase1Idx++]?.result as `0x${string}` | undefined;
+
+    if (
+      kind === undefined ||
+      stake === undefined ||
+      resolveAfter === undefined ||
+      outcomes === undefined ||
+      state === undefined ||
+      dec === undefined ||
+      !collateralAddress
+    ) {
+      slices.push(null);
+      continue;
+    }
+
+    slices.push({
+      kind: Number(kind),
+      uri,
+      stake,
+      resolveAfter,
+      outcomeCount: Number(outcomes),
+      state: Number(state),
+      dec: Number(dec),
+      collateralAddress,
+    });
+  }
+
+  const uniqueUris = [
+    ...new Set(slices.map((s) => s?.uri.trim()).filter((u): u is string => Boolean(u))),
+  ];
+  const mdByUri = new Map<string, IpfsMarketMetadata | null>();
+  await mapPool(uniqueUris, 20, async (uri) => {
+    mdByUri.set(uri, await fetchIpfsMetadata(uri));
+  });
+
+  const phase2Contracts = entries.flatMap((entry, i) => {
+    const slice = slices[i];
+    if (!slice || slice.outcomeCount <= 0) return [];
+    return Array.from({ length: slice.outcomeCount }, (_, o) => [
+      {
+        address: entry.address,
+        abi: MARKET_ABI,
+        functionName: "realPool" as const,
+        args: [BigInt(o)] as const,
+      },
+      {
+        address: entry.address,
+        abi: MARKET_ABI,
+        functionName: "priceOf" as const,
+        args: [o] as const,
+      },
+    ]).flat();
+  });
+
+  const phase2 = phase2Contracts.length ? await multicallChunked(phase2Contracts) : [];
+
+  const rows: MarketListItem[] = [];
+  let phase2Idx = 0;
+  for (let i = 0; i < entries.length; i += 1) {
+    const entry = entries[i]!;
+    const slice = slices[i];
+    if (!slice) continue;
+
+    const md = slice.uri ? (mdByUri.get(slice.uri) ?? null) : null;
+    if (!isListableMarket(slice.uri, md?.image, md?.nadMarket)) continue;
+
+    let poolTvlRaw = BigInt(0);
+    const priceResults: bigint[] = [];
+    for (let o = 0; o < slice.outcomeCount; o += 1) {
+      const pool = phase2[phase2Idx++]?.result as bigint | undefined;
+      const price = phase2[phase2Idx++]?.result as bigint | undefined;
+      if (pool !== undefined) poolTvlRaw += pool;
+      if (price !== undefined) priceResults.push(price);
+    }
+
+    rows.push(buildMarketListItem(entry.address, slice, md, poolTvlRaw, priceResults));
+  }
+
+  return rows;
+}
+
+const loadMarketsListCached = unstable_cache(
+  loadMarketsListUncached,
+  ["mondalore-markets-list"],
+  { revalidate: 20 },
+);
+
+export async function loadMarketsList(): Promise<MarketListItem[]> {
+  return loadMarketsListCached();
+}
 
 async function loadMarketRow(
   marketAddress: `0x${string}`,
   options: LoadMarketRowOptions = {},
 ): Promise<MarketListItem | null> {
-  const { requireListable = true } = options;
+  const { requireListable = true, includePriceBins = true } = options;
   const publicClient = deploymentPublicClient;
 
   const base = await publicClient.multicall({
@@ -316,7 +614,7 @@ async function loadMarketRow(
 
   const outcomeCount = Number(outcomes);
   const dec = Number(collateralDecimals);
-  const isPrice = Number(kind) === 0;
+  const isPrice = isPriceMarketKind(Number(kind));
 
   const outcomeContracts = Array.from({ length: outcomeCount }, (_, i) => [
     { address: marketAddress, abi: MARKET_ABI, functionName: "realPool" as const, args: [BigInt(i)] as const },
@@ -343,15 +641,8 @@ async function loadMarketRow(
     if (price !== undefined) priceResults.push(price);
   }
 
-  const fallbackLabels = Array.from({ length: outcomeCount }, (_, i) => `Outcome ${i + 1}`);
-  const labelsFromIpfs =
-    md?.outcomes && md.outcomes.length > 0
-      ? md.outcomes.filter((x): x is string => typeof x === "string")
-      : [];
-  const safeOutcomeLabels = labelsFromIpfs.length > 0 ? labelsFromIpfs : fallbackLabels;
-
   let priceBinByOutcome: string[] | undefined;
-  if (isPrice) {
+  if (includePriceBins && isPrice) {
     try {
       const binContracts = Array.from({ length: outcomeCount }, (_, i) => [
         { address: marketAddress, abi: MARKET_ABI, functionName: "priceBinLower" as const, args: [BigInt(i)] as const },
@@ -369,83 +660,37 @@ async function loadMarketRow(
     }
   }
 
-  let leftPct = outcomeCount >= 2 ? 50 : Math.max(1, Math.round(100 / Math.max(1, outcomeCount)));
-  let outcomeChancePcts = Array.from({ length: outcomeCount }, (_, i) =>
-    i === 0 ? leftPct : Math.round((100 - leftPct) / Math.max(1, outcomeCount - 1)),
-  );
-  if (priceResults.length === outcomeCount) {
-    outcomeChancePcts = priceResults.map((p) => clampPct(Number(formatUnits(p, 18)) * 100));
-    leftPct = outcomeChancePcts[0] ?? leftPct;
-  }
-
-  return {
-    address: marketAddress,
-    kind: isPrice ? "Price" : "Event",
-    outcomes: outcomeCount,
-    outcomeLabels: safeOutcomeLabels,
-    slug: md?.slug?.trim() || undefined,
-    title:
-      md?.title?.trim() ||
-      md?.question?.trim() ||
-      `${isPrice ? "Price" : "Event"} market`,
-    description: md?.description?.trim() || "No description provided.",
-    imageUrl:
-      ipfsToHttp(md?.image?.trim() || "") ||
-      md?.nadMarket?.tokens?.[0]?.imageUri?.trim() ||
-      "",
-    stakeEnds: fmtTs(stake),
-    resolveAfter: fmtTs(resolveAfter),
-    stakeEndUnix: Number(stake),
-    resolveAfterUnix: Number(resolveAfter),
-    marketState: Number(state),
-    stateLabel: stateLabel(Number(state)),
-    poolTvl: Number(formatUnits(poolTvlRaw, dec)).toLocaleString(undefined, {
-      maximumFractionDigits: 2,
-    }),
-    chancePct: leftPct,
-    outcomeChancePcts,
-    categories:
-      md?.categories
-        ?.filter((x): x is string => typeof x === "string")
-        .map((x) => x.trim())
-        .filter(Boolean) ?? [],
-    nadMarket: md?.nadMarket,
+  const slice: MarketChainSlice = {
+    kind: Number(kind),
+    uri,
+    stake,
+    resolveAfter,
+    outcomeCount,
+    state: Number(state),
+    dec,
     collateralAddress,
-    collateralDecimals: dec,
-    priceBinByOutcome,
   };
+
+  return buildMarketListItem(marketAddress, slice, md, poolTvlRaw, priceResults, priceBinByOutcome);
 }
 
-export async function loadMarketsList(): Promise<MarketListItem[]> {
-  const publicClient = deploymentPublicClient;
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  if (items.length === 0) return [];
+  const results = new Array<R>(items.length);
+  let next = 0;
 
-  const total = Number(
-    await publicClient.readContract({
-      address: FACTORY_ADDRESS,
-      abi: FACTORY_ABI,
-      functionName: "marketsLength",
-    }),
-  );
-
-  if (total <= 0) return [];
-
-  const addressReads = await publicClient.multicall({
-    contracts: Array.from({ length: total }, (_, idx) => ({
-      address: FACTORY_ADDRESS,
-      abi: FACTORY_ABI,
-      functionName: "markets" as const,
-      args: [BigInt(total - 1 - idx)] as const,
-    })),
-  });
-
-  const addresses = addressReads
-    .map((r) => r.result as `0x${string}` | undefined)
-    .filter((a): a is `0x${string}` => Boolean(a));
-
-  const rows: MarketListItem[] = [];
-  for (const marketAddress of addresses) {
-    const row = await loadMarketRow(marketAddress);
-    if (row) rows.push(row);
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i]!, i);
+    }
   }
-  return rows;
+
+  const workers = Math.min(Math.max(1, concurrency), items.length);
+  await Promise.all(Array.from({ length: workers }, () => worker()));
+  return results;
 }

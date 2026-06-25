@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { formatUnits } from "viem";
 import { MarketTradeVolumeChart } from "@/app/market/components/market-trade-volume-chart";
+import { NadComparisonOutcomeRow } from "@/app/market/components/nad-comparison-outcome-row";
+import { useNadComparisonStats } from "@/app/market/hooks/use-nad-comparison-stats";
 import { outcomeColor } from "@/app/market/lib/outcome-colors";
+import { nadTokenForOutcome } from "@/app/market/components/nad-market-list-card";
+import type { NadMarketConfig } from "@/lib/nad/types";
 
 export type OutcomeOrderBookSnapshot = {
   bidPrices: bigint[];
@@ -22,6 +26,7 @@ type MultiOutcomeMarketSectionProps = {
   collateralTicker: string;
   marketState: number;
   obSnapshot: OutcomeOrderBookSnapshot | null;
+  nadMarket?: NadMarketConfig | null;
 };
 
 function clampPct(v: number) {
@@ -169,10 +174,25 @@ export function MultiOutcomeMarketSection({
   collateralTicker,
   marketState,
   obSnapshot,
+  nadMarket = null,
 }: MultiOutcomeMarketSectionProps) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [tab, setTab] = useState<"activity" | "orderbook">("activity");
   const tradingOpen = marketState === 0;
+
+  const showMcapRows = nadMarket != null && nadMarket.mode === "comparison";
+
+  const comparisonTokens = nadMarket?.tokens ?? [];
+
+  const { stats: liveStats, loading: statsLoading } = useNadComparisonStats(
+    comparisonTokens,
+    showMcapRows,
+  );
+
+  const mcapByAddress = new Map<string, number | null>();
+  comparisonTokens.forEach((t, i) => {
+    mcapByAddress.set(t.address.toLowerCase(), liveStats[i]?.marketCapUsd ?? null);
+  });
 
   const pcts = labels.map((_, i) =>
     clampPct(chancePcts[i] ?? (i === 0 ? 50 : Math.round(50 / Math.max(1, labels.length - 1)))),
@@ -192,37 +212,54 @@ export function MultiOutcomeMarketSection({
     <div className="mb-6">
       <div className="flex flex-col">
         {labels.map((label, i) => {
-          const active = selectedIndex === i;
           const expanded = expandedIndex === i;
-          const dot = outcomeColor(i);
+          const tok = showMcapRows && nadMarket ? nadTokenForOutcome(nadMarket, label, i) : undefined;
+          const mcap =
+            showMcapRows && tok
+              ? (mcapByAddress.get(tok.address.toLowerCase()) ?? null)
+              : null;
 
           return (
             <div key={`${label}-${i}`} className="border-b border-[var(--border)] py-0.5 last:border-b-0">
-              <button
-                type="button"
-                onClick={() => handleRowClick(i)}
-                className={`flex w-full items-center gap-3 px-3 py-3.5 text-left transition ${
-                  expanded
-                    ? "rounded-xl border border-[var(--accent)] bg-[var(--surface-hover)]/40"
-                    : "rounded-lg border border-transparent hover:bg-[var(--surface-hover)]/35"
-                }`}
-              >
-                <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-[var(--background)]"
-                  style={{ backgroundColor: dot }}
-                  aria-hidden
+              {showMcapRows ? (
+                <NadComparisonOutcomeRow
+                  symbol={tok?.symbol ?? label}
+                  imageUri={tok?.imageUri}
+                  mcapUsd={mcap}
+                  chancePct={pcts[i]!}
+                  loading={statsLoading && label.toUpperCase() !== "NEITHER"}
+                  interactive={tradingOpen}
+                  tradingClosed={!tradingOpen}
+                  active={selectedIndex === i}
+                  onClick={tradingOpen ? () => handleRowClick(i) : undefined}
                 />
-                <span
-                  className={`min-w-0 flex-1 truncate text-sm font-semibold ${
-                    active ? "text-[var(--foreground)]" : "text-[var(--foreground)]/90"
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleRowClick(i)}
+                  className={`flex w-full items-center gap-3 px-3 py-3.5 text-left transition ${
+                    expanded
+                      ? "rounded-xl border border-[var(--accent)] bg-[var(--surface-hover)]/40"
+                      : "rounded-lg border border-transparent hover:bg-[var(--surface-hover)]/35"
                   }`}
                 >
-                  {label}
-                </span>
-                <span className="shrink-0 text-lg font-bold tabular-nums tracking-tight text-[var(--foreground)]">
-                  {pcts[i]!.toFixed(0)}%
-                </span>
-              </button>
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-[var(--background)]"
+                    style={{ backgroundColor: outcomeColor(i) }}
+                    aria-hidden
+                  />
+                  <span
+                    className={`min-w-0 flex-1 truncate text-sm font-semibold ${
+                      selectedIndex === i ? "text-[var(--foreground)]" : "text-[var(--foreground)]/90"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                  <span className="shrink-0 text-lg font-bold tabular-nums tracking-tight text-[var(--foreground)]">
+                    {pcts[i]!.toFixed(0)}%
+                  </span>
+                </button>
+              )}
 
               {expanded && (
                 <OutcomeExpandPanel

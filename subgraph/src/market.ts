@@ -1,7 +1,25 @@
 import { Address, BigInt } from "@graphprotocol/graph-ts";
-import { Deposited, TokensRedeemed } from "../generated/templates/Market/Market";
+import {
+  Deposited,
+  TokensRedeemed,
+  MarketInitialized,
+  MarketSettled,
+  NadTokenResolved,
+  EventResolved,
+} from "../generated/templates/Market/Market";
 import { Market, MarketTrade, Trader, TraderMarketPosition } from "../generated/schema";
 import { ZERO, addrId, positionId, tradeId } from "./ids";
+
+const MARKET_STATE_SETTLED = 2;
+
+function markMarketSettled(marketAddr: Address, timestamp: BigInt): void {
+  const marketId = addrId(marketAddr);
+  const m = Market.load(marketId);
+  if (m == null) return;
+  m.state = MARKET_STATE_SETTLED;
+  m.settledAt = timestamp;
+  m.save();
+}
 
 function loadOrCreateTrader(addr: Address): Trader {
   const id = addrId(addr);
@@ -160,4 +178,24 @@ export function handleTokensRedeemed(event: TokensRedeemed): void {
     event.transaction.hash.toHexString(),
     event.logIndex.toI32(),
   );
+}
+
+export function handleMarketInitialized(event: MarketInitialized): void {
+  const marketId = addrId(event.address);
+  const m = Market.load(marketId);
+  if (m == null) return;
+  m.metadataURI = event.params.metadataURI;
+  m.save();
+}
+
+export function handleMarketSettled(event: MarketSettled): void {
+  markMarketSettled(event.address, event.block.timestamp);
+}
+
+export function handleNadTokenResolved(event: NadTokenResolved): void {
+  markMarketSettled(event.address, event.block.timestamp);
+}
+
+export function handleEventResolved(event: EventResolved): void {
+  markMarketSettled(event.address, event.block.timestamp);
 }

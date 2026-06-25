@@ -6,9 +6,9 @@ dataSources:
     name: Factory
     network: monad-testnet
     source:
-      address: "0x97DB87Bb6C4d83813cbc1Ae5E97d83001aFe279f"
+      address: "0x6de802C203199f6C1A1F6e42d443670ca8fD3035"
       abi: Factory
-      startBlock: 37444065
+      startBlock: 40290997
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -30,7 +30,7 @@ dataSources:
     source:
       address: "0x3870Fd628e43FbEE7f2a1a922ACa13b3f1B53329"
       abi: Vault
-      startBlock: 37440162
+      startBlock: 40290997
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -74,4 +74,12 @@ templates:
           handler: handleDeposited
         - event: TokensRedeemed(indexed address,indexed uint8,uint256,uint256)
           handler: handleTokensRedeemed
+        - event: MarketInitialized(address[],string)
+          handler: handleMarketInitialized
+        - event: MarketSettled(uint256,uint256)
+          handler: handleMarketSettled
+        - event: NadTokenResolved(indexed uint8,indexed address)
+          handler: handleNadTokenResolved
+        - event: EventResolved(indexed uint8,indexed address,uint256)
+          handler: handleEventResolved
       file: ./src/market.ts

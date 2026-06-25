@@ -31,7 +31,8 @@ function parseCliArgs() {
 
   if (!marketIdRaw) {
     throw new Error(
-      "Usage: npm run market:settle -- <id> [--outcome <n> --sigs-file sigs.json] [--network <name>]",
+      "Usage: npm run market:settle -- <id> [--outcome <n> --sigs-file sigs.json] [--network <name>]\n" +
+      "NAD_TOKEN: omit --outcome to auto-resolve from IPFS nadMarket + Nad.fun API.",
     );
   }
   const id = Number(marketIdRaw);
@@ -68,13 +69,14 @@ async function main() {
   const market = await hre.ethers.getContractAt("MondaloreVParimutuelMarket", marketAddress);
   const kind = Number(await market.marketKind());
   const state = Number(await market.state());
+  const metadataURI = String(await market.metadataURI());
 
   console.log("Network:", networkName, chainId);
   console.log("Caller:", signer.address);
   console.log("Deployment:", file);
   console.log("Market id:", marketId);
   console.log("Market:", marketAddress);
-  console.log("Kind:", kind === 0 ? "PRICE" : "EVENT");
+  console.log("Kind:", kind === 0 ? "PRICE" : kind === 2 ? "NAD_TOKEN" : "EVENT");
   console.log("State:", state);
 
   if (state === 2) {
@@ -88,6 +90,19 @@ async function main() {
     if (state !== 0) throw new Error(`Unexpected PRICE market state: ${state}`);
     console.log("Calling settlePrice()...");
     tx = await market.settlePrice();
+  } else if (kind === 2) {
+    if (state !== 0) throw new Error(`Unexpected NAD_TOKEN market state: ${state}`);
+    let resolvedOutcome = outcomeIndex;
+    if (!Number.isInteger(resolvedOutcome) || resolvedOutcome < 0) {
+      const { evaluateNadMarketFromUri } = require("./lib/nad-auto-resolve.cjs");
+      console.log("Evaluating NAD outcome from metadata + Nad.fun API...");
+      const evaluation = await evaluateNadMarketFromUri(metadataURI);
+      resolvedOutcome = evaluation.outcomeIndex;
+      console.log(`Auto outcome: ${resolvedOutcome} (${evaluation.outcomeLabel})`);
+      console.log(`Reason: ${evaluation.reasoning}`);
+    }
+    console.log(`Calling resolveNadToken(${resolvedOutcome})...`);
+    tx = await market.resolveNadToken(resolvedOutcome);
   } else {
     if (state !== 0) throw new Error(`Unexpected EVENT market state: ${state}`);
     if (!Number.isInteger(outcomeIndex) || outcomeIndex < 0) {

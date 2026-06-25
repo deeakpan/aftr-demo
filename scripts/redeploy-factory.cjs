@@ -102,6 +102,9 @@ async function main() {
     console.warn("  resolutionAdmins not set — event markets will revert until set-resolution-admins runs");
   }
 
+  await (await factory.setNadResolutionAdmin(deployer.address)).wait();
+  console.log(`  nadResolutionAdmin = deployer (${deployer.address}) ✓`);
+
   // ── 3. OrderBook ───────────────────────────────────────────────────────────
   console.log("\n[3/3] Deploying MondaloreOrderBook...");
   const OrderBookF = await hre.ethers.getContractFactory("MondaloreOrderBook");
@@ -113,11 +116,15 @@ async function main() {
   // ── Update deployment JSON ─────────────────────────────────────────────────
   dep.contracts.MondaloreParimutuelMarketFactory = factoryAddress;
   dep.contracts.MondaloreParimutuelDeployer      = deployerAddress;
+  dep.contracts.MondalorePriceMarketDeployer     = priceDep;
+  dep.contracts.MondaloreEventMarketDeployer     = eventDep;
   dep.contracts.MondaloreOrderBook               = orderBookAddress;
   delete dep.contracts.MondaloreMarketDebtRouter;
   delete dep.contracts.DRP;
   delete dep.contracts.USDeAD;
+  dep.deployer                              = deployer.address;
   dep.feeRecipient                          = vaultAddr;
+  dep.nadResolutionAdmin                    = deployer.address;
   dep.deploymentBlocks                      = blocks;
   dep.deployedAt                            = new Date().toISOString();
 

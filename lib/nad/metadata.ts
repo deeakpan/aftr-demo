@@ -65,13 +65,6 @@ function endpointForToken(
         path: `/trade/holder/${t}`,
         description: "Holder list and counts",
       };
-    case "subgraph_graduate":
-      return {
-        purpose,
-        method: "GET",
-        path: `subgraph:BondingCurve.Graduate(token=${t})`,
-        description: "On-chain graduation time",
-      };
     default:
       return { purpose, method: "GET", path: "", description: "" };
   }
@@ -83,13 +76,6 @@ export function resolutionEndpointsForQuestion(
 ): NadResolutionEndpoint[] {
   const apiBase = nadApiBaseUrl();
   const endpoints: NadResolutionEndpoint[] = [];
-
-  if (questionType === "graduate_first") {
-    for (const tok of tokens) {
-      endpoints.push(endpointForToken("subgraph_graduate", tok.address, apiBase));
-    }
-    return endpoints;
-  }
 
   if (questionType === "mcap_highest" || questionType === "mcap_threshold_first") {
     for (const tok of tokens) {
@@ -108,10 +94,6 @@ export function resolutionEndpointsForQuestion(
   endpoints.push(endpointForToken("token_metadata", token, apiBase));
   endpoints.push(endpointForToken("market_snapshot", token, apiBase));
 
-  if (questionType === "graduate_by_date") {
-    endpoints.push(endpointForToken("token_info", token, apiBase));
-    endpoints.push(endpointForToken("subgraph_graduate", token, apiBase));
-  }
   if (questionType === "mcap_usd_above" || questionType === "price_usd_above") {
     endpoints.push(endpointForToken("chart", token, apiBase));
   }
@@ -132,25 +114,19 @@ export function buildNadTitle(opts: {
   const sym = tokens[0]?.symbol ?? "TOKEN";
 
   switch (questionType) {
-    case "graduate_by_date":
-      return `Will $${sym} graduate to DEX by ${resolveAfterLabel}?`;
     case "mcap_usd_above":
       return `Will $${sym} market cap exceed $${formatUsd(params?.thresholdUsd)} by ${resolveAfterLabel}?`;
     case "price_usd_above":
       return `Will $${sym} price exceed $${formatUsd(params?.thresholdUsd)} by ${resolveAfterLabel}?`;
     case "holder_count_above":
       return `Will $${sym} reach ${params?.holderCount ?? "?"} holders by ${resolveAfterLabel}?`;
-    case "graduate_first": {
-      const tickers = tokens.map((t) => `$${t.symbol}`).join(", ");
-      return `Which graduates first: ${tickers}?`;
-    }
     case "mcap_highest": {
       const tickers = tokens.map((t) => `$${t.symbol}`).join(", ");
-      return `Which has highest market cap at resolve: ${tickers}?`;
+      return `Which has highest market cap by ${resolveAfterLabel}: ${tickers}?`;
     }
     case "mcap_threshold_first": {
       const tickers = tokens.map((t) => `$${t.symbol}`).join(", ");
-      return `Which hits $${formatUsd(params?.thresholdUsd)} mcap first: ${tickers}?`;
+      return `Which hits $${formatUsd(params?.thresholdUsd)} mcap first by ${resolveAfterLabel}: ${tickers}?`;
     }
     default:
       return `Nad.fun: $${sym}`;
@@ -180,9 +156,7 @@ export function buildNadResolutionSources(
 ): { label: string; url: string }[] {
   const apiBase = nadApiBaseUrl();
   const endpoints = resolutionEndpointsForQuestion(questionType, tokens);
-  return endpoints
-    .filter((e) => !e.path.startsWith("subgraph:"))
-    .map((e) => ({
+  return endpoints.map((e) => ({
       label: e.description,
       url: e.path.startsWith("http") ? e.path : `${apiBase}${e.path.split("?")[0]}`,
     }));

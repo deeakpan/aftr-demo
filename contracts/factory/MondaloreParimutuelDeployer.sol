@@ -116,6 +116,69 @@ contract MondaloreEventMarketDeployer {
         uint256 minBootstrapTotal_,
         string[] calldata outcomeLabels
     ) external onlyFacade returns (address market, address[] memory tokens) {
+        return _deployResolutionMarket(
+            MondaloreVParimutuelMarket.MarketKind.EVENT,
+            owner_,
+            feeRecipient_,
+            creator_,
+            collateralToken_,
+            collateralDecimals_,
+            numOutcomes_,
+            virtualReserve_,
+            stakeEndTimestamp_,
+            resolveAfterTimestamp_,
+            metadataHash_,
+            minBootstrapTotal_,
+            outcomeLabels
+        );
+    }
+
+    function deployNadTokenMarket(
+        address owner_,
+        address feeRecipient_,
+        address creator_,
+        address collateralToken_,
+        uint8 collateralDecimals_,
+        uint8 numOutcomes_,
+        uint256 virtualReserve_,
+        uint256 stakeEndTimestamp_,
+        uint256 resolveAfterTimestamp_,
+        bytes32 metadataHash_,
+        uint256 minBootstrapTotal_,
+        string[] calldata outcomeLabels
+    ) external onlyFacade returns (address market, address[] memory tokens) {
+        return _deployResolutionMarket(
+            MondaloreVParimutuelMarket.MarketKind.NAD_TOKEN,
+            owner_,
+            feeRecipient_,
+            creator_,
+            collateralToken_,
+            collateralDecimals_,
+            numOutcomes_,
+            virtualReserve_,
+            stakeEndTimestamp_,
+            resolveAfterTimestamp_,
+            metadataHash_,
+            minBootstrapTotal_,
+            outcomeLabels
+        );
+    }
+
+    function _deployResolutionMarket(
+        MondaloreVParimutuelMarket.MarketKind kind_,
+        address owner_,
+        address feeRecipient_,
+        address creator_,
+        address collateralToken_,
+        uint8 collateralDecimals_,
+        uint8 numOutcomes_,
+        uint256 virtualReserve_,
+        uint256 stakeEndTimestamp_,
+        uint256 resolveAfterTimestamp_,
+        bytes32 metadataHash_,
+        uint256 minBootstrapTotal_,
+        string[] calldata outcomeLabels
+    ) internal returns (address market, address[] memory tokens) {
         tokens = _deployOutcomeTokens(outcomeLabels, collateralDecimals_);
         MondaloreVParimutuelMarket mkt = new MondaloreVParimutuelMarket(
             factory,
@@ -128,7 +191,7 @@ contract MondaloreEventMarketDeployer {
             virtualReserve_,
             stakeEndTimestamp_,
             resolveAfterTimestamp_,
-            MondaloreVParimutuelMarket.MarketKind.EVENT,
+            kind_,
             metadataHash_,
             address(0),
             0,
@@ -232,6 +295,27 @@ contract MondaloreParimutuelDeployer {
         string[] calldata outcomeLabels
     ) external onlyFactory returns (address market, address[] memory tokens) {
         return eventDeployer.deployEventMarket(
+            owner_, feeRecipient_, creator_, collateralToken_, collateralDecimals_,
+            numOutcomes_, virtualReserve_, stakeEndTimestamp_, resolveAfterTimestamp_,
+            metadataHash_, minBootstrapTotal_, outcomeLabels
+        );
+    }
+
+    function deployNadTokenMarket(
+        address owner_,
+        address feeRecipient_,
+        address creator_,
+        address collateralToken_,
+        uint8 collateralDecimals_,
+        uint8 numOutcomes_,
+        uint256 virtualReserve_,
+        uint256 stakeEndTimestamp_,
+        uint256 resolveAfterTimestamp_,
+        bytes32 metadataHash_,
+        uint256 minBootstrapTotal_,
+        string[] calldata outcomeLabels
+    ) external onlyFactory returns (address market, address[] memory tokens) {
+        return eventDeployer.deployNadTokenMarket(
             owner_, feeRecipient_, creator_, collateralToken_, collateralDecimals_,
             numOutcomes_, virtualReserve_, stakeEndTimestamp_, resolveAfterTimestamp_,
             metadataHash_, minBootstrapTotal_, outcomeLabels

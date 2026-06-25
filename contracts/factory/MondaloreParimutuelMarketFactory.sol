@@ -36,6 +36,9 @@ contract MondaloreParimutuelMarketFactory is Ownable2Step {
     mapping(address => bool) public isResolutionAdmin;
     address[] public resolutionAdmins;
 
+    /// @notice Single admin for NAD_TOKEN market resolution (bot).
+    address public nadResolutionAdmin;
+
     mapping(address => bool) public isSupportedCollateral;
 
     /// @notice Registered Chainlink (or mock) feed per asset key, e.g. keccak256(abi.encodePacked("BTC")).
@@ -64,6 +67,7 @@ contract MondaloreParimutuelMarketFactory is Ownable2Step {
     event UmaBondCurrencyUpdated(address indexed currency);
     event MarketDeployerUpdated(address indexed deployer);
     event WrappedNativeTokenUpdated(address indexed token);
+    event NadResolutionAdminUpdated(address indexed admin);
 
     event MarketCreated(
         address indexed market,
@@ -119,6 +123,12 @@ contract MondaloreParimutuelMarketFactory is Ownable2Step {
     function setUmaBondCurrency(address c) external onlyOwner {
         umaBondCurrency = c;
         emit UmaBondCurrencyUpdated(c);
+    }
+
+    function setNadResolutionAdmin(address admin) external onlyOwner {
+        if (admin == address(0)) revert InvalidAddress();
+        nadResolutionAdmin = admin;
+        emit NadResolutionAdminUpdated(admin);
     }
 
     /// @notice Set up to 10 wallets allowed to sign EVENT market resolutions (3-of-10 required on-chain).
@@ -227,6 +237,10 @@ contract MondaloreParimutuelMarketFactory is Ownable2Step {
 
     function createEventMarket(EventMarketParams calldata p) external payable returns (address market) {
         market = _createEventMarket(p, msg.sender);
+    }
+
+    function createNadTokenMarket(EventMarketParams calldata p) external payable returns (address market) {
+        market = _createNadTokenMarket(p, msg.sender);
     }
 
     function getMarketOutcomeTokens(address market) external view returns (address[] memory) {
@@ -346,6 +360,47 @@ contract MondaloreParimutuelMarketFactory is Ownable2Step {
         _register(
             market,
             MondaloreVParimutuelMarket.MarketKind.EVENT,
+            effectiveCollateral,
+            tokens,
+            p.outcomeLabels,
+            p.stakeEndTimestamp,
+            p.resolveAfterTimestamp,
+            p.metadataHash,
+            creator
+        );
+        return market;
+    }
+
+    function _createNadTokenMarket(EventMarketParams calldata p, address creator) internal returns (address) {
+        (address effectiveCollateral, bool isNativeInput) = _resolveCollateral(p.collateralToken);
+        uint8 collateralDecimals = isNativeInput ? 18 : _decimalsForCollateral(p.collateralToken, p.collateralDecimals);
+        if (p.outcomeLabels.length < 2 || p.outcomeLabels.length > 32) revert InvalidOutcomes();
+        require(p.outcomeLabels.length <= type(uint8).max, "Labels overflow");
+        if (nadResolutionAdmin == address(0)) revert InvalidConfig();
+        if (p.stakeEndTimestamp <= block.timestamp || p.resolveAfterTimestamp <= p.stakeEndTimestamp) revert InvalidTime();
+        if (p.metadataHash == bytes32(0)) revert InvalidMeta();
+
+        if (marketDeployer == address(0)) revert InvalidDeployer();
+        (address market, address[] memory tokens) = MondaloreParimutuelDeployer(marketDeployer).deployNadTokenMarket(
+            owner(),
+            feeRecipient,
+            creator,
+            effectiveCollateral,
+            collateralDecimals,
+            uint8(p.outcomeLabels.length),
+            p.virtualReserve,
+            p.stakeEndTimestamp,
+            p.resolveAfterTimestamp,
+            p.metadataHash,
+            p.minBootstrapTotal,
+            p.outcomeLabels
+        );
+
+        _wireMarket(market, tokens, p.metadataURI, _emptyBins(), _emptyBins());
+        _seedMarket(market, effectiveCollateral, isNativeInput, p.bootstrapAmount, p.shareRecipient, uint8(p.outcomeLabels.length));
+        _register(
+            market,
+            MondaloreVParimutuelMarket.MarketKind.NAD_TOKEN,
             effectiveCollateral,
             tokens,
             p.outcomeLabels,

@@ -439,4 +439,62 @@ describe("Market Lifecycle — Create, Trade, Redeem", function () {
       expect(await market.bootstrapped()).to.be.true;
     });
   });
+
+  describe("5. NAD_TOKEN market (single admin resolve)", function () {
+    let nadMarket;
+    let nadMarketAddr;
+    let bot;
+
+    before(async function () {
+      bot = trader1;
+      await factory.connect(owner).setNadResolutionAdmin(bot.address);
+      await factory.connect(owner).setResolutionAdmins([owner.address, creator.address, feeRecipient.address]);
+
+      const now = (await ethers.provider.getBlock("latest")).timestamp;
+      const params = {
+        collateralToken: await usdc.getAddress(),
+        collateralDecimals: 6,
+        virtualReserve: VIRTUAL_RESERVE,
+        stakeEndTimestamp: now + 3600,
+        resolveAfterTimestamp: now + 7200,
+        metadataHash: ethers.keccak256(ethers.toUtf8Bytes("nad-test")),
+        outcomeLabels: ["Yes", "No"],
+        metadataURI: "ipfs://nad-test",
+        minBootstrapTotal: BOOTSTRAP_AMOUNT,
+        bootstrapAmount: BOOTSTRAP_AMOUNT,
+        shareRecipient: creator.address,
+      };
+
+      await usdc.connect(creator).approve(await factory.getAddress(), BOOTSTRAP_AMOUNT);
+      const tx = await factory.connect(creator).createNadTokenMarket(params);
+      const receipt = await tx.wait();
+      const created = receipt.logs
+        .map((log) => {
+          try {
+            return factory.interface.parseLog(log);
+          } catch {
+            return null;
+          }
+        })
+        .find((parsed) => parsed?.name === "MarketCreated");
+
+      expect(created).to.not.be.undefined;
+      expect(Number(created.args.kind)).to.equal(2);
+
+      nadMarketAddr = created.args.market;
+      nadMarket = await ethers.getContractAt("MondaloreVParimutuelMarket", nadMarketAddr);
+      expect(Number(await nadMarket.marketKind())).to.equal(2);
+    });
+
+    it("resolves via nadResolutionAdmin only", async function () {
+      await ethers.provider.send("evm_increaseTime", [7201]);
+      await ethers.provider.send("evm_mine", []);
+
+      await expect(nadMarket.connect(creator).resolveNadToken(0)).to.be.reverted;
+      await nadMarket.connect(bot).resolveNadToken(0);
+
+      expect(Number(await nadMarket.state())).to.equal(2);
+      expect(Number(await nadMarket.winningOutcomeIndex())).to.equal(0);
+    });
+  });
 });

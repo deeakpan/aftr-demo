@@ -2,7 +2,7 @@
 
 Indexes on **Monad testnet** (chainId 10143):
 
-- **`MarketCreated`** on the factory — creates a `Market` row and a **dynamic `Market` template** per market.
+- **`MarketCreated`** on the factory — creates a `Market` row (`kind`: 0=PRICE, 1=EVENT, 2=NAD_TOKEN) and a **dynamic `Market` template** per market.
 - **`Deposited`** / **`TokensRedeemed`** on each market — maintains:
   - **`MarketTrade`** — per-event rows for trade activity charts (`marketTrades` query).
   - **`Trader`** — `totalDeposited` / `totalRedeemed` (leaderboard).

@@ -66,11 +66,11 @@ export type NadChartResponse = {
 
 export async function fetchNadChart(
   tokenAddress: string,
-  opts?: { resolution?: string; countback?: number; chartType?: string },
+  opts?: { resolution?: string; countback?: number; chartType?: string; from?: number; to?: number },
 ): Promise<NadChartResponse> {
   const base = nadApiBaseUrl();
-  const to = Math.floor(Date.now() / 1000);
-  const from = to - 7 * 24 * 3600;
+  const to = opts?.to ?? Math.floor(Date.now() / 1000);
+  const from = opts?.from ?? to - 7 * 24 * 3600;
   const params = new URLSearchParams({
     from: String(from),
     to: String(to),
@@ -82,6 +82,19 @@ export async function fetchNadChart(
   const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(25_000) });
   if (!res.ok) throw new Error(`Nad chart HTTP ${res.status}`);
   return (await res.json()) as NadChartResponse;
+}
+
+export type NadHoldersResponse = {
+  holder_count?: number;
+  holders?: unknown[];
+};
+
+export async function fetchNadHolders(tokenAddress: string): Promise<NadHoldersResponse> {
+  const base = nadApiBaseUrl();
+  const url = `${base}/trade/holder/${tokenAddress.toLowerCase()}`;
+  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(25_000) });
+  if (!res.ok) throw new Error(`Nad holders HTTP ${res.status}`);
+  return (await res.json()) as NadHoldersResponse;
 }
 
 export async function fetchNadMarket(tokenAddress: string) {

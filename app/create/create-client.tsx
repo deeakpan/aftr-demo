@@ -31,6 +31,7 @@ import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetwork
 import { monadTestnet } from "@/lib/chain";
 import { brandPageTitle, brandSectionLabel } from "@/lib/brand-font";
 import { formatMarketCardDate, MARKET_COVER_RATIO_LABEL } from "@/lib/market-cover";
+import { validateNadResolveAfter } from "@/lib/nad/question-types";
 import { MON_COINGECKO_LOGO } from "@/lib/brand-assets";
 import { priceAssetKey } from "@/lib/price-asset-key";
 import {
@@ -124,6 +125,7 @@ const FACTORY_ABI = parseAbi([
   "function resolutionAdminsLength() view returns (uint256)",
   "function resolutionThreshold() view returns (uint256)",
   "function createEventMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,uint256 minBootstrapTotal,uint256 bootstrapAmount,address shareRecipient) p) payable returns (address market)",
+  "function createNadTokenMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,uint256 minBootstrapTotal,uint256 bootstrapAmount,address shareRecipient) p) payable returns (address market)",
   "function createPriceMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,bytes32 priceAssetKey,uint256 priceThreshold,uint8 priceKind,uint256 priceUpperBound,uint256 maxPriceStaleness,uint256[] priceBinLower,uint256[] priceBinUpper,uint256 minBootstrapTotal,uint256 bootstrapAmount,address shareRecipient) p) payable returns (address market)",
   "event MarketCreated(address indexed market, uint8 indexed kind, address indexed collateralToken, address[] outcomeTokens, string[] outcomeLabels, uint256 stakeEndTimestamp, uint256 resolveAfterTimestamp, bytes32 metadataHash, address creator)",
   "error InvalidAddress()",
@@ -957,7 +959,7 @@ export function CreateClient() {
       let createHash: `0x${string}`;
 
       const estimateCreateGas = async (
-        fn: "createEventMarket" | "createPriceMarket",
+        fn: "createEventMarket" | "createPriceMarket" | "createNadTokenMarket",
         args: readonly unknown[],
         value?: bigint,
       ) => {
@@ -986,7 +988,7 @@ export function CreateClient() {
         return false;
       };
 
-      if (marketKind === "event" || marketKind === "nad") {
+      if (marketKind === "event") {
         const eventArgs = [{ ...sharedParams }] as const;
 
         const simulation = await publicClient.simulateContract({
@@ -1011,6 +1013,32 @@ export function CreateClient() {
           ...simulation.request,
           chain: walletClient.chain ?? monadTestnet,
           gas: eventGas,
+        });
+      } else if (marketKind === "nad") {
+        const nadArgs = [{ ...sharedParams }] as const;
+
+        const simulation = await publicClient.simulateContract({
+          address: FACTORY_ADDRESS,
+          abi: FACTORY_ABI,
+          functionName: "createNadTokenMarket",
+          args: nadArgs,
+          account: address,
+          value: collateral.isNative ? seedUnits : undefined,
+        });
+
+        setSubmitStatus("Creating Nad market and seeding liquidity...");
+        const nadGas = await estimateCreateGas(
+          "createNadTokenMarket",
+          nadArgs,
+          collateral.isNative ? seedUnits : undefined,
+        );
+        if (collateral.isNative && !(await assertNativeMonAffordable(seedUnits, nadGas))) {
+          return;
+        }
+        createHash = await walletClient.writeContract({
+          ...simulation.request,
+          chain: walletClient.chain ?? monadTestnet,
+          gas: nadGas,
         });
       } else {
         if (!feed?.assetKey) {
@@ -1140,7 +1168,7 @@ export function CreateClient() {
     const metadata = {
       title: nadTitle,
       description: isNad ? (nadDraft?.description ?? description) : description,
-      marketKind: isNad ? "event" : marketKind,
+      marketKind: isNad ? "nad" : marketKind,
       eventMode: marketKind === "event" ? eventMode : isNad ? (nadDraft?.nadMarket.mode === "comparison" ? "multiple" : "binary") : null,
       question: marketKind === "price" ? generatedPricePrompt : nadTitle,
       categories: isNad ? ["Crypto"] : selectedCategories,
@@ -1161,7 +1189,7 @@ export function CreateClient() {
               generatedPrompt: generatedPricePrompt,
             }
           : null,
-      resolution: marketKind === "event" || isNad ? "community-3-of-10-admins" : null,
+      resolution: marketKind === "event" ? "community-3-of-10-admins" : isNad ? "nad-bot-admin" : null,
       resolutionSources: isNad
         ? nadDraft?.resolutionSources ?? []
         : marketKind === "event"
@@ -1224,6 +1252,13 @@ export function CreateClient() {
     if (resolveTs <= stakeTs) {
       setTimeValidationError("Resolve after must be later than stake end.");
       return;
+    }
+    if (isNad && nadDraft?.nadMarket) {
+      const nadResolveErr = validateNadResolveAfter(nadDraft.nadMarket.questionType, Math.floor(resolveTs / 1000));
+      if (nadResolveErr) {
+        setTimeValidationError(nadResolveErr);
+        return;
+      }
     }
     setTimeValidationError("");
 
@@ -1762,6 +1797,7 @@ export function CreateClient() {
                   title={nadDraft.title}
                   nadMarket={nadDraft.nadMarket}
                   outcomeLabels={nadDraft.outcomes}
+                  previewTokenStats={nadDraft.previewTokenStats}
                   resolveAfter={previewResolveLabel}
                   showNewBadge
                   interactive={false}

@@ -20,6 +20,7 @@ import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetwork
 import { brandPageTitle } from "@/lib/brand-font";
 import { formatMarketCardDate } from "@/lib/market-cover";
 import { cacheMarketCardForDetail } from "@/lib/markets/market-card-cache";
+import { searchMarkets } from "@/lib/markets/market-search";
 const ORDERBOOK_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts.MondaloreOrderBook as `0x${string}`;
 const ORDERBOOK_ABI = parseAbi([
   "function placeSellOrder(address market, address token, uint256 price, uint256 amount) returns (bytes32)",
@@ -52,7 +53,7 @@ const SLIPPAGE_PRESETS = [50, 100, 200, 300] as const;
 
 type UiMarket = {
   address: `0x${string}`;
-  kind: "Event" | "Price";
+  kind: "Event" | "Price" | "Nad";
   outcomes: number;
   outcomeLabels: string[];
   title: string;
@@ -304,10 +305,7 @@ export function MarketClient() {
 
     let rows = markets.filter((m) => m.stakeEndUnix > now);
     if (q) {
-      rows = rows.filter((m) => {
-        const hay = `${m.title} ${m.description} ${m.slug ?? ""} ${(m.categories ?? []).join(" ")}`.toLowerCase();
-        return hay.includes(q);
-      });
+      rows = searchMarkets(rows, q, { limit: 999 }).map((hit) => hit.market);
     }
 
     const categoryFilters = new Set([

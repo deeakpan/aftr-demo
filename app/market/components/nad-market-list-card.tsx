@@ -1,8 +1,12 @@
 "use client";
 
 import { ArrowsClockwise, ChartBar, Clock, Flag } from "@phosphor-icons/react";
+import { useMemo } from "react";
 import type { NadMarketConfig } from "@/lib/nad/types";
+import type { NadLiveStats } from "@/lib/nad/market-stats";
 import { cardBackgroundFromSeed } from "@/lib/nad/metadata";
+import { NadComparisonOutcomeRow } from "@/app/market/components/nad-comparison-outcome-row";
+import { useNadComparisonStats } from "@/app/market/hooks/use-nad-comparison-stats";
 import {
   BinaryProbabilityPipe,
   binaryOutcomePillClass,
@@ -32,6 +36,8 @@ export type NadMarketListCardProps = {
   interactive?: boolean;
   tradingClosed?: boolean;
   className?: string;
+  /** Live mcap for preview (create flow); otherwise fetched on mount. */
+  previewTokenStats?: (NadLiveStats | null)[];
 };
 
 function clampPct(v: number) {
@@ -58,10 +64,25 @@ export function nadOutcomeDisplayLabel(nad: NadMarketConfig, label: string) {
   return label;
 }
 
+function uniqueTokensForCover(tokens: NadMarketConfig["tokens"], max: number) {
+  const seen = new Set<string>();
+  const out: NadMarketConfig["tokens"] = [];
+  for (const t of tokens) {
+    const key = t.address.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 export function NadMarketCardCover({ nadMarket }: { nadMarket: NadMarketConfig }) {
   const bg = cardBackgroundFromSeed(nadMarket.cardBackgroundSeed);
-  const headerTokens =
-    nadMarket.mode === "comparison" ? nadMarket.tokens.slice(0, 4) : nadMarket.tokens.slice(0, 1);
+  const headerTokens = uniqueTokensForCover(
+    nadMarket.tokens,
+    nadMarket.mode === "comparison" ? 4 : 1,
+  );
 
   return (
     <div
@@ -72,9 +93,9 @@ export function NadMarketCardCover({ nadMarket }: { nadMarket: NadMarketConfig }
       <div className="relative flex h-full flex-col items-center justify-center px-4 py-3">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70">Nad.fun</p>
         <div className="mt-2 flex items-center justify-center -space-x-3">
-          {headerTokens.map((tok) => (
+          {headerTokens.map((tok, i) => (
             <div
-              key={tok.address}
+              key={`${tok.address.toLowerCase()}-${i}`}
               className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-white/90 bg-[var(--surface)] shadow-md md:h-14 md:w-14"
             >
               {tok.imageUri ? (
@@ -107,16 +128,33 @@ export function NadMarketListCard({
   interactive = true,
   tradingClosed = false,
   className = "",
+  previewTokenStats,
 }: NadMarketListCardProps) {
   const labels = outcomeLabels.filter((l) => l.trim()).slice(0, 4);
   const displayLabels = labels.length >= 2 ? labels : ["Yes", "No"];
+
+  const showMcapButtons = nadMarket.mode === "comparison";
+
+  const { stats: liveStats, loading: statsLoading } = useNadComparisonStats(
+    nadMarket.tokens,
+    showMcapButtons && previewTokenStats === undefined,
+    previewTokenStats,
+  );
+
+  const mcapByAddress = useMemo(() => {
+    const map = new Map<string, NadLiveStats | null>();
+    nadMarket.tokens.forEach((t, i) => {
+      map.set(t.address.toLowerCase(), liveStats[i] ?? null);
+    });
+    return map;
+  }, [nadMarket.tokens, liveStats]);
 
   const pcts = displayLabels.map((_, idx) => {
     const raw = outcomeChancePcts?.[idx];
     return clampPct(Number.isFinite(raw) ? (raw as number) : evenSplitPct(displayLabels.length, idx));
   });
 
-  const isBinary = displayLabels.length === 2;
+  const isBinary = nadMarket.mode === "binary";
 
   const showVolume =
     !showNewBadge && poolTvl !== undefined && poolTvl !== "" && poolTvl !== "0" && poolTvl !== "0.00";
@@ -181,6 +219,32 @@ export function NadMarketListCard({
                 );
               })}
             </div>
+          </div>
+        ) : showMcapButtons ? (
+          <div className={`${MARKET_CARD_OUTCOMES_BOX} no-scrollbar gap-0.5 overflow-y-auto`}>
+            {displayLabels.map((label, idx) => {
+              const tok = nadTokenForOutcome(nadMarket, label, idx);
+              const mcap =
+                label.toUpperCase() === "NEITHER" || !tok
+                  ? null
+                  : (mcapByAddress.get(tok.address.toLowerCase())?.marketCapUsd ?? null);
+
+              return (
+                <NadComparisonOutcomeRow
+                  key={`${label}-${idx}`}
+                  symbol={tok?.symbol ?? label}
+                  imageUri={tok?.imageUri}
+                  mcapUsd={mcap}
+                  chancePct={pcts[idx] ?? 0}
+                  loading={statsLoading && label.toUpperCase() !== "NEITHER"}
+                  interactive={interactive}
+                  tradingClosed={tradingClosed}
+                  onClick={
+                    onTrade && interactive && !tradingClosed ? () => onTrade(idx) : undefined
+                  }
+                />
+              );
+            })}
           </div>
         ) : (
           <div className={`${MARKET_CARD_OUTCOMES_BOX} no-scrollbar gap-0.5 overflow-x-hidden overflow-y-auto`}>

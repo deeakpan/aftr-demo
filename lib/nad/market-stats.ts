@@ -156,26 +156,6 @@ export function maxTokenMcap(stats: (NadLiveStats | null)[]): number | null {
   return max;
 }
 
-export function questionRequiresBondingCurve(questionType: string): boolean {
-  return questionType === "graduate_by_date" || questionType === "graduate_first";
-}
-
-export function validateTokenForQuestion(
-  questionType: string,
-  symbol: string,
-  isGraduated: boolean,
-  isOnDex: boolean,
-): string | null {
-  if (!questionRequiresBondingCurve(questionType)) return null;
-  if (isGraduated || isOnDex) {
-    if (questionType === "graduate_by_date") {
-      return `$${symbol} is already on DEX — this question only works for tokens still on the bonding curve.`;
-    }
-    return `$${symbol} already graduated — pick tokens still on the bonding curve.`;
-  }
-  return null;
-}
-
 export function formatUsdThresholdValue(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return "0";
   if (n >= 10_000) return String(Math.round(n));

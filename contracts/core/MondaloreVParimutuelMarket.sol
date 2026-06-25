@@ -40,7 +40,8 @@ contract MondaloreVParimutuelMarket is Ownable2Step, ReentrancyGuard {
 
     enum MarketKind {
         PRICE,
-        EVENT
+        EVENT,
+        NAD_TOKEN
     }
 
     enum PriceThresholdKind {
@@ -132,6 +133,7 @@ contract MondaloreVParimutuelMarket is Ownable2Step, ReentrancyGuard {
         uint256 debtRequestedToBurn
     );
     event EventResolved(uint8 indexed outcomeIndex, address indexed caller, uint256 adminSignatures);
+    event NadTokenResolved(uint8 indexed outcomeIndex, address indexed resolver);
     event LiquidityBootstrapped(
         address indexed funder,
         address indexed shareRecipient,
@@ -157,6 +159,7 @@ contract MondaloreVParimutuelMarket is Ownable2Step, ReentrancyGuard {
     error NotDivisibleBootstrap();
     error InvalidShareRecipient();
     error InvalidResolutionSignatures();
+    error NotNadResolutionAdmin();
     error InvalidDrp();
     error InvalidDebtRepayToken();
     error InvalidDrpAddress();
@@ -466,6 +469,21 @@ contract MondaloreVParimutuelMarket is Ownable2Step, ReentrancyGuard {
 
         _finalizeSettlement(outcomeIndex, int256(uint256(outcomeIndex)));
         emit EventResolved(outcomeIndex, msg.sender, valid);
+    }
+
+    /// @notice Settle a NAD_TOKEN market — single factory `nadResolutionAdmin` (bot wallet).
+    function resolveNadToken(uint8 outcomeIndex) external nonReentrant {
+        if (!initialized) revert NotInitialized();
+        if (marketKind != MarketKind.NAD_TOKEN) revert InvalidState();
+        if (state != MarketState.OPEN) revert InvalidState();
+        if (block.timestamp < resolveAfterTimestamp) revert TooEarlyToResolve();
+        if (outcomeIndex >= numOutcomes) revert InvalidOutcome();
+        if (msg.sender != IMondaloreMarketFactoryResolution(factory).nadResolutionAdmin()) {
+            revert NotNadResolutionAdmin();
+        }
+
+        _finalizeSettlement(outcomeIndex, int256(uint256(outcomeIndex)));
+        emit NadTokenResolved(outcomeIndex, msg.sender);
     }
 
     function redeem(uint8 outcomeIndex, uint256 shareAmount) external nonReentrant {

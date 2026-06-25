@@ -813,25 +813,33 @@ export function MarketDetailClient({
               </>
             )}
 
-            {market.outcomes > 2 ? (
-              <MultiOutcomeMarketSection
-                labels={market.outcomeLabels}
-                chancePcts={market.outcomeChancePcts ?? []}
-                selectedIndex={selectedOutcome}
-                onSelect={(index) => {
-                  setSelectedOutcome(index);
-                  if (typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
-                    setTradeOpen(true);
-                    setTradeStatus("");
-                    setTradeSuccess(null);
-                  }
-                }}
-                marketAddress={market.address}
-                collateralDecimals={market.collateralDecimals}
-                collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
-                marketState={market.marketState}
-                obSnapshot={obSnapshot}
-              />
+            {market.outcomes > 2 || market.nadMarket?.mode === "comparison" ? (
+              <>
+                <MultiOutcomeMarketSection
+                  labels={market.outcomeLabels}
+                  chancePcts={market.outcomeChancePcts ?? []}
+                  selectedIndex={selectedOutcome}
+                  nadMarket={market.nadMarket ?? null}
+                  onSelect={(index) => {
+                    setSelectedOutcome(index);
+                    if (typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
+                      setTradeOpen(true);
+                      setTradeStatus("");
+                      setTradeSuccess(null);
+                    }
+                  }}
+                  marketAddress={market.address}
+                  collateralDecimals={market.collateralDecimals}
+                  collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
+                  marketState={market.marketState}
+                  obSnapshot={obSnapshot}
+                />
+                {market.nadMarket ? (
+                  <div className="mt-6">
+                    <NadTokenPanel nadMarket={market.nadMarket} />
+                  </div>
+                ) : null}
+              </>
             ) : market.nadMarket ? (
               <div className="space-y-4">
                 <NadTokenPanel nadMarket={market.nadMarket} />

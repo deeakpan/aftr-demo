@@ -5,7 +5,7 @@ import { MarketTradeVolumeChart } from "@/app/market/components/market-trade-vol
 import { TradingViewChart } from "@/app/market/components/trading-view-chart";
 
 type Props = {
-  marketKind: "Event" | "Price";
+  marketKind: "Event" | "Price" | "Nad";
   marketAddress: string;
   collateralDecimals: number;
   collateralTicker: string;

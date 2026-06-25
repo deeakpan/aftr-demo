@@ -6,11 +6,11 @@
     "MondaloreToken": "0x9AbbC7e9c23CCC5C359732b9b05Ef4f510CAAd53",
     "MondaloreFeeVault": "0x3870Fd628e43FbEE7f2a1a922ACa13b3f1B53329",
     "MondaloreUSDC": "0x9adECb575C30eB841ad2fDd153FE859DF861c338",
-    "MondaloreParimutuelMarketFactory": "0x97DB87Bb6C4d83813cbc1Ae5E97d83001aFe279f",
-    "MondalorePriceMarketDeployer": "0x43a4EF9f800543F49099c62fa83156DBc7eF3069",
-    "MondaloreEventMarketDeployer": "0x797Ac51EF2869071E003654294D802Ea5691f4A5",
-    "MondaloreParimutuelDeployer": "0x837216b6c85CfC4D47585810Ee42da871A848DdB",
-    "MondaloreOrderBook": "0x4573d4C6C68ee5AAEC09f2f6F60b342A541dA06b",
+    "MondaloreParimutuelMarketFactory": "0x6de802C203199f6C1A1F6e42d443670ca8fD3035",
+    "MondalorePriceMarketDeployer": "0xd87cd13011F42985b20C2Fd19f2D9379e2264372",
+    "MondaloreEventMarketDeployer": "0x0BE9Af76549eB0A9f61D407a8F90D6D9f32c6A49",
+    "MondaloreParimutuelDeployer": "0xa2099875aa6A8b716ca8D2e32752216210d9dc71",
+    "MondaloreOrderBook": "0x1FE984E5291e9134B14e1a7016709375ac2Bd971",
     "MockWETH": "0xF2760b7Fd5887f40F526200e3e435a63B7e5CAf8",
     "MockBtcUsdFeed": "0xEF6BEC7127D1Ca73c1Db9a39FB0093E0894ac9FB"
   },
@@ -19,11 +19,11 @@
     "MondaloreUSDC": 37395466,
     "MondaloreToken": 37395478,
     "MondaloreFeeVault": 37440162,
-    "MondaloreParimutuelMarketFactory": 37444065,
-    "MondaloreParimutuelDeployer": 37444084,
-    "MondalorePriceMarketDeployer": 37444072,
-    "MondaloreEventMarketDeployer": 37444078,
-    "MondaloreOrderBook": 37444128,
+    "MondaloreParimutuelMarketFactory": 40040039,
+    "MondaloreParimutuelDeployer": 40040052,
+    "MondalorePriceMarketDeployer": 40040044,
+    "MondaloreEventMarketDeployer": 40040048,
+    "MondaloreOrderBook": 40040089,
     "MockBtcUsdFeed": 37438008
   },
   "external": {
@@ -74,5 +74,6 @@
     "feeFlow": "Market deposit → 1.2% → MondaloreFeeVault.receiveFees() → 0.2% stakers / 1.0% treasury"
   },
   "network": "monadTestnet",
-  "deployedAt": "2026-06-10T21:31:42.720Z"
+  "deployedAt": "2026-06-23T08:13:32.235Z",
+  "nadResolutionAdmin": "0x7A981A271E12Dd22B61f9028F8CAf526ba53c3C5"
 }
