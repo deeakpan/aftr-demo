@@ -28,6 +28,7 @@ import { getUserProfileByAddress, saveUserProfile } from "@/lib/supabase/profile
 import { SidebarDrawer } from "@/app/components/sidebar-drawer";
 import { SidebarOpenContext } from "@/app/components/sidebar-context";
 import { MarketSearchModal } from "@/app/components/market-search-modal";
+import { docsUrl } from "@/lib/docs-url";
 
 export function buildWalletGradient(input: string) {
   let hash = 0;
@@ -397,12 +398,17 @@ export function AppLayout({
                   </kbd>
                 </button>
               )}
-              <Link href="/how-it-works" className="hidden items-center gap-2 text-sm md:flex">
+              <a
+                href={docsUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden items-center gap-2 text-sm md:flex"
+              >
                 <span className="flex h-5 w-5 items-center justify-center rounded-full border border-[var(--accent)] text-xs font-semibold text-[var(--accent)]">
                   i
                 </span>
                 <span className="whitespace-nowrap text-[var(--accent)]">How it works</span>
-              </Link>
+              </a>
             </div>
 
             <div className="flex shrink-0 items-center gap-1.5 md:gap-3">
