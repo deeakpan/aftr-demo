@@ -60,9 +60,9 @@ Confirm settlement finished, you hold the winning outcome (not a losing one), an
 
 ## Markets & settlement
 
-### What is the difference between event and price markets?
+### What is the difference between event, price, and Nad markets?
 
-**Event** markets use real-world results verified via resolution sources and admin signatures. **Price** markets use an official asset price at resolve time automatically.
+**Event** markets use real-world results verified via resolution sources and admin signatures. **Price** markets use an official asset price at resolve time automatically. **Nad** markets use [Nad.fun](https://nad.fun) token stats (market cap, price, or holders) at resolve — also automatic. See [Nad markets](../creating-markets/nad-markets.md).
 
 ### Who decides event market outcomes?
 

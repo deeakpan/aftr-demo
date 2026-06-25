@@ -18,6 +18,15 @@ Settlement is the moment a market picks a single winning outcome and enables red
 
 Price markets do not rely on human judgment for the outcome — the rule and the price at resolve time decide.
 
+## Nad market settlement
+
+1. **Resolve after** time passes.
+2. The resolver fetches a **snapshot from the Nad.fun API** for each token in the market (market cap, USD price, or holder count — depending on the question type).
+3. The outcome that matches the rule (threshold met, highest mcap, first to target, etc.) wins.
+4. Settlement finalizes on-chain automatically — no admin signatures.
+
+Token contract addresses and question rules are stored in market metadata. Traders can verify tokens on [nad.fun](https://nad.fun) before entering a position.
+
 ## Event market settlement
 
 1. **Resolve after** time passes.

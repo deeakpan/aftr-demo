@@ -22,13 +22,13 @@ All markets have:
 - **Resolve after** — earliest time settlement can occur
 - **Pool** — collateral backing outcome shares
 
-## Two market families
+## Three market families
 
-| | Event markets | Price markets |
-|---|---------------|---------------|
-| **Settles from** | Real-world / official event result | Asset price at resolve time |
-| **Creator provides** | Resolution sources (public URLs) | Asset, threshold, direction |
-| **Settlement** | Community admin review | Automated price check |
+| | Event markets | Price markets | Nad markets |
+|---|---------------|---------------|-------------|
+| **Settles from** | Real-world / official event result | Asset price at resolve time | [Nad.fun](https://nad.fun) token stats (mcap, price, holders) |
+| **Creator provides** | Resolution sources (public URLs) | Asset, threshold, direction | Nad.fun token address(es), question template |
+| **Settlement** | Community admin review | Automated price check | Automated Nad.fun API snapshot |
 
 Details: [Market types](market-types.md).
 

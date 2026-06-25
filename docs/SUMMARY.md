@@ -35,6 +35,7 @@
 * [Overview](creating-markets/README.md)
 * [Event markets](creating-markets/event-markets.md)
 * [Price markets](creating-markets/price-markets.md)
+* [Nad markets](creating-markets/nad-markets.md)
 * [Seed liquidity](creating-markets/seed-liquidity.md)
 
 ## Staking

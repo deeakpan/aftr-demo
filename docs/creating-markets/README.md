@@ -22,8 +22,9 @@ Anyone can launch a market on Mondalore. Creators define the question, outcomes,
 |------|----------------|
 | **Event** | Result comes from the real world (elections, sports, announcements) |
 | **Price** | Result comes from an asset price at resolve time |
+| **Nad** | Result comes from [Nad.fun](https://nad.fun) token stats (mcap, price, holders, head-to-head) |
 
-See [Event markets](event-markets.md) and [Price markets](price-markets.md).
+See [Event markets](event-markets.md), [Price markets](price-markets.md), and [Nad markets](nad-markets.md).
 
 ## Permissions
 
@@ -77,6 +78,7 @@ Confirm you are on the correct chain before creating. See [Deployments](../refer
 
 - [Event markets](event-markets.md)
 - [Price markets](price-markets.md)
+- [Nad markets](nad-markets.md)
 - [Seed liquidity](seed-liquidity.md)
 
 ## Fees you earn

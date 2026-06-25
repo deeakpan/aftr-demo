@@ -56,6 +56,10 @@ Market settled by verifying a real-world result against **resolution sources** w
 
 Market settled automatically by comparing an official asset price to a configured rule at resolve time.
 
+## Nad market
+
+Market on [Nad.fun](https://nad.fun) tokens — settled automatically from Nad.fun API data (market cap, price, or holders) at resolve time. See [Nad markets](../creating-markets/nad-markets.md).
+
 ## Resolution sources
 
 Public HTTPS links provided by the creator where the official event result will be published.
