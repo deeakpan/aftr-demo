@@ -3,7 +3,11 @@ export const MARKET_COVER_WIDTH = 851;
 export const MARKET_COVER_HEIGHT = 315;
 export const MARKET_COVER_ASPECT = MARKET_COVER_WIDTH / MARKET_COVER_HEIGHT;
 
-export const MARKET_COVER_ASPECT_CLASS = "aspect-[851/315]" as const;
+/**
+ * Prefer this class — defined in `app/globals.css` so Tailwind source scanning
+ * cannot drop the aspect-ratio utility (lib/ is outside `app/` scan root).
+ */
+export const MARKET_COVER_ASPECT_CLASS = "market-cover-aspect" as const;
 
 export const MARKET_COVER_RATIO_LABEL = `${MARKET_COVER_WIDTH}×${MARKET_COVER_HEIGHT}`;
 

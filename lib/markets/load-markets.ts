@@ -568,7 +568,12 @@ const loadMarketsListCached = unstable_cache(
 );
 
 export async function loadMarketsList(): Promise<MarketListItem[]> {
-  return loadMarketsListCached();
+  const rows = await loadMarketsListCached();
+  // Never serve a cached empty list — a transient subgraph/IPFS blip would hide all markets for 20s.
+  if (rows.length === 0) {
+    return loadMarketsListUncached();
+  }
+  return rows;
 }
 
 async function loadMarketRow(

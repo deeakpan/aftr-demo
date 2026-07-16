@@ -531,7 +531,7 @@ function ClaimWinningsButton({
   };
 
   return (
-    <div onClick={(e) => e.stopPropagation()}>
+    <div onClick={(e) => e.stopPropagation()} className="flex h-full flex-col justify-center">
       <p className="mb-1 text-xs font-semibold text-emerald-400">
         {formatShareAmount(maxShares, shareDecimals)}
       </p>

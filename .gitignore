@@ -55,6 +55,9 @@ website/
 # resolution telegram bot (standalone — not committed to root repo)
 /bot/
 
+# price/NAD settlement bot (standalone — not committed to root repo)
+/settlement-bot/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -1,5 +1,11 @@
 @import "tailwindcss" source("./");
 
+/* Canonical market card cover — keep in CSS so aspect isn't tree-shaken (see lib/market-cover.ts). */
+.market-cover-aspect {
+  aspect-ratio: 851 / 315;
+  width: 100%;
+}
+
 :root {
   --background: #050507;
   --foreground: #f5f3ff;

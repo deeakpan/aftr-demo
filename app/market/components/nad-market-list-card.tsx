@@ -86,7 +86,7 @@ export function NadMarketCardCover({ nadMarket }: { nadMarket: NadMarketConfig }
 
   return (
     <div
-      className={`${MARKET_COVER_ASPECT_CLASS} relative w-full shrink-0 overflow-hidden`}
+      className={`${MARKET_COVER_ASPECT_CLASS} relative shrink-0 overflow-hidden`}
       style={{ background: bg }}
     >
       <div className="absolute inset-0 bg-black/25" />
