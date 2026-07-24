@@ -26,8 +26,15 @@ import {
   NadMarketCreateSection,
   type NadCreateDraft,
 } from "@/app/create/components/nad-market-create-section";
+import { PolymarketImportModal } from "@/app/create/components/polymarket-import-modal";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
 import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
+import {
+  isReservedMarketSlug,
+  slugifyMarket,
+} from "@/lib/markets/market-url";
+import { withOtherOption, type PolymarketImportDraft } from "@/lib/polymarket/import";
+import { marketSlugPrefixLabel } from "@/lib/site-url";
 import { monadTestnet } from "@/lib/chain";
 import { brandPageTitle, brandSectionLabel } from "@/lib/brand-font";
 import { formatMarketCardDate, MARKET_COVER_RATIO_LABEL } from "@/lib/market-cover";
@@ -67,6 +74,51 @@ function nextDivisibleTotal(seedUnits: bigint, nOutcomes: number): bigint {
   const rem = seedUnits % n;
   if (rem === BigInt(0)) return seedUnits;
   return seedUnits + (n - rem);
+}
+
+/** Human-readable seed that divides evenly across outcomes (raw units), at/above `approx`. */
+function divisibleSeedSuggestion(
+  approx: number,
+  decimals: number,
+  nOutcomes: number,
+  minHuman: number,
+): string {
+  const floor = Math.max(approx, minHuman);
+  const whole = Math.floor(floor);
+  let units = parseUnits(String(whole), decimals);
+  const minUnits = parseUnits(
+    Number.isInteger(minHuman) ? String(minHuman) : minHuman.toFixed(Math.min(8, decimals)),
+    decimals,
+  );
+  if (units < minUnits) units = minUnits;
+  units = nextDivisibleTotal(units, nOutcomes);
+  const formatted = formatUnits(units, decimals);
+  // Trim trailing zeros but keep required fractional digits (e.g. 10.000002).
+  if (!formatted.includes(".")) return formatted;
+  return formatted.replace(/(\.\d*?[1-9])0+$/, "$1").replace(/\.0+$/, "") || formatted;
+}
+
+function buildSeedQuickAmounts(
+  decimals: number,
+  nOutcomes: number,
+  minHuman: number,
+): string[] {
+  if (nOutcomes <= 0) return [];
+  const bases = [10, 100, 1000, 10_000].filter((b) => b >= minHuman - 1e-9);
+  // Always include a near-min option when min isn't already ~10.
+  if (minHuman < 10 && !bases.includes(10)) {
+    bases.unshift(Math.max(minHuman, 0.01));
+  }
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const base of bases) {
+    const label = divisibleSeedSuggestion(base, decimals, nOutcomes, minHuman);
+    if (seen.has(label)) continue;
+    seen.add(label);
+    out.push(label);
+    if (out.length >= 4) break;
+  }
+  return out;
 }
 
 type FeedAssetMeta = {
@@ -297,13 +349,7 @@ function numString(idx: number) {
 }
 
 function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 60);
+  return slugifyMarket(text);
 }
 
 function parseLocalDateTimeToMs(input: string): number {
@@ -432,6 +478,9 @@ export function CreateClient() {
   const [isFetchingPrice, setIsFetchingPrice] = useState(false);
   const [slug, setSlug] = useState("");
   const [slugManual, setSlugManual] = useState(false);
+  const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
+  const [slugCheckBusy, setSlugCheckBusy] = useState(false);
+  const [slugCheckMessage, setSlugCheckMessage] = useState("");
   const [imageUri, setImageUri] = useState("");
   const [metadataUri, setMetadataUri] = useState("");
   const [uploadState, setUploadState] = useState("");
@@ -460,6 +509,7 @@ export function CreateClient() {
   const [isCreateComplete, setIsCreateComplete] = useState(false);
   const [nadDraft, setNadDraft] = useState<NadCreateDraft | null>(null);
   const [nadDuplicateBlocked, setNadDuplicateBlocked] = useState(false);
+  const [polyImportOpen, setPolyImportOpen] = useState(false);
 
   useEffect(() => {
     if (eventMode === "binary" && outcomes.length !== 2) {
@@ -562,6 +612,54 @@ export function CreateClient() {
     setImageFile(file);
     setImageUri("");
     handleCropCancel();
+  };
+
+  const applyPolymarketImport = async (draft: PolymarketImportDraft) => {
+    setTitle(draft.title);
+    setDescription(draft.description);
+    setEventMode(draft.eventMode);
+    setOutcomes(
+      draft.eventMode === "binary"
+        ? (draft.outcomes.length >= 2 ? draft.outcomes.slice(0, 2) : ["Yes", "No"])
+        : draft.outcomes.length >= 3
+          ? draft.outcomes
+          : withOtherOption(draft.outcomes.length ? draft.outcomes : ["Option 1", "Option 2"]),
+    );
+    setSlug(slugify(draft.slug || draft.title));
+    setSlugManual(Boolean(draft.slug));
+    setResolutionSources(
+      [
+        { label: "Polymarket", url: draft.sourceUrl },
+        ...resolutionSources.filter(
+          (s) => s.url.trim() && s.url.trim() !== draft.sourceUrl,
+        ),
+      ].slice(0, 5),
+    );
+
+    if (draft.suggestedResolveAfterAt) {
+      setResolveAfterAt(draft.suggestedResolveAfterAt);
+    }
+    if (draft.suggestedStakeEndAt) {
+      setStakeEndAt(draft.suggestedStakeEndAt);
+    }
+
+    if (draft.imageUrl) {
+      const imgRes = await fetch(
+        `/api/polymarket/image?url=${encodeURIComponent(draft.imageUrl)}`,
+        { cache: "no-store" },
+      );
+      if (!imgRes.ok) {
+        throw new Error("Imported details, but could not download the cover image.");
+      }
+      const blob = await imgRes.blob();
+      const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+      const file = new File([blob], `polymarket-cover.${ext}`, {
+        type: blob.type || "image/jpeg",
+      });
+      setImageFile(file);
+      setImageUri("");
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
   };
 
   const previewResolveLabel = useMemo(
@@ -680,6 +778,29 @@ export function CreateClient() {
     return 10;
   }, [collateral.isNative]);
 
+  const seedOutcomeCount = useMemo(() => {
+    if (marketKind === "nad") return (nadDraft?.outcomes ?? []).filter((o) => o.trim()).length;
+    if (marketKind === "event") return outcomes.map((o) => o.trim()).filter(Boolean).length;
+    return 2;
+  }, [marketKind, nadDraft?.outcomes, outcomes]);
+
+  const seedQuickAmounts = useMemo(
+    () => buildSeedQuickAmounts(collateral.decimals, seedOutcomeCount, minSeedAmount),
+    [collateral.decimals, seedOutcomeCount, minSeedAmount],
+  );
+
+  // Keep seed amount divisible when outcome count / collateral changes.
+  useEffect(() => {
+    if (seedOutcomeCount <= 0 || seedQuickAmounts.length === 0) return;
+    try {
+      const units = parseUnits(seedAmount || "0", collateral.decimals);
+      if (units > BigInt(0) && units % BigInt(seedOutcomeCount) === BigInt(0)) return;
+    } catch {
+      // fall through to first suggestion
+    }
+    setSeedAmount(seedQuickAmounts[0]!);
+  }, [seedOutcomeCount, collateral.decimals, seedQuickAmounts]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const effectiveTitle = useMemo(
     () =>
       marketKind === "nad"
@@ -692,8 +813,63 @@ export function CreateClient() {
 
   // Auto-generate slug from title/prompt unless user has manually edited it
   useEffect(() => {
-    if (!slugManual) setSlug(slugify(marketKind === "price" ? generatedPricePrompt : title));
-  }, [title, generatedPricePrompt, marketKind, slugManual]);
+    if (slugManual) return;
+    const source =
+      marketKind === "nad"
+        ? (nadDraft?.title ?? "")
+        : marketKind === "price"
+          ? generatedPricePrompt
+          : title;
+    setSlug(slugify(source));
+  }, [title, generatedPricePrompt, marketKind, slugManual, nadDraft?.title]);
+
+  // Duplicate / reserved slug check
+  useEffect(() => {
+    const normalized = slugify(slug);
+    if (!normalized) {
+      setSlugAvailable(null);
+      setSlugCheckMessage("");
+      setSlugCheckBusy(false);
+      return;
+    }
+    if (isReservedMarketSlug(normalized)) {
+      setSlugAvailable(false);
+      setSlugCheckMessage("This slug can’t be used (looks like a wallet address).");
+      setSlugCheckBusy(false);
+      return;
+    }
+    let cancelled = false;
+    setSlugCheckBusy(true);
+    const t = window.setTimeout(() => {
+      void fetch(`/api/market/slug?slug=${encodeURIComponent(normalized)}`, { cache: "no-store" })
+        .then(async (res) => {
+          const j = (await res.json()) as {
+            available?: boolean;
+            reason?: string;
+            title?: string | null;
+          };
+          if (cancelled) return;
+          const ok = Boolean(j.available);
+          setSlugAvailable(ok);
+          if (ok) setSlugCheckMessage("Slug is available.");
+          else if (j.reason === "reserved") setSlugCheckMessage("This slug is reserved.");
+          else setSlugCheckMessage(j.title ? `Already used by “${j.title}”.` : "Slug already taken.");
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setSlugAvailable(null);
+            setSlugCheckMessage("Could not verify slug uniqueness.");
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setSlugCheckBusy(false);
+        });
+    }, 350);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [slug]);
 
   const resolvedPriceTitle = useMemo(() => {
     if (marketKind !== "price") return title;
@@ -754,8 +930,7 @@ export function CreateClient() {
       const fix = nextDivisibleTotal(seedUnits, nOutcomes);
       const fixLabel = formatUnits(fix, collateral.decimals);
       setSeedValidationError(
-        `Seeding splits collateral evenly across ${nOutcomes} outcomes, so the total (in token units) must divide by ${nOutcomes}. ` +
-          `Try ${fixLabel} ${collateral.symbol} or another amount where the raw total is a multiple of ${nOutcomes}.`,
+        `Amount must divide evenly across ${nOutcomes} outcomes. Pick a chip below or use ${fixLabel} ${collateral.symbol}.`,
       );
       return false;
     }
@@ -1172,7 +1347,7 @@ export function CreateClient() {
       eventMode: marketKind === "event" ? eventMode : isNad ? (nadDraft?.nadMarket.mode === "comparison" ? "multiple" : "binary") : null,
       question: marketKind === "price" ? generatedPricePrompt : nadTitle,
       categories: isNad ? ["Crypto"] : selectedCategories,
-      slug: isNad ? (nadDraft?.slug ?? slug) : slug || slugify(effectiveTitle),
+      slug: slug || (isNad ? nadDraft?.slug : undefined) || slugify(effectiveTitle),
       outcomes: nadOutcomes,
       image: imageToUse || null,
       nadMarket: isNad ? nadDraft?.nadMarket : undefined,
@@ -1230,6 +1405,8 @@ export function CreateClient() {
     if (!stakeEndAt) errors.push("Stake end time is required.");
     if (!resolveAfterAt) errors.push("Resolve after time is required.");
     if (!slug.trim()) errors.push("Vanity slug is required.");
+    else if (isReservedMarketSlug(slug)) errors.push("Choose a different vanity slug.");
+    else if (slugAvailable === false) errors.push("That vanity slug is already taken.");
     if (errors.length > 0) {
       setDetailsValidationError(errors[0]!);
       return;
@@ -1385,32 +1562,28 @@ export function CreateClient() {
           ) : marketKind === "event" ? (
             <>
             <section className="py-8">
-              <label className={labelClass} htmlFor="title">
-                Title
-              </label>
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <label className={labelClass} htmlFor="title">
+                  Title
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setPolyImportOpen(true)}
+                  className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:opacity-90"
+                >
+                  Import from Polymarket
+                </button>
+              </div>
               <input
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className={fieldClass}
+                className={`${fieldClass} mt-2`}
                 placeholder="Short market title"
               />
-            </section>
-            <section className="py-8">
-              <label className={labelClass} htmlFor="slug">Vanity URL slug</label>
-              <div className="mt-2 flex overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] focus-within:border-[var(--accent)]">
-                <span className="flex items-center border-r border-[var(--border)] bg-[var(--card)] px-3 text-xs text-[var(--muted)] whitespace-nowrap select-none">
-                  aftrmarket.markets/m/
-                </span>
-                <input
-                  id="slug"
-                  value={slug}
-                  onChange={(e) => { setSlug(slugify(e.target.value)); setSlugManual(true); }}
-                  className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm font-mono text-[var(--foreground)] outline-none placeholder:text-[var(--muted)]"
-                  placeholder="my-market-slug"
-                />
-              </div>
-              <p className="mt-1.5 text-[11px] text-[var(--muted)]">Auto-generated from title. Edit to customise.</p>
+              <p className="mt-1.5 text-[11px] text-[var(--muted)]">
+                Optional: paste a Polymarket link to autofill title, description, cover, and outcomes.
+              </p>
             </section>
             </>
           ) : (
@@ -1425,6 +1598,47 @@ export function CreateClient() {
             </section>
           )}
 
+          <section className="py-8">
+            <label className={labelClass} htmlFor="slug">
+              Vanity URL slug
+            </label>
+            <div className="mt-2 flex overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] focus-within:border-[var(--accent)]">
+              <span className="flex items-center border-r border-[var(--border)] bg-[var(--card)] px-3 text-xs text-[var(--muted)] whitespace-nowrap select-none">
+                {marketSlugPrefixLabel()}
+              </span>
+              <input
+                id="slug"
+                value={slug}
+                onChange={(e) => {
+                  setSlug(slugify(e.target.value));
+                  setSlugManual(true);
+                }}
+                className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm font-mono text-[var(--foreground)] outline-none placeholder:text-[var(--muted)]"
+                placeholder="my-market-slug"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+            <p className="mt-1.5 text-[11px] text-[var(--muted)]">
+              Auto-generated from the title. Edit to customise — must be unique.
+            </p>
+            {slug.trim() ? (
+              <p
+                className={`mt-1 text-[11px] ${
+                  slugCheckBusy
+                    ? "text-[var(--muted)]"
+                    : slugAvailable === true
+                      ? "text-emerald-500"
+                      : slugAvailable === false
+                        ? "text-red-400"
+                        : "text-[var(--muted)]"
+                }`}
+              >
+                {slugCheckBusy ? "Checking availability…" : slugCheckMessage}
+              </p>
+            ) : null}
+          </section>
+
           {marketKind !== "nad" && (
           <section className="py-8">
             <label className={labelClass} htmlFor="description">
@@ -1435,7 +1649,7 @@ export function CreateClient() {
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className={`${fieldClass} min-h-24 resize-y`}
+              className={`${fieldClass} styled-scroll min-h-24 resize-y`}
               placeholder="Add a clear resolution description"
             />
           </section>
@@ -1811,7 +2025,12 @@ export function CreateClient() {
               <button
                 type="button"
                 onClick={goToSeedStep}
-                disabled={isNextLoading || (marketKind === "nad" && (!nadDraft || nadDuplicateBlocked))}
+                disabled={
+                  isNextLoading ||
+                  slugAvailable === false ||
+                  slugCheckBusy ||
+                  (marketKind === "nad" && (!nadDraft || nadDuplicateBlocked))
+                }
                 className="rounded-full bg-[var(--accent)] py-3.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60 sm:px-10 w-full sm:w-auto"
               >
                 {isNextLoading ? (
@@ -1883,9 +2102,12 @@ export function CreateClient() {
                 id="seed-amount"
                 type="number"
                 min={Number.isFinite(minSeedAmount) ? minSeedAmount : 10}
-                step="0.01"
+                step="any"
                 value={seedAmount}
-                onChange={(e) => setSeedAmount(e.target.value)}
+                onChange={(e) => {
+                  setSeedAmount(e.target.value);
+                  setSeedValidationError("");
+                }}
                 className={fieldClass}
                 placeholder={
                   collateral.isNative
@@ -1893,12 +2115,42 @@ export function CreateClient() {
                     : `Minimum 10 ${collateral.symbol}`
                 }
               />
+              {seedQuickAmounts.length > 0 && (
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  {seedQuickAmounts.map((amt) => {
+                    const active = seedAmount === amt;
+                    return (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => {
+                          setSeedAmount(amt);
+                          setSeedValidationError("");
+                        }}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-medium tabular-nums transition ${
+                          active
+                            ? "bg-[var(--accent)] text-white"
+                            : "bg-[var(--surface)] text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                        }`}
+                      >
+                        {amt}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {seedOutcomeCount > 2 ? (
+                <p className="mt-2 text-[11px] text-[var(--muted)]">
+                  Seed is split evenly across {seedOutcomeCount} outcomes — use a chip so the
+                  total divides cleanly.
+                </p>
+              ) : null}
               <p className="mt-2 text-xs text-[var(--muted)]">
                 Wallet balance: {collateralBalanceLabel} {collateral.symbol}
               </p>
               {marketKind === "event" && (
                 <p className="mt-3 text-xs text-[var(--muted)]">
-                  Event markets settle via 3-of-10 factory admin signatures (per market + outcome).
+                  Event markets are resolved through protocol admins.
                 </p>
               )}
               <p className="mt-3 text-xs text-[var(--muted)]">
@@ -1951,6 +2203,11 @@ export function CreateClient() {
           onCancel={handleCropCancel}
         />
       )}
+      <PolymarketImportModal
+        open={polyImportOpen}
+        onClose={() => setPolyImportOpen(false)}
+        onImport={applyPolymarketImport}
+      />
     </AppLayout>
   );
 }

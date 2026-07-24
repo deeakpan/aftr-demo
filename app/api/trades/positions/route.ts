@@ -130,6 +130,7 @@ async function buildRowsForMarket(
     return [];
   }
   const marketTitle = metadata?.title?.trim() || `${kind} market`;
+  const marketSlug = metadata?.slug?.trim() || undefined;
   const labels = metadata?.outcomes?.filter((x): x is string => typeof x === "string") ?? [];
   const fallbackLabels = Array.from({ length: numOutcomes }, (_, i) => `Outcome ${i + 1}`);
   const outcomeLabels = labels.length > 0 ? labels : fallbackLabels;
@@ -220,6 +221,7 @@ async function buildRowsForMarket(
   const rowBase = {
     marketAddress: market,
     marketTitle,
+    slug: marketSlug,
     marketKind: kind,
     marketState: state,
     stakeEndUnix,

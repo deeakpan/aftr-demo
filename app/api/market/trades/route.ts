@@ -10,6 +10,7 @@ type TradeRow = {
   collateralAmount: string;
   outcomeIndex: number;
   kind: string;
+  trader?: { id: string } | null;
 };
 
 type TradesByMarketId = {
@@ -23,6 +24,7 @@ function normalizeTrades(rows: TradeRow[]) {
     collateralAmount: t.collateralAmount,
     outcomeIndex: Number(t.outcomeIndex),
     kind: t.kind,
+    trader: (t.trader?.id ?? "").toLowerCase() || null,
   }));
 }
 
@@ -33,14 +35,43 @@ export async function GET(req: NextRequest) {
   }
 
   const marketId = market.toLowerCase();
+  const first = Math.min(200, Math.max(1, Number(req.nextUrl.searchParams.get("first") ?? "50") || 50));
+  const orderDir =
+    req.nextUrl.searchParams.get("order")?.trim().toLowerCase() === "asc" ? "asc" : "desc";
 
   const listQuery = await querySubgraph<TradesByMarketId>(
-    `query MarketTrades($market: String!) {
+    `query MarketTrades($market: String!, $first: Int!) {
       marketTrades(
         where: { market: $market }
         orderBy: timestamp
-        orderDirection: asc
-        first: 1000
+        orderDirection: ${orderDir}
+        first: $first
+      ) {
+        id
+        timestamp
+        collateralAmount
+        outcomeIndex
+        kind
+        trader { id }
+      }
+    }`,
+    { market: marketId, first },
+  );
+
+  if (listQuery.ok) {
+    return NextResponse.json({
+      trades: normalizeTrades(listQuery.data.marketTrades ?? []),
+      unavailable: false,
+    });
+  }
+
+  const legacy = await querySubgraph<TradesByMarketId>(
+    `query MarketTradesLegacy($market: String!, $first: Int!) {
+      marketTrades(
+        where: { market: $market }
+        orderBy: timestamp
+        orderDirection: ${orderDir}
+        first: $first
       ) {
         id
         timestamp
@@ -49,12 +80,12 @@ export async function GET(req: NextRequest) {
         kind
       }
     }`,
-    { market: marketId },
+    { market: marketId, first },
   );
 
-  if (listQuery.ok) {
+  if (legacy.ok) {
     return NextResponse.json({
-      trades: normalizeTrades(listQuery.data.marketTrades ?? []),
+      trades: normalizeTrades(legacy.data.marketTrades ?? []),
       unavailable: false,
     });
   }

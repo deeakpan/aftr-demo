@@ -30,12 +30,12 @@ Token contract addresses and question rules are stored in market metadata. Trade
 ## Event market settlement
 
 1. **Resolve after** time passes.
-2. Resolution admins review **resolution sources** the creator listed (official websites, results pages, etc.).
-3. Admins sign their agreement on which outcome index won.
-4. When enough valid signatures are collected (a majority threshold of the admin set), settlement finalizes on-chain.
+2. **Protocol admins** review **resolution sources** the creator listed (official websites, results pages, etc.).
+3. Admins confirm which outcome won.
+4. Once enough admins agree, settlement finalizes on-chain.
 5. Winners can claim.
 
-This model ties settlement to **public, credible sources** rather than one individual. Admins who sign incorrectly risk reputation and protocol penalties described in platform advisories.
+Event markets are **resolved through protocol admins** using the creator’s public sources — not a price oracle and not Polymarket’s own settlement (even if you imported a Polymarket template).
 
 ### What traders should do
 

@@ -66,7 +66,7 @@ Confirm settlement finished, you hold the winning outcome (not a losing one), an
 
 ### Who decides event market outcomes?
 
-A panel of resolution admins who independently sign the same outcome after reviewing the creator’s resolution sources. Multiple signatures are required.
+**Protocol admins** review the creator’s resolution sources and confirm the winning outcome. Multiple admin confirmations are required — the creator alone cannot settle.
 
 ### Can the creator settle their own market alone?
 
@@ -95,6 +95,10 @@ You receive **0.3%** of every pool trade on your market automatically.
 ### What kinds of events should I create?
 
 Choose events where the winner can be verified from **public, official records** — government results, league scoreboards, regulatory filings, and similar. Skip subjective questions or outcomes that will never appear on a credible public page.
+
+### Can I import a Polymarket market?
+
+Yes, on Create → **Event**, use **Import from Polymarket** and paste a Polymarket URL. Title, description, cover, outcomes, and schedule are prefilled. Review and edit before submitting. The Mondalore market still settles through protocol admins — it is not linked to Polymarket settlement. Details: [Event markets](../creating-markets/event-markets.md#import-from-polymarket-optional).
 
 ### Can I get help before creating a market?
 

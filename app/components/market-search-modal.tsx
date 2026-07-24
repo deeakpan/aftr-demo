@@ -9,6 +9,7 @@ import {
   searchMarkets,
   type MarketSearchRecord,
 } from "@/lib/markets/market-search";
+import { marketPath } from "@/lib/markets/market-url";
 
 type Props = {
   open: boolean;
@@ -81,9 +82,9 @@ export function MarketSearchModal({ open, onClose, initialQuery = "", onQueryCha
   }, [query, hits.length]);
 
   const openMarket = useCallback(
-    (address: `0x${string}`) => {
+    (market: MarketSearchRecord) => {
       onClose();
-      router.push(`/market/${address}`);
+      router.push(marketPath({ slug: market.slug, address: market.address }));
     },
     [onClose, router],
   );
@@ -113,7 +114,7 @@ export function MarketSearchModal({ open, onClose, initialQuery = "", onQueryCha
       } else if (event.key === "Enter") {
         event.preventDefault();
         const hit = hits[activeIndex];
-        if (hit) openMarket(hit.market.address);
+        if (hit) openMarket(hit.market);
       }
     };
 
@@ -187,7 +188,7 @@ export function MarketSearchModal({ open, onClose, initialQuery = "", onQueryCha
                   type="button"
                   data-search-index={index}
                   onMouseEnter={() => setActiveIndex(index)}
-                  onClick={() => openMarket(market.address)}
+                  onClick={() => openMarket(market)}
                   className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
                     active ? "bg-[var(--accent)]/12 ring-1 ring-[var(--accent)]/25" : "hover:bg-[var(--surface-hover)]"
                   }`}

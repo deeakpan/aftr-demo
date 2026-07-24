@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { formatUnits, isAddress } from "viem";
+import { isAddress } from "viem";
 import { querySubgraph } from "@/lib/subgraph/client";
+import { formatSubgraphPnlUsd, formatSubgraphUsd } from "@/lib/subgraph/format-collateral-usd";
 
 type GraphResponse = {
   data?: {
@@ -16,14 +17,6 @@ type GraphResponse = {
     }>;
   };
 };
-
-const SUBGRAPH_DECIMALS = 18;
-
-function usdStringFromWei(value: bigint): string {
-  const n = Number(formatUnits(value, SUBGRAPH_DECIMALS));
-  if (!Number.isFinite(n)) return "0.00";
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 export async function GET(req: NextRequest) {
   const wallet = req.nextUrl.searchParams.get("wallet")?.trim() ?? "";
@@ -73,7 +66,6 @@ export async function GET(req: NextRequest) {
   const deposited = BigInt(t.totalDeposited || "0");
   const redeemed = BigInt(t.totalRedeemed || "0");
   const pnl = redeemed - deposited;
-  const absPnl = pnl < BigInt(0) ? -pnl : pnl;
   const perMarket = graph.data.traderMarketPositions ?? [];
   const settledEvaluable = perMarket.filter((p) => BigInt(p.collateralIn || "0") > BigInt(0));
   const wins = settledEvaluable.filter((p) => BigInt(p.collateralOut || "0") > BigInt(p.collateralIn || "0")).length;
@@ -84,9 +76,9 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     marketCount,
-    pnlUsd: `${pnl < BigInt(0) ? "-" : ""}${usdStringFromWei(absPnl)}`,
-    depositedUsd: usdStringFromWei(deposited),
-    redeemedUsd: usdStringFromWei(redeemed),
+    pnlUsd: formatSubgraphPnlUsd(pnl),
+    depositedUsd: formatSubgraphUsd(deposited),
+    redeemedUsd: formatSubgraphUsd(redeemed),
     winRatePct,
   });
 }

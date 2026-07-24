@@ -1,25 +1,33 @@
 /* eslint-disable no-console */
 /**
- * Send a fixed amount of ERC20 (defaults to deployment MondaloreUSDC on Base Sepolia) to a recipient.
+ * Send MondaloreUSDC (test USDC) on Monad Testnet.
  *
  * Env:
- *   PRIVATE_KEY (or DEPLOYER_PRIVATE_KEY) — hex, with or without 0x
- *   BASE_SEPOLIA_RPC_URL — optional, defaults to https://sepolia.base.org
- *   SEND_USDC_TOKEN — optional ERC20 address override (e.g. Circle test USDC from deployment external)
+ *   PRIVATE_KEY — sender
+ *   RPC_URL — optional
+ *   SEND_USDC_TO — recipient override
+ *   SEND_USDC_AMOUNT — amount as human string (default 500)
  *
  * Usage:
- *   node scripts/send-usdc.cjs
+ *   npm run send:usdc -- 0xRecipient
+ *   npm run send:usdc -- 0xRecipient 100
  */
 const fs = require("fs");
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
-const { createPublicClient, createWalletClient, http, parseAbi, parseUnits } = require("viem");
+const { createPublicClient, createWalletClient, http, parseAbi, parseUnits, isAddress } = require("viem");
 const { privateKeyToAccount } = require("viem/accounts");
-const { baseSepolia } = require("viem/chains");
+const { defineChain } = require("viem");
 
-const DEFAULT_RECIPIENT = "0x75B51D8Bd0c99201Eee9C0E0954B788fF0fD9B38";
-const SEND_AMOUNT = "500";
+const DEFAULT_AMOUNT = "500";
+
+const monadTestnet = defineChain({
+  id: 10143,
+  name: "Monad Testnet",
+  nativeCurrency: { name: "Monad", symbol: "MON", decimals: 18 },
+  rpcUrls: { default: { http: ["https://testnet-rpc.monad.xyz"] } },
+});
 
 const ERC20_ABI = parseAbi([
   "function decimals() view returns (uint8)",
@@ -29,17 +37,17 @@ const ERC20_ABI = parseAbi([
 ]);
 
 function normalizePrivateKey(raw) {
-  const s = String(raw).trim();
+  const s = String(raw ?? "").trim();
   if (!s) return null;
   return s.startsWith("0x") ? s : `0x${s}`;
 }
 
-function readDefaultTokenAddress() {
-  const deploymentPath = path.join(__dirname, "..", "deployments", "baseSepolia-84532.json");
+function readUsdcAddress() {
+  const deploymentPath = path.join(__dirname, "..", "deployments", "monadTestnet-10143.json");
   const j = JSON.parse(fs.readFileSync(deploymentPath, "utf8"));
   const addr = j?.contracts?.MondaloreUSDC;
   if (!addr || typeof addr !== "string") {
-    throw new Error("MondaloreUSDC missing in deployments/baseSepolia-84532.json");
+    throw new Error("MondaloreUSDC missing in deployments/monadTestnet-10143.json");
   }
   return addr;
 }
@@ -50,15 +58,22 @@ async function main() {
     throw new Error("Set PRIVATE_KEY or DEPLOYER_PRIVATE_KEY in .env (project root).");
   }
 
-  const recipient = (process.env.SEND_USDC_TO || DEFAULT_RECIPIENT).trim();
-  const rpcUrl =
-    process.env.BASE_SEPOLIA_RPC_URL || process.env.RPC_URL || "https://sepolia.base.org";
-  const tokenAddress = (process.env.SEND_USDC_TOKEN || readDefaultTokenAddress()).trim();
+  const cliRecipient = process.argv[2]?.trim();
+  const cliAmount = process.argv[3]?.trim();
+  const recipient = (cliRecipient || process.env.SEND_USDC_TO || "").trim();
+  const amountStr = (cliAmount || process.env.SEND_USDC_AMOUNT || DEFAULT_AMOUNT).trim();
+
+  if (!recipient || !isAddress(recipient)) {
+    throw new Error("Pass a valid recipient: npm run send:usdc -- 0x...");
+  }
+
+  const rpcUrl = process.env.RPC_URL?.trim() || "https://testnet-rpc.monad.xyz/";
+  const tokenAddress = (process.env.SEND_USDC_TOKEN || readUsdcAddress()).trim();
 
   const account = privateKeyToAccount(pk);
   const transport = http(rpcUrl);
-  const publicClient = createPublicClient({ chain: baseSepolia, transport });
-  const walletClient = createWalletClient({ account, chain: baseSepolia, transport });
+  const publicClient = createPublicClient({ chain: monadTestnet, transport });
+  const walletClient = createWalletClient({ account, chain: monadTestnet, transport });
 
   const [decimals, symbol] = await Promise.all([
     publicClient.readContract({
@@ -66,14 +81,16 @@ async function main() {
       abi: ERC20_ABI,
       functionName: "decimals",
     }),
-    publicClient.readContract({
-      address: tokenAddress,
-      abi: ERC20_ABI,
-      functionName: "symbol",
-    }).catch(() => "?"),
+    publicClient
+      .readContract({
+        address: tokenAddress,
+        abi: ERC20_ABI,
+        functionName: "symbol",
+      })
+      .catch(() => "USDC"),
   ]);
 
-  const amountWei = parseUnits(SEND_AMOUNT, Number(decimals));
+  const amountWei = parseUnits(amountStr, Number(decimals));
   const bal = await publicClient.readContract({
     address: tokenAddress,
     abi: ERC20_ABI,
@@ -81,11 +98,12 @@ async function main() {
     args: [account.address],
   });
 
+  console.log(`Network:  Monad Testnet (${monadTestnet.id})`);
   console.log(`From:     ${account.address}`);
   console.log(`Token:    ${tokenAddress} (${symbol}, ${decimals} decimals)`);
   console.log(`Balance:  ${bal.toString()} raw`);
   console.log(`To:       ${recipient}`);
-  console.log(`Amount:   ${SEND_AMOUNT} ${symbol}`);
+  console.log(`Amount:   ${amountStr} ${symbol}`);
 
   if (bal < amountWei) {
     throw new Error(`Insufficient balance: need ${amountWei.toString()} raw, have ${bal.toString()}.`);
@@ -101,6 +119,7 @@ async function main() {
   console.log(`Submitted: ${hash}`);
   const receipt = await publicClient.waitForTransactionReceipt({ hash });
   console.log(`Confirmed in block ${receipt.blockNumber}, status ${receipt.status}`);
+  console.log(`Explorer: https://testnet.monadvision.com/tx/${hash}`);
 }
 
 main().catch((e) => {

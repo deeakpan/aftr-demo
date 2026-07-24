@@ -15,8 +15,11 @@ import { useAccount, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import { useSidebarOpen } from "@/app/components/sidebar-context";
 import { MarketChartPanel } from "@/app/market/components/market-chart-panel";
+import { MarketShareButton } from "@/app/market/components/market-share-button";
+import { MarketTradeList } from "@/app/market/components/market-trade-list";
 import { NadTokenPanel } from "@/app/market/components/nad-token-panel";
 import { MultiOutcomeMarketSection } from "@/app/market/components/multi-outcome-market-section";
+import { OutcomeOrderBook } from "@/app/market/components/outcome-order-book";
 import { LimitOrderParams, TradeModal, type TradeSuccessResult } from "@/app/market/components/trade-modal";
 import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import { collateralTickerFromDeployment, isUsdStyledCollateralTicker } from "@/lib/deployment-collateral";
@@ -40,7 +43,6 @@ import {
   readCachedMarketCard,
   type CachedMarketCard,
 } from "@/lib/markets/market-card-cache";
-import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
 import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
 const WAD = BigInt("1000000000000000000");
 const SLIPPAGE_PRESETS = [50, 100, 200, 300] as const;
@@ -136,6 +138,8 @@ function formatTradeError(error: unknown): string {
 
 type Props = {
   address: string;
+  /** Raw `/market/[param]` segment (address or slug) — used to resolve vanity URLs. */
+  routeParam?: string;
   initialMarket?: MarketDetailDto | null;
   initialLoadError?: string | null;
 };
@@ -152,6 +156,34 @@ function applyCachedCard(detail: MarketDetailItem, cached: CachedMarketCard): Ma
   };
 }
 
+function MarketDescription({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const body = text.trim();
+  if (!body || body === "No description provided.") return null;
+  const long = body.length > 180 || body.split("\n").length > 2;
+
+  return (
+    <div className="mt-2.5 max-w-2xl">
+      <p
+        className={`whitespace-pre-wrap text-sm leading-relaxed text-[var(--muted)] ${
+          expanded ? "" : "line-clamp-3"
+        }`}
+      >
+        {body}
+      </p>
+      {long ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-1 text-xs font-medium text-[var(--accent)] transition hover:opacity-80"
+        >
+          {expanded ? "Show less" : "Show more"}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function MobileOutcomeBar({
   market,
   onSelectOutcome,
@@ -164,7 +196,7 @@ function MobileOutcomeBar({
   if (market.marketState !== 0 || sidebarOpen || market.outcomes !== 2) return null;
 
   return (
-    <div className="fixed bottom-[64px] left-0 right-0 z-20 bg-[var(--background)] px-4 py-3 md:bottom-0 lg:hidden">
+    <div className="fixed bottom-[5.5rem] left-0 right-0 z-20 bg-[var(--background)] px-4 py-3 md:bottom-0 lg:hidden">
       <div className="flex items-stretch gap-2">
         <button
           type="button"
@@ -191,12 +223,15 @@ function MobileOutcomeBar({
 
 export function MarketDetailClient({
   address: addressProp,
+  routeParam,
   initialMarket = null,
   initialLoadError = null,
 }: Props) {
   const publicClient = deploymentPublicClient;
   const { address, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
+
+  const routeKey = (routeParam || addressProp || "").trim();
 
   const [market, setMarket] = useState<MarketDetailItem | null>(() => {
     if (!initialMarket) return null;
@@ -214,6 +249,23 @@ export function MarketDetailClient({
   });
   const [loadError, setLoadError] = useState(initialLoadError ?? "");
   const [isLoading, setIsLoading] = useState(!initialMarket && !initialLoadError);
+  const [slugAddress, setSlugAddress] = useState<`0x${string}` | null>(() => {
+    const a = initialMarket?.address?.trim();
+    if (a && isAddress(a)) {
+      try {
+        return getAddress(a) as `0x${string}`;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+  const needsSlugResolve =
+    Boolean(routeKey) &&
+    !isAddress(routeKey) &&
+    !(initialMarket?.address && isAddress(initialMarket.address));
+  const [slugResolving, setSlugResolving] = useState(needsSlugResolve);
+  const [slugResolveFailed, setSlugResolveFailed] = useState(false);
 
   const [tradeOpen, setTradeOpen] = useState(false);
   const [selectedOutcome, setSelectedOutcome] = useState(0);
@@ -237,6 +289,12 @@ export function MarketDetailClient({
       ? (document.documentElement.getAttribute("data-theme") ?? "dark")
       : "dark",
   );
+  const detailScrollRef = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
+  /** 0 = full hero visible, 1 = compact overlay fully shown */
+  const [headerCompact, setHeaderCompact] = useState(0);
+  const headerCompactRef = useRef(0);
+  const scrollRafRef = useRef(0);
   useEffect(() => {
     const sync = () => setChartThemeKey(document.documentElement.getAttribute("data-theme") ?? "dark");
     sync();
@@ -245,20 +303,105 @@ export function MarketDetailClient({
     return () => obs.disconnect();
   }, []);
 
-  const marketAddress = useMemo(() => {
-    const raw = (addressProp || "").trim();
-    if (!raw || !isAddress(raw)) return null;
-    try {
-      return getAddress(raw) as `0x${string}`;
-    } catch {
-      return null;
+  const onDetailScroll = useCallback(() => {
+    if (scrollRafRef.current) return;
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = 0;
+      const scroller = detailScrollRef.current;
+      const hero = heroRef.current;
+      if (!scroller || !hero) return;
+      // Progress over the hero's own height — hero stays in normal flow (no sticky
+      // height changes), so scrollTop isn't fighting a shrinking sticky box.
+      const range = Math.max(72, hero.offsetHeight - 48);
+      const next = Math.min(1, Math.max(0, scroller.scrollTop / range));
+      if (Math.abs(headerCompactRef.current - next) < 0.008) return;
+      headerCompactRef.current = next;
+      setHeaderCompact(next);
+    });
+  }, []);
+
+  // Resolve vanity slug → address on the client when SSR didn't (cold cache / soft nav).
+  useEffect(() => {
+    const raw = routeKey;
+    if (!raw || isAddress(raw)) {
+      setSlugAddress(null);
+      setSlugResolving(false);
+      setSlugResolveFailed(false);
+      return;
     }
-  }, [addressProp]);
+    // Already have a market from SSR / prior resolve
+    if (initialMarket?.address && isAddress(initialMarket.address)) {
+      try {
+        setSlugAddress(getAddress(initialMarket.address) as `0x${string}`);
+        setSlugResolving(false);
+        setSlugResolveFailed(false);
+        return;
+      } catch {
+        // continue to API resolve
+      }
+    }
+
+    let cancelled = false;
+    setSlugResolving(true);
+    setSlugResolveFailed(false);
+    setLoadError("");
+    void fetch(`/api/market/slug?slug=${encodeURIComponent(raw)}`, { cache: "no-store" })
+      .then(async (res) => {
+        const j = (await res.json()) as { address?: string | null; available?: boolean; error?: string };
+        if (cancelled) return;
+        const addr = typeof j.address === "string" ? j.address.trim() : "";
+        if (addr && isAddress(addr)) {
+          setSlugAddress(getAddress(addr) as `0x${string}`);
+          setSlugResolveFailed(false);
+        } else {
+          setSlugAddress(null);
+          setSlugResolveFailed(true);
+          setLoadError(j.error || "Market not found for this link.");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSlugAddress(null);
+          setSlugResolveFailed(true);
+          setLoadError("Could not resolve market link.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setSlugResolving(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [routeKey, initialMarket?.address]);
+
+  const marketAddress = useMemo(() => {
+    const candidates = [slugAddress, market?.address, initialMarket?.address, addressProp];
+    for (const c of candidates) {
+      const raw = (c || "").trim();
+      if (!raw || !isAddress(raw)) continue;
+      try {
+        return getAddress(raw) as `0x${string}`;
+      } catch {
+        // try next
+      }
+    }
+    return null;
+  }, [slugAddress, addressProp, initialMarket?.address, market?.address]);
+
+  useEffect(() => {
+    headerCompactRef.current = 0;
+    setHeaderCompact(0);
+    if (detailScrollRef.current) detailScrollRef.current.scrollTop = 0;
+    return () => {
+      if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current);
+    };
+  }, [marketAddress]);
 
   const reload = useCallback(async () => {
     if (!marketAddress) {
-      setMarket(null);
-      setIsLoading(false);
+      // Keep spinner while vanity slug is still resolving — don't flash "invalid".
+      if (!slugResolving) setIsLoading(false);
       return;
     }
     setIsLoading((loading) => loading || !initialMarket);
@@ -302,7 +445,7 @@ export function MarketDetailClient({
     } finally {
       setIsLoading(false);
     }
-  }, [marketAddress, initialMarket]);
+  }, [marketAddress, initialMarket, slugResolving]);
 
   useEffect(() => {
     void reload();
@@ -727,11 +870,28 @@ export function MarketDetailClient({
   }, [market]);
 
   if (!marketAddress) {
+    if (slugResolving || (routeKey && !isAddress(routeKey) && !slugResolveFailed)) {
+      return (
+        <AppLayout showSearch={false}>
+          <div className="no-scrollbar h-full overflow-y-auto">
+            <div className="px-4 pt-2 md:px-6">
+              <div className="mb-4 h-4 w-24 animate-pulse rounded bg-[var(--border)]/50" />
+              <div className="mb-4 h-[120px] w-full max-w-2xl animate-pulse rounded-2xl bg-[var(--border)]/50 sm:h-[140px] md:h-[160px]" />
+              <div className="mt-6 h-[400px] animate-pulse rounded-xl bg-[var(--card)]" />
+            </div>
+          </div>
+        </AppLayout>
+      );
+    }
     return (
       <AppLayout showSearch={false}>
         <div className="flex min-h-[40vh] items-center justify-center px-4">
           <div>
-            <p className="text-base font-semibold text-red-400">Invalid market address</p>
+            <p className="text-base font-semibold text-red-400">
+              {slugResolveFailed
+                ? loadError || "Market not found for this link."
+                : "Invalid market address"}
+            </p>
             <Link href="/market" className="mt-3 inline-flex items-center gap-1.5 text-sm text-[var(--muted)] transition hover:text-[var(--foreground)]">
               <ArrowLeft size={14} weight="bold" /> Back to markets
             </Link>
@@ -747,7 +907,7 @@ export function MarketDetailClient({
         <div className="no-scrollbar h-full overflow-y-auto">
           <div className="px-4 pt-2 md:px-6">
             <div className="mb-4 h-4 w-24 animate-pulse rounded bg-[var(--border)]/50" />
-            <div className={`${MARKET_COVER_ASPECT_CLASS} w-full animate-pulse rounded-2xl bg-[var(--border)]/50`} />
+            <div className="mb-4 h-[120px] w-full max-w-2xl animate-pulse rounded-2xl bg-[var(--border)]/50 sm:h-[140px] md:h-[160px]" />
             <div className="mt-6 h-[400px] animate-pulse rounded-xl bg-[var(--card)]" />
           </div>
         </div>
@@ -760,42 +920,119 @@ export function MarketDetailClient({
       {market && (
         <div className="flex h-full min-h-0 overflow-hidden lg:flex-row">
 
-          {/* ── Left: scrolls under app header; trade panel stays fixed ── */}
-          <div className="no-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
-            <div className="px-4 pb-36 pt-2 md:px-6 md:pb-24 lg:pb-6">
-            <Link
-              href="/market"
-              className="mb-3 inline-flex items-center gap-1.5 text-sm text-[var(--muted)] transition hover:text-[var(--foreground)]"
-            >
-              <ArrowLeft size={14} weight="bold" /> Markets
-            </Link>
-
-            <div className="mb-5">
-              <h1 className="text-xl font-bold leading-snug text-[var(--foreground)] md:text-2xl">
-                {market.title}
-              </h1>
-              {market.slug && (
-                <p className="mt-1 font-mono text-[11px] text-[var(--muted)]">/{market.slug}</p>
-              )}
-            </div>
-
-            {market.imageUrl ? (
+          {/* ── Left: hero scrolls away; compact bar overlays without changing layout ── */}
+          <div
+            ref={detailScrollRef}
+            onScroll={onDetailScroll}
+            className="no-scrollbar relative min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain"
+          >
+            {/* Compact sticky overlay — zero layout height, so no scroll feedback loop */}
             <div
-              className={`relative isolate mb-5 w-full shrink-0 overflow-hidden rounded-2xl bg-[var(--surface)] ${MARKET_COVER_ASPECT_CLASS} min-h-[120px] md:min-h-[160px]`}
+              className="pointer-events-none sticky top-0 z-30 h-0 overflow-visible"
+              aria-hidden={headerCompact < 0.2}
             >
-                <img
-                  src={market.imageUrl}
-                  alt=""
-                  className="absolute inset-0 h-full w-full object-cover object-center"
-                />
-
               <div
-                className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"
-                aria-hidden
-              />
+                className={`border-b border-[var(--border)] bg-[var(--background)]/95 px-4 py-2.5 shadow-[0_8px_24px_rgb(0_0_0_/_0.18)] backdrop-blur-md supports-[backdrop-filter]:bg-[var(--background)]/85 md:px-6 ${
+                  market.marketState === 2 ? "mx-auto w-full max-w-3xl" : ""
+                }`}
+                style={{
+                  opacity: Math.min(1, Math.max(0, (headerCompact - 0.12) / 0.55)),
+                  transform: `translate3d(0, ${Math.round((1 - Math.min(1, headerCompact / 0.7)) * -10)}px, 0)`,
+                  pointerEvents: headerCompact > 0.35 ? "auto" : "none",
+                  willChange: "opacity, transform",
+                }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                    <Link
+                      href="/market"
+                      className="inline-flex shrink-0 items-center justify-center rounded-lg p-1 text-[var(--muted)] transition hover:text-[var(--foreground)]"
+                      aria-label="Back to markets"
+                    >
+                      <ArrowLeft size={16} weight="bold" />
+                    </Link>
+                    {market.imageUrl ? (
+                      <div className="relative isolate h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-[var(--surface)]">
+                        <img
+                          src={market.imageUrl}
+                          alt=""
+                          className="absolute inset-0 h-full w-full object-cover object-center"
+                        />
+                      </div>
+                    ) : null}
+                    <h1 className="truncate text-base font-bold leading-snug text-[var(--foreground)]">
+                      {market.title}
+                    </h1>
+                  </div>
+                  <MarketShareButton
+                    address={market.address}
+                    slug={market.slug}
+                    title={market.title}
+                    iconSize={16}
+                    className="shrink-0 text-[var(--muted)]"
+                  />
+                </div>
+              </div>
             </div>
-            ) : null}
 
+            {/* Expanded hero — normal document flow; scrolls under the compact bar */}
+            <div
+              ref={heroRef}
+              className={`px-4 pb-1 pt-2 md:px-6 ${
+                market.marketState === 2 ? "mx-auto w-full max-w-3xl" : ""
+              }`}
+              style={{
+                opacity: Math.max(0, 1 - headerCompact * 1.15),
+                transform: `translate3d(0, ${Math.round(headerCompact * -6)}px, 0)`,
+                willChange: "opacity, transform",
+              }}
+            >
+              <Link
+                href="/market"
+                className="mb-2 inline-flex items-center gap-1.5 text-sm text-[var(--muted)] transition hover:text-[var(--foreground)]"
+              >
+                <ArrowLeft size={14} weight="bold" /> Markets
+              </Link>
+
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-[1.4rem] font-bold leading-snug text-[var(--foreground)]">
+                    {market.title}
+                  </h1>
+                  {market.slug ? (
+                    <p className="mt-1 font-mono text-[11px] text-[var(--muted)]">/{market.slug}</p>
+                  ) : null}
+                  <MarketDescription text={market.description} />
+                </div>
+                <MarketShareButton
+                  address={market.address}
+                  slug={market.slug}
+                  title={market.title}
+                  iconSize={18}
+                  className="shrink-0 text-[var(--muted)]"
+                />
+              </div>
+
+              {market.imageUrl ? (
+                <div className="relative isolate mt-3 h-[132px] w-full max-w-2xl overflow-hidden rounded-2xl bg-[var(--surface)] sm:h-[148px]">
+                  <img
+                    src={market.imageUrl}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover object-center"
+                  />
+                  <div
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent"
+                    aria-hidden
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            <div
+              className={`px-4 pb-28 pt-3 md:px-6 lg:pb-6 ${
+                market.marketState === 2 ? "mx-auto w-full max-w-3xl" : ""
+              }`}
+            >
             {/* Outcome hero — binary only */}
             {market.outcomes === 2 && (
               <>
@@ -839,6 +1076,13 @@ export function MarketDetailClient({
                     <NadTokenPanel nadMarket={market.nadMarket} />
                   </div>
                 ) : null}
+                <MarketTradeList
+                  marketAddress={market.address}
+                  collateralDecimals={market.collateralDecimals}
+                  collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
+                  outcomeLabels={market.outcomeLabels}
+                  className="mt-6"
+                />
               </>
             ) : market.nadMarket ? (
               <div className="space-y-4">
@@ -863,78 +1107,6 @@ export function MarketDetailClient({
                 tvSymbol={tvSymbol}
                 chartThemeKey={chartThemeKey}
               />
-            )}
-
-            {/* Order book — binary markets only (multi uses tabbed panel above) */}
-            {market.marketState === 0 && outcomeTokens[selectedOutcome] && market.outcomes === 2 && (
-              <div className="mt-8">
-                <div className="mb-3 flex items-center justify-between border-t border-[var(--border)] pt-5">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">
-                    Order Book · {market.outcomeLabels[selectedOutcome] ?? `Outcome ${selectedOutcome}`}
-                  </p>
-                  <div className="flex max-w-[55%] flex-wrap justify-end gap-1">
-                    {market.outcomeLabels.slice(0, 2).map((label, i) => {
-                        const active = selectedOutcome === i;
-                        return (
-                          <button
-                            key={i}
-                            type="button"
-                            onClick={() => setSelectedOutcome(i)}
-                            className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide transition ${
-                              active
-                                ? "bg-[var(--accent)] text-white"
-                                : "text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        );
-                    })}
-                  </div>
-                </div>
-                {obSnapshot && (obSnapshot.bidPrices.length > 0 || obSnapshot.askPrices.length > 0) ? (
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-500">Bids</p>
-                      <div className="space-y-1">
-                        {[...obSnapshot.bidPrices.map((p, i) => ({ p, v: obSnapshot.bidVolumes[i]! }))]
-                          .sort((a, b) => Number(b.p - a.p))
-                          .slice(0, 8)
-                          .map(({ p, v }, i) => (
-                            <div key={i} className="flex items-center justify-between rounded-md bg-emerald-500/5 px-2.5 py-1.5">
-                              <span className="font-mono font-semibold text-emerald-400">
-                                ${formatUnits(p, market.collateralDecimals)}
-                              </span>
-                              <span className="font-mono text-[var(--muted)]">
-                                {Number(formatUnits(v, market.collateralDecimals)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                              </span>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-rose-500">Asks</p>
-                      <div className="space-y-1">
-                        {[...obSnapshot.askPrices.map((p, i) => ({ p, v: obSnapshot.askVolumes[i]! }))]
-                          .sort((a, b) => Number(a.p - b.p))
-                          .slice(0, 8)
-                          .map(({ p, v }, i) => (
-                            <div key={i} className="flex items-center justify-between rounded-md bg-rose-500/5 px-2.5 py-1.5">
-                              <span className="font-mono font-semibold text-rose-400">
-                                ${formatUnits(p, market.collateralDecimals)}
-                              </span>
-                              <span className="font-mono text-[var(--muted)]">
-                                {Number(formatUnits(v, market.collateralDecimals)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                              </span>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-[var(--muted)]">No open orders for this outcome yet.</p>
-                )}
-              </div>
             )}
 
             {/* Settlement */}
@@ -970,7 +1142,7 @@ export function MarketDetailClient({
                   ))}
                   {market.kind === "Event" && (
                     <p className="pt-2 text-xs text-[var(--muted)]">
-                      Resolved by community admin signatures (3-of-10).
+                      Resolved through protocol admins.
                     </p>
                   )}
                 </div>
@@ -980,49 +1152,60 @@ export function MarketDetailClient({
             </div>
           </div>
 
-          {/* ── Right: trade panel (desktop only, active markets) ── */}
+          {/* ── Right: trade + order book (desktop) ── */}
           {market.marketState !== 2 && (
-            <div className="hidden w-full shrink-0 lg:flex lg:sticky lg:top-4 lg:h-[min(calc(100dvh-5rem),36rem)] lg:w-[380px] lg:flex-col lg:self-start">
-              <div className="glass-panel m-4 flex h-[calc(100%-2rem)] min-h-0 w-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl">
-                <TradeModal
-                  inline
-                  open={false}
-                  onClose={() => {}}
-                  marketTitle={market.title}
-                  priceRangeLine={market.priceBinByOutcome?.[selectedOutcome] ?? null}
-                  stakeEnds={market.stakeEnds}
-                  resolveAfter={market.resolveAfter}
-                  outcomeLabels={market.outcomeLabels}
-                  selectedOutcomeIndex={selectedOutcome}
-                  onSelectOutcome={setSelectedOutcome}
-                  outcomeChancePcts={market.outcomeChancePcts}
-                  hideOutcomeSelector={market.outcomes > 2}
-                  isWalletConnected={Boolean(address)}
-                  collateralDecimals={market.collateralDecimals}
-                  collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
-                  amount={tradeAmount}
-                  setAmount={setTradeAmount}
-                  priceOfRaw={tradePriceRaw}
-                  walletBalanceWei={collateralBalance}
-                  outcomeTokenBalanceWei={outcomeTokenBalance}
-                  tokensFormatted={tradeSummary?.tokens ?? null}
-                  pricePerTokenLabel={pricePerTokenLabel}
-                  slippageBps={tradeSlippageBps}
-                  onCycleSlippage={cycleSlippage}
-                  isNativeCollateral={isNativeCollateral}
-                  needsApproval={needsApproval}
-                  approvalIcon={approvalIcon}
-                  approvalLine={approvalLine}
-                  tradeDisabled={tradeDisabled}
-                  status={tradeStatus}
-                  busy={tradeBusy}
-                  onSubmit={() => void submitTrade()}
-                  onSubmitLimit={submitLimitOrderFromParams}
-                  tradeSuccess={tradeSuccess}
-                  onDismissSuccess={() => setTradeSuccess(null)}
-                />
+            <aside className="hidden min-h-0 w-[min(100%,400px)] shrink-0 flex-col self-stretch lg:flex lg:h-full lg:w-[400px] xl:w-[440px]">
+              <div className="flex h-full min-h-0 flex-col p-3 pl-2 xl:p-4 xl:pl-2">
+                <div className="glass-panel flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl">
+                  <TradeModal
+                    inline
+                    open={false}
+                    onClose={() => {}}
+                    marketTitle={market.title}
+                    priceRangeLine={market.priceBinByOutcome?.[selectedOutcome] ?? null}
+                    stakeEnds={market.stakeEnds}
+                    resolveAfter={market.resolveAfter}
+                    outcomeLabels={market.outcomeLabels}
+                    selectedOutcomeIndex={selectedOutcome}
+                    onSelectOutcome={setSelectedOutcome}
+                    outcomeChancePcts={market.outcomeChancePcts}
+                    hideOutcomeSelector={market.outcomes > 2}
+                    isWalletConnected={Boolean(address)}
+                    collateralDecimals={market.collateralDecimals}
+                    collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
+                    amount={tradeAmount}
+                    setAmount={setTradeAmount}
+                    priceOfRaw={tradePriceRaw}
+                    walletBalanceWei={collateralBalance}
+                    outcomeTokenBalanceWei={outcomeTokenBalance}
+                    tokensFormatted={tradeSummary?.tokens ?? null}
+                    pricePerTokenLabel={pricePerTokenLabel}
+                    slippageBps={tradeSlippageBps}
+                    onCycleSlippage={cycleSlippage}
+                    isNativeCollateral={isNativeCollateral}
+                    needsApproval={needsApproval}
+                    approvalIcon={approvalIcon}
+                    approvalLine={approvalLine}
+                    tradeDisabled={tradeDisabled}
+                    status={tradeStatus}
+                    busy={tradeBusy}
+                    onSubmit={() => void submitTrade()}
+                    onSubmitLimit={submitLimitOrderFromParams}
+                    tradeSuccess={tradeSuccess}
+                    onDismissSuccess={() => setTradeSuccess(null)}
+                    belowPanel={
+                      market.marketState === 0 ? (
+                        <OutcomeOrderBook
+                          snapshot={obSnapshot}
+                          collateralDecimals={market.collateralDecimals}
+                          title={`Order book · ${market.outcomeLabels[selectedOutcome] ?? `Outcome ${selectedOutcome}`}`}
+                        />
+                      ) : null
+                    }
+                  />
+                </div>
               </div>
-            </div>
+            </aside>
           )}
 
         </div>
@@ -1094,6 +1277,15 @@ export function MarketDetailClient({
             setTradeOpen(false);
             setTradeAmount("");
           }}
+          belowPanel={
+            market.marketState === 0 ? (
+              <OutcomeOrderBook
+                snapshot={obSnapshot}
+                collateralDecimals={market.collateralDecimals}
+                title={`Order book · ${market.outcomeLabels[selectedOutcome] ?? `Outcome ${selectedOutcome}`}`}
+              />
+            ) : null
+          }
         />
       )}
     </AppLayout>

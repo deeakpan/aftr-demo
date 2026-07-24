@@ -2,6 +2,30 @@
 
 Event markets resolve from **real-world outcomes** verified against public sources. Only launch this type when the answer will be **publicly documented** somewhere trustworthy.
 
+## Import from Polymarket (optional)
+
+On Create → **Event**, you can tap **Import from Polymarket** and paste a Polymarket event or market URL (for example `https://polymarket.com/event/…`).
+
+Mondalore pulls what it can from Polymarket’s public catalog and prefills your form:
+
+| Field | What we import |
+|-------|----------------|
+| **Title & description** | Event / market question text and rules |
+| **Cover image** | Polymarket cover (downloaded into your create flow) |
+| **Outcomes** | Binary Yes/No for a single market, or multi-option labels when the event has several child markets |
+| **Resolution source** | The Polymarket link itself (you should still add primary official sources) |
+| **Resolve after** | Polymarket’s end date |
+| **Stake ends** | Derived (~24h before resolve) — Polymarket has no stake-end field |
+| **Slug** | Suggested from the Polymarket slug |
+
+After import, review everything. Adjust wording, outcomes, sources, and times before you seed and submit. Import is a **template only** — the Mondalore market is separate and is **resolved through protocol admins**, not Polymarket’s own resolution.
+
+Tips:
+
+- Multi-child Polymarket events (e.g. “next team” with many options) become a **multi-outcome** Mondalore market using those option labels as listed
+- We do **not** invent an “Other” option — only keep a catch-all if Polymarket already has one
+- Always confirm stake end / resolve after still make sense for when official results will publish
+
 ## The public-data rule
 
 Before you create an event market, ask: *Will an independent reviewer be able to verify the winner from URLs anyone can open?*
@@ -65,7 +89,7 @@ Leave buffer after the event for official results to publish.
 
 ## Settlement model
 
-Event markets use **community resolution admins** — a fixed panel who independently review evidence and sign the winning outcome. Settlement requires multiple matching signatures, not one person’s call.
+Event markets are **resolved through protocol admins** — reviewers who check your resolution sources and confirm the winning outcome. Settlement is not automatic from a price feed.
 
 Traders see resolution sources on the market page. Read them before trading.
 

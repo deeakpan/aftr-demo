@@ -123,6 +123,56 @@ body {
   display: none;
 }
 
+/** Thin themed scrollbar — use instead of the OS default. */
+.styled-scroll,
+textarea {
+  scrollbar-width: thin;
+  scrollbar-color: #5a5470 transparent;
+}
+
+.styled-scroll::-webkit-scrollbar,
+textarea::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.styled-scroll::-webkit-scrollbar-track,
+textarea::-webkit-scrollbar-track {
+  background: transparent;
+  margin-block: 4px;
+}
+
+.styled-scroll::-webkit-scrollbar-thumb,
+textarea::-webkit-scrollbar-thumb {
+  background: #5a5470;
+  border-radius: 999px;
+}
+
+.styled-scroll::-webkit-scrollbar-thumb:hover,
+textarea::-webkit-scrollbar-thumb:hover {
+  background: #8b849e;
+}
+
+.styled-scroll::-webkit-scrollbar-corner,
+textarea::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+html[data-theme="light"] .styled-scroll,
+html[data-theme="light"] textarea {
+  scrollbar-color: #b8b4cc transparent;
+}
+
+html[data-theme="light"] .styled-scroll::-webkit-scrollbar-thumb,
+html[data-theme="light"] textarea::-webkit-scrollbar-thumb {
+  background: #b8b4cc;
+}
+
+html[data-theme="light"] .styled-scroll::-webkit-scrollbar-thumb:hover,
+html[data-theme="light"] textarea::-webkit-scrollbar-thumb:hover {
+  background: #8e889e;
+}
+
 /** Native date/time picker icon — white calendar in dark theme. */
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="datetime-local"]::-webkit-calendar-picker-indicator,
@@ -241,9 +291,8 @@ html[data-theme="light"] input[type="time"] {
   height: 0;
 }
 
-/** Fixed mobile tab bar — solid layer avoids backdrop-blur flicker over page gradients. */
+/** Floating mobile tab bar shell — inset + lift handled in markup. */
 .mobile-bottom-nav {
-  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
   backface-visibility: hidden;

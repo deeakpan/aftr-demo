@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { formatUnits } from "viem";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { querySubgraph } from "@/lib/subgraph/client";
+import { formatSubgraphPnlUsd, formatSubgraphUsd } from "@/lib/subgraph/format-collateral-usd";
 
 type GraphResponse = {
   data?: {
@@ -13,14 +13,6 @@ type GraphResponse = {
     }>;
   };
 };
-
-const DECIMALS = 18;
-
-function usdLike(value: bigint) {
-  const n = Number(formatUnits(value, DECIMALS));
-  if (!Number.isFinite(n)) return "0.00";
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 export async function GET() {
   const graph = await querySubgraph<NonNullable<GraphResponse["data"]>>(
@@ -48,9 +40,9 @@ export async function GET() {
       return {
         address: t.id,
         marketCount: t.positions?.length ?? 0,
-        pnlUsd: `${pnl < BigInt(0) ? "-" : ""}${usdLike(pnl < BigInt(0) ? -pnl : pnl)}`,
-        depositedUsd: usdLike(deposited),
-        redeemedUsd: usdLike(redeemed),
+        pnlUsd: formatSubgraphPnlUsd(pnl),
+        depositedUsd: formatSubgraphUsd(deposited),
+        redeemedUsd: formatSubgraphUsd(redeemed),
         pnlWei: pnl.toString(),
       };
     })

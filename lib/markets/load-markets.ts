@@ -567,7 +567,10 @@ const loadMarketsListCached = unstable_cache(
   { revalidate: 20 },
 );
 
-export async function loadMarketsList(): Promise<MarketListItem[]> {
+export async function loadMarketsList(opts?: { force?: boolean }): Promise<MarketListItem[]> {
+  if (opts?.force) {
+    return loadMarketsListUncached();
+  }
   const rows = await loadMarketsListCached();
   // Never serve a cached empty list — a transient subgraph/IPFS blip would hide all markets for 20s.
   if (rows.length === 0) {

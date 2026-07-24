@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowsClockwise, BookmarkSimple, CircleNotch, PlusMinus } from "@phosphor-icons/react";
+import { ArrowsClockwise, CircleNotch, PlusMinus } from "@phosphor-icons/react";
 import { formatUnits, parseAbi, parseEventLogs } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
@@ -21,6 +21,7 @@ import {
   MARKET_CARD_TRADES_SHELL_CLASS,
   MARKET_CARD_TRADES_TITLE_CLASS,
 } from "@/app/market/components/market-list-card";
+import { MarketShareButton } from "@/app/market/components/market-share-button";
 import {
   NadMarketCardCover,
   nadOutcomeDisplayLabel,
@@ -28,6 +29,7 @@ import {
 } from "@/app/market/components/nad-market-list-card";
 import type { NadMarketConfig } from "@/lib/nad/types";
 import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
+import { marketPath } from "@/lib/markets/market-url";
 
 const MARKET_ABI = parseAbi([
   "function marketKind() view returns (uint8)",
@@ -54,6 +56,7 @@ type PositionRow = {
   marketAddress: `0x${string}`;
   collateralAddress: `0x${string}`;
   marketTitle: string;
+  slug?: string;
   marketKind: "Event" | "Price" | "Nad";
   marketState: number;
   stakeEndUnix: number;
@@ -81,6 +84,7 @@ type MarketPositionGroup = {
   marketAddress: `0x${string}`;
   collateralAddress: `0x${string}`;
   marketTitle: string;
+  slug?: string;
   marketKind: "Event" | "Price" | "Nad";
   marketState: number;
   stakeEndUnix: number;
@@ -200,6 +204,7 @@ function groupRows(rows: PositionRow[]): MarketPositionGroup[] {
       marketAddress: head.marketAddress,
       collateralAddress: head.collateralAddress,
       marketTitle: head.marketTitle,
+      slug: head.slug,
       marketKind: head.marketKind,
       marketState: head.marketState,
       stakeEndUnix: head.stakeEndUnix,
@@ -635,6 +640,7 @@ export function TradesClient() {
             marketAddress: `0x${string}`;
             collateralAddress: `0x${string}`;
             marketTitle: string;
+            slug?: string;
             marketKind: "Event" | "Price" | "Nad";
             marketState: number;
             stakeEndUnix: number;
@@ -670,6 +676,7 @@ export function TradesClient() {
           marketAddress: r.marketAddress,
           collateralAddress: r.collateralAddress,
           marketTitle: r.marketTitle,
+          slug: r.slug,
           marketKind: r.marketKind,
           marketState: r.marketState,
           stakeEndUnix: r.stakeEndUnix,
@@ -806,7 +813,9 @@ export function TradesClient() {
                   <div className={MARKET_CARD_TRADES_BODY_CLASS}>
                     <p
                       className={`${MARKET_CARD_TRADES_TITLE_CLASS} cursor-pointer underline-offset-2 hover:underline`}
-                      onClick={() => router.push(`/market/${g.marketAddress}`)}
+                      onClick={() =>
+                        router.push(marketPath({ slug: g.slug, address: g.marketAddress }))
+                      }
                     >
                       {g.marketTitle}
                     </p>
@@ -878,7 +887,12 @@ export function TradesClient() {
                       <Tip label="Staking ends">
                         <span>{g.stakeEndsLabel}</span>
                       </Tip>
-                      <BookmarkSimple size={12} />
+                      <MarketShareButton
+                        address={g.marketAddress}
+                        slug={g.slug}
+                        title={g.marketTitle}
+                        iconSize={12}
+                      />
                     </div>
                   </div>
                   </div>

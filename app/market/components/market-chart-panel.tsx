@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MarketTradeList } from "@/app/market/components/market-trade-list";
 import { MarketTradeVolumeChart } from "@/app/market/components/market-trade-volume-chart";
 import { TradingViewChart } from "@/app/market/components/trading-view-chart";
 
@@ -26,14 +27,27 @@ export function MarketChartPanel({
   const isPrice = marketKind === "Price";
   const [view, setView] = useState<"activity" | "price">("activity");
 
+  const tradeList = (
+    <MarketTradeList
+      marketAddress={marketAddress}
+      collateralDecimals={collateralDecimals}
+      collateralTicker={collateralTicker}
+      outcomeLabels={outcomeLabels}
+      className="mt-6"
+    />
+  );
+
   if (!isPrice) {
     return (
-      <MarketTradeVolumeChart
-        marketAddress={marketAddress}
-        collateralDecimals={collateralDecimals}
-        collateralTicker={collateralTicker}
-        outcomeLabels={outcomeLabels}
-      />
+      <div>
+        <MarketTradeVolumeChart
+          marketAddress={marketAddress}
+          collateralDecimals={collateralDecimals}
+          collateralTicker={collateralTicker}
+          outcomeLabels={outcomeLabels}
+        />
+        {tradeList}
+      </div>
     );
   }
 
@@ -66,12 +80,15 @@ export function MarketChartPanel({
       </div>
 
       {view === "activity" ? (
-        <MarketTradeVolumeChart
-          marketAddress={marketAddress}
-          collateralDecimals={collateralDecimals}
-          collateralTicker={collateralTicker}
-          outcomeLabels={outcomeLabels}
-        />
+        <>
+          <MarketTradeVolumeChart
+            marketAddress={marketAddress}
+            collateralDecimals={collateralDecimals}
+            collateralTicker={collateralTicker}
+            outcomeLabels={outcomeLabels}
+          />
+          {tradeList}
+        </>
       ) : tvSymbol ? (
         <TradingViewChart key={`${tvSymbol}-${chartThemeKey}`} symbol={tvSymbol} />
       ) : null}

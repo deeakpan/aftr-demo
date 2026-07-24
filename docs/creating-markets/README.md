@@ -10,7 +10,8 @@ Anyone can launch a market on Mondalore. Creators define the question, outcomes,
 
 ## Creation flow (overview)
 
-1. **Details** — title, description, image, category, market type
+1. **Details** — title, description, image, category, market type  
+   (Event markets: optional **Import from Polymarket** to prefill from a Polymarket URL)
 2. **Outcomes** — Yes/No, custom binary labels, or multiple options
 3. **Schedule** — stake end and resolve after (local time converted to UTC)
 4. **Seed liquidity** — optional but recommended initial collateral

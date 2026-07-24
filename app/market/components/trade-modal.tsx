@@ -63,6 +63,8 @@ type TradeModalProps = {
   /** When true, outcome is picked on the page (multi-outcome markets). */
   hideOutcomeSelector?: boolean;
   isWalletConnected?: boolean;
+  /** Extra content under the trade form (e.g. order book). */
+  belowPanel?: ReactNode;
 };
 
 const QUICK_INCREMENTS = [1, 5, 10, 100] as const;
@@ -178,6 +180,7 @@ export function TradeModal({
   outcomeChancePcts,
   hideOutcomeSelector = false,
   isWalletConnected = true,
+  belowPanel,
 }: TradeModalProps) {
   const [orderMode, setOrderMode] = useState<"market" | "limit">("market");
   const [limitSide, setLimitSide] = useState<"buy" | "sell">("buy");
@@ -769,7 +772,14 @@ export function TradeModal({
   // ── Inline mode ──────────────────────────────────────────────────────────
   if (inline) {
     return (
-      <div className="flex h-full min-h-0 flex-col overflow-hidden">{tradePanelLayout}</div>
+      <div className="flex h-full min-h-0 flex-col overflow-hidden">
+        {tradePanelLayout}
+        {belowPanel ? (
+          <div className="no-scrollbar max-h-[min(42%,18rem)] shrink-0 overflow-y-auto border-t border-[var(--border)] px-4 py-3">
+            {belowPanel}
+          </div>
+        ) : null}
+      </div>
     );
   }
 
@@ -831,8 +841,8 @@ export function TradeModal({
       <div
         className={
           isSheet
-            ? "trade-sheet-panel relative flex max-h-[min(88dvh,36rem)] min-h-0 w-full flex-col overflow-hidden rounded-t-2xl bg-[var(--card)] shadow-[var(--elevated-card-shadow)] md:max-w-[400px] md:rounded-3xl"
-            : "relative flex min-h-0 w-full max-w-[400px] max-h-[min(92dvh,40rem)] flex-col overflow-hidden rounded-3xl bg-[var(--card)] shadow-[var(--elevated-card-shadow)]"
+            ? "trade-sheet-panel relative flex max-h-[min(92dvh,44rem)] min-h-0 w-full flex-col overflow-hidden rounded-t-2xl bg-[var(--card)] shadow-[var(--elevated-card-shadow)] md:max-w-[400px] md:rounded-3xl"
+            : "relative flex min-h-0 w-full max-w-[400px] max-h-[min(92dvh,44rem)] flex-col overflow-hidden rounded-3xl bg-[var(--card)] shadow-[var(--elevated-card-shadow)]"
         }
         role="dialog"
         aria-modal="true"
@@ -841,6 +851,11 @@ export function TradeModal({
       >
         {modalHeader}
         {tradePanelLayout}
+        {belowPanel ? (
+          <div className="no-scrollbar max-h-[40%] shrink-0 overflow-y-auto border-t border-[var(--border)] px-4 py-3">
+            {belowPanel}
+          </div>
+        ) : null}
       </div>
     </div>
   );

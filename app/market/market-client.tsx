@@ -21,6 +21,7 @@ import { brandPageTitle } from "@/lib/brand-font";
 import { formatMarketCardDate } from "@/lib/market-cover";
 import { cacheMarketCardForDetail } from "@/lib/markets/market-card-cache";
 import { searchMarkets } from "@/lib/markets/market-search";
+import { marketPath } from "@/lib/markets/market-url";
 const ORDERBOOK_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts.MondaloreOrderBook as `0x${string}`;
 const ORDERBOOK_ABI = parseAbi([
   "function placeSellOrder(address market, address token, uint256 price, uint256 amount) returns (bytes32)",
@@ -617,6 +618,8 @@ export function MarketClient() {
                   outcomeChancePcts={m.outcomeChancePcts}
                   poolTvl={tvlOverrides[m.address] ?? m.poolTvl}
                   resolveAfter={formatMarketCardDate(m.resolveAfterUnix * 1000) ?? m.resolveAfter}
+                  marketAddress={m.address}
+                  slug={m.slug}
                   showNewBadge={
                     (() => {
                       const v = Number((tvlOverrides[m.address] ?? m.poolTvl).replace(/,/g, ""));
@@ -632,7 +635,7 @@ export function MarketClient() {
                       outcomeLabels: m.outcomeLabels,
                       categories: m.categories,
                     });
-                    router.push(`/market/${m.address}`);
+                    router.push(marketPath({ slug: m.slug, address: m.address }));
                   }}
                   onTrade={(idx) => openTrade(m, idx)}
                   onRefreshTvl={() => void refreshTvl(m)}
@@ -651,6 +654,8 @@ export function MarketClient() {
                 outcomeChancePcts={m.outcomeChancePcts}
                 poolTvl={tvlOverrides[m.address] ?? m.poolTvl}
                 resolveAfter={formatMarketCardDate(m.resolveAfterUnix * 1000) ?? m.resolveAfter}
+                marketAddress={m.address}
+                slug={m.slug}
                 showNewBadge={
                   (() => {
                     const v = Number((tvlOverrides[m.address] ?? m.poolTvl).replace(/,/g, ""));
@@ -666,7 +671,7 @@ export function MarketClient() {
                     outcomeLabels: m.outcomeLabels,
                     categories: m.categories,
                   });
-                  router.push(`/market/${m.address}`);
+                  router.push(marketPath({ slug: m.slug, address: m.address }));
                 }}
                 onTrade={(idx) => openTrade(m, idx)}
                 onRefreshTvl={() => void refreshTvl(m)}

@@ -149,9 +149,12 @@ export function MarketTradeVolumeChart({
     let cancelled = false;
     setLoading(true);
     setFetchError("");
-    void fetch(`/api/market/trades?market=${encodeURIComponent(marketAddress)}`, {
+    void fetch(
+      `/api/market/trades?market=${encodeURIComponent(marketAddress)}&first=1000&order=asc`,
+      {
       cache: "no-store",
-    })
+    },
+    )
       .then(async (res) => {
         const j = (await res.json()) as {
           trades?: MarketTradePoint[];

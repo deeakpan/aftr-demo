@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowsClockwise, ChartBar, Clock, Flag } from "@phosphor-icons/react";
+import { MarketShareButton } from "@/app/market/components/market-share-button";
 import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
 
 export type MarketListCardProps = {
@@ -24,6 +25,9 @@ export type MarketListCardProps = {
   /** Muted pill colors when staking/trading has closed. */
   tradingClosed?: boolean;
   className?: string;
+  /** Market address for share links (required for share button). */
+  marketAddress?: string;
+  slug?: string | null;
 };
 
 function clampPct(v: number) {
@@ -66,11 +70,11 @@ export const MARKET_CARD_MULTI_PCT_CLASS =
   "shrink-0 text-[12px] font-bold tabular-nums text-[var(--foreground)]";
 
 export const MARKET_CARD_GRID_CLASS =
-  "mt-5 grid w-full max-w-7xl grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3";
+  "mt-5 grid w-full grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5";
 
 /** Trades page — equal-height cards per row (same shell/body slots as market cards). */
 export const MARKET_CARD_TRADES_GRID_CLASS =
-  "mt-5 grid w-full max-w-7xl grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3";
+  "mt-5 grid w-full grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5";
 
 export const MARKET_CARD_TRADES_SHELL_CLASS =
   "flex h-full w-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)]";
@@ -152,6 +156,8 @@ export function MarketListCard({
   interactive = true,
   tradingClosed = false,
   className = "",
+  marketAddress,
+  slug,
 }: MarketListCardProps) {
   const labels = outcomeLabels.filter((l) => l.trim()).slice(0, 8);
   const displayLabels =
@@ -289,6 +295,9 @@ export function MarketListCard({
         )}
 
         <div className="flex items-center gap-2">
+          {marketAddress ? (
+            <MarketShareButton address={marketAddress} slug={slug} title={title} iconSize={13} />
+          ) : null}
           {onRefreshTvl && (
             <button
               type="button"

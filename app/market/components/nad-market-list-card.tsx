@@ -6,6 +6,7 @@ import type { NadMarketConfig } from "@/lib/nad/types";
 import type { NadLiveStats } from "@/lib/nad/market-stats";
 import { cardBackgroundFromSeed } from "@/lib/nad/metadata";
 import { NadComparisonOutcomeRow } from "@/app/market/components/nad-comparison-outcome-row";
+import { MarketShareButton } from "@/app/market/components/market-share-button";
 import { useNadComparisonStats } from "@/app/market/hooks/use-nad-comparison-stats";
 import {
   BinaryProbabilityPipe,
@@ -38,6 +39,8 @@ export type NadMarketListCardProps = {
   className?: string;
   /** Live mcap for preview (create flow); otherwise fetched on mount. */
   previewTokenStats?: (NadLiveStats | null)[];
+  marketAddress?: string;
+  slug?: string | null;
 };
 
 function clampPct(v: number) {
@@ -129,6 +132,8 @@ export function NadMarketListCard({
   tradingClosed = false,
   className = "",
   previewTokenStats,
+  marketAddress,
+  slug,
 }: NadMarketListCardProps) {
   const labels = outcomeLabels.filter((l) => l.trim()).slice(0, 4);
   const displayLabels = labels.length >= 2 ? labels : ["Yes", "No"];
@@ -303,6 +308,9 @@ export function NadMarketListCard({
           </span>
         )}
         <div className="flex shrink-0 items-center gap-2">
+          {marketAddress ? (
+            <MarketShareButton address={marketAddress} slug={slug} title={title} iconSize={13} />
+          ) : null}
           {onRefreshTvl && (
             <button
               type="button"

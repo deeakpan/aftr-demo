@@ -42,7 +42,7 @@ export default function HowItWorksPage() {
 
   return (
     <AppLayout showSearch={false}>
-      <div className="mx-auto w-full max-w-6xl px-4 pb-12 pt-2 md:px-6">
+      <div className="mx-auto w-full max-w-[90rem] px-4 pb-12 pt-2 md:px-6">
         <div className="grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)]">
           <aside className="hidden lg:block">
             <nav className="sticky top-24 space-y-1">
@@ -150,9 +150,8 @@ export default function HowItWorksPage() {
                   passes, anyone can call settlement and the market finalizes in seconds.
                 </li>
                 <li>
-                  - Event markets settle via community admin signatures (3-of-10 factory admins).
-                  Each signature is bound to a specific market and outcome; anyone can submit
-                  settlement once enough valid signatures are collected.
+                  - Event markets are resolved through protocol admins, who review the
+                  creator’s resolution sources and confirm the winning outcome.
                 </li>
                 <li>
                   - Nad markets settle from{" "}

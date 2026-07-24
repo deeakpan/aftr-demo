@@ -344,8 +344,10 @@ export function AppLayout({
   return (
     <SidebarOpenContext.Provider value={isSidebarOpen}>
       <main
-        className={`mx-auto flex w-full flex-col py-4 pb-24 md:pb-4 ${
-          viewportLocked ? "h-dvh max-h-dvh min-h-0 overflow-hidden" : "min-h-screen"
+        className={`mx-auto flex w-full flex-col ${
+          viewportLocked
+            ? "h-dvh max-h-dvh min-h-0 overflow-hidden py-0 pb-24 md:pb-0"
+            : "min-h-screen py-4 pb-24 md:pb-4"
         } ${pageBackgroundClassName ?? "bg-[var(--background)]"}`}
       >
         <SidebarDrawer
@@ -725,25 +727,25 @@ export function AppLayout({
         )}
       </div>
 
-      <nav className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border)] bg-[var(--background)] px-3 pt-2 md:hidden">
-        <div className="grid grid-cols-3 gap-1">
+      <nav className="mobile-bottom-nav pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 md:hidden">
+        <div className="pointer-events-auto mx-auto mb-[max(0.75rem,env(safe-area-inset-bottom,0px))] flex max-w-md items-stretch gap-1 rounded-2xl border border-[var(--border)] bg-[var(--card)]/95 p-1.5 shadow-[0_12px_40px_rgb(0_0_0_/_0.35)] backdrop-blur-md [html[data-theme=light]_&]:bg-white/95 [html[data-theme=light]_&]:shadow-[0_12px_32px_rgb(23_18_42_/_0.12)]">
           <Link
             href="/"
-            className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+            className="flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-2.5 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
           >
             <Rows size={18} weight="regular" />
             <span>Markets</span>
           </Link>
           <Link
             href="/create"
-            className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+            className="flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-2.5 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
           >
             <DiamondsFour size={18} weight="regular" />
             <span>Create</span>
           </Link>
           <Link
             href="/trades"
-            className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+            className="flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-2.5 text-[10px] font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
           >
             <PlusMinus size={18} weight="regular" />
             <span>Trades</span>
