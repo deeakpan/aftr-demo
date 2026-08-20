@@ -105,7 +105,7 @@ function NadTokenStatsLine({ token, stats }: { token: NadTokenRef; stats: NadLiv
       <span aria-hidden className="text-[var(--border)]">
         ·
       </span>
-      <span className={phase === "DEX" ? "text-[var(--accent)]" : ""}>{phase}</span>
+      <span className={phase === "DEX" ? "text-[var(--foreground)]" : ""}>{phase}</span>
     </p>
   );
 }
@@ -591,7 +591,7 @@ export function NadMarketCreateSection({
                 {tokens[idx]?.imageUri ? (
                   <img src={tokens[idx]!.imageUri} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-white/10" />
                 ) : loadingIdx === idx ? (
-                  <CircleNotch size={20} className="shrink-0 animate-spin text-[var(--accent)]" />
+                  <CircleNotch size={20} className="shrink-0 animate-spin text-[var(--muted)]" />
                 ) : null}
                 {isComparison && tokenInputs.length > 2 && (
                   <button type="button" onClick={() => {
@@ -613,7 +613,7 @@ export function NadMarketCreateSection({
               setTokenInputs((p) => [...p, ""]);
               setTokens((p) => [...p, null]);
               setTokenStats((p) => [...p, null]);
-            }} className="text-xs text-[var(--accent)]">
+            }} className="text-xs font-medium text-[var(--foreground)] transition hover:underline">
               + Add token ({tokenInputs.length}/4)
             </button>
           )}

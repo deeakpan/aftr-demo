@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
-import deployment from "@/lib/deployment";
+import deployment, { marketFactoryAddress, undeployedStackMessage } from "@/lib/deployment";
 import { loadMarketsList } from "@/lib/markets/load-markets";
 
 export const revalidate = 20;
 
 export async function GET() {
   try {
+    if (!marketFactoryAddress()) {
+      return NextResponse.json(
+        { markets: [], chainId: deployment.chainId, notice: undeployedStackMessage() },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
     const markets = await loadMarketsList();
     const cacheControl =
       markets.length === 0

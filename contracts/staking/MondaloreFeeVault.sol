@@ -15,9 +15,8 @@ import "../interfaces/IMondaloreFeeReceiver.sol";
 ///         is distributed to stakers pro-rata using the reward-per-token accumulator pattern.
 ///
 /// Fee flow:
-///   Market deposit → 1.2% protocol fee → feeRecipient (this vault)
-///   Vault splits: STAKER_SHARE_BPS (20 bps = 0.2%) → stakers
-///                 remainder (100 bps = 1.0%) → treasury (owner-withdrawable)
+///   Market deposit → 0.4% protocol fee → feeRecipient (this vault)
+///   Vault splits: STAKER_SHARE_BPS of incoming fees → stakers; remainder → treasury
 ///
 /// Epoch mechanics:
 ///   - Epochs advance automatically based on EPOCH_DURATION.

@@ -5,13 +5,39 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Coins, CrosshairSimple, DiamondsFour, PlusMinus, Question, Rows, TelegramLogo, XLogo } from "@phosphor-icons/react";
+import {
+  Coins,
+  CrosshairSimple,
+  DiamondsFour,
+  List,
+  PlusMinus,
+  Question,
+  Rows,
+  TelegramLogo,
+  XLogo,
+} from "@phosphor-icons/react";
+import { docsUrl } from "@/lib/docs-url";
 
 type SidebarDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
   theme?: "dark" | "light";
 };
+
+const NAV = [
+  { href: "/", label: "Markets", Icon: Rows, iconClass: "text-[#7fd0ff]", match: "markets" as const },
+  { href: "/create", label: "Create Market", Icon: DiamondsFour, iconClass: "text-[#d8a3ff]", match: "prefix" as const },
+  { href: "/trades", label: "Trades", Icon: PlusMinus, iconClass: "text-[#7fd0ff]", match: "prefix" as const },
+  { href: "/stake", label: "Stake", Icon: Coins, iconClass: "text-[#6dff8e]", match: "prefix" as const },
+  { href: "/bounty-board", label: "Bounty Board", Icon: CrosshairSimple, iconClass: "text-[#ffbf47]", match: "prefix" as const },
+];
+
+function isActive(pathname: string, href: string, match: "markets" | "prefix") {
+  if (match === "markets") {
+    return pathname === "/" || pathname === "/market" || pathname.startsWith("/market/");
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawerProps) {
   const [mounted, setMounted] = useState(false);
@@ -22,10 +48,6 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
     setMounted(true);
   }, []);
 
-  const navClass = (href: string) =>
-    `group flex w-full items-center gap-2 rounded-full px-3 py-3 text-left text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] ${
-      pathname === href ? "bg-[var(--surface-hover)]" : ""
-    }`;
   useEffect(() => {
     if (!isOpen) return;
     const previousOverflow = document.body.style.overflow;
@@ -41,85 +63,107 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
     <>
       <div
         onClick={onClose}
-        className={`fixed inset-0 z-[100] bg-black/65 transition-opacity ${
+        className={`fixed inset-0 z-[100] bg-black/60 transition-opacity duration-300 ${
           isOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
       <aside
-        className={`sidebar-scroll fixed inset-y-0 left-0 z-[110] flex h-dvh w-[280px] max-w-[82vw] flex-col overflow-y-auto overscroll-contain border-r border-[var(--border)] bg-[var(--card)] p-5 transition-transform duration-300 ${
+        className={`sidebar-scroll fixed inset-y-0 left-0 z-[110] flex h-dvh w-[272px] max-w-[82vw] flex-col bg-black px-4 pb-5 pt-4 transition-transform duration-300 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="mb-7 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="relative block h-20 w-20 shrink-0">
+        <div className="mb-6 flex items-center justify-between gap-2">
+          <Link href="/" onClick={onClose} className="flex min-w-0 items-center gap-2">
+            <span className="relative block h-8 w-8 shrink-0">
               <Image
                 src={logoSrc}
-                alt="Mondalore Market logo"
+                alt="Zedkr Market"
+
                 fill
                 className="object-contain object-center"
-                sizes="80px"
+                sizes="32px"
               />
             </span>
-            <p className="text-lg font-semibold">Mondalore Market</p>
-          </div>
+            <span className="truncate text-base font-semibold tracking-tight text-white">
+              Zedkr
+            </span>
+          </Link>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close sidebar"
-            className="rounded-md px-2 py-1 text-base text-[var(--muted)]"
+            className="flex h-9 w-9 shrink-0 items-center justify-center text-white"
           >
-            ✕
+            <List size={22} weight="bold" />
           </button>
         </div>
 
-        <div className="mt-2 pr-1">
-          <div className="space-y-1 text-base">
-            <Link href="/" onClick={onClose} className={navClass("/")}>
-              <Rows size={26} weight="fill" className="text-[#7fd0ff]" />
-              <span>Markets</span>
-            </Link>
-            <Link href="/create" onClick={onClose} className={navClass("/create")}>
-              <DiamondsFour size={26} weight="fill" className="text-[#d8a3ff]" />
-              <span>Create Market</span>
-            </Link>
-            <Link href="/trades" onClick={onClose} className={navClass("/trades")}>
-              <PlusMinus size={26} weight="fill" className="text-[#7fd0ff]" />
-              <span>Trades</span>
-            </Link>
-            <Link href="/stake" onClick={onClose} className={navClass("/stake")}>
-              <Coins size={26} weight="fill" className="text-[#6dff8e]" />
-              <span>Stake</span>
-            </Link>
-            <Link href="/bounty-board" onClick={onClose} className={navClass("/bounty-board")}>
-              <CrosshairSimple size={26} weight="fill" className="text-[#ffbf47]" />
-              <span>Bounty Board</span>
-            </Link>
-          </div>
-          <div className="my-4 border-t border-[var(--border)]" />
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-full px-3 py-3 text-left text-base text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
-          >
-            <Question size={26} weight="fill" className="text-[#ff8ca8]" />
-            <span>Help and feedbacks</span>
-          </button>
-        </div>
+        <nav className="flex flex-col gap-1">
+          {NAV.map(({ href, label, Icon, iconClass, match }) => {
+            const active = isActive(pathname, href, match);
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={onClose}
+                aria-current={active ? "page" : undefined}
+                className={`flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium text-white transition ${
+                  active ? "bg-[#1a1a1c]" : "hover:bg-[#1a1a1c]/70"
+                }`}
+              >
+                <Icon size={22} weight="fill" className={`shrink-0 ${iconClass}`} />
+                <span>{label}</span>
+              </Link>
+            );
+          })}
+        </nav>
 
-        <div className="mt-4 border-t border-[var(--border)] pt-4">
-          <p className="text-base font-medium text-[var(--foreground)]">Mondalore Market</p>
-          <p className="mt-1 text-sm text-[var(--foreground)]">
-            Prediction markets on Monad. Built for transparent market participation.
-          </p>
-          <div className="mt-3 flex items-center gap-3 text-[var(--muted)]">
-            <a href="https://t.me/mondalorecommunity" target="_blank" rel="noopener noreferrer" aria-label="Telegram" className="hover:text-[var(--foreground)]">
-              <TelegramLogo size={22} weight="regular" />
-            </a>
-            <a href="#" aria-label="Twitter" className="hover:text-[var(--foreground)]">
-              <XLogo size={22} weight="regular" />
-            </a>
+        <div className="mt-auto flex flex-col">
+          <a
+            href={docsUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={onClose}
+            className="mb-4 flex items-center gap-3 rounded-full bg-[#1a1a1c] px-3 py-2.5 text-sm font-medium text-white transition hover:bg-[#222226]"
+          >
+            <Question size={22} weight="fill" className="shrink-0 text-[#ff8ca8]" />
+            <span>Help & Feedback</span>
+          </a>
+
+          <div className="border-t border-white/10 pt-4">
+            <div className="flex flex-col gap-2 text-sm text-[var(--foreground)]">
+              <Link href="/how-it-works" onClick={onClose} className="hover:underline">
+                How it works
+              </Link>
+              <a
+                href={docsUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline"
+              >
+                Docs
+              </a>
+            </div>
+            <p className="mt-4 text-xs text-white/80">© 2026 All rights reserved</p>
+            <div className="mt-3 flex items-center gap-2">
+              <a
+                href="#"
+                aria-label="Twitter"
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-white/15 text-white/80 transition hover:text-white"
+              >
+                <XLogo size={14} weight="bold" />
+              </a>
+              <a
+                href="https://zedkr.finance"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Zedkr"
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-white/15 text-white/80 transition hover:text-white"
+              >
+                <TelegramLogo size={14} weight="bold" />
+              </a>
+            </div>
           </div>
-          <p className="mt-3 text-sm text-[var(--foreground)]">© 2026 Mondalore Market. All rights reserved.</p>
         </div>
       </aside>
     </>,

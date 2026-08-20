@@ -18,6 +18,7 @@ import {
   MARKET_CARD_MULTI_ROW_CLASS,
   MARKET_CARD_OUTCOMES_BOX,
   MARKET_CARD_SHELL_CLASS,
+  MARKET_CARD_HOVER_CLASS,
   MARKET_CARD_TITLE_CLASS,
 } from "@/app/market/components/market-list-card";
 import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
@@ -94,7 +95,7 @@ export function NadMarketCardCover({ nadMarket }: { nadMarket: NadMarketConfig }
     >
       <div className="absolute inset-0 bg-black/25" />
       <div className="relative flex h-full flex-col items-center justify-center px-4 py-3">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70">Nad.fun</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70">Pons</p>
         <div className="mt-2 flex items-center justify-center -space-x-3">
           {headerTokens.map((tok, i) => (
             <div
@@ -168,7 +169,7 @@ export function NadMarketListCard({
     <article
       className={`${MARKET_CARD_SHELL_CLASS} transition duration-200 ${
         interactive
-          ? "hover:-translate-y-1 hover:border-[var(--accent)] hover:shadow-[0_16px_40px_rgb(139_92_246_/_0.28)] [html[data-theme=light]_&]:hover:shadow-[0_16px_40px_rgb(124_77_255_/_0.14)]"
+          ? MARKET_CARD_HOVER_CLASS
           : ""
       } ${className}`}
     >
@@ -298,7 +299,7 @@ export function NadMarketListCard({
       <div className="flex shrink-0 items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] text-[var(--muted)]">
         {showVolume ? (
           <span className="inline-flex items-center gap-1.5 font-semibold text-[var(--foreground)]">
-            <ChartBar size={14} weight="bold" className="text-[var(--accent)]" />
+            <ChartBar size={14} weight="bold" className="text-[var(--muted)]" />
             ${poolTvl}
           </span>
         ) : (

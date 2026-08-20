@@ -1,5 +1,5 @@
-/** Published GitBook / docs site — override with NEXT_PUBLIC_DOCS_URL in .env */
-const DEFAULT_DOCS_URL = "https://docs.mondolore.fun";
+/** Published docs — override with NEXT_PUBLIC_DOCS_URL in .env */
+const DEFAULT_DOCS_URL = "https://zedkr.finance";
 
 export function docsUrl(path = ""): string {
   const base = (process.env.NEXT_PUBLIC_DOCS_URL?.trim() || DEFAULT_DOCS_URL).replace(/\/$/, "");

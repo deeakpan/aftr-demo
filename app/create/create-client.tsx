@@ -17,30 +17,45 @@ import {
   zeroAddress,
   type Address,
 } from "viem";
-import { useAccount, useWalletClient } from "wagmi";
 import { AppLayout } from "@/app/components/app-layout";
 import { MarketCoverCropper } from "@/app/components/market-cover-cropper";
 import { MarketListCard } from "@/app/market/components/market-list-card";
 import { NadMarketListCard } from "@/app/market/components/nad-market-list-card";
 import {
-  NadMarketCreateSection,
-  type NadCreateDraft,
-} from "@/app/create/components/nad-market-create-section";
+  PonsMarketCreateSection,
+  type PonsCreateDraft,
+} from "@/app/create/components/pons-market-create-section";
+import { ponsMarketForCardPreview, ponsStatsForCardPreview } from "@/lib/pons/adapt-display";
 import { PolymarketImportModal } from "@/app/create/components/polymarket-import-modal";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
-import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
+import deployment, {
+  DEPLOYMENT_CHAIN_ID,
+  DEPLOYMENT_NETWORK_LABEL,
+  deploymentExternal,
+  isDeployedAddress,
+  undeployedStackMessage,
+  usesFpmmMechanism,
+  wrongNetworkMessage,
+} from "@/lib/deployment";
+import { activeMarketFactoryAddress } from "@/lib/market-factory";
+import { DEPLOYMENT_CHAIN, NATIVE_CURRENCY_SYMBOL } from "@/lib/chain";
+import { useSessionWallet } from "@/lib/session-wallet";
 import {
   isReservedMarketSlug,
   slugifyMarket,
 } from "@/lib/markets/market-url";
 import { withOtherOption, type PolymarketImportDraft } from "@/lib/polymarket/import";
 import { marketSlugPrefixLabel } from "@/lib/site-url";
-import { monadTestnet } from "@/lib/chain";
-import { brandPageTitle, brandSectionLabel } from "@/lib/brand-font";
+import { brandSectionHeading, brandSectionLabel } from "@/lib/brand-font";
 import { formatMarketCardDate, MARKET_COVER_RATIO_LABEL } from "@/lib/market-cover";
-import { validateNadResolveAfter } from "@/lib/nad/question-types";
+import {
+  isPonsQuestionType,
+  validatePonsResolveAfter,
+} from "@/lib/pons/question-types";
+import type { PonsQuestionType } from "@/lib/pons/types";
 import { MON_COINGECKO_LOGO } from "@/lib/brand-assets";
 import { priceAssetKey } from "@/lib/price-asset-key";
+import { formatUserTxError } from "@/lib/tx-error";
 import {
   isValidSourceUrl,
   sanitizeResolutionSourcesForMetadata,
@@ -190,7 +205,25 @@ const FACTORY_ABI = parseAbi([
   "error InvalidBins()",
   "error InvalidDeployer()",
   "error InvalidBootstrap()",
+  "error InvalidFunding()",
 ]);
+const FPMM_FACTORY_ABI = parseAbi([
+  "function priceFeeds(bytes32 assetKey) view returns (address)",
+  "function isSupportedCollateral(address token) view returns (bool)",
+  "function resolutionAdminsLength() view returns (uint256)",
+  "function resolutionThreshold() view returns (uint256)",
+  "function createEventMarket((address collateralToken,uint8 collateralDecimals,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,uint256 minInitialFunding,uint256 initialFunding,uint256[] fundingHint,address shareRecipient) p) returns (address market)",
+  "function createPonsMarket((address collateralToken,uint8 collateralDecimals,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,uint256 minInitialFunding,uint256 initialFunding,uint256[] fundingHint,address shareRecipient) p) returns (address market)",
+  "function createPriceMarket((address collateralToken,uint8 collateralDecimals,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,uint256 minInitialFunding,uint256 initialFunding,uint256[] fundingHint,address shareRecipient,bytes32 priceAssetKey,uint256 priceThreshold,uint8 priceKind,uint256 priceUpperBound,uint256 maxPriceStaleness,uint256[] priceBinLower,uint256[] priceBinUpper) p) returns (address market)",
+  "event MarketCreated(address indexed market, uint8 indexed kind, address indexed collateralToken, address[] outcomeTokens, string[] outcomeLabels, uint256 stakeEndTimestamp, uint256 resolveAfterTimestamp, bytes32 metadataHash, address creator)",
+  "error InvalidCollateral()",
+  "error InvalidFeed()",
+  "error InvalidTime()",
+  "error InvalidMeta()",
+  "error InvalidFunding()",
+]);
+const USE_FPMM = usesFpmmMechanism();
+const ACTIVE_FACTORY_ABI = USE_FPMM ? FPMM_FACTORY_ABI : FACTORY_ABI;
 
 const CREATE_ERROR_ABI = parseAbi([
   "error InvalidAddress()",
@@ -234,8 +267,8 @@ function formatCreateError(error: unknown, collateralSymbol = "collateral"): str
       if (decoded.errorName === "InvalidTime") {
         return "Stake end and resolve times must be in the future, with resolve after stake end.";
       }
-      if (decoded.errorName === "InvalidBootstrap") {
-        return "Seed amount must be at least the minimum and divide evenly across outcomes.";
+      if (decoded.errorName === "InvalidBootstrap" || decoded.errorName === "InvalidFunding") {
+        return "Seed amount must meet the minimum initial funding for this market.";
       }
       if (decoded.errorName === "InvalidCollateral") {
         return `${collateralSymbol} is not supported by the factory.`;
@@ -251,19 +284,26 @@ function formatCreateError(error: unknown, collateralSymbol = "collateral"): str
 
   if (error instanceof BaseError) {
     const msg = error.shortMessage || error.message;
-    if (msg.includes("User rejected")) {
-      return "Transaction cancelled in wallet.";
-    }
     if (msg.includes("Review alert") || msg.includes("blocked")) {
-      return "Wallet security blocked this transaction (Rabby Review alert / MetaMask Blockaid). Rabby: Settings → Security → disable the pre-sign check for testnet, or confirm anyway if you have enough MON for gas. Approving USDC still costs MON gas (~0.005 MON).";
+      return "Wallet security blocked this transaction. Confirm in your wallet or add ETH for gas and retry.";
     }
-    if (msg.includes("reverted with the following signature")) {
-      return "Market creation reverted onchain. Check seed amount, times, and token approval.";
-    }
-    return msg.split("\n")[0]?.split("Contract Call:")[0]?.trim() || msg;
   }
 
-  return error instanceof Error ? error.message : "Transaction failed.";
+  return formatUserTxError(error, "Market creation failed. Try again.");
+}
+
+function createStageLabel(status: string): string {
+  const s = status.toLowerCase();
+  if (s.includes("approv")) return "Approving";
+  if (s.includes("prepar")) return "Preparing";
+  if (s.includes("simulat") || s.includes("creating")) return "Creating";
+  return "Creating";
+}
+
+function isCreateProgressStatus(status: string): boolean {
+  return /preparing transaction|waiting for approval|simulating market|creating market|creating pons|market created successfully/i.test(
+    status,
+  );
 }
 
 async function waitForErc20Allowance(
@@ -285,11 +325,16 @@ async function waitForErc20Allowance(
   throw new Error("Token approval not detected yet. Wait a few seconds and try again.");
 }
 
-const CIRCLE_USDC_BASE_SEPOLIA = deployment.external.umaBondCurrencyCircleUSDC as `0x${string}`;
-const FACTORY_ADDRESS = deployment.contracts.MondaloreParimutuelMarketFactory as `0x${string}`;
+const CIRCLE_USDC_BASE_SEPOLIA = (
+  (deployment.external as { umaBondCurrencyCircleUSDC?: string }).umaBondCurrencyCircleUSDC ??
+  "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+) as `0x${string}`;
+const FACTORY_ADDRESS = (activeMarketFactoryAddress() ??
+  deployment.contracts.MondaloreParimutuelMarketFactory) as `0x${string}`;
+const factoryDeployed = isDeployedAddress(FACTORY_ADDRESS);
 
 type CollateralOption = {
-  id: "mon" | "usdc" | "aftr_usdc";
+  id: "mon" | "usdc" | "aftr_usdc" | "usdg";
   label: string;
   symbol: string;
   address: `0x${string}`;
@@ -302,13 +347,14 @@ function buildCollateralOptions(): CollateralOption[] {
   const c = deployment.contracts as Record<string, string>;
   const circle = CIRCLE_USDC_BASE_SEPOLIA;
   const aftrAddr = (c.MondaloreUSDC || "").trim() as `0x${string}`;
+  const native = DEPLOYMENT_CHAIN.nativeCurrency;
   const list: CollateralOption[] = [
     {
       id: "mon",
-      label: "Monad",
-      symbol: "MON",
+      label: native.name,
+      symbol: native.symbol,
       address: zeroAddress,
-      decimals: 18,
+      decimals: native.decimals,
       image: MON_COINGECKO_LOGO,
       isNative: true,
     },
@@ -327,9 +373,23 @@ function buildCollateralOptions(): CollateralOption[] {
   ) {
     list.push({
       id: "aftr_usdc",
-      label: "Mondalore test USDC",
-      symbol: "Mondalore USDC",
+      label: "USDC",
+      symbol: "USDC",
       address: aftrAddr,
+      decimals: 6,
+      image: "https://assets.coingecko.com/coins/images/6319/large/usdc.png",
+    });
+  }
+  const usdgAddr = (
+    (deployment.contracts as Record<string, string | undefined>).USDG ??
+    deploymentExternal().pons?.usdg
+  )?.trim() as `0x${string}` | undefined;
+  if (isAddress(usdgAddr ?? "", { strict: false })) {
+    list.push({
+      id: "usdg",
+      label: "USDG",
+      symbol: "USDG",
+      address: usdgAddr!,
       decimals: 6,
       image: "https://assets.coingecko.com/coins/images/6319/large/usdc.png",
     });
@@ -340,6 +400,7 @@ function buildCollateralOptions(): CollateralOption[] {
 const COLLATERAL_OPTIONS = buildCollateralOptions();
 
 const defaultCollateralOpt =
+  COLLATERAL_OPTIONS.find((o) => o.id === "usdg") ??
   COLLATERAL_OPTIONS.find((o) => o.id === "aftr_usdc") ??
   COLLATERAL_OPTIONS.find((o) => o.id === "usdc") ??
   COLLATERAL_OPTIONS[0];
@@ -459,11 +520,46 @@ function DateTimePicker({
   );
 }
 
+type CreateMarketKind = "event" | "price" | "pons";
+
+function parseCreateMarketKind(raw: string | null): CreateMarketKind {
+  if (raw === "price" || raw === "pons" || raw === "event") return raw;
+  return "event";
+}
+
 export function CreateClient() {
   const publicClient = deploymentPublicClient;
-  const { address, chainId } = useAccount();
-  const { data: walletClient } = useWalletClient();
-  const [marketKind, setMarketKind] = useState<"event" | "price" | "nad">("event");
+  const { address, chainId, writeContract } = useSessionWallet();
+  const [marketKind, setMarketKindState] = useState<CreateMarketKind>("event");
+  const [ponsQuestionType, setPonsQuestionType] = useState<PonsQuestionType>("mcap_usd_above");
+
+  const writeCreateQuery = (kind: CreateMarketKind, q: PonsQuestionType) => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("type", kind);
+    if (kind === "pons") url.searchParams.set("q", q);
+    else url.searchParams.delete("q");
+    const next = `${url.pathname}${url.search}`;
+    const current = `${window.location.pathname}${window.location.search}`;
+    if (current !== next) window.history.replaceState(window.history.state, "", next);
+  };
+
+  useEffect(() => {
+    const applyFromLocation = () => {
+      const params = new URLSearchParams(window.location.search);
+      setMarketKindState(parseCreateMarketKind(params.get("type")));
+      const q = params.get("q");
+      setPonsQuestionType(isPonsQuestionType(q) ? q : "mcap_usd_above");
+    };
+    applyFromLocation();
+    window.addEventListener("popstate", applyFromLocation);
+    return () => window.removeEventListener("popstate", applyFromLocation);
+  }, []);
+
+  const setMarketKind = (id: CreateMarketKind) => {
+    setMarketKindState(id);
+    writeCreateQuery(id, ponsQuestionType);
+  };
   const [eventMode, setEventMode] = useState<"binary" | "multiple">("binary");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -507,8 +603,8 @@ export function CreateClient() {
   const [isSubmittingMarket, setIsSubmittingMarket] = useState(false);
   const [submitStatus, setSubmitStatus] = useState("");
   const [isCreateComplete, setIsCreateComplete] = useState(false);
-  const [nadDraft, setNadDraft] = useState<NadCreateDraft | null>(null);
-  const [nadDuplicateBlocked, setNadDuplicateBlocked] = useState(false);
+  const [ponsDraft, setPonsDraft] = useState<PonsCreateDraft | null>(null);
+  const [ponsDuplicateBlocked, setPonsDuplicateBlocked] = useState(false);
   const [polyImportOpen, setPolyImportOpen] = useState(false);
 
   useEffect(() => {
@@ -520,25 +616,29 @@ export function CreateClient() {
   }, [eventMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!publicClient || !FACTORY_ADDRESS) return;
+    if (!publicClient || !factoryDeployed) return;
     let cancelled = false;
     void (async () => {
-      const supported: CollateralOption[] = [];
-      for (const opt of COLLATERAL_OPTIONS) {
-        const ok = (await publicClient.readContract({
-          address: FACTORY_ADDRESS,
-          abi: FACTORY_ABI,
-          functionName: "isSupportedCollateral",
-          args: [opt.address],
-        })) as boolean;
-        if (ok) supported.push(opt);
+      try {
+        const supported: CollateralOption[] = [];
+        for (const opt of COLLATERAL_OPTIONS) {
+          const ok = (await publicClient.readContract({
+            address: FACTORY_ADDRESS,
+            abi: ACTIVE_FACTORY_ABI,
+            functionName: "isSupportedCollateral",
+            args: [opt.address],
+          })) as boolean;
+          if (ok) supported.push(opt);
+        }
+        if (cancelled) return;
+        setSupportedCollaterals(supported);
+        setCollateral((prev) => {
+          if (supported.some((o) => o.id === prev.id)) return prev;
+          return supported[0] ?? prev;
+        });
+      } catch {
+        if (!cancelled) setSupportedCollaterals([]);
       }
-      if (cancelled) return;
-      setSupportedCollaterals(supported);
-      setCollateral((prev) => {
-        if (supported.some((o) => o.id === prev.id)) return prev;
-        return supported[0] ?? prev;
-      });
     })();
     return () => {
       cancelled = true;
@@ -668,9 +768,10 @@ export function CreateClient() {
   );
 
   useEffect(() => {
-    if (!publicClient || !FACTORY_ADDRESS) return;
+    if (!publicClient || !factoryDeployed) return;
     let cancelled = false;
     void (async () => {
+      try {
       const registered: Feed[] = [];
       for (const meta of PRICE_FEED_ASSETS) {
         const key = priceAssetKey(meta.asset);
@@ -690,6 +791,9 @@ export function CreateClient() {
         if (prev && registered.some((r) => r.assetKey === prev.assetKey)) return prev;
         return registered[0] ?? null;
       });
+      } catch {
+        if (!cancelled) setFeeds([]);
+      }
     })();
     return () => {
       cancelled = true;
@@ -779,10 +883,10 @@ export function CreateClient() {
   }, [collateral.isNative]);
 
   const seedOutcomeCount = useMemo(() => {
-    if (marketKind === "nad") return (nadDraft?.outcomes ?? []).filter((o) => o.trim()).length;
+    if (marketKind === "pons") return (ponsDraft?.outcomes ?? []).filter((o) => o.trim()).length;
     if (marketKind === "event") return outcomes.map((o) => o.trim()).filter(Boolean).length;
     return 2;
-  }, [marketKind, nadDraft?.outcomes, outcomes]);
+  }, [marketKind, ponsDraft?.outcomes, outcomes]);
 
   const seedQuickAmounts = useMemo(
     () => buildSeedQuickAmounts(collateral.decimals, seedOutcomeCount, minSeedAmount),
@@ -803,25 +907,25 @@ export function CreateClient() {
 
   const effectiveTitle = useMemo(
     () =>
-      marketKind === "nad"
-        ? (nadDraft?.title ?? "")
+      marketKind === "pons"
+        ? (ponsDraft?.title ?? "")
         : marketKind === "price"
           ? generatedPricePrompt
           : title,
-    [generatedPricePrompt, marketKind, title, nadDraft?.title],
+    [generatedPricePrompt, marketKind, title, ponsDraft?.title],
   );
 
   // Auto-generate slug from title/prompt unless user has manually edited it
   useEffect(() => {
     if (slugManual) return;
     const source =
-      marketKind === "nad"
-        ? (nadDraft?.title ?? "")
+      marketKind === "pons"
+        ? (ponsDraft?.title ?? "")
         : marketKind === "price"
           ? generatedPricePrompt
           : title;
     setSlug(slugify(source));
-  }, [title, generatedPricePrompt, marketKind, slugManual, nadDraft?.title]);
+  }, [title, generatedPricePrompt, marketKind, slugManual, ponsDraft?.title]);
 
   // Duplicate / reserved slug check
   useEffect(() => {
@@ -913,9 +1017,9 @@ export function CreateClient() {
       return false;
     }
     const nOutcomes =
-      marketKind === "event" || marketKind === "nad"
-        ? (marketKind === "nad"
-            ? (nadDraft?.outcomes ?? [])
+      marketKind === "event" || marketKind === "pons"
+        ? (marketKind === "pons"
+            ? (ponsDraft?.outcomes ?? [])
             : outcomes.map((o) => o.trim()).filter(Boolean)
           ).length
         : 2;
@@ -940,7 +1044,7 @@ export function CreateClient() {
 
   const handleCreateMarket = async () => {
     if (!validateSeedAmount()) return;
-    if (!address || !publicClient || !walletClient) {
+    if (!address || !publicClient) {
       setSubmitStatus("Connect wallet first.");
       return;
     }
@@ -948,12 +1052,16 @@ export function CreateClient() {
       setSubmitStatus(wrongNetworkMessage());
       return;
     }
+    if (!factoryDeployed) {
+      setSubmitStatus(undeployedStackMessage());
+      return;
+    }
 
     const cleanedThreshold = threshold.replaceAll(",", "").trim();
     const cleanOutcomes =
-      marketKind === "event" || marketKind === "nad"
-        ? marketKind === "nad"
-          ? (nadDraft?.outcomes ?? [])
+      marketKind === "event" || marketKind === "pons"
+        ? marketKind === "pons"
+          ? (ponsDraft?.outcomes ?? [])
           : outcomes.map((o) => o.trim()).filter(Boolean)
         : ["YES", "NO"];
     if (cleanOutcomes.length < 2) {
@@ -961,7 +1069,7 @@ export function CreateClient() {
       return;
     }
 
-    if (marketKind === "event" || marketKind === "nad") {
+    if (marketKind === "event" || marketKind === "pons") {
       const [adminCount, threshold] = await Promise.all([
         publicClient.readContract({
           address: FACTORY_ADDRESS,
@@ -1018,22 +1126,26 @@ export function CreateClient() {
         return;
       }
 
+      if (USE_FPMM && collateral.isNative) {
+        setSubmitStatus(`FPMM markets require an ERC20 collateral (e.g. USDG or USDC), not native ${NATIVE_CURRENCY_SYMBOL}.`);
+        return;
+      }
+
       const collateralSupported = (await publicClient.readContract({
         address: FACTORY_ADDRESS,
-        abi: FACTORY_ABI,
+        abi: ACTIVE_FACTORY_ABI,
         functionName: "isSupportedCollateral",
         args: [collateral.address],
       })) as boolean;
       if (!collateralSupported) {
         setSubmitStatus(
-          `${collateral.symbol} is not enabled on the factory yet. Choose Mondalore USDC or WETH.`,
+          `${collateral.symbol} is not whitelisted for Zedkr markets yet. Choose USDG or USDC.`,
         );
         return;
       }
 
       const metadataHash = keccak256(toBytes(metadataUri || "ipfs://pending"));
-      const virtualReserve = seedUnits;
-      const minBootstrapTotal = minSeedUnits;
+      const minSeed = minSeedUnits;
 
       if (!metadataUri.trim()) {
         setSubmitStatus("Metadata is missing. Go back and upload market details again.");
@@ -1041,7 +1153,7 @@ export function CreateClient() {
       }
 
       const nOutcomes = cleanOutcomes.length;
-      if (nOutcomes > 0 && seedUnits % BigInt(nOutcomes) !== BigInt(0)) {
+      if (!USE_FPMM && nOutcomes > 0 && seedUnits % BigInt(nOutcomes) !== BigInt(0)) {
         const fix = nextDivisibleTotal(seedUnits, nOutcomes);
         const fixLabel = formatUnits(fix, collateral.decimals);
         setSubmitStatus(
@@ -1050,19 +1162,35 @@ export function CreateClient() {
         return;
       }
 
-      const sharedParams = {
+      const fundingHint = Array.from({ length: nOutcomes }, () => BigInt(1));
+      const fpmmBaseParams = {
         collateralToken: collateral.address,
         collateralDecimals: collateral.decimals,
-        virtualReserve,
         stakeEndTimestamp: stakeTs,
         resolveAfterTimestamp: resolveTs,
         metadataHash,
         outcomeLabels: cleanOutcomes,
         metadataURI: metadataUri,
-        minBootstrapTotal,
-        bootstrapAmount: seedUnits,
+        minInitialFunding: minSeed,
+        initialFunding: seedUnits,
+        fundingHint,
         shareRecipient: address,
       };
+      const sharedParams = USE_FPMM
+        ? fpmmBaseParams
+        : {
+            collateralToken: collateral.address,
+            collateralDecimals: collateral.decimals,
+            virtualReserve: seedUnits,
+            stakeEndTimestamp: stakeTs,
+            resolveAfterTimestamp: resolveTs,
+            metadataHash,
+            outcomeLabels: cleanOutcomes,
+            metadataURI: metadataUri,
+            minBootstrapTotal: minSeed,
+            bootstrapAmount: seedUnits,
+            shareRecipient: address,
+          };
 
       if (!collateral.isNative) {
         const factoryAllowance = (await publicClient.readContract({
@@ -1093,17 +1221,17 @@ export function CreateClient() {
           const monBalance = await publicClient.getBalance({ address });
           if (monBalance < approveGasLimit) {
             setSubmitStatus(
-              `Need ~${formatUnits(approveGasLimit, 18)} MON for approval gas. You have ${formatUnits(monBalance, 18)} MON on ${DEPLOYMENT_NETWORK_LABEL}.`,
+              `Need ~${formatUnits(approveGasLimit, 18)} ${NATIVE_CURRENCY_SYMBOL} for approval gas. You have ${formatUnits(monBalance, 18)} ${NATIVE_CURRENCY_SYMBOL} on ${DEPLOYMENT_NETWORK_LABEL}.`,
             );
             return;
           }
 
-          setSubmitStatus(
-            `Approve ${formatUnits(seedUnits, collateral.decimals)} ${collateral.symbol} (exact seed amount only)…`,
-          );
-          const approveHash = await walletClient.writeContract({
-            ...approveSimulation.request,
-            chain: walletClient.chain,
+          const approveHash = await writeContract({
+            address: collateral.address,
+            abi: ERC20_ABI,
+            functionName: "approve",
+            args: [FACTORY_ADDRESS, seedUnits],
+            account: address,
             gas: approveGasLimit,
           });
           await publicClient.waitForTransactionReceipt({ hash: approveHash });
@@ -1134,13 +1262,13 @@ export function CreateClient() {
       let createHash: `0x${string}`;
 
       const estimateCreateGas = async (
-        fn: "createEventMarket" | "createPriceMarket" | "createNadTokenMarket",
+        fn: "createEventMarket" | "createPriceMarket" | "createNadTokenMarket" | "createPonsMarket",
         args: readonly unknown[],
         value?: bigint,
       ) => {
         const estimated = await publicClient.estimateContractGas({
           address: FACTORY_ADDRESS,
-          abi: FACTORY_ABI,
+          abi: ACTIVE_FACTORY_ABI,
           functionName: fn,
           args: args as never,
           account: address,
@@ -1158,19 +1286,19 @@ export function CreateClient() {
         const seedLabel = formatUnits(seed, 18);
         const gasLabel = formatUnits(gasLimit, 18);
         setSubmitStatus(
-          `Insufficient MON on ${DEPLOYMENT_NETWORK_LABEL}. Need ~${need} MON (${seedLabel} seed + ~${gasLabel} gas). You have ${have} MON.`,
+          `Insufficient ${NATIVE_CURRENCY_SYMBOL} on ${DEPLOYMENT_NETWORK_LABEL}. Need ~${need} ${NATIVE_CURRENCY_SYMBOL} (${seedLabel} seed + ~${gasLabel} gas). You have ${have} ${NATIVE_CURRENCY_SYMBOL}.`,
         );
         return false;
       };
 
       if (marketKind === "event") {
-        const eventArgs = [{ ...sharedParams }] as const;
+        const eventArgs = USE_FPMM ? [fpmmBaseParams] : [{ ...sharedParams }] as const;
 
-        const simulation = await publicClient.simulateContract({
+        await publicClient.simulateContract({
           address: FACTORY_ADDRESS,
-          abi: FACTORY_ABI,
+          abi: ACTIVE_FACTORY_ABI,
           functionName: "createEventMarket",
-          args: eventArgs,
+          args: eventArgs as never,
           account: address,
           value: collateral.isNative ? seedUnits : undefined,
         });
@@ -1184,60 +1312,82 @@ export function CreateClient() {
         if (collateral.isNative && !(await assertNativeMonAffordable(seedUnits, eventGas))) {
           return;
         }
-        createHash = await walletClient.writeContract({
-          ...simulation.request,
-          chain: walletClient.chain ?? monadTestnet,
+        createHash = await writeContract({
+          address: FACTORY_ADDRESS,
+          abi: ACTIVE_FACTORY_ABI,
+          functionName: "createEventMarket",
+          args: eventArgs as never,
+          account: address,
+          value: collateral.isNative ? seedUnits : undefined,
           gas: eventGas,
         });
-      } else if (marketKind === "nad") {
-        const nadArgs = [{ ...sharedParams }] as const;
+      } else if (marketKind === "pons") {
+        const ponsFn = USE_FPMM ? "createPonsMarket" : "createNadTokenMarket";
+        const ponsArgs = USE_FPMM ? [fpmmBaseParams] : [{ ...sharedParams }] as const;
 
-        const simulation = await publicClient.simulateContract({
+        await publicClient.simulateContract({
           address: FACTORY_ADDRESS,
-          abi: FACTORY_ABI,
-          functionName: "createNadTokenMarket",
-          args: nadArgs,
+          abi: ACTIVE_FACTORY_ABI,
+          functionName: ponsFn,
+          args: ponsArgs as never,
           account: address,
           value: collateral.isNative ? seedUnits : undefined,
         });
 
-        setSubmitStatus("Creating Nad market and seeding liquidity...");
-        const nadGas = await estimateCreateGas(
-          "createNadTokenMarket",
-          nadArgs,
+        setSubmitStatus("Creating Pons market and seeding liquidity...");
+        const ponsGas = await estimateCreateGas(
+          ponsFn,
+          ponsArgs,
           collateral.isNative ? seedUnits : undefined,
         );
-        if (collateral.isNative && !(await assertNativeMonAffordable(seedUnits, nadGas))) {
+        if (collateral.isNative && !(await assertNativeMonAffordable(seedUnits, ponsGas))) {
           return;
         }
-        createHash = await walletClient.writeContract({
-          ...simulation.request,
-          chain: walletClient.chain ?? monadTestnet,
-          gas: nadGas,
+        createHash = await writeContract({
+          address: FACTORY_ADDRESS,
+          abi: ACTIVE_FACTORY_ABI,
+          functionName: ponsFn,
+          args: ponsArgs as never,
+          account: address,
+          value: collateral.isNative ? seedUnits : undefined,
+          gas: ponsGas,
         });
       } else {
         if (!feed?.assetKey) {
           setSubmitStatus("No registered price feed for this asset on the factory.");
           return;
         }
-        const priceArgs = [
-          {
-            ...sharedParams,
-            priceAssetKey: feed.assetKey,
-            priceThreshold: parseUnits(cleanedThreshold || "0", 8),
-            priceKind: (comparison === "ABOVE" ? 0 : 1) as 0 | 1,
-            priceUpperBound: BigInt(0),
-            maxPriceStaleness: BigInt(3600),
-            priceBinLower: [] as readonly bigint[],
-            priceBinUpper: [] as readonly bigint[],
-          },
-        ] as const;
+        const priceArgs = USE_FPMM
+          ? ([
+              {
+                base: fpmmBaseParams,
+                priceAssetKey: feed.assetKey,
+                priceThreshold: parseUnits(cleanedThreshold || "0", 8),
+                priceKind: (comparison === "ABOVE" ? 0 : 1) as 0 | 1,
+                priceUpperBound: BigInt(0),
+                maxPriceStaleness: BigInt(3600),
+                priceBinLower: [] as readonly bigint[],
+                priceBinUpper: [] as readonly bigint[],
+              },
+            ] as const)
+          : ([
+              {
+                ...sharedParams,
+                priceAssetKey: feed.assetKey,
+                priceThreshold: parseUnits(cleanedThreshold || "0", 8),
+                priceKind: (comparison === "ABOVE" ? 0 : 1) as 0 | 1,
+                priceUpperBound: BigInt(0),
+                maxPriceStaleness: BigInt(3600),
+                priceBinLower: [] as readonly bigint[],
+                priceBinUpper: [] as readonly bigint[],
+              },
+            ] as const);
 
-        const simulation = await publicClient.simulateContract({
+        await publicClient.simulateContract({
           address: FACTORY_ADDRESS,
-          abi: FACTORY_ABI,
+          abi: ACTIVE_FACTORY_ABI,
           functionName: "createPriceMarket",
-          args: priceArgs,
+          args: priceArgs as never,
           account: address,
           value: collateral.isNative ? seedUnits : undefined,
         });
@@ -1251,9 +1401,13 @@ export function CreateClient() {
         if (collateral.isNative && !(await assertNativeMonAffordable(seedUnits, priceGas))) {
           return;
         }
-        createHash = await walletClient.writeContract({
-          ...simulation.request,
-          chain: walletClient.chain ?? monadTestnet,
+        createHash = await writeContract({
+          address: FACTORY_ADDRESS,
+          abi: ACTIVE_FACTORY_ABI,
+          functionName: "createPriceMarket",
+          args: priceArgs as never,
+          account: address,
+          value: collateral.isNative ? seedUnits : undefined,
           gas: priceGas,
         });
       }
@@ -1264,7 +1418,7 @@ export function CreateClient() {
         if (log.address.toLowerCase() !== FACTORY_ADDRESS.toLowerCase()) continue;
         try {
           const parsed = decodeEventLog({
-            abi: FACTORY_ABI,
+            abi: ACTIVE_FACTORY_ABI,
             data: log.data,
             topics: log.topics,
             strict: true,
@@ -1331,26 +1485,26 @@ export function CreateClient() {
   };
 
   const uploadMetadata = async (imageUriForMetadata?: string) => {
-    const isNad = marketKind === "nad";
-    const imageToUse = isNad
-      ? nadDraft?.coverImageUrl ?? ""
+    const isPons = marketKind === "pons";
+    const imageToUse = isPons
+      ? ponsDraft?.coverImageUrl ?? ""
       : imageUriForMetadata || imageUri;
-    if (!imageToUse && !isNad) {
+    if (!imageToUse && !isPons) {
       throw new Error("Upload a cover image first so metadata includes image IPFS URI.");
     }
-    const nadTitle = isNad ? nadDraft?.title ?? "" : effectiveTitle;
-    const nadOutcomes = isNad ? (nadDraft?.outcomes ?? ["Yes", "No"]) : outcomes;
+    const ponsTitle = isPons ? ponsDraft?.title ?? "" : effectiveTitle;
+    const ponsOutcomes = isPons ? (ponsDraft?.outcomes ?? ["Yes", "No"]) : outcomes;
     const metadata = {
-      title: nadTitle,
-      description: isNad ? (nadDraft?.description ?? description) : description,
-      marketKind: isNad ? "nad" : marketKind,
-      eventMode: marketKind === "event" ? eventMode : isNad ? (nadDraft?.nadMarket.mode === "comparison" ? "multiple" : "binary") : null,
-      question: marketKind === "price" ? generatedPricePrompt : nadTitle,
-      categories: isNad ? ["Crypto"] : selectedCategories,
-      slug: slug || (isNad ? nadDraft?.slug : undefined) || slugify(effectiveTitle),
-      outcomes: nadOutcomes,
+      title: ponsTitle,
+      description: isPons ? (ponsDraft?.description ?? description) : description,
+      marketKind: isPons ? "pons" : marketKind,
+      eventMode: marketKind === "event" ? eventMode : isPons ? (ponsDraft?.ponsMarket.mode === "comparison" ? "multiple" : "binary") : null,
+      question: marketKind === "price" ? generatedPricePrompt : ponsTitle,
+      categories: isPons ? ["Crypto"] : selectedCategories,
+      slug: slug || (isPons ? ponsDraft?.slug : undefined) || slugify(effectiveTitle),
+      outcomes: ponsOutcomes,
       image: imageToUse || null,
-      nadMarket: isNad ? nadDraft?.nadMarket : undefined,
+      ponsMarket: isPons ? ponsDraft?.ponsMarket : undefined,
       priceConfig:
         marketKind === "price"
           ? {
@@ -1364,9 +1518,9 @@ export function CreateClient() {
               generatedPrompt: generatedPricePrompt,
             }
           : null,
-      resolution: marketKind === "event" ? "community-3-of-10-admins" : isNad ? "nad-bot-admin" : null,
-      resolutionSources: isNad
-        ? nadDraft?.resolutionSources ?? []
+      resolution: marketKind === "event" ? "community-3-of-10-admins" : isPons ? "pons-bot-admin" : null,
+      resolutionSources: isPons
+        ? ponsDraft?.resolutionSources ?? []
         : marketKind === "event"
           ? sanitizeResolutionSourcesForMetadata(resolutionSources)
           : [],
@@ -1382,26 +1536,27 @@ export function CreateClient() {
   };
 
   const goToSeedStep = async () => {
-    const isNad = marketKind === "nad";
+    const isPons = marketKind === "pons";
     const errors: string[] = [];
-    if (isNad) {
-      if (!nadDraft) errors.push("Load Nad token(s) and complete the form.");
-      if (nadDuplicateBlocked) errors.push("Duplicate market exists for this question and resolve time.");
+    if (isPons) {
+      if (!ponsDraft) errors.push("Load Pons token(s) and complete the form.");
+      if (ponsDuplicateBlocked) errors.push("Duplicate market exists for this question and resolve time.");
     } else if (marketKind === "event" && !title.trim()) {
       errors.push("Title is required.");
     }
-    if (!isNad && !description.trim()) errors.push("Description is required.");
-    if (!isNad && marketKind === "event") {
+    if (!factoryDeployed) errors.push(undeployedStackMessage());
+    if (!isPons && !description.trim()) errors.push("Description is required.");
+    if (!isPons && marketKind === "event") {
       const validSources = sanitizeResolutionSourcesForMetadata(resolutionSources);
       if (validSources.length === 0) {
         errors.push("Add at least one resolution source URL (https://…) for event markets.");
       }
     }
-    const filledOutcomes = isNad
-      ? (nadDraft?.outcomes ?? [])
+    const filledOutcomes = isPons
+      ? (ponsDraft?.outcomes ?? [])
       : outcomes.map((o) => o.trim()).filter(Boolean);
     if (filledOutcomes.length < 2) errors.push("At least 2 outcome labels are required.");
-    if (!isNad && outcomes.some((o) => !o.trim())) errors.push("All outcome labels must be filled in.");
+    if (!isPons && outcomes.some((o) => !o.trim())) errors.push("All outcome labels must be filled in.");
     if (!stakeEndAt) errors.push("Stake end time is required.");
     if (!resolveAfterAt) errors.push("Resolve after time is required.");
     if (!slug.trim()) errors.push("Vanity slug is required.");
@@ -1430,16 +1585,16 @@ export function CreateClient() {
       setTimeValidationError("Resolve after must be later than stake end.");
       return;
     }
-    if (isNad && nadDraft?.nadMarket) {
-      const nadResolveErr = validateNadResolveAfter(nadDraft.nadMarket.questionType, Math.floor(resolveTs / 1000));
-      if (nadResolveErr) {
-        setTimeValidationError(nadResolveErr);
+    if (isPons && ponsDraft?.ponsMarket) {
+      const ponsResolveErr = validatePonsResolveAfter(ponsDraft.ponsMarket.questionType, Math.floor(resolveTs / 1000));
+      if (ponsResolveErr) {
+        setTimeValidationError(ponsResolveErr);
         return;
       }
     }
     setTimeValidationError("");
 
-    if (isNad) {
+    if (isPons) {
       setIsNextLoading(true);
       setUploadState("");
       try {
@@ -1498,8 +1653,13 @@ export function CreateClient() {
 
         <div className="mb-7 md:mb-10">
           <div>
-            <h1 className={`text-xl tracking-tight md:text-3xl ${brandPageTitle}`}>Create market</h1>
+            <h1 className={`text-xl tracking-tight md:text-3xl ${brandSectionHeading}`}>Create market</h1>
           </div>
+          {!factoryDeployed ? (
+            <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+              {undeployedStackMessage()}
+            </p>
+          ) : null}
         </div>
 
         <div className="min-w-0 space-y-0 divide-y divide-[var(--border)] border-t border-[var(--border)]">
@@ -1512,10 +1672,12 @@ export function CreateClient() {
                 [
                   { id: "event" as const, label: "Event (community)" },
                   { id: "price" as const, label: "Price (oracle)" },
-                  { id: "nad" as const, label: "Nad.fun token" },
+                  { id: "pons" as const, label: "Ponsfamily Market", logo: "/pons.png" },
                 ] as const
-              ).map(({ id, label }) => {
+              ).map((opt) => {
+                const { id, label } = opt;
                 const active = marketKind === id;
+                const logo = "logo" in opt ? opt.logo : null;
                 return (
                   <button
                     key={id}
@@ -1532,6 +1694,9 @@ export function CreateClient() {
                     >
                       {active ? <span className="h-2 w-2 rounded-full bg-emerald-500" /> : null}
                     </span>
+                    {logo ? (
+                      <img src={logo} alt="" className="h-4 w-4 shrink-0 rounded-sm object-contain" />
+                    ) : null}
                     <span
                       className={
                         active
@@ -1547,17 +1712,22 @@ export function CreateClient() {
             </div>
           </section>
 
-          {marketKind === "nad" ? (
-            <NadMarketCreateSection
+          {marketKind === "pons" ? (
+            <PonsMarketCreateSection
               stakeEndAt={stakeEndAt}
               resolveAfterAt={resolveAfterAt}
               slug={slug}
+              questionType={ponsQuestionType}
+              onQuestionTypeChange={(type) => {
+                setPonsQuestionType(type);
+                writeCreateQuery("pons", type);
+              }}
               onSlugChange={(s, manual) => {
                 setSlug(s);
                 if (manual) setSlugManual(true);
               }}
-              onDraftChange={setNadDraft}
-              onDuplicateBlock={setNadDuplicateBlocked}
+              onDraftChange={setPonsDraft}
+              onDuplicateBlock={setPonsDuplicateBlocked}
             />
           ) : marketKind === "event" ? (
             <>
@@ -1639,7 +1809,7 @@ export function CreateClient() {
             ) : null}
           </section>
 
-          {marketKind !== "nad" && (
+          {marketKind !== "pons" && (
           <section className="py-8">
             <label className={labelClass} htmlFor="description">
               Description
@@ -1704,7 +1874,7 @@ export function CreateClient() {
                   onClick={() =>
                     setResolutionSources((prev) => [...prev, { label: "", url: "" }])
                   }
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--accent)] transition hover:underline"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--foreground)] transition hover:underline"
                 >
                   <Plus size={14} weight="bold" />
                   Add source
@@ -1905,7 +2075,7 @@ export function CreateClient() {
             </>
           ) : null}
 
-          {marketKind !== "nad" && (
+          {marketKind !== "pons" && (
           <section className="py-8">
             <label className={labelClass}>Categories</label>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -1952,7 +2122,7 @@ export function CreateClient() {
             </p>
           </section>
 
-          {marketKind !== "nad" && (
+          {marketKind !== "pons" && (
           <section className="py-8">
             <label className={labelClass} htmlFor="image">
               Cover image
@@ -2001,17 +2171,17 @@ export function CreateClient() {
           </section>
           )}
 
-          {marketKind === "nad" && nadDraft && (
+          {marketKind === "pons" && ponsDraft && (
             <section className="py-8">
               <p className={`mb-2 text-xs uppercase tracking-wider text-[var(--muted)] ${brandSectionLabel}`}>
                 Card preview
               </p>
               <div className="max-w-sm">
                 <NadMarketListCard
-                  title={nadDraft.title}
-                  nadMarket={nadDraft.nadMarket}
-                  outcomeLabels={nadDraft.outcomes}
-                  previewTokenStats={nadDraft.previewTokenStats}
+                  title={ponsDraft.title}
+                  nadMarket={ponsMarketForCardPreview(ponsDraft.ponsMarket)}
+                  outcomeLabels={ponsDraft.outcomes}
+                  previewTokenStats={ponsDraft.previewTokenStats?.map((s) => ponsStatsForCardPreview(s))}
                   resolveAfter={previewResolveLabel}
                   showNewBadge
                   interactive={false}
@@ -2029,13 +2199,13 @@ export function CreateClient() {
                   isNextLoading ||
                   slugAvailable === false ||
                   slugCheckBusy ||
-                  (marketKind === "nad" && (!nadDraft || nadDuplicateBlocked))
+                  (marketKind === "pons" && (!ponsDraft || ponsDuplicateBlocked))
                 }
-                className="rounded-full bg-[var(--accent)] py-3.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60 sm:px-10 w-full sm:w-auto"
+                className="rounded-full bg-white py-3.5 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-60 sm:px-10 w-full sm:w-auto [html[data-theme=light]_&]:border [html[data-theme=light]_&]:border-black/15"
               >
                 {isNextLoading ? (
                   <span className="inline-flex items-center gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/25 border-t-black" />
                     Uploading...
                   </span>
                 ) : (
@@ -2054,21 +2224,46 @@ export function CreateClient() {
             </>
           ) : (
             <section className="py-10">
-              <label className={labelClass}>Collateral</label>
+              <label className={labelClass} htmlFor="seed-amount">
+                Seed liquidity
+              </label>
               <div ref={collateralDropdownRef} className="relative mt-2 max-w-[360px]">
-                <button
-                  type="button"
-                  onClick={() => setIsCollateralDropdownOpen((v) => !v)}
-                  className="flex w-full items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-left text-sm text-[var(--foreground)]"
-                >
-                  <span className="inline-flex items-center gap-3">
-                    <img src={collateral.image} alt={collateral.symbol} className="h-5 w-5 rounded-full object-cover" />
+                <div className="flex items-center overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] focus-within:border-[var(--accent)]">
+                  <input
+                    id="seed-amount"
+                    type="number"
+                    min={Number.isFinite(minSeedAmount) ? minSeedAmount : 10}
+                    step="any"
+                    value={seedAmount}
+                    onChange={(e) => {
+                      setSeedAmount(e.target.value);
+                      setSeedValidationError("");
+                    }}
+                    className="min-w-0 flex-1 border-0 bg-transparent px-4 py-3 text-base text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] sm:text-sm"
+                    placeholder={
+                      collateral.isNative
+                        ? `Minimum ${MIN_MON_SEED} MON`
+                        : `Minimum 10 ${collateral.symbol}`
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsCollateralDropdownOpen((v) => !v)}
+                    className="mr-1.5 inline-flex shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                    aria-label="Select collateral"
+                    aria-expanded={isCollateralDropdownOpen}
+                  >
+                    <img
+                      src={collateral.image}
+                      alt=""
+                      className="h-5 w-5 rounded-full object-cover"
+                    />
                     <span>{collateral.symbol}</span>
-                  </span>
-                  <CaretDown size={16} weight="bold" className="text-[var(--muted)]" />
-                </button>
+                    <CaretDown size={14} weight="bold" className="text-[var(--muted)]" />
+                  </button>
+                </div>
                 {isCollateralDropdownOpen && (
-                  <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] p-1 shadow-xl">
+                  <div className="absolute right-0 z-30 mt-2 min-w-[14rem] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] p-1 shadow-xl">
                     {supportedCollaterals.map((opt) => (
                       <button
                         key={opt.id}
@@ -2081,7 +2276,7 @@ export function CreateClient() {
                           opt.id === collateral.id ? "bg-[var(--surface)]" : ""
                         }`}
                       >
-                        <img src={opt.image} alt={opt.symbol} className="h-5 w-5 rounded-full object-cover" />
+                        <img src={opt.image} alt="" className="h-5 w-5 rounded-full object-cover" />
                         <span className="text-[var(--foreground)]">{opt.symbol}</span>
                         <span className="text-xs text-[var(--muted)]">{opt.label}</span>
                       </button>
@@ -2089,34 +2284,16 @@ export function CreateClient() {
                   </div>
                 )}
               </div>
+              <p className="mt-1.5 text-[11px] text-[var(--muted)]">
+                {collateralBalanceLabel} {collateral.symbol}
+              </p>
               {supportedCollaterals.length === 0 && (
                 <p className="mt-2 text-xs text-amber-400">
                   Loading supported collateral from factory…
                 </p>
               )}
-
-              <label className={labelClass} htmlFor="seed-amount">
-                Seed liquidity ({collateral.symbol})
-              </label>
-              <input
-                id="seed-amount"
-                type="number"
-                min={Number.isFinite(minSeedAmount) ? minSeedAmount : 10}
-                step="any"
-                value={seedAmount}
-                onChange={(e) => {
-                  setSeedAmount(e.target.value);
-                  setSeedValidationError("");
-                }}
-                className={fieldClass}
-                placeholder={
-                  collateral.isNative
-                    ? `Minimum ${MIN_MON_SEED} MON`
-                    : `Minimum 10 ${collateral.symbol}`
-                }
-              />
               {seedQuickAmounts.length > 0 && (
-                <div className="mt-2.5 flex flex-wrap gap-2">
+                <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1">
                   {seedQuickAmounts.map((amt) => {
                     const active = seedAmount === amt;
                     return (
@@ -2127,10 +2304,10 @@ export function CreateClient() {
                           setSeedAmount(amt);
                           setSeedValidationError("");
                         }}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-medium tabular-nums transition ${
+                        className={`bg-transparent p-0 text-xs tabular-nums transition ${
                           active
-                            ? "bg-[var(--accent)] text-white"
-                            : "bg-[var(--surface)] text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                            ? "font-semibold text-[var(--foreground)]"
+                            : "font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
                         }`}
                       >
                         {amt}
@@ -2139,22 +2316,19 @@ export function CreateClient() {
                   })}
                 </div>
               )}
-              {seedOutcomeCount > 2 ? (
-                <p className="mt-2 text-[11px] text-[var(--muted)]">
-                  Seed is split evenly across {seedOutcomeCount} outcomes — use a chip so the
-                  total divides cleanly.
-                </p>
-              ) : null}
-              <p className="mt-2 text-xs text-[var(--muted)]">
-                Wallet balance: {collateralBalanceLabel} {collateral.symbol}
-              </p>
               {marketKind === "event" && (
                 <p className="mt-3 text-xs text-[var(--muted)]">
                   Event markets are resolved through protocol admins.
                 </p>
               )}
               <p className="mt-3 text-xs text-[var(--muted)]">
-                As creator, you earn 0.3% of each trade.
+                Creator share 0.6% (per trade){" "}
+                <Link
+                  href="/how-it-works#creators"
+                  className="text-[var(--foreground)] underline underline-offset-2 transition hover:opacity-80"
+                >
+                  Learn more
+                </Link>
               </p>
               <div className="mt-6 flex flex-wrap items-center gap-3">
                 {isCreateComplete ? (
@@ -2169,26 +2343,25 @@ export function CreateClient() {
                     type="button"
                     onClick={() => void handleCreateMarket()}
                     disabled={isSubmittingMarket || !metadataUri}
-                    className="rounded-full bg-emerald-600 px-8 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex min-w-[10.5rem] items-center justify-center gap-2 rounded-full bg-emerald-600 px-8 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-80"
                   >
-                    {isSubmittingMarket ? "Processing…" : "Create market"}
+                    {isSubmittingMarket ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />
+                        {createStageLabel(submitStatus)}
+                      </>
+                    ) : (
+                      "Create market"
+                    )}
                   </button>
                 )}
               </div>
               {seedValidationError && (
                 <p className="mt-3 text-xs text-red-400">{seedValidationError}</p>
               )}
-              {submitStatus && (
-                <p
-                  className={`mt-3 text-sm ${
-                    isCreateComplete || /successfully/i.test(submitStatus)
-                      ? "font-bold text-emerald-400"
-                      : /error|failed|insufficient|missing|invalid/i.test(submitStatus)
-                        ? "font-semibold text-rose-400"
-                        : "font-medium text-[var(--foreground)]"
-                  }`}
-                >
-                  {submitStatus}
+              {submitStatus && !isCreateProgressStatus(submitStatus) && !isCreateComplete && (
+                <p className="mt-3 text-sm font-semibold text-rose-400">
+                  {submitStatus.replace(/^Error:\s*/i, "")}
                 </p>
               )}
             </section>

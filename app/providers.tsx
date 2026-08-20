@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createWeb3Modal } from "@web3modal/wagmi/react";
 import type { Config } from "wagmi";
 import { WagmiProvider } from "wagmi";
+import { ParaWalletProvider } from "@/app/components/para-wallet-provider";
 
 declare global {
   interface Window {
@@ -58,7 +59,9 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <ParaWalletProvider>{children}</ParaWalletProvider>
+      </QueryClientProvider>
     </WagmiProvider>
   );
 }

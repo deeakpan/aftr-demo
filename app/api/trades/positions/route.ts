@@ -1,30 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { formatUnits, isAddress, parseAbi, parseAbiItem } from "viem";
+import { formatUnits, isAddress, parseAbiItem } from "viem";
 import deployment from "@/lib/deployment";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
 import { fetchIpfsMetadata, ipfsToHttp } from "@/lib/ipfs-metadata";
+import { launchpadMarketForDisplay, launchpadMarketFromMetadata } from "@/lib/launchpad-display";
 import { marketKindFromChain } from "@/lib/markets/market-kind";
 import { isListableMarket } from "@/lib/market-metadata";
 import { querySubgraph } from "@/lib/subgraph/client";
+import { isFpmmMarket } from "@/lib/market-mechanism";
+import { MARKET_READ_ABI, marketPoolFunction } from "@/lib/market-abi";
 
 const TOKENS_REDEEMED_EVENT = parseAbiItem(
   "event TokensRedeemed(address indexed user, uint8 indexed outcomeIndex, uint256 shares, uint256 payout)",
 );
 
-const MARKET_ABI = parseAbi([
-  "function marketKind() view returns (uint8)",
-  "function state() view returns (uint8)",
-  "function stakeEndTimestamp() view returns (uint256)",
-  "function collateralAddress() view returns (address)",
-  "function numOutcomes() view returns (uint8)",
-  "function outcomeToken(uint256) view returns (address)",
-  "function collateralDecimals() view returns (uint8)",
-  "function winningOutcomeIndex() view returns (uint256)",
-  "function redemptionRate() view returns (uint256)",
-  "function metadataURI() view returns (string)",
-  "function priceOf(uint8 outcomeIndex) view returns (uint256)",
-  "function realPool(uint256 outcomeIndex) view returns (uint256)",
-]);
+const MARKET_ABI = MARKET_READ_ABI;
 
 const ERC20_ABI = parseAbi(["function balanceOf(address account) view returns (uint256)"]);
 
@@ -124,9 +114,11 @@ async function buildRowsForMarket(
   const collateralDecimals = Number(collateralDecimalsRaw);
   const state = Number(stateRaw);
   const kind = marketKindFromChain(Number(kindRaw));
+  const isFpmm = await isFpmmMarket(publicClient, market);
+  const poolFn = marketPoolFunction(isFpmm);
   const metadataUriStr = String(metadataUri || "");
   const metadata = await fetchIpfsMetadata(metadataUriStr);
-  if (!isListableMarket(metadataUriStr, metadata?.image, metadata?.nadMarket)) {
+  if (!isListableMarket(metadataUriStr, metadata?.image, launchpadMarketFromMetadata(metadata as Record<string, unknown> | null) ?? metadata?.nadMarket)) {
     return [];
   }
   const marketTitle = metadata?.title?.trim() || `${kind} market`;
@@ -137,7 +129,7 @@ async function buildRowsForMarket(
 
   const outcomeContracts = Array.from({ length: numOutcomes }, (_, i) => [
     { address: market, abi: MARKET_ABI, functionName: "priceOf" as const, args: [i] as const },
-    { address: market, abi: MARKET_ABI, functionName: "realPool" as const, args: [BigInt(i)] as const },
+    { address: market, abi: MARKET_ABI, functionName: poolFn as "realPool" | "poolBalances", args: [BigInt(i)] as const },
     { address: market, abi: MARKET_ABI, functionName: "outcomeToken" as const, args: [BigInt(i)] as const },
   ]).flat();
 
@@ -171,10 +163,12 @@ async function buildRowsForMarket(
   });
   const stakeEndUnix = Number(stakeEndRaw);
   const stakeEndsLabel = fmtTs(stakeEndUnix);
-  const nadMarket = metadata?.nadMarket ?? null;
+  const nadMarket = launchpadMarketForDisplay(metadata as Record<string, unknown> | null) ?? null;
+  const launchpadRaw = launchpadMarketFromMetadata(metadata as Record<string, unknown> | null);
   const imageUrl = nadMarket
     ? ipfsToHttp(metadata?.image?.trim() || "")
     : ipfsToHttp(metadata?.image?.trim() || "") ||
+      launchpadRaw?.tokens?.[0]?.imageUri?.trim() ||
       metadata?.nadMarket?.tokens?.[0]?.imageUri?.trim() ||
       "";
   const winningOutcomeIndex = state === 2 ? Number(winningRaw) : null;

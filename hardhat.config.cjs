@@ -13,6 +13,15 @@ module.exports = {
         ? [process.env.PRIVATE_KEY.startsWith("0x") ? process.env.PRIVATE_KEY : `0x${process.env.PRIVATE_KEY}`]
         : [],
     },
+    robinhoodMainnet: {
+      url: process.env.RPC_URL || "https://rpc.mainnet.chain.robinhood.com",
+      chainId: 4663,
+      timeout: 180_000,
+      httpHeaders: {},
+      accounts: process.env.PRIVATE_KEY
+        ? [process.env.PRIVATE_KEY.startsWith("0x") ? process.env.PRIVATE_KEY : `0x${process.env.PRIVATE_KEY}`]
+        : [],
+    },
     monadTestnet: {
       url: process.env.RPC_URL || "https://testnet-rpc.monad.xyz/",
       chainId: 10143,

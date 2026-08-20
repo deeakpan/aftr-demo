@@ -22,12 +22,12 @@ contract MondaloreVParimutuelMarket is Ownable2Step, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     uint256 public constant BPS_DENOMINATOR = 10_000;
-    /// @notice Total fee taken from each trade (1.5%).
-    uint256 public constant TRADE_FEE_TOTAL_BPS = 150;
-    /// @notice Of the 1.5% trade fee, 0.3% goes to the market creator.
-    uint256 public constant CREATOR_FEE_BPS = 30;
-    /// @notice Remaining 1.2% goes to the protocol fee recipient.
-    uint256 public constant PROTOCOL_FEE_BPS = 120;
+    /// @notice Total fee taken from each trade (1.0%).
+    uint256 public constant TRADE_FEE_TOTAL_BPS = 100;
+    /// @notice Of the 1.0% trade fee, 0.6% goes to the market creator.
+    uint256 public constant CREATOR_FEE_BPS = 60;
+    /// @notice Remaining 0.4% goes to the protocol fee recipient.
+    uint256 public constant PROTOCOL_FEE_BPS = 40;
     bytes32 private constant EVENT_RESOLUTION_TYPEHASH =
         keccak256("EventResolution(address market,uint8 outcomeIndex,uint256 chainId)");
     bytes32 private constant EIP712_DOMAIN_TYPEHASH =
@@ -134,6 +134,7 @@ contract MondaloreVParimutuelMarket is Ownable2Step, ReentrancyGuard {
     );
     event EventResolved(uint8 indexed outcomeIndex, address indexed caller, uint256 adminSignatures);
     event NadTokenResolved(uint8 indexed outcomeIndex, address indexed resolver);
+    event PonsTokenResolved(uint8 indexed outcomeIndex, address indexed resolver);
     event LiquidityBootstrapped(
         address indexed funder,
         address indexed shareRecipient,
@@ -350,7 +351,7 @@ contract MondaloreVParimutuelMarket is Ownable2Step, ReentrancyGuard {
             IERC20(collateralAddress).safeTransferFrom(msg.sender, address(this), amount);
         }
 
-        // Deduct 1.5% trade fee: 0.3% to creator, 1.2% to protocol fee recipient.
+        // Deduct 1.0% trade fee: 0.6% to creator, 0.4% to protocol fee recipient.
         uint256 creatorFee = (amount * CREATOR_FEE_BPS) / BPS_DENOMINATOR;
         uint256 protocolFee = (amount * PROTOCOL_FEE_BPS) / BPS_DENOMINATOR;
         uint256 netAmount = amount - creatorFee - protocolFee;
@@ -471,7 +472,23 @@ contract MondaloreVParimutuelMarket is Ownable2Step, ReentrancyGuard {
         emit EventResolved(outcomeIndex, msg.sender, valid);
     }
 
-    /// @notice Settle a NAD_TOKEN market — single factory `nadResolutionAdmin` (bot wallet).
+    /// @notice Settle a PONS-family token market — single factory `ponsResolutionAdmin` (bot wallet).
+    function resolvePonsToken(uint8 outcomeIndex) external nonReentrant {
+        if (!initialized) revert NotInitialized();
+        if (marketKind != MarketKind.NAD_TOKEN) revert InvalidState();
+        if (state != MarketState.OPEN) revert InvalidState();
+        if (block.timestamp < resolveAfterTimestamp) revert TooEarlyToResolve();
+        if (outcomeIndex >= numOutcomes) revert InvalidOutcome();
+
+        if (msg.sender != IMondaloreMarketFactoryResolution(factory).ponsResolutionAdmin()) {
+            revert NotNadResolutionAdmin();
+        }
+
+        _finalizeSettlement(outcomeIndex, int256(uint256(outcomeIndex)));
+        emit PonsTokenResolved(outcomeIndex, msg.sender);
+    }
+
+    /// @notice Settle a legacy NAD_TOKEN market — single factory `nadResolutionAdmin` (bot wallet).
     function resolveNadToken(uint8 outcomeIndex) external nonReentrant {
         if (!initialized) revert NotInitialized();
         if (marketKind != MarketKind.NAD_TOKEN) revert InvalidState();

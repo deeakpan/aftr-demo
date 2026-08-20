@@ -3,8 +3,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowsClockwise, CircleNotch, PlusMinus } from "@phosphor-icons/react";
-import { formatUnits, parseAbi, parseEventLogs } from "viem";
-import { useAccount, usePublicClient, useWalletClient } from "wagmi";
+import { formatUnits, parseAbi, parseAbiItem, parseEventLogs } from "viem";
+import { usePublicClient } from "wagmi";
+import { useSessionWallet } from "@/lib/session-wallet";
+import { formatUserTxError } from "@/lib/tx-error";
 import { AppLayout } from "@/app/components/app-layout";
 import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
 import { collateralTickerFromDeployment } from "@/lib/deployment-collateral";
@@ -19,6 +21,7 @@ import {
   MARKET_CARD_TRADES_GRID_CLASS,
   MARKET_CARD_TRADES_META_CLASS,
   MARKET_CARD_TRADES_SHELL_CLASS,
+  MARKET_CARD_HOVER_CLASS,
   MARKET_CARD_TRADES_TITLE_CLASS,
 } from "@/app/market/components/market-list-card";
 import { MarketShareButton } from "@/app/market/components/market-share-button";
@@ -30,23 +33,13 @@ import {
 import type { NadMarketConfig } from "@/lib/nad/types";
 import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
 import { marketPath } from "@/lib/markets/market-url";
+import { isFpmmMarket } from "@/lib/market-mechanism";
+import { MARKET_READ_ABI, readMarketPoolTotal } from "@/lib/market-abi";
 
-const MARKET_ABI = parseAbi([
-  "function marketKind() view returns (uint8)",
-  "function state() view returns (uint8)",
-  "function stakeEndTimestamp() view returns (uint256)",
-  "function numOutcomes() view returns (uint8)",
-  "function outcomeToken(uint256) view returns (address)",
-  "function collateralAddress() view returns (address)",
-  "function collateralDecimals() view returns (uint8)",
-  "function winningOutcomeIndex() view returns (uint256)",
-  "function redemptionRate() view returns (uint256)",
-  "function metadataURI() view returns (string)",
-  "function priceOf(uint8 outcomeIndex) view returns (uint256)",
-  "function realPool(uint256 outcomeIndex) view returns (uint256)",
-  "function redeem(uint8 outcomeIndex, uint256 shareAmount)",
+const TOKENS_REDEEMED_EVENT = parseAbiItem(
   "event TokensRedeemed(address indexed user, uint8 indexed outcomeIndex, uint256 shares, uint256 payout)",
-]);
+);
+
 const ERC20_ABI = parseAbi([
   "function allowance(address owner, address spender) view returns (uint256)",
   "function approve(address spender, uint256 amount) returns (bool)",
@@ -155,34 +148,17 @@ function stateLabel(state: number, stakeEndUnix: number) {
   return "Open";
 }
 
-/** Turn long viem/MetaMask errors into something users can read. */
+/** Turn wallet/RPC errors into something users can read. */
 function friendlyWalletError(e: unknown): string {
-  const raw =
-    typeof e === "object" &&
-    e !== null &&
-    "message" in e &&
-    typeof (e as { message: unknown }).message === "string"
-      ? (e as Error).message
-      : typeof e === "string"
-        ? e
-        : "";
-  const lower = raw.toLowerCase();
+  const blob = e instanceof Error ? e.message : String(e ?? "");
   if (
-    lower.includes("user rejected") ||
-    lower.includes("user denied") ||
-    lower.includes("denied transaction signature") ||
-    (lower.includes("reject") && lower.includes("signature")) ||
-    lower.includes("user_cancelled") ||
-    lower.includes("action_rejected")
+    /user rejected|user denied|denied transaction signature|user_cancelled|action_rejected/i.test(
+      blob,
+    )
   ) {
     return "You closed or rejected the wallet prompt. Nothing was sent on-chain — try again when you’re ready.";
   }
-  if (lower.includes("insufficient funds") && lower.includes("gas")) {
-    return `Not enough MON on ${DEPLOYMENT_NETWORK_LABEL} to pay gas.`;
-  }
-  const first = raw.split("\n")[0]?.split("Contract Call:")[0]?.trim() ?? "";
-  if (first && first.length <= 180) return first;
-  return "Transaction didn’t go through. Try again, or switch network and retry.";
+  return formatUserTxError(e, "Transaction didn’t go through. Try again.");
 }
 
 function groupRows(rows: PositionRow[]): MarketPositionGroup[] {
@@ -443,8 +419,7 @@ function ClaimWinningsButton({
   onDone: () => void;
 }) {
   const publicClient = usePublicClient({ chainId: DEPLOYMENT_CHAIN_ID });
-  const { data: walletClient } = useWalletClient();
-  const { address, chainId } = useAccount();
+  const { address, chainId, writeContract } = useSessionWallet();
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [statusIsError, setStatusIsError] = useState(false);
@@ -458,7 +433,7 @@ function ClaimWinningsButton({
   }, [maxShares, redemptionRate, shareDecimals]);
 
   const redeem = async () => {
-    if (!publicClient || !walletClient || !address) {
+    if (!publicClient || !address) {
       setStatusIsError(true);
       setStatus("Connect wallet.");
       return;
@@ -474,7 +449,7 @@ function ClaimWinningsButton({
       setStatus("Preparing…");
       const token = (await publicClient.readContract({
         address: marketAddress,
-        abi: MARKET_ABI,
+        abi: MARKET_READ_ABI,
         functionName: "outcomeToken",
         args: [BigInt(winningOutcomeIndex)],
       })) as `0x${string}`;
@@ -486,8 +461,7 @@ function ClaimWinningsButton({
       })) as bigint;
       if (allowance < maxShares) {
         setStatus("Approving…");
-        const h = await walletClient.writeContract({
-          chain: walletClient.chain,
+        const h = await writeContract({
           address: token,
           abi: ERC20_ABI,
           functionName: "approve",
@@ -497,10 +471,9 @@ function ClaimWinningsButton({
         await publicClient.waitForTransactionReceipt({ hash: h });
       }
       setStatus("Claiming…");
-      const tx = await walletClient.writeContract({
-        chain: walletClient.chain,
+      const tx = await writeContract({
         address: marketAddress,
-        abi: MARKET_ABI,
+        abi: MARKET_READ_ABI,
         functionName: "redeem",
         args: [winningOutcomeIndex, maxShares],
         account: address,
@@ -510,7 +483,7 @@ function ClaimWinningsButton({
       let payout = BigInt(0);
       try {
         const logs = parseEventLogs({
-          abi: MARKET_ABI,
+          abi: [TOKENS_REDEEMED_EVENT],
           logs: receipt.logs,
           eventName: "TokensRedeemed",
         });
@@ -570,7 +543,7 @@ function Tip({ label, children }: { label: string; children: React.ReactNode }) 
 export function TradesClient() {
   const router = useRouter();
   const publicClient = usePublicClient({ chainId: DEPLOYMENT_CHAIN_ID });
-  const { address, isConnected, chainId } = useAccount();
+  const { address, isConnected, chainId } = useSessionWallet();
   const [rows, setRows] = useState<PositionRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -605,12 +578,13 @@ export function TradesClient() {
     if (!publicClient || tvlRefreshing[g.marketAddress]) return;
     setTvlRefreshing((p) => ({ ...p, [g.marketAddress]: true }));
     try {
-      const pools = await Promise.all(
-        Array.from({ length: g.outcomeLabels.length }, (_, i) =>
-          publicClient.readContract({ address: g.marketAddress as `0x${string}`, abi: MARKET_ABI, functionName: "realPool", args: [BigInt(i)] }) as Promise<bigint>
-        )
+      const isFpmm = await isFpmmMarket(publicClient, g.marketAddress as `0x${string}`);
+      const total = await readMarketPoolTotal(
+        publicClient,
+        g.marketAddress as `0x${string}`,
+        g.outcomeLabels.length,
+        isFpmm,
       );
-      const total = pools.reduce((acc, v) => acc + v, BigInt(0));
       const formatted = Number(formatUnits(total, g.collateralDecimals)).toLocaleString(undefined, { maximumFractionDigits: 2 });
       setTvlOverrides((p) => ({ ...p, [g.marketAddress]: formatted }));
     } catch { /* ignore */ } finally {
@@ -733,7 +707,7 @@ export function TradesClient() {
     >
       <section className="mx-4 pt-8 md:mx-6">
         <div className="mb-2 flex items-center gap-2">
-          <PlusMinus size={22} weight="bold" className="text-[var(--accent)]" />
+          <PlusMinus size={22} weight="bold" className="text-[var(--foreground)]" />
           <h1 className="text-xl font-semibold tracking-tight text-[var(--foreground)] md:text-2xl">Trades</h1>
         </div>
 
@@ -753,7 +727,7 @@ export function TradesClient() {
             aria-busy="true"
             aria-label="Loading positions"
           >
-            <CircleNotch size={36} weight="bold" className="animate-spin text-[var(--accent)]" />
+            <CircleNotch size={36} weight="bold" className="animate-spin text-[var(--muted)]" />
           </div>
         )}
         {error && <p className="max-w-xl text-sm leading-relaxed text-red-400">{error}</p>}
@@ -790,7 +764,7 @@ export function TradesClient() {
               return (
                 <article
                   key={g.marketAddress}
-                  className={`${MARKET_CARD_TRADES_SHELL_CLASS} transition duration-200 hover:-translate-y-1 hover:border-[var(--accent)] hover:shadow-[0_16px_40px_rgb(139_92_246_/_0.28)] [html[data-theme=light]_&]:hover:shadow-[0_16px_40px_rgb(124_77_255_/_0.14)]`}
+                  className={`${MARKET_CARD_TRADES_SHELL_CLASS} transition duration-200 ${MARKET_CARD_HOVER_CLASS}`}
                 >
                   {nadMarket ? (
                     <NadMarketCardCover nadMarket={nadMarket} />

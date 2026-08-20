@@ -2,7 +2,7 @@
 
 import { ArrowSquareOut, CopySimple } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
-import { nadTokenPageUrl } from "@/lib/nad/config";
+import { ponsTokenPageUrl } from "@/lib/pons/config";
 import type { NadMarketConfig, NadTokenRef } from "@/lib/nad/types";
 import {
   formatNadHolderCount,
@@ -35,7 +35,7 @@ function TokenTicker({ symbol, address }: { symbol: string; address: string }) {
       <button
         type="button"
         onClick={() => void copyAddress()}
-        className="inline-flex opacity-0 transition group-hover/ticker:opacity-100 text-[var(--muted)] hover:text-violet-300"
+        className="inline-flex opacity-0 transition group-hover/ticker:opacity-100 text-[var(--muted)] hover:text-[var(--foreground)]"
         aria-label={copied ? "Copied" : `Copy ${symbol} contract address`}
         title={copied ? "Copied" : address}
       >
@@ -78,12 +78,12 @@ function TokenStatsBody({
           {token.name ? <p className="truncate text-xs text-[var(--muted)]">{token.name}</p> : null}
         </div>
         <a
-          href={nadTokenPageUrl(token.address)}
+          href={ponsTokenPageUrl(token.address)}
           target="_blank"
           rel="noopener noreferrer"
-          className="shrink-0 text-[var(--muted)] transition hover:text-violet-300"
-          aria-label={`Open $${token.symbol} on Nad.fun`}
-          title="Open on Nad.fun"
+          className="shrink-0 text-[var(--muted)] transition hover:text-[var(--foreground)]"
+          aria-label={`Open $${token.symbol} on Pons`}
+          title="Open on Pons"
         >
           <ArrowSquareOut size={18} weight="bold" />
         </a>
@@ -174,7 +174,7 @@ export function NadTokenPanel({ nadMarket }: Props) {
                 onClick={() => setTab(i)}
                 className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
                   i === active
-                    ? "bg-[var(--accent)]/15 text-[var(--accent)]"
+                    ? "bg-[var(--surface-hover)] text-[var(--foreground)]"
                     : "text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
                 }`}
               >

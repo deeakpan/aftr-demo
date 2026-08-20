@@ -435,7 +435,7 @@ export function TradeModal({
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--foreground)]">
           {selectedLabel}
         </span>
-        <span className="shrink-0 rounded-full bg-[var(--accent)]/15 px-2 py-0.5 text-xs font-bold tabular-nums text-[var(--accent)]">
+        <span className="shrink-0 rounded-full bg-[var(--surface-hover)] px-2 py-0.5 text-xs font-bold tabular-nums text-[var(--foreground)]">
           {outcomePct(selectedOutcomeIndex)}%
         </span>
         <CaretDown
@@ -460,16 +460,14 @@ export function TradeModal({
                   active ? "bg-[var(--accent)]/10" : ""
                 }`}
               >
-                <span
-                  className={`min-w-0 flex-1 truncate ${active ? "font-semibold text-[var(--accent)]" : "font-medium text-[var(--foreground)]"}`}
-                >
+                <span className="min-w-0 flex-1 truncate font-medium text-[var(--foreground)]">
                   {label}
                 </span>
                 <span className="shrink-0 text-xs font-bold tabular-nums text-[var(--muted)]">
                   {outcomePct(idx)}%
                 </span>
                 {active && (
-                  <CheckCircle size={14} weight="fill" className="shrink-0 text-[var(--accent)]" />
+                  <CheckCircle size={14} weight="fill" className="shrink-0 text-[var(--foreground)]" />
                 )}
               </button>
             );
@@ -544,7 +542,7 @@ export function TradeModal({
               href={txExplorerUrl(tradeSuccess.txHash)}
               target="_blank"
               rel="noreferrer"
-              className="truncate font-mono text-[10px] text-[var(--accent)] hover:underline"
+              className="truncate font-mono text-[10px] text-[var(--foreground)] underline underline-offset-2 hover:opacity-80"
             >
               {tradeSuccess.txHash.slice(0, 10)}…{tradeSuccess.txHash.slice(-8)}
             </a>

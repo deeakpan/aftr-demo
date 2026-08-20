@@ -7,6 +7,9 @@ interface IMondaloreMarketFactoryResolution {
 
     function resolutionThreshold() external view returns (uint256);
 
-    /// @notice Wallet allowed to call `resolveNadToken` on NAD_TOKEN markets (typically the resolution bot).
+    /// @notice Wallet allowed to resolve legacy NAD_TOKEN markets (typically the resolution bot).
     function nadResolutionAdmin() external view returns (address);
+
+    /// @notice Wallet allowed to resolve Ponsfamily token markets (implemented as an alias to `nadResolutionAdmin` for backwards-compat).
+    function ponsResolutionAdmin() external view returns (address);
 }

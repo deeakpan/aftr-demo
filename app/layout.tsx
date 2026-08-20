@@ -20,9 +20,9 @@ const orbitron = Orbitron({
 });
 
 export const metadata: Metadata = {
-  title: "Mondalore Market | The planet of predictions",
+  title: "Zedkr Market | Prediction markets on Robinhood Chain",
   description:
-    "Mondalore Market — a planet of predictions on Monad. Trade outcomes, create markets, and earn with the community.",
+    "Zedkr Market is a Zedkr product for creating and trading prediction markets on Robinhood Chain.",
 };
 
 export default function RootLayout({

@@ -4,11 +4,11 @@ schema:
 dataSources:
   - kind: ethereum/contract
     name: Factory
-    network: monad-testnet
+    network: robinhood-mainnet
     source:
-      address: "0x6de802C203199f6C1A1F6e42d443670ca8fD3035"
+      address: "0x4C50167f92544cb4755bc8f35a4efDbE7c3c9B40"
       abi: Factory
-      startBlock: 40290997
+      startBlock: 41329620
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -25,12 +25,34 @@ dataSources:
           handler: handlePriceFeedUpdated
       file: ./src/factory.ts
   - kind: ethereum/contract
-    name: Vault
-    network: monad-testnet
+    name: FpmmFactory
+    network: robinhood-mainnet
     source:
-      address: "0x3870Fd628e43FbEE7f2a1a922ACa13b3f1B53329"
+      address: "0x92685D2Ca3025EE1c34A18e5c3aC1153F3797F04"
+      abi: FpmmFactory
+      startBlock: 41331096
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+      abis:
+        - name: FpmmFactory
+          file: ./abis/FpmmFactory.json
+      eventHandlers:
+        - event: MarketCreated(indexed address,indexed uint8,indexed address,address[],string[],uint256,uint256,bytes32,address)
+          handler: handleMarketCreated
+        - event: PriceFeedUpdated(indexed bytes32,address)
+          handler: handlePriceFeedUpdated
+      file: ./src/fpmm-factory.ts
+  - kind: ethereum/contract
+    name: Vault
+    network: robinhood-mainnet
+    source:
+      address: "0x23D0f9A287ff1cfd92b63d2AaEF6118fbb3A321C"
       abi: Vault
-      startBlock: 40290997
+      startBlock: 41329573
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -55,7 +77,7 @@ dataSources:
 templates:
   - kind: ethereum/contract
     name: Market
-    network: monad-testnet
+    network: robinhood-mainnet
     source:
       abi: Market
     mapping:
@@ -83,3 +105,35 @@ templates:
         - event: EventResolved(indexed uint8,indexed address,uint256)
           handler: handleEventResolved
       file: ./src/market.ts
+  - kind: ethereum/contract
+    name: FpmmMarket
+    network: robinhood-mainnet
+    source:
+      abi: FpmmMarket
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - MarketTrade
+        - Trader
+        - TraderMarketPosition
+      abis:
+        - name: FpmmMarket
+          file: ./abis/FpmmMarket.json
+      eventHandlers:
+        - event: FpmmBuy(indexed address,indexed uint8,uint256,uint256,uint256)
+          handler: handleFpmmBuy
+        - event: FpmmSell(indexed address,indexed uint8,uint256,uint256)
+          handler: handleFpmmSell
+        - event: TokensRedeemed(indexed address,indexed uint8,uint256,uint256)
+          handler: handleTokensRedeemed
+        - event: MarketInitialized(address[],string)
+          handler: handleMarketInitialized
+        - event: MarketSettled(uint256)
+          handler: handleMarketSettled
+        - event: PonsTokenResolved(indexed uint8,indexed address)
+          handler: handlePonsTokenResolved
+        - event: EventResolved(indexed uint8,indexed address,uint256)
+          handler: handleEventResolved
+      file: ./src/fpmm-market.ts

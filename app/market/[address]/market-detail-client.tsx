@@ -11,7 +11,7 @@ import {
   parseUnits,
   zeroAddress,
 } from "viem";
-import { useAccount, useWalletClient } from "wagmi";
+import { useSessionWallet } from "@/lib/session-wallet";
 import { AppLayout } from "@/app/components/app-layout";
 import { useSidebarOpen } from "@/app/components/sidebar-context";
 import { MarketChartPanel } from "@/app/market/components/market-chart-panel";
@@ -35,6 +35,7 @@ import {
   fetchIpfsMetadataClient,
   isWeakMarketMetadata,
   metadataImageUrl,
+  metadataLaunchpadMarket,
   metadataOutcomeLabels,
   metadataTitle,
 } from "@/lib/markets/fetch-metadata-client";
@@ -44,6 +45,13 @@ import {
   type CachedMarketCard,
 } from "@/lib/markets/market-card-cache";
 import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetworkMessage } from "@/lib/deployment";
+import { isFpmmMarket } from "@/lib/market-mechanism";
+import { formatUserTxError } from "@/lib/tx-error";
+import { tradeFeesFromAmount } from "@/lib/trade-fees";
+import {
+  MARKET_READ_ABI,
+  marketBuyCall,
+} from "@/lib/market-abi";
 const WAD = BigInt("1000000000000000000");
 const SLIPPAGE_PRESETS = [50, 100, 200, 300] as const;
 
@@ -65,31 +73,6 @@ type ObSnapshot = {
   askVolumes: bigint[];
 };
 
-const MARKET_ABI = parseAbi([
-  "function marketKind() view returns (uint8)",
-  "function metadataURI() view returns (string)",
-  "function stakeEndTimestamp() view returns (uint256)",
-  "function resolveAfterTimestamp() view returns (uint256)",
-  "function numOutcomes() view returns (uint8)",
-  "function state() view returns (uint8)",
-  "function collateralDecimals() view returns (uint8)",
-  "function realPool(uint256 outcomeIndex) view returns (uint256)",
-  "function priceOf(uint8 outcomeIndex) view returns (uint256)",
-  "function deposit(uint8 outcomeIndex, uint256 amount, address recipient, uint256 minSharesOut) payable",
-  "function collateralAddress() view returns (address)",
-  "function priceBinLower(uint256) view returns (uint256)",
-  "function priceBinUpper(uint256) view returns (uint256)",
-  "function chainlinkFeed() view returns (address)",
-  "function priceThreshold() view returns (uint256)",
-  "function priceThresholdKind() view returns (uint8)",
-  "function priceUpperBound() view returns (uint256)",
-  "function winningOutcomeIndex() view returns (uint256)",
-  "function settledOraclePrice() view returns (int256)",
-  "function settlementTimestamp() view returns (uint256)",
-  "function redemptionRate() view returns (uint256)",
-  "function outcomeToken(uint256) view returns (address)",
-  "function redeem(uint8 outcomeIndex, uint256 shareAmount)",
-]);
 const ERC20_ABI = parseAbi([
   "function allowance(address owner, address spender) view returns (uint256)",
   "function approve(address spender, uint256 amount) returns (bool)",
@@ -132,8 +115,7 @@ function formatTradeError(error: unknown): string {
   if (msg.includes("returned no data") || msg.includes("not a contract") || msg.includes(`not found on ${DEPLOYMENT_NETWORK_LABEL}`)) {
     return `Market price unavailable. Confirm you are on ${DEPLOYMENT_NETWORK_LABEL} and refresh the page.`;
   }
-  if (msg.includes("User rejected") || msg.includes("user rejected")) return "Transaction cancelled.";
-  return msg.length > 240 ? "Trade failed. Try again." : msg;
+  return formatUserTxError(error, "Trade failed. Try again.");
 }
 
 type Props = {
@@ -175,7 +157,7 @@ function MarketDescription({ text }: { text: string }) {
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-1 text-xs font-medium text-[var(--accent)] transition hover:opacity-80"
+          className="mt-1 text-xs font-medium text-[var(--foreground)] underline underline-offset-2 transition hover:opacity-80"
         >
           {expanded ? "Show less" : "Show more"}
         </button>
@@ -228,8 +210,7 @@ export function MarketDetailClient({
   initialLoadError = null,
 }: Props) {
   const publicClient = deploymentPublicClient;
-  const { address, chainId } = useAccount();
-  const { data: walletClient } = useWalletClient();
+  const { address, chainId, writeContract } = useSessionWallet();
 
   const routeKey = (routeParam || addressProp || "").trim();
 
@@ -283,6 +264,7 @@ export function MarketDetailClient({
   const [limitRefreshTick, setLimitRefreshTick] = useState(0);
   const [outcomeTokens, setOutcomeTokens] = useState<Record<number, `0x${string}`>>({});
   const [outcomeTokenBalance, setOutcomeTokenBalance] = useState<bigint | null>(null);
+  const [marketIsFpmm, setMarketIsFpmm] = useState(false);
   const [obSnapshot, setObSnapshot] = useState<ObSnapshot | null>(null);
   const [chartThemeKey, setChartThemeKey] = useState(() =>
     typeof document !== "undefined"
@@ -448,6 +430,20 @@ export function MarketDetailClient({
   }, [marketAddress, initialMarket, slugResolving]);
 
   useEffect(() => {
+    if (!marketAddress) {
+      setMarketIsFpmm(false);
+      return;
+    }
+    let cancelled = false;
+    void isFpmmMarket(deploymentPublicClient, marketAddress).then((fpmm) => {
+      if (!cancelled) setMarketIsFpmm(fpmm);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [marketAddress]);
+
+  useEffect(() => {
     void reload();
   }, [reload]);
 
@@ -459,7 +455,7 @@ export function MarketDetailClient({
       try {
         const uri = await publicClient.readContract({
           address: marketAddress,
-          abi: MARKET_ABI,
+          abi: MARKET_READ_ABI,
           functionName: "metadataURI",
         });
         const md = await fetchIpfsMetadataClient(String(uri));
@@ -478,7 +474,7 @@ export function MarketDetailClient({
                 ?.filter((x): x is string => typeof x === "string")
                 .map((x) => x.trim())
                 .filter(Boolean) ?? prev.categories,
-            nadMarket: md.nadMarket ?? prev.nadMarket,
+            nadMarket: metadataLaunchpadMarket(md) ?? prev.nadMarket,
           };
         });
       } catch {
@@ -504,7 +500,7 @@ export function MarketDetailClient({
     let cancelled = false;
     void (async () => {
       try {
-        const p = await readMarketPrice(market.address, selectedOutcome, MARKET_ABI);
+        const p = await readMarketPrice(market.address, selectedOutcome, MARKET_READ_ABI);
         if (!cancelled) setTradePriceRaw(p);
       } catch {
         if (!cancelled) setTradePriceRaw(null);
@@ -568,11 +564,7 @@ export function MarketDetailClient({
     if (!t || !Number.isFinite(Number(t)) || Number(t) <= 0) return null;
     try {
       const amountWei = parseUnits(t, market.collateralDecimals);
-      // Deduct 1.5% fee (0.3% creator + 1.2% protocol) before computing shares
-      // to match what the contract actually mints.
-      const creatorFee = (amountWei * BigInt(30)) / BigInt(10000);
-      const protocolFee = (amountWei * BigInt(120)) / BigInt(10000);
-      const netAmount = amountWei - creatorFee - protocolFee;
+      const { netAmount } = tradeFeesFromAmount(amountWei);
       const sharesWei = (netAmount * WAD) / tradePriceRaw;
       if (sharesWei === BigInt(0)) return null;
       return {
@@ -618,8 +610,9 @@ export function MarketDetailClient({
     if (market.marketState !== 0) return true;
     if (now >= market.resolveAfterUnix) return true;
     if (now >= market.stakeEndUnix) return true;
+    if (marketIsFpmm && market.collateralAddress.toLowerCase() === zeroAddress.toLowerCase()) return true;
     return false;
-  }, [market, tradeModalClock]);
+  }, [market, marketIsFpmm, tradeModalClock]);
 
   const approvalLine = useMemo(() => {
     if (!market) return "";
@@ -644,7 +637,7 @@ export function MarketDetailClient({
   };
 
   const submitTrade = async () => {
-    if (!market || !publicClient || !walletClient || !address) {
+    if (!market || !publicClient || !address) {
       setTradeStatus("Connect wallet first.");
       return;
     }
@@ -674,11 +667,9 @@ export function MarketDetailClient({
         setTradeStatus("Market price unavailable. Refresh and try again.");
         return;
       }
-      // Use net amount (after 1.5% fee) for slippage baseline so minSharesOut
+      // Use net amount (after 1.0% fee) for slippage baseline so minSharesOut
       // matches what the contract will actually mint.
-      const creatorFeeEst = (amountUnits * BigInt(30)) / BigInt(10000);
-      const protocolFeeEst = (amountUnits * BigInt(120)) / BigInt(10000);
-      const netAmountEst = amountUnits - creatorFeeEst - protocolFeeEst;
+      const { netAmount: netAmountEst } = tradeFeesFromAmount(amountUnits);
       const estSharesNet = (netAmountEst * WAD) / currentPrice;
       const slipBps = Math.min(5000, Math.max(1, tradeSlippageBps));
       const minSharesOut = (estSharesNet * BigInt(10_000 - slipBps)) / BigInt(10000);
@@ -692,8 +683,7 @@ export function MarketDetailClient({
         })) as bigint;
         if (allowance < amountUnits) {
           setTradeStatus("Approve collateral...");
-          const approveHash = await walletClient.writeContract({
-            chain: walletClient.chain,
+          const approveHash = await writeContract({
             address: market.collateralAddress,
             abi: ERC20_ABI,
             functionName: "approve",
@@ -704,14 +694,19 @@ export function MarketDetailClient({
         }
       }
       setTradeStatus("Submitting trade...");
-      const txHash = await walletClient.writeContract({
-        chain: walletClient.chain,
+      const buyCall = marketBuyCall(marketIsFpmm, {
+        outcomeIndex: selectedOutcome,
+        amountUnits,
+        recipient: address,
+        minSharesOut,
+      });
+      const txHash = await writeContract({
         address: market.address,
-        abi: MARKET_ABI,
-        functionName: "deposit",
-        args: [selectedOutcome, amountUnits, address, minSharesOut],
+        abi: buyCall.abi,
+        functionName: buyCall.functionName,
+        args: buyCall.args as never,
         account: address,
-        value: isNative ? amountUnits : undefined,
+        value: !marketIsFpmm && isNative ? amountUnits : undefined,
         gas: BigInt(500_000),
       });
       await publicClient.waitForTransactionReceipt({ hash: txHash });
@@ -743,7 +738,7 @@ export function MarketDetailClient({
       try {
         const token = (await publicClient.readContract({
           address: market.address,
-          abi: MARKET_ABI,
+          abi: MARKET_READ_ABI,
           functionName: "outcomeToken",
           args: [BigInt(selectedOutcome)],
         })) as `0x${string}`;
@@ -792,7 +787,7 @@ export function MarketDetailClient({
   }, [market, publicClient, selectedOutcome, outcomeTokens, limitRefreshTick]);
 
   const submitLimitOrderFromParams = async (params: LimitOrderParams) => {
-    if (!market || !publicClient || !walletClient || !address) throw new Error("Connect wallet first.");
+    if (!market || !publicClient || !address) throw new Error("Connect wallet first.");
     if (chainId !== DEPLOYMENT_CHAIN_ID) throw new Error(wrongNetworkMessage());
     const token = outcomeTokens[params.outcomeIndex];
     if (!token) throw new Error("Fetching token address — try again.");
@@ -808,14 +803,14 @@ export function MarketDetailClient({
         address: token, abi: ERC20_ABI, functionName: "allowance", args: [address, ORDERBOOK_ADDRESS],
       })) as bigint;
       if (allowance < amountUnits) {
-        const h = await walletClient.writeContract({
-          chain: walletClient.chain, address: token, abi: ERC20_ABI,
+        const h = await writeContract({
+          address: token, abi: ERC20_ABI,
           functionName: "approve", args: [ORDERBOOK_ADDRESS, amountUnits], account: address,
         });
         await publicClient.waitForTransactionReceipt({ hash: h });
       }
-      const tx = await walletClient.writeContract({
-        chain: walletClient.chain, address: ORDERBOOK_ADDRESS, abi: ORDERBOOK_ABI,
+      const tx = await writeContract({
+        address: ORDERBOOK_ADDRESS, abi: ORDERBOOK_ABI,
         functionName: "placeSellOrder", args: [market.address, token, priceUnits, amountUnits], account: address,
       });
       await publicClient.waitForTransactionReceipt({ hash: tx });
@@ -826,14 +821,14 @@ export function MarketDetailClient({
         address: market.collateralAddress, abi: ERC20_ABI, functionName: "allowance", args: [address, ORDERBOOK_ADDRESS],
       })) as bigint;
       if (allowance < escrow) {
-        const h = await walletClient.writeContract({
-          chain: walletClient.chain, address: market.collateralAddress, abi: ERC20_ABI,
+        const h = await writeContract({
+          address: market.collateralAddress, abi: ERC20_ABI,
           functionName: "approve", args: [ORDERBOOK_ADDRESS, escrow], account: address,
         });
         await publicClient.waitForTransactionReceipt({ hash: h });
       }
-      const tx = await walletClient.writeContract({
-        chain: walletClient.chain, address: ORDERBOOK_ADDRESS, abi: ORDERBOOK_ABI,
+      const tx = await writeContract({
+        address: ORDERBOOK_ADDRESS, abi: ORDERBOOK_ABI,
         functionName: "placeBuyOrder", args: [market.address, token, priceUnits, amountUnits], account: address,
       });
       await publicClient.waitForTransactionReceipt({ hash: tx });

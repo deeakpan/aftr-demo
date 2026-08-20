@@ -2,20 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { AppLayout } from "@/app/components/app-layout";
-import { brandPageTitle, brandWord } from "@/lib/brand-font";
-import { MON_COINGECKO_LOGO, USDC_COINGECKO_LOGO } from "@/lib/brand-assets";
+import { brandWord } from "@/lib/brand-font";
+import { ETH_COINGECKO_LOGO, USDC_COINGECKO_LOGO } from "@/lib/brand-assets";
+import { COMPANY_NAME, COMPANY_URL, PRODUCT_NAME } from "@/lib/product";
+import { NATIVE_CURRENCY_SYMBOL } from "@/lib/chain";
 
-const brandMondalore = brandWord;
-const brandPartner =
-  "font-mono text-sm font-semibold tracking-wide text-[var(--foreground)] underline decoration-[var(--accent)] decoration-2 underline-offset-[3px] md:text-base";
+const brand = brandWord;
 
 const sections = [
   { id: "overview", label: "Overview" },
-  { id: "traders", label: "For Traders" },
-  { id: "creators", label: "For Creators" },
-  { id: "stakers", label: "For Stakers" },
+  { id: "traders", label: "For traders" },
+  { id: "creators", label: "For creators" },
+  { id: "stakers", label: "For stakers" },
   { id: "settlement", label: "Settlement" },
-  { id: "nad-markets", label: "Nad markets" },
+  { id: "pons-markets", label: "Ponsfamily markets" },
 ];
 
 export default function HowItWorksPage() {
@@ -52,7 +52,7 @@ export default function HowItWorksPage() {
                   href={`#${section.id}`}
                   className={`block border-l-2 pl-3 text-sm transition ${
                     activeSection === section.id
-                      ? "border-[var(--accent)] text-[var(--foreground)]"
+                      ? "border-[var(--foreground)] text-[var(--foreground)]"
                       : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
                   }`}
                 >
@@ -65,80 +65,92 @@ export default function HowItWorksPage() {
           <main className="space-y-10">
             <section id="overview" className="scroll-mt-24 space-y-3">
               <h1 className="text-2xl font-bold text-[var(--foreground)] md:text-3xl">
-                How <span className={brandMondalore}>Mondalore Market</span> Works
+                How <span className={brand}>{PRODUCT_NAME}</span> works
               </h1>
               <p className="text-sm text-[var(--muted)] md:text-base">
-                <span className={brandMondalore}>Mondalore</span> is a planet of predictions — inspired
-                by the Mandalorian worlds of Star Wars, reimagined as an onchain market where traders,
-                creators, and stakers can all earn. Built in collaboration with the{" "}
-                <span className={brandPartner}>Anago CTO community</span> on Monad testnet.
+                <span className={brand}>{PRODUCT_NAME}</span> is a prediction-market product from{" "}
+                <a
+                  href={COMPANY_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-[var(--foreground)] underline underline-offset-2 hover:opacity-90"
+                >
+                  {COMPANY_NAME}
+                </a>
+                , built for Robinhood Chain. Create and trade markets on oracle prices, real-world
+                events, and Ponsfamily tokens. Pools, trades, and settlement are onchain.
               </p>
               <p className="text-sm text-[var(--muted)] md:text-base">
-                Launch and trade markets on real-world events and oracle-backed prices. Pools are
-                transparent, settlement is onchain, and fees flow back to creators and protocol
-                stakers — everyone who helps the planet grow shares in the upside.
+                Fees from trading accrue to market creators and protocol stakers. Explore the rest of
+                the {COMPANY_NAME} suite — including off-ramp and commerce — at{" "}
+                <a
+                  href={COMPANY_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-[var(--foreground)] underline underline-offset-2 hover:opacity-90"
+                >
+                  zedkr.finance
+                </a>
+                .
               </p>
               <div className="pt-1">
                 <p className="mb-2 text-sm font-medium text-[var(--foreground)]">
-                  Collateral: USDC and MON
+                  Collateral: USDC and {NATIVE_CURRENCY_SYMBOL}
                 </p>
                 <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
                   <div className="flex items-center gap-2">
-                    <img
-                      src={USDC_COINGECKO_LOGO}
-                      alt="USDC"
-                      className="h-6 w-6 rounded-full"
-                    />
+                    <img src={USDC_COINGECKO_LOGO} alt="USDC" className="h-6 w-6 rounded-full" />
                     <span>USDC</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <img src={MON_COINGECKO_LOGO} alt="MON" className="h-6 w-6 rounded-full" />
-                    <span>MON</span>
+                    <img src={ETH_COINGECKO_LOGO} alt={NATIVE_CURRENCY_SYMBOL} className="h-6 w-6 rounded-full" />
+                    <span>{NATIVE_CURRENCY_SYMBOL}</span>
                   </div>
                 </div>
               </div>
             </section>
 
             <section id="traders" className="scroll-mt-24 space-y-3">
-              <h2 className="text-xl font-semibold text-[var(--foreground)]">For Traders</h2>
+              <h2 className="text-xl font-semibold text-[var(--foreground)]">For traders</h2>
               <ol className="space-y-2 text-sm text-[var(--foreground)] md:text-base">
-                <li>1. Connect wallet and fund collateral (USDC or MON).</li>
-                <li>2. Pick a market and select an outcome (Yes / No or multi-outcome).</li>
-                <li>3. Place market trades, and use limit orders where available.</li>
-                <li>4. Track probability and position as pools update in real time.</li>
+                <li>1. Connect a wallet on Robinhood Chain and fund collateral (USDC or {NATIVE_CURRENCY_SYMBOL}).</li>
+                <li>2. Open a market and select an outcome (Yes / No, or a multi-outcome set).</li>
+                <li>3. Place a market trade, or a limit order where the book is available.</li>
+                <li>4. Watch probability and position as pool balances update.</li>
                 <li>5. After settlement, redeem winning shares for collateral.</li>
               </ol>
             </section>
 
             <section id="creators" className="scroll-mt-24 space-y-3">
-              <h2 className="text-xl font-semibold text-[var(--foreground)]">For Creators</h2>
+              <h2 className="text-xl font-semibold text-[var(--foreground)]">For creators</h2>
               <p className="text-sm text-[var(--muted)] md:text-base">
-                <span className={brandMondalore}>Mondalore</span> is permissionless: creators can launch
-                markets and earn from trading activity. In this deployment, each trade applies a 1.5%
-                total fee split into 0.3% creator fee and 1.2% protocol fee.
+                Anyone can list a market. In this deployment, each trade takes a 1.0% fee: 0.6% to the
+                creator and 0.4% to the protocol.
               </p>
               <ol className="space-y-2 text-sm text-[var(--foreground)] md:text-base">
-                <li>1. Create a market with title, metadata, outcomes, and times.</li>
-                <li>2. Choose market type: Price (Chainlink), Event (community resolution), or Nad ([Nad.fun](https://nad.fun) token stats).</li>
-                <li>3. Set stake close and resolve-after timestamps.</li>
-                <li>4. Seed initial liquidity with one-time permissionless bootstrap liquidity.</li>
-                <li>5. Market opens for trading, and creator fees accrue as users trade.</li>
+                <li>1. Create a market with title, outcomes, cover, and schedule.</li>
+                <li>
+                  2. Choose a type: Price (Chainlink), Event (community resolution), or Ponsfamily
+                  (graduated Uniswap v4 token stats).
+                </li>
+                <li>3. Set stake-close and resolve-after times.</li>
+                <li>4. Seed initial liquidity so the market can open.</li>
+                <li>5. Creator fees accrue as traders take positions.</li>
               </ol>
             </section>
 
             <section id="stakers" className="scroll-mt-24 space-y-3">
-              <h2 className="text-xl font-semibold text-[var(--foreground)]">For Stakers</h2>
+              <h2 className="text-xl font-semibold text-[var(--foreground)]">For stakers</h2>
               <p className="text-sm text-[var(--muted)] md:text-base">
-                Stakers align with the protocol by staking MONDO and receiving non-transferable
-                sMONDO receipts 1:1. Protocol fees route through the Mondalore fee vault and are split
-                between stakers and treasury.
+                Staking the protocol token mints a non-transferable receipt 1:1. Protocol fees flow
+                through the fee vault and are split between stakers and treasury.
               </p>
               <ul className="space-y-2 text-sm text-[var(--foreground)] md:text-base">
-                <li>- Market protocol fee is 1.2% per trade.</li>
+                <li>- Market protocol fee is 0.4% per trade.</li>
                 <li>- Of incoming vault fees, 0.2% is distributed to stakers pro-rata.</li>
                 <li>- The remaining 1.0% accrues to treasury per vault rules.</li>
-                <li>- Each deposit unlocks after the min lock duration; withdraw instantly once unlocked.</li>
-                <li>- Topping up stake starts a new lock — it does not reset earlier deposits.</li>
+                <li>- Each deposit unlocks after the minimum lock; withdraw once unlocked.</li>
+                <li>- Topping up starts a new lock and does not reset earlier deposits.</li>
               </ul>
             </section>
 
@@ -146,75 +158,59 @@ export default function HowItWorksPage() {
               <h2 className="text-xl font-semibold text-[var(--foreground)]">Settlement</h2>
               <ul className="space-y-2 text-sm text-[var(--foreground)] md:text-base">
                 <li>
-                  - Price markets read Chainlink at resolve time. Once the resolve-after timestamp
-                  passes, anyone can call settlement and the market finalizes in seconds.
+                  - Price markets read Chainlink at resolve time. After the resolve-after timestamp,
+                  anyone can trigger settlement.
                 </li>
                 <li>
-                  - Event markets are resolved through protocol admins, who review the
-                  creator’s resolution sources and confirm the winning outcome.
+                  - Event markets are resolved by protocol admins, who review the creator&apos;s
+                  sources and confirm the winning outcome.
                 </li>
                 <li>
-                  - Nad markets settle from{" "}
-                  <a
-                    href="https://nad.fun"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[var(--accent)] underline underline-offset-2"
-                  >
-                    Nad.fun
-                  </a>{" "}
-                  API data at resolve time (market cap, price, or holders per the question).
+                  - Ponsfamily markets settle from on-chain Uniswap v4 price and Chainlink USD
+                  conversion at resolve time (market cap or token price, per the question).
                 </li>
                 <li>- Winners redeem outcome shares for collateral after settlement.</li>
-                <li>- Market trades and pool moves are publicly verifiable onchain.</li>
+                <li>- Trades and pool updates are publicly verifiable on Robinhood Chain.</li>
               </ul>
             </section>
 
-            <section id="nad-markets" className="scroll-mt-24 space-y-3">
-              <h2 className="text-xl font-semibold text-[var(--foreground)]">Nad markets</h2>
+            <section id="pons-markets" className="scroll-mt-24 space-y-3">
+              <h2 className="text-xl font-semibold text-[var(--foreground)]">Ponsfamily markets</h2>
               <p className="text-sm text-[var(--muted)] md:text-base">
-                <strong>Nad markets</strong> are predictions on tokens launched on{" "}
+                Ponsfamily markets are predictions on tokens that have graduated to Uniswap v4 on
+                Robinhood Chain, with more than 5 ETH of DEX liquidity. Paste a token contract
+                address from{" "}
                 <a
-                  href="https://nad.fun"
+                  href="https://ponsfamily.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-[var(--accent)] underline underline-offset-2 hover:opacity-90"
+                  className="font-medium text-[var(--foreground)] underline underline-offset-2 hover:opacity-90"
                 >
-                  Nad.fun
+                  Ponsfamily
                 </a>
-                , Monad&apos;s meme-token launchpad. You pick one or more token contract addresses from
-                Nad.fun; traders bet on outcomes like market cap, price, or holder count — or which
-                token wins a head-to-head (e.g. highest mcap at resolve).
+                . Traders take positions on USD market cap, token price, or which token leads in a
+                head-to-head.
               </p>
               <p className="text-sm text-[var(--muted)] md:text-base">
-                While a market is open, cards show live token stats from Nad.fun. After{" "}
-                <strong>resolve after</strong>, settlement reads a Nad.fun API snapshot and finalizes
-                the winner automatically — no manual admin vote.
+                Live cards show pool-implied stats while the market is open. After{" "}
+                <strong>resolve after</strong>, settlement reads the Uniswap v4 pool and finalizes
+                the winner automatically — no admin vote.
               </p>
               <ul className="space-y-2 text-sm text-[var(--foreground)] md:text-base">
                 <li>
-                  - Browse tokens and copy addresses on{" "}
+                  - Copy token addresses from{" "}
                   <a
-                    href="https://nad.fun"
+                    href="https://ponsfamily.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[var(--accent)] underline underline-offset-2"
+                    className="text-[var(--foreground)] underline underline-offset-2"
                   >
-                    nad.fun
-                  </a>{" "}
-                  (testnet:{" "}
-                  <a
-                    href="https://testnet.nad.fun"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[var(--accent)] underline underline-offset-2"
-                  >
-                    testnet.nad.fun
+                    ponsfamily.com
                   </a>
-                  ).
+                  .
                 </li>
-                <li>- Threshold markets: Yes/No on mcap, price, or holders above a target.</li>
-                <li>- Comparison markets: two to four tokens; highest mcap or first to hit a target wins.</li>
+                <li>- Threshold markets: Yes/No on market cap or price above a target.</li>
+                <li>- Comparison markets: two to four tokens; highest market cap at resolve wins.</li>
               </ul>
             </section>
           </main>

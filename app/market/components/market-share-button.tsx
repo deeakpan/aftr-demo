@@ -27,7 +27,7 @@ export function MarketShareButton({
     const url = marketPublicUrl({ slug, address });
     try {
       if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-        await navigator.share({ title: title || "Mondalore market", url });
+        await navigator.share({ title: title || "Zedkr Market", url });
         return;
       }
     } catch {

@@ -1,5 +1,5 @@
 /** Public app origin — set `NEXT_PUBLIC_SITE_URL` in env (no trailing slash). */
-const DEFAULT_SITE_URL = "https://mondolore.fun";
+const DEFAULT_SITE_URL = "https://zedkr.finance";
 
 export function siteUrl(): string {
   const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim();
@@ -10,12 +10,12 @@ export function siteUrl(): string {
   return DEFAULT_SITE_URL;
 }
 
-/** Host + path prefix shown in create-form slug inputs (e.g. `mondolore.fun/market/`). */
+/** Host + path prefix shown in create-form slug inputs (e.g. `zedkr.finance/market/`). */
 export function marketSlugPrefixLabel(): string {
   try {
     const host = new URL(siteUrl()).host;
     return `${host}/market/`;
   } catch {
-    return "mondolore.fun/market/";
+    return "zedkr.finance/market/";
   }
 }

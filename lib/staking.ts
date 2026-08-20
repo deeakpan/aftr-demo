@@ -1,4 +1,4 @@
-import deployment from "@/lib/deployment";
+import deployment, { isDeployedAddress } from "@/lib/deployment";
 import { MON_COINGECKO_LOGO, USDC_COINGECKO_LOGO } from "@/lib/brand-assets";
 import { parseAbi, zeroAddress, type Address } from "viem";
 
@@ -12,8 +12,13 @@ type DeploymentContracts = {
 const contracts = (deployment as { contracts?: DeploymentContracts }).contracts ?? {};
 const vaultMeta = (deployment as { vault?: { stakeToken?: string; lockDuration?: string; epochDuration?: string; rewardTokens?: string[] } }).vault ?? {};
 
-export const VAULT_ADDRESS = contracts.MondaloreFeeVault as Address | undefined;
-export const STAKE_TOKEN_ADDRESS = (vaultMeta.stakeToken ?? contracts.MondaloreToken) as Address | undefined;
+export const VAULT_ADDRESS = isDeployedAddress(contracts.MondaloreFeeVault)
+  ? (contracts.MondaloreFeeVault as Address)
+  : undefined;
+const stakeTokenCandidate = vaultMeta.stakeToken ?? contracts.MondaloreToken;
+export const STAKE_TOKEN_ADDRESS = isDeployedAddress(stakeTokenCandidate)
+  ? (stakeTokenCandidate as Address)
+  : undefined;
 export const VAULT_LOCK_DURATION_SEC = Number(vaultMeta.lockDuration ?? "604800");
 export const VAULT_EPOCH_DURATION_SEC = Number(vaultMeta.epochDuration ?? "604800");
 
@@ -44,7 +49,7 @@ export const ERC20_ABI = parseAbi([
 
 export function rewardTokenLabel(token: Address): { symbol: string; logo?: string; decimals: number } {
   const lower = token.toLowerCase();
-  if (lower === zeroAddress) return { symbol: "MON", logo: MON_COINGECKO_LOGO, decimals: 18 };
+  if (lower === zeroAddress) return { symbol: "ETH", logo: MON_COINGECKO_LOGO, decimals: 18 };
   if (contracts.MondaloreUSDC && lower === contracts.MondaloreUSDC.toLowerCase()) {
     return { symbol: "USDC", logo: USDC_COINGECKO_LOGO, decimals: 6 };
   }
@@ -52,7 +57,7 @@ export function rewardTokenLabel(token: Address): { symbol: string; logo?: strin
     return { symbol: "WETH", logo: "https://assets.coingecko.com/coins/images/279/large/ethereum.png", decimals: 18 };
   }
   if (contracts.MondaloreToken && lower === contracts.MondaloreToken.toLowerCase()) {
-    return { symbol: "MONDO", logo: MON_COINGECKO_LOGO, decimals: 18 };
+    return { symbol: "ZDKR", logo: "/logo.png", decimals: 18 };
   }
   return { symbol: `${token.slice(0, 6)}…`, decimals: 18 };
 }

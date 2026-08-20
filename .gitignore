@@ -39,6 +39,9 @@ yarn-error.log*
 # local automation wallets (private keys)
 wallets.json
 
+# Para server wallet mappings (local)
+.data/
+
 # vercel
 .vercel
 

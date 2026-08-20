@@ -1,41 +1,52 @@
 /* eslint-disable no-console */
 /**
- * Register factory price feeds by asset key (owner-only).
+ * Register factory price feeds from deployment JSON chainlinkFeeds (owner-only).
  *
  * Usage:
+ *   npx hardhat run scripts/set-price-feeds.cjs --network robinhoodMainnet
  *   npx hardhat run scripts/set-price-feeds.cjs --network monadTestnet
- *
- * Registers BTC from deployments/monadTestnet-10143.json → contracts.MockBtcUsdFeed
  */
 const fs = require("fs");
 const path = require("path");
 const hre = require("hardhat");
+const { registerPriceFeedsOnFactory } = require("./lib/register-price-feeds.cjs");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
-const DEPLOYMENT_FILE = path.join(__dirname, "..", "deployments", "monadTestnet-10143.json");
-
-function assetKey(symbol) {
-  return hre.ethers.keccak256(hre.ethers.toUtf8Bytes(symbol.trim().toUpperCase()));
-}
+const DEPLOYMENTS_BY_NETWORK = {
+  robinhoodMainnet: "robinhoodMainnet-4663.json",
+  monadTestnet: "monadTestnet-10143.json",
+};
 
 async function main() {
-  const dep = JSON.parse(fs.readFileSync(DEPLOYMENT_FILE, "utf8"));
+  const networkName = hre.network.name;
+  const fileName = DEPLOYMENTS_BY_NETWORK[networkName];
+  if (!fileName) {
+    throw new Error(
+      `No deployment mapping for network "${networkName}". Supported: ${Object.keys(DEPLOYMENTS_BY_NETWORK).join(", ")}`,
+    );
+  }
+
+  const depPath = path.join(__dirname, "..", "deployments", fileName);
+  const dep = JSON.parse(fs.readFileSync(depPath, "utf8"));
   const factoryAddr = dep.contracts?.MondaloreParimutuelMarketFactory;
-  const btcFeed = dep.contracts?.MockBtcUsdFeed;
-  if (!factoryAddr) throw new Error("MondaloreParimutuelMarketFactory missing in deployment JSON");
-  if (!btcFeed) throw new Error("MockBtcUsdFeed missing — run deploy:mock-btc-feed first");
+  if (!factoryAddr || factoryAddr === "0x0000000000000000000000000000000000000000") {
+    throw new Error(`MondaloreParimutuelMarketFactory not deployed in ${fileName}`);
+  }
+
+  const feeds = dep.external?.chainlinkFeeds ?? [];
+  if (feeds.length === 0) {
+    throw new Error(`No external.chainlinkFeeds in ${fileName}`);
+  }
 
   const [signer] = await hre.ethers.getSigners();
   const factory = await hre.ethers.getContractAt("MondaloreParimutuelMarketFactory", factoryAddr);
 
-  const btcKey = assetKey("BTC");
   console.log("Factory:", factoryAddr);
   console.log("Signer:", signer.address);
-  console.log("Setting BTC feed:", btcFeed, "key:", btcKey);
+  console.log(`Registering ${feeds.length} feed(s) from ${fileName}…`);
 
-  const tx = await factory.setPriceFeed(btcKey, btcFeed);
-  await tx.wait();
-  console.log("priceFeeds[BTC] registered ✓");
+  const { registered, skipped } = await registerPriceFeedsOnFactory(factory, feeds, hre.ethers);
+  console.log(`Done — ${registered} updated, ${skipped} unchanged/skipped.`);
 }
 
 main().catch((e) => {

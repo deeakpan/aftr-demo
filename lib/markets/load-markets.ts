@@ -1,13 +1,18 @@
 import { formatUnits, parseAbi } from "viem";
 import { unstable_cache } from "next/cache";
 import { fetchMarketsFromSubgraph, type SubgraphMarketIndex } from "@/lib/subgraph/market-index";
-import deployment from "@/lib/deployment";
+import { fpmmFactoryAddress, parimutuelFactoryAddress } from "@/lib/market-factory";
+import { marketPoolFunction } from "@/lib/market-abi";
+import { isFpmmMarket } from "@/lib/market-mechanism";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
 import { fetchIpfsMetadata, ipfsToHttp, type IpfsMarketMetadata } from "@/lib/ipfs-metadata";
 import { isListableMarket } from "@/lib/market-metadata";
+import { launchpadMarketForDisplay, launchpadMarketFromMetadata } from "@/lib/launchpad-display";
 import { isPriceMarketKind, marketKindFromChain, type UiMarketKind } from "@/lib/markets/market-kind";
 
-const FACTORY_ADDRESS = deployment.contracts.MondaloreParimutuelMarketFactory as `0x${string}`;
+import { fpmmFactoryAddress, parimutuelFactoryAddress } from "@/lib/market-factory";
+import { marketPoolFunction } from "@/lib/market-abi";
+import { isFpmmMarket } from "@/lib/market-mechanism";
 
 const FACTORY_ABI = parseAbi([
   "function marketsLength() view returns (uint256)",
@@ -24,6 +29,7 @@ const MARKET_ABI = parseAbi([
   "function collateralDecimals() view returns (uint8)",
   "function collateralAddress() view returns (address)",
   "function realPool(uint256 outcomeIndex) view returns (uint256)",
+  "function poolBalances(uint256 outcomeIndex) view returns (uint256)",
   "function priceOf(uint8 outcomeIndex) view returns (uint256)",
   "function priceBinLower(uint256) view returns (uint256)",
   "function priceBinUpper(uint256) view returns (uint256)",
@@ -292,6 +298,7 @@ type MarketChainSlice = {
 type MarketLoadEntry = {
   address: `0x${string}`;
   subgraph: SubgraphMarketIndex | null;
+  isFpmm: boolean;
 };
 
 function buildMarketListItem(
@@ -322,6 +329,9 @@ function buildMarketListItem(
     leftPct = outcomeChancePcts[0] ?? leftPct;
   }
 
+  const launchpadRaw = launchpadMarketFromMetadata(md as Record<string, unknown> | null);
+  const nadMarket = launchpadMarketForDisplay(md as Record<string, unknown> | null);
+
   return {
     address,
     kind: uiKind,
@@ -335,6 +345,7 @@ function buildMarketListItem(
     description: md?.description?.trim() || "No description provided.",
     imageUrl:
       ipfsToHttp(md?.image?.trim() || "") ||
+      launchpadRaw?.tokens?.[0]?.imageUri?.trim() ||
       md?.nadMarket?.tokens?.[0]?.imageUri?.trim() ||
       "",
     stakeEnds: fmtTs(slice.stake),
@@ -353,7 +364,7 @@ function buildMarketListItem(
         ?.filter((x): x is string => typeof x === "string")
         .map((x) => x.trim())
         .filter(Boolean) ?? [],
-    nadMarket: md?.nadMarket,
+    nadMarket,
     collateralAddress: slice.collateralAddress,
     collateralDecimals: slice.dec,
     priceBinByOutcome,
@@ -382,21 +393,14 @@ async function multicallChunked(
   return out;
 }
 
-async function resolveMarketEntries(): Promise<MarketLoadEntry[]> {
-  const fromSubgraph = await fetchMarketsFromSubgraph(500);
-  if (fromSubgraph.length > 0) {
-    return fromSubgraph
-      .map((m) => ({
-        address: m.id.trim() as `0x${string}`,
-        subgraph: m,
-      }))
-      .filter((e) => /^0x[a-fA-F0-9]{40}$/i.test(e.address));
-  }
-
+async function listFactoryMarkets(
+  factory: `0x${string}`,
+  isFpmm: boolean,
+): Promise<MarketLoadEntry[]> {
   const publicClient = deploymentPublicClient;
   const total = Number(
     await publicClient.readContract({
-      address: FACTORY_ADDRESS,
+      address: factory,
       abi: FACTORY_ABI,
       functionName: "marketsLength",
     }),
@@ -405,7 +409,7 @@ async function resolveMarketEntries(): Promise<MarketLoadEntry[]> {
 
   const addressReads = await publicClient.multicall({
     contracts: Array.from({ length: total }, (_, idx) => ({
-      address: FACTORY_ADDRESS,
+      address: factory,
       abi: FACTORY_ABI,
       functionName: "markets" as const,
       args: [BigInt(total - 1 - idx)] as const,
@@ -415,7 +419,32 @@ async function resolveMarketEntries(): Promise<MarketLoadEntry[]> {
   return addressReads
     .map((r) => r.result as `0x${string}` | undefined)
     .filter((a): a is `0x${string}` => Boolean(a))
-    .map((address) => ({ address, subgraph: null }));
+    .map((address) => ({ address, subgraph: null, isFpmm }));
+}
+
+async function resolveMarketEntries(): Promise<MarketLoadEntry[]> {
+  const fromSubgraph = await fetchMarketsFromSubgraph(500);
+  if (fromSubgraph.length > 0) {
+    return fromSubgraph
+      .map((m) => ({
+        address: m.id.trim() as `0x${string}`,
+        subgraph: m,
+        isFpmm: m.mechanism === "fpmm",
+      }))
+      .filter((e) => /^0x[a-fA-F0-9]{40}$/i.test(e.address));
+  }
+
+  const entries: MarketLoadEntry[] = [];
+  const pari = parimutuelFactoryAddress();
+  const fpmm = fpmmFactoryAddress();
+  if (pari) entries.push(...(await listFactoryMarkets(pari, false)));
+  if (fpmm) entries.push(...(await listFactoryMarkets(fpmm, true)));
+
+  const byAddr = new Map<string, MarketLoadEntry>();
+  for (const e of entries) {
+    byAddr.set(e.address.toLowerCase(), e);
+  }
+  return [...byAddr.values()];
 }
 
 async function loadMarketsListUncached(): Promise<MarketListItem[]> {
@@ -518,11 +547,12 @@ async function loadMarketsListUncached(): Promise<MarketListItem[]> {
   const phase2Contracts = entries.flatMap((entry, i) => {
     const slice = slices[i];
     if (!slice || slice.outcomeCount <= 0) return [];
+    const poolFn = marketPoolFunction(entry.isFpmm);
     return Array.from({ length: slice.outcomeCount }, (_, o) => [
       {
         address: entry.address,
         abi: MARKET_ABI,
-        functionName: "realPool" as const,
+        functionName: poolFn as "realPool" | "poolBalances",
         args: [BigInt(o)] as const,
       },
       {
@@ -544,7 +574,8 @@ async function loadMarketsListUncached(): Promise<MarketListItem[]> {
     if (!slice) continue;
 
     const md = slice.uri ? (mdByUri.get(slice.uri) ?? null) : null;
-    if (!isListableMarket(slice.uri, md?.image, md?.nadMarket)) continue;
+    const launchpadRaw = launchpadMarketFromMetadata(md as Record<string, unknown> | null);
+    if (!isListableMarket(slice.uri, md?.image, launchpadRaw ?? md?.nadMarket)) continue;
 
     let poolTvlRaw = BigInt(0);
     const priceResults: bigint[] = [];
@@ -623,9 +654,11 @@ async function loadMarketRow(
   const outcomeCount = Number(outcomes);
   const dec = Number(collateralDecimals);
   const isPrice = isPriceMarketKind(Number(kind));
+  const isFpmm = await isFpmmMarket(publicClient, marketAddress);
+  const poolFn = marketPoolFunction(isFpmm);
 
   const outcomeContracts = Array.from({ length: outcomeCount }, (_, i) => [
-    { address: marketAddress, abi: MARKET_ABI, functionName: "realPool" as const, args: [BigInt(i)] as const },
+    { address: marketAddress, abi: MARKET_ABI, functionName: poolFn as "realPool" | "poolBalances", args: [BigInt(i)] as const },
     { address: marketAddress, abi: MARKET_ABI, functionName: "priceOf" as const, args: [i] as const },
   ]).flat();
 
@@ -636,7 +669,7 @@ async function loadMarketRow(
       : Promise.resolve([]),
   ]);
 
-  if (requireListable && !isListableMarket(uri, md?.image, md?.nadMarket)) {
+  if (requireListable && !isListableMarket(uri, md?.image, launchpadMarketFromMetadata(md as Record<string, unknown> | null) ?? md?.nadMarket)) {
     return null;
   }
 

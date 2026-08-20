@@ -10,7 +10,6 @@ import { AppLayout } from "@/app/components/app-layout";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
 import { DEPLOYMENT_CHAIN_ID, wrongNetworkMessage } from "@/lib/deployment";
 import { brandPageTitle, brandSectionHeading, brandSectionSubheading } from "@/lib/brand-font";
-import { MON_COINGECKO_LOGO } from "@/lib/brand-assets";
 import { readVaultSnapshot } from "@/lib/staking-vault-reads";
 import {
   ERC20_ABI,
@@ -42,8 +41,9 @@ function formatTimeRemaining(unlockAtSec: bigint, nowSec: number) {
   return `${mins}m`;
 }
 
-function formatTokenAmount(raw: bigint, decimals: number, maxFrac = 4) {
-  const n = Number(formatUnits(raw, decimals));
+function formatTokenAmount(raw: bigint | undefined | null, decimals: number, maxFrac = 4) {
+  const amount = raw ?? BigInt(0);
+  const n = Number(formatUnits(amount, decimals));
   if (!Number.isFinite(n)) return "0";
   return n.toLocaleString(undefined, { maximumFractionDigits: maxFrac });
 }
@@ -306,7 +306,7 @@ export function StakeClient() {
     return (
       <AppLayout showSearch={false}>
         <div className="mx-auto flex min-h-[50vh] max-w-lg items-center justify-center px-4 text-center text-sm text-[var(--muted)]">
-          Staking vault is not configured in the current deployment.
+          Staking is not live on Robinhood Chain yet. The vault has not been deployed.
         </div>
       </AppLayout>
     );
@@ -316,18 +316,18 @@ export function StakeClient() {
     <AppLayout showSearch={false} pageBackgroundClassName="aftr-page-bg-gradient">
       <div className="mx-auto w-full max-w-lg px-4 pb-8 pt-8 sm:px-5 md:pb-12 md:pt-12">
         <div className="mb-8 text-center">
-          <h1 className={`text-3xl font-bold tracking-tight md:text-4xl ${brandPageTitle}`}>Stake MONDO</h1>
+          <h1 className={`text-3xl font-bold tracking-tight md:text-4xl ${brandPageTitle}`}>Stake ZDKR</h1>
           <p className="mt-2 text-sm text-[var(--muted)] md:text-base">
-            Stake MONDO and receive sMONDO while earning a share of protocol fees.
+            Stake ZDKR and receive sZDKR while earning a share of protocol fees.
           </p>
         </div>
 
         {/* Primary stake card */}
         <section className="glass-panel overflow-hidden rounded-3xl">
           <div className="px-4 py-4 sm:px-5 sm:py-5">
-            <label className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">MONDO amount</label>
+            <label className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">ZDKR amount</label>
             <div className="glass-panel-inset mt-2 flex items-center gap-2 rounded-2xl px-3 py-3 sm:gap-3 sm:px-4">
-              <img src={MON_COINGECKO_LOGO} alt="MONDO" className="h-7 w-7 shrink-0 rounded-full object-cover sm:h-8 sm:w-8" />
+              <img src="/logo.png" alt="ZDKR" className="h-7 w-7 shrink-0 rounded-full object-cover sm:h-8 sm:w-8" />
               <input
                 type="text"
                 inputMode="decimal"
@@ -350,7 +350,7 @@ export function StakeClient() {
             <StatusMessage message={stakeStatus} className="mt-2" />
             {address && (
               <p className="mt-2 text-xs text-[var(--muted)]">
-                Wallet balance: {formatTokenAmount(walletBalance, stakeDecimals)} MONDO
+                Wallet balance: {formatTokenAmount(walletBalance, stakeDecimals)} ZDKR
               </p>
             )}
           </div>
@@ -371,7 +371,7 @@ export function StakeClient() {
                 onClick={() => void handleStake()}
                 className="w-full rounded-2xl bg-[var(--accent)] py-3.5 text-base font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:py-4"
               >
-                {busy ? "Processing…" : "Stake MONDO"}
+                {busy ? "Processing…" : "Stake ZDKR"}
               </button>
             )}
           </div>
@@ -379,9 +379,9 @@ export function StakeClient() {
           <div className="px-4 py-2 pb-5 sm:px-5 sm:pb-6">
             <StatRow
               label="You will receive"
-              value={`${formatTokenAmount(willReceive, stakeDecimals)} sMONDO`}
+              value={`${formatTokenAmount(willReceive, stakeDecimals)} sZDKR`}
             />
-            <StatRow label="Exchange rate" value="1 MONDO = 1 sMONDO" />
+            <StatRow label="Exchange rate" value="1 ZDKR = 1 sZDKR" />
             <StatRow label="Min lock per deposit" value={formatDuration(lockDuration)} />
             <StatRow
               label="Staker fee share"
@@ -402,9 +402,9 @@ export function StakeClient() {
           <div className="px-4 py-2 pb-1 sm:px-5 sm:py-3">
             <StatRow
               label="Total staked (protocol)"
-              value={`${formatTokenAmount(totalStaked, stakeDecimals)} MONDO`}
+              value={`${formatTokenAmount(totalStaked, stakeDecimals)} ZDKR`}
             />
-            <StatRow label="Your stake" value={`${formatTokenAmount(stakedReceipt, stakeDecimals)} sMONDO`} />
+            <StatRow label="Your stake" value={`${formatTokenAmount(stakedReceipt, stakeDecimals)} sZDKR`} />
             <StatRow label="Current epoch" value={currentEpoch.toString()} />
             <StatRow
               label="Claimable rewards"
@@ -420,11 +420,11 @@ export function StakeClient() {
               <>
                 <StatRow
                   label="Withdrawable now"
-                  value={`${formatTokenAmount(withdrawable, stakeDecimals)} MONDO`}
+                  value={`${formatTokenAmount(withdrawable, stakeDecimals)} ZDKR`}
                 />
                 <StatRow
                   label="Still locked"
-                  value={`${formatTokenAmount(locked, stakeDecimals)} MONDO`}
+                  value={`${formatTokenAmount(locked, stakeDecimals)} ZDKR`}
                 />
                 <StatRow
                   label={canWithdrawNow && locked > BigInt(0) ? "Next unlock in" : "Withdraw status"}
@@ -447,7 +447,7 @@ export function StakeClient() {
 
               <div>
                 <label className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
-                  Withdraw amount (MONDO)
+                  Withdraw amount (ZDKR)
                 </label>
                 <div className="relative mt-2">
                   <input
@@ -466,7 +466,7 @@ export function StakeClient() {
                         formatUnits(withdrawable, stakeDecimals).replace(/(\.\d{6})\d+$/, "$1"),
                       )
                     }
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[var(--accent)] transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[var(--foreground)] transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Max
                   </button>
@@ -482,7 +482,7 @@ export function StakeClient() {
                   onClick={() => void handleWithdraw()}
                   className="mt-2 w-full rounded-xl bg-[var(--glass-inset-bg)] py-3 text-sm font-semibold text-[var(--foreground)] transition hover:brightness-110 disabled:opacity-40"
                 >
-                  Withdraw MONDO
+                  Withdraw ZDKR
                 </button>
                 {withdrawable === BigInt(0) && stakedReceipt > BigInt(0) && (
                   <p className="mt-2 text-xs text-[var(--muted)]">
@@ -502,9 +502,9 @@ export function StakeClient() {
         )}
 
         <p className="mt-6 text-center text-xs leading-relaxed text-[var(--muted)] sm:text-sm">
-          sMONDO is non-transferable. Each deposit has its own {formatDuration(lockDuration)} lock — topping up
+          sZDKR is non-transferable. Each deposit has its own {formatDuration(lockDuration)} lock — topping up
           does not reset earlier deposits. Withdraw instantly once a lot unlocks.{" "}
-          <Link href="/how-it-works#stakers" className="text-[var(--accent)] hover:underline">
+          <Link href="/how-it-works#stakers" className="text-[var(--foreground)] underline underline-offset-2 transition hover:opacity-80">
             Learn more
           </Link>
         </p>

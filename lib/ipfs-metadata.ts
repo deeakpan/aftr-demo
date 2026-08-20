@@ -22,6 +22,8 @@ export type IpfsMarketMetadata = {
   /** Public URLs admins should use when resolving event markets. */
   resolutionSources?: Array<{ label?: string; url: string } | string>;
   nadMarket?: import("@/lib/nad/types").NadMarketConfig;
+  ponsMarket?: import("@/lib/pons/types").PonsMarketConfig;
+  marketKind?: string;
 };
 
 export type IpfsFetchAttemptInfo =

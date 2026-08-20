@@ -10,6 +10,7 @@ export function handleMarketCreated(event: MarketCreated): void {
   const m = new MarketEntity(id);
   m.kind = event.params.kind;
   m.state = 0;
+  m.mechanism = "parimutuel";
   m.collateralToken = addrId(event.params.collateralToken);
   m.stakeEndTimestamp = event.params.stakeEndTimestamp;
   m.resolveAfterTimestamp = event.params.resolveAfterTimestamp;

@@ -7,47 +7,47 @@
 }
 
 :root {
-  --background: #050507;
-  --foreground: #f5f3ff;
-  --card: #0f0b1d;
-  --border: #322054;
-  --accent: #8b5cf6;
-  --muted: #a09ab8;
-  --surface: #100a1f;
-  --surface-hover: #1a1230;
-  --elevated-card-shadow: 0 10px 28px rgb(2 6 23 / 0.45);
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #121316;
+  --border: #2a2b2e;
+  --accent: #3b82f6;
+  --muted: #9ca3af;
+  --surface: #161718;
+  --surface-hover: #1e1f22;
+  --elevated-card-shadow: 0 10px 28px rgb(0 0 0 / 0.45);
   --outcome-yes: #22c55e;
   --outcome-yes-hover: #16a34a;
   --outcome-no: #ef4444;
   --outcome-no-hover: #dc2626;
   --trade-highlight: #facc15;
-  --glass-bg: color-mix(in srgb, var(--surface) 80%, rgb(139 92 246 / 0.1));
-  --glass-border: color-mix(in srgb, var(--border) 60%, rgb(255 255 255 / 0.08));
-  --glass-inset-bg: color-mix(in srgb, var(--card) 70%, rgb(139 92 246 / 0.06));
+  --glass-bg: color-mix(in srgb, var(--surface) 88%, rgb(255 255 255 / 0.04));
+  --glass-border: color-mix(in srgb, var(--border) 70%, rgb(255 255 255 / 0.06));
+  --glass-inset-bg: color-mix(in srgb, var(--card) 88%, rgb(255 255 255 / 0.03));
   --glass-highlight: color-mix(in srgb, var(--foreground) 8%, transparent);
-  --glass-shadow: 0 12px 32px rgb(2 6 23 / 0.28);
+  --glass-shadow: 0 12px 32px rgb(0 0 0 / 0.32);
 }
 
 :root[data-theme="light"] {
-  --background: #f7f8ff;
-  --foreground: #17122a;
+  --background: #f4f4f5;
+  --foreground: #0b0c0e;
   --card: #ffffff;
-  --border: #d8d8f0;
-  --accent: #7c4dff;
-  --muted: #6e6790;
-  --surface: #f2f0ff;
-  --surface-hover: #ece7ff;
-  --elevated-card-shadow: 0 10px 28px rgb(23 18 42 / 0.1);
+  --border: #d4d4d8;
+  --accent: #2563eb;
+  --muted: #71717a;
+  --surface: #ececee;
+  --surface-hover: #e4e4e7;
+  --elevated-card-shadow: 0 10px 28px rgb(11 12 14 / 0.08);
   --outcome-yes: #22c55e;
   --outcome-yes-hover: #16a34a;
   --outcome-no: #ef4444;
   --outcome-no-hover: #dc2626;
   --trade-highlight: #facc15;
-  --glass-bg: color-mix(in srgb, var(--card) 88%, rgb(124 77 255 / 0.05));
-  --glass-border: color-mix(in srgb, var(--border) 75%, transparent);
-  --glass-inset-bg: color-mix(in srgb, var(--surface) 82%, transparent);
+  --glass-bg: color-mix(in srgb, var(--card) 92%, rgb(11 12 14 / 0.03));
+  --glass-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --glass-inset-bg: color-mix(in srgb, var(--surface) 86%, transparent);
   --glass-highlight: rgb(255 255 255 / 0.92);
-  --glass-shadow: 0 10px 28px rgb(23 18 42 / 0.08);
+  --glass-shadow: 0 10px 28px rgb(11 12 14 / 0.08);
 }
 
 @theme inline {
@@ -68,25 +68,41 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
+::selection {
+  background: #ffffff;
+  color: #000000;
+}
+
+::-moz-selection {
+  background: #ffffff;
+  color: #000000;
+}
+
+:root[data-theme="light"] ::selection,
+:root[data-theme="light"] ::-moz-selection {
+  background: #0b0c0e;
+  color: #ffffff;
+}
+
 /** Page shell gradient — dark / light (used by leaderboard & trades AppLayout). */
 .aftr-page-bg-gradient {
-  background-image: linear-gradient(to top, #2a0f4a, #130a24, #050308);
+  background-image: linear-gradient(to top, #111111, #050505, #000000);
 }
 
 :root[data-theme="light"] .aftr-page-bg-gradient {
   background-image: linear-gradient(
     to top,
-    #e8e2ff 0%,
-    #f2efff 38%,
+    #e4e4e7 0%,
+    #f0f0f2 38%,
     var(--background) 100%
   );
 }
 
 :root {
-  --overlay-scrim: rgb(8 6 20 / 0.58);
+  --overlay-scrim: rgb(0 0 0 / 0.58);
 }
 :root[data-theme="light"] {
-  --overlay-scrim: rgb(23 18 42 / 0.22);
+  --overlay-scrim: rgb(11 12 14 / 0.22);
 }
 
 .deposit-ring::before {

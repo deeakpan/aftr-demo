@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isBuyTradeKind, tradeKindLabel } from "@/lib/market-abi";
 import { ArrowSquareOut } from "@phosphor-icons/react";
 import { formatUnits } from "viem";
 import { txExplorerUrl } from "@/lib/chain";
@@ -132,7 +133,8 @@ export function MarketTradeList({
       {!loading && !unavailable && trades.length > 0 && (
         <ul className="styled-scroll max-h-[17.5rem] space-y-2 overflow-y-auto overscroll-contain pr-1 sm:max-h-[18.5rem]">
           {trades.map((t) => {
-            const isBuy = t.kind === "deposit";
+            const isBuy = isBuyTradeKind(t.kind);
+            const isSell = t.kind === "sell";
             const outcome =
               outcomeLabels[t.outcomeIndex] ?? `Outcome ${t.outcomeIndex + 1}`;
             const amount = formatAmount(t.collateralAmount, collateralDecimals);
@@ -144,7 +146,7 @@ export function MarketTradeList({
               <>
                 <div
                   className={`absolute inset-y-2.5 left-0 w-1 rounded-full ${
-                    isBuy ? "bg-[var(--outcome-yes)]" : "bg-[var(--outcome-no)]"
+                    isBuy ? "bg-[var(--outcome-yes)]" : isSell ? "bg-amber-500" : "bg-[var(--outcome-no)]"
                   }`}
                   aria-hidden
                 />
@@ -156,10 +158,12 @@ export function MarketTradeList({
                         className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
                           isBuy
                             ? "bg-[var(--outcome-yes)]/15 text-[var(--outcome-yes)]"
-                            : "bg-[var(--outcome-no)]/15 text-[var(--outcome-no)]"
+                            : isSell
+                              ? "bg-amber-500/15 text-amber-600"
+                              : "bg-[var(--outcome-no)]/15 text-[var(--outcome-no)]"
                         }`}
                       >
-                        {isBuy ? "Buy" : "Redeem"}
+                        {tradeKindLabel(t.kind)}
                       </span>
                       <span className="truncate text-[13px] font-semibold text-[var(--foreground)]">
                         {outcome}

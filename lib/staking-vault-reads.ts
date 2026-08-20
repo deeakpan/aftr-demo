@@ -22,6 +22,10 @@ export type VaultSnapshot = {
 
 let cachedMeta: VaultMeta | null = null;
 
+function asBigInt(value: unknown): bigint {
+  return typeof value === "bigint" ? value : BigInt(0);
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -124,22 +128,22 @@ async function readVaultSnapshotOnce(
       ],
     });
 
-    walletBalance = userRows[0]!.result as bigint;
-    stakedReceipt = userRows[1]!.result as bigint;
-    const earned = userRows[2]!.result as [Address[], bigint[]];
-    earnedTokens = earned[0] ?? [];
-    earnedAmounts = earned[1] ?? [];
-    const status = userRows[3]!.result as [bigint, bigint, bigint];
-    withdrawable = status[0] ?? BigInt(0);
-    locked = status[1] ?? BigInt(0);
-    nextUnlockAt = status[2] ?? BigInt(0);
+    walletBalance = asBigInt(userRows[0]?.result);
+    stakedReceipt = asBigInt(userRows[1]?.result);
+    const earned = userRows[2]?.result as [Address[], bigint[]] | undefined;
+    earnedTokens = earned?.[0] ?? [];
+    earnedAmounts = earned?.[1] ?? [];
+    const status = userRows[3]?.result as [bigint, bigint, bigint] | undefined;
+    withdrawable = asBigInt(status?.[0]);
+    locked = asBigInt(status?.[1]);
+    nextUnlockAt = asBigInt(status?.[2]);
   }
 
   return {
     meta,
     snapshot: {
-      totalStaked: globalRows[0]!.result as bigint,
-      currentEpoch: globalRows[1]!.result as bigint,
+      totalStaked: asBigInt(globalRows[0]?.result),
+      currentEpoch: asBigInt(globalRows[1]?.result),
       walletBalance,
       stakedReceipt,
       earnedTokens,

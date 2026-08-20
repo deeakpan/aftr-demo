@@ -3,7 +3,8 @@
 import { defaultWagmiConfig } from "@web3modal/wagmi/react/config";
 import { cookieStorage, createStorage } from "wagmi";
 import { http } from "wagmi";
-import { deploymentRpcUrl, monadTestnet } from "@/lib/chain";
+import { deploymentRpcUrl, DEPLOYMENT_CHAIN } from "@/lib/chain";
+import { PRODUCT_DESCRIPTION, PRODUCT_NAME } from "@/lib/product";
 
 const envProjectId = (process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "").trim();
 const envAppUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").trim();
@@ -14,13 +15,13 @@ export const hasWalletConnectProjectId = envProjectId.length > 0;
 export const walletConnectProjectId = hasWalletConnectProjectId ? envProjectId : "demo-project-id";
 
 const metadata = {
-  name: "Mondalore Market",
-  description: "The planet of predictions — onchain markets on Monad",
+  name: PRODUCT_NAME,
+  description: PRODUCT_DESCRIPTION,
   url: appUrl,
   icons: [] as string[],
 };
 
-const chains = [monadTestnet] as const;
+const chains = [DEPLOYMENT_CHAIN] as const;
 
 /** Client-only wagmi config (avoids indexedDB / WalletConnect init during SSR). */
 export const wagmiConfig = defaultWagmiConfig({
@@ -34,5 +35,5 @@ export const wagmiConfig = defaultWagmiConfig({
   }),
   auth: { email: false, socials: [] },
   /** Same RPC as chain definition — used for reads; wallet uses its own RPC when signing. */
-  transports: { [monadTestnet.id]: http(deploymentRpcUrl()) },
+  transports: { [DEPLOYMENT_CHAIN.id]: http(deploymentRpcUrl()) },
 });

@@ -10,6 +10,8 @@ type PriceFeed @entity(immutable: false) {
 type Market @entity(immutable: false) {
   id: ID!
   kind: Int!
+  """parimutuel | fpmm"""
+  mechanism: String!
   """0=OPEN, 1=AWAITING_UMA, 2=SETTLED, 3=CANCELLED"""
   state: Int!
   collateralToken: String!
@@ -34,7 +36,7 @@ type MarketTrade @entity(immutable: true) {
   blockNumber: BigInt!
   collateralAmount: BigInt!
   outcomeIndex: Int!
-  """deposit | redeem"""
+  """deposit | buy | sell | redeem"""
   kind: String!
 }
 

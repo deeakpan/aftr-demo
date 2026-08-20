@@ -12,8 +12,8 @@ const { deployParimutuelFacade } = require("../scripts/lib/deploy-parimutuel-fac
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const BPS = 10_000n;
-const CREATOR_FEE_BPS = 30n;   // 0.3%
-const PROTOCOL_FEE_BPS = 120n; // 1.2%
+const CREATOR_FEE_BPS = 60n;   // 0.6%
+const PROTOCOL_FEE_BPS = 40n; // 0.4%
 const MIN_DEPOSIT = 1000n;
 
 function bps(amount, fee) {
@@ -208,13 +208,13 @@ describe("Market Lifecycle — Create, Trade, Redeem", function () {
       await market.connect(trader1).deposit(0, TRADE_AMOUNT, trader1.address, 0n);
     });
 
-    it("creator received 0.3% fee", async function () {
+    it("creator received 0.6% fee", async function () {
       const expectedFee = bps(TRADE_AMOUNT, CREATOR_FEE_BPS);
       const creatorBalAfter = await usdc.balanceOf(creator.address);
       expect(creatorBalAfter - creatorBalBefore).to.equal(expectedFee);
     });
 
-    it("feeRecipient received 1.2% fee", async function () {
+    it("feeRecipient received 0.4% fee", async function () {
       const expectedFee = bps(TRADE_AMOUNT, PROTOCOL_FEE_BPS);
       const feeRecipientBalAfter = await usdc.balanceOf(feeRecipient.address);
       expect(feeRecipientBalAfter - feeRecipientBalBefore).to.equal(expectedFee);

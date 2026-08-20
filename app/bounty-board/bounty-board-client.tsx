@@ -54,7 +54,7 @@ export function BountyBoardClient() {
           </h1>
         </div>
         <p className="max-w-xl text-sm text-[var(--muted)]">
-          Top hunters on Mondalore — wallets ranked by indexed realized PnL.
+          Top traders on Zedkr Market — wallets ranked by indexed realized PnL.
         </p>
 
         {error && <p className="mt-4 text-sm text-red-400">{error}</p>}

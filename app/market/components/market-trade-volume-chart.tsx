@@ -281,7 +281,7 @@ export function MarketTradeVolumeChart({
             <button
               type="button"
               onClick={() => setReloadKey((k) => k + 1)}
-              className="text-xs font-medium text-[var(--accent)] hover:underline"
+              className="text-xs font-medium text-[var(--foreground)] underline underline-offset-2 hover:opacity-80"
             >
               Retry
             </button>

@@ -1,4 +1,5 @@
 import { ipfsToHttp, type IpfsMarketMetadata } from "@/lib/ipfs-metadata";
+import { launchpadMarketForDisplay, launchpadMarketFromMetadata } from "@/lib/launchpad-display";
 import type { UiMarketKind } from "@/lib/markets/market-kind";
 
 const IPFS_GATEWAYS = [
@@ -45,12 +46,22 @@ export function metadataTitle(md: IpfsMarketMetadata | null | undefined, kind: U
   const title = md?.title?.trim() || md?.question?.trim();
   if (title) return title;
   if (kind === "Price") return "Price market";
-  if (kind === "Nad") return "NAD market";
+  if (kind === "Nad") return "Launchpad market";
   return "Event market";
 }
 
 export function metadataImageUrl(md: IpfsMarketMetadata | null | undefined): string {
-  return ipfsToHttp(md?.image?.trim() || "");
+  const launchpad = launchpadMarketFromMetadata(md as Record<string, unknown> | null);
+  return (
+    ipfsToHttp(md?.image?.trim() || "") ||
+    launchpad?.tokens?.[0]?.imageUri?.trim() ||
+    md?.nadMarket?.tokens?.[0]?.imageUri?.trim() ||
+    ""
+  );
+}
+
+export function metadataLaunchpadMarket(md: IpfsMarketMetadata | null | undefined) {
+  return launchpadMarketForDisplay(md as Record<string, unknown> | null);
 }
 
 export function metadataOutcomeLabels(

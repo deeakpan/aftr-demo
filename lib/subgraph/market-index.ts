@@ -9,6 +9,7 @@ const MARKETS_LIST_QUERY = `
     ) {
       id
       kind
+      mechanism
       state
       metadataURI
       stakeEndTimestamp
@@ -21,6 +22,7 @@ const MARKETS_LIST_QUERY = `
 export type SubgraphMarketIndex = {
   id: string;
   kind: number;
+  mechanism?: string | null;
   state: number;
   metadataURI: string | null;
   stakeEndTimestamp: string;

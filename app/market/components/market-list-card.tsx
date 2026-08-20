@@ -45,6 +45,9 @@ function evenSplitPct(count: number, index: number) {
 export const MARKET_CARD_SHELL_CLASS =
   "flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)]";
 
+export const MARKET_CARD_HOVER_CLASS =
+  "hover:border-white/40 [html[data-theme=light]_&]:hover:border-black/25";
+
 export const MARKET_CARD_BODY_CLASS = "flex min-h-0 flex-1 flex-col px-3 pb-2 pt-2.5";
 
 export const MARKET_CARD_TITLE_CLASS =
@@ -176,7 +179,7 @@ export function MarketListCard({
     <article
       className={`${MARKET_CARD_SHELL_CLASS} transition duration-200 ${
         interactive
-          ? "hover:-translate-y-1 hover:border-[var(--accent)] hover:shadow-[0_16px_40px_rgb(139_92_246_/_0.28)] [html[data-theme=light]_&]:hover:shadow-[0_16px_40px_rgb(124_77_255_/_0.14)]"
+          ? MARKET_CARD_HOVER_CLASS
           : ""
       } ${className}`}
     >
@@ -284,7 +287,7 @@ export function MarketListCard({
       <div className="flex shrink-0 items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] text-[var(--muted)]">
         {showVolume ? (
           <span className="inline-flex items-center gap-1.5 font-semibold text-[var(--foreground)]">
-            <ChartBar size={14} weight="bold" className="text-[var(--accent)]" />
+            <ChartBar size={14} weight="bold" className="text-[var(--muted)]" />
             ${poolTvl}
           </span>
         ) : (

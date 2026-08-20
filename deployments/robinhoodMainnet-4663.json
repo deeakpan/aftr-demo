@@ -1,0 +1,275 @@
+{
+  "chainId": 4663,
+  "network": "robinhoodMainnet",
+  "deployer": "0x7A981A271E12Dd22B61f9028F8CAf526ba53c3C5",
+  "feeRecipient": "0x23D0f9A287ff1cfd92b63d2AaEF6118fbb3A321C",
+  "contracts": {
+    "MondaloreToken": "0x43Df432c9C3E7A05e2b485f6E3ea9e3d10942f35",
+    "MondaloreFeeVault": "0x23D0f9A287ff1cfd92b63d2AaEF6118fbb3A321C",
+    "MondaloreUSDC": "0x43b322f8dc4D6cE4dE56054cDf5E7b1e3Fb06FB7",
+    "MondaloreParimutuelMarketFactory": "0x4C50167f92544cb4755bc8f35a4efDbE7c3c9B40",
+    "MondalorePriceMarketDeployer": "0x5996F959A947053Ac4118bDDaaa8264487A37D83",
+    "MondaloreEventMarketDeployer": "0xD1E52A76e4603A0Bb49BfA334Dd5d1b706F8d3BB",
+    "MondaloreParimutuelDeployer": "0x9F790364874718B37cccE0E75897270f24a29f5d",
+    "MondaloreOrderBook": "0xCf83a3F8DB6729D1287dc18c894E0Efbe3Be3F6e",
+    "ZedkrCollateralRegistry": "0xe54B482D19323Cf365eeF5cdA35cCC7887b932c1",
+    "ZedkrFpmmMarketFactory": "0x92685D2Ca3025EE1c34A18e5c3aC1153F3797F04",
+    "ZedkrFpmmDeployer": "0xE452116A0C6eC4fdf791d6235D0118C36B39b6EF",
+    "WETH": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+    "USDG": "0x472028E12b4Ab5F873b712E348d32950cd6D26a7"
+  },
+  "deploymentBlocks": {
+    "MondaloreUSDC": 41323004,
+    "USDG": 41323205,
+    "MondaloreToken": 41323318,
+    "MondaloreFeeVault": 41329573,
+    "MondaloreParimutuelMarketFactory": 41329620,
+    "MondaloreParimutuelDeployer": 41330610,
+    "MondalorePriceMarketDeployer": 41330522,
+    "MondaloreEventMarketDeployer": 41330571,
+    "MondaloreOrderBook": 41331023,
+    "ZedkrCollateralRegistry": 41331059,
+    "ZedkrFpmmMarketFactory": 41331096,
+    "ZedkrFpmmDeployer": 41331138
+  },
+  "external": {
+    "optimisticOracleV2": "0x0000000000000000000000000000000000000001",
+    "priceFeedAssets": [
+      {
+        "label": "BTC/USD",
+        "asset": "BTC",
+        "logo": "https://assets.coingecko.com/coins/images/1/large/bitcoin.png"
+      },
+      {
+        "label": "ETH/USD",
+        "asset": "ETH",
+        "logo": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"
+      },
+      {
+        "label": "LINK/USD",
+        "asset": "LINK",
+        "logo": "https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png"
+      },
+      {
+        "label": "AAPL/USD",
+        "asset": "AAPL"
+      },
+      {
+        "label": "GOOGL/USD",
+        "asset": "GOOGL"
+      },
+      {
+        "label": "MSFT/USD",
+        "asset": "MSFT"
+      },
+      {
+        "label": "AMZN/USD",
+        "asset": "AMZN"
+      },
+      {
+        "label": "META/USD",
+        "asset": "META"
+      },
+      {
+        "label": "NVDA/USD",
+        "asset": "NVDA"
+      },
+      {
+        "label": "TSLA/USD",
+        "asset": "TSLA"
+      },
+      {
+        "label": "SPY/USD",
+        "asset": "SPY"
+      },
+      {
+        "label": "QQQ/USD",
+        "asset": "QQQ"
+      },
+      {
+        "label": "AMD/USD",
+        "asset": "AMD"
+      },
+      {
+        "label": "COIN/USD",
+        "asset": "COIN"
+      },
+      {
+        "label": "MSTR/USD",
+        "asset": "MSTR"
+      }
+    ],
+    "chainlinkFeeds": [
+      {
+        "label": "BTC/USD",
+        "asset": "BTC",
+        "logo": "https://assets.coingecko.com/coins/images/1/large/bitcoin.png",
+        "address": "0xa2c5184bF03d373Dc9dE4876eb4Bce595B460251",
+        "decimals": 8
+      },
+      {
+        "label": "ETH/USD",
+        "asset": "ETH",
+        "logo": "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
+        "address": "0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9",
+        "decimals": 8
+      },
+      {
+        "label": "LINK/USD",
+        "asset": "LINK",
+        "logo": "https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png",
+        "address": "0xe86e3422Aa9B5e8ee9f3E41a63975bC387A8bce9",
+        "decimals": 8
+      },
+      {
+        "label": "USDG/USD",
+        "asset": "USDG",
+        "logo": "https://assets.coingecko.com/coins/images/6319/large/usdc.png",
+        "address": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2",
+        "decimals": 8,
+        "tokenAddress": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168"
+      },
+      {
+        "label": "AAPL/USD",
+        "asset": "AAPL",
+        "address": "0x6B22A786bAa607d76728168703a39Ea9C99f2cD0",
+        "decimals": 8,
+        "tokenAddress": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9"
+      },
+      {
+        "label": "GOOGL/USD",
+        "asset": "GOOGL",
+        "address": "0xF6f373a037c30F0e5010d854385cA89185AE638b",
+        "decimals": 8,
+        "tokenAddress": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3"
+      },
+      {
+        "label": "MSFT/USD",
+        "asset": "MSFT",
+        "address": "0x45C3C877C15E6BA2EBB19eA114Ea508d14C1Af2E",
+        "decimals": 8,
+        "tokenAddress": "0xe93237C50D904957Cf27E7B1133b510C669c2e74"
+      },
+      {
+        "label": "AMZN/USD",
+        "asset": "AMZN",
+        "address": "0xD5a1508ceD74c084eBf3cBe853e2C968fB2a651C",
+        "decimals": 8,
+        "tokenAddress": "0x12f190a9F9d7D37a250758b26824B97CE941bF54"
+      },
+      {
+        "label": "META/USD",
+        "asset": "META",
+        "address": "0x7C38C00C30BEe9378381E7B6135d7283356D71b1",
+        "decimals": 8,
+        "tokenAddress": "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35"
+      },
+      {
+        "label": "NVDA/USD",
+        "asset": "NVDA",
+        "address": "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15",
+        "decimals": 8,
+        "tokenAddress": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec"
+      },
+      {
+        "label": "TSLA/USD",
+        "asset": "TSLA",
+        "address": "0x4A1166a659A55625345e9515b32adECea5547C38",
+        "decimals": 8,
+        "tokenAddress": "0x322f0929c4625ed5bad873c95208d54e1c003b2d"
+      },
+      {
+        "label": "SPY/USD",
+        "asset": "SPY",
+        "address": "0x319724394D3A0e3669269846abE664Cd621f9f6A",
+        "decimals": 8,
+        "tokenAddress": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c"
+      },
+      {
+        "label": "QQQ/USD",
+        "asset": "QQQ",
+        "address": "0x80901d846d5D7B030F26B480776EE3b29374C2ae",
+        "decimals": 8,
+        "tokenAddress": "0xD5f3879160bc7c32ebb4dC785F8a4F505888de68"
+      },
+      {
+        "label": "AMD/USD",
+        "asset": "AMD",
+        "address": "0x943A29E7ae51A4798823ca9eEd2ed533B2A22C72",
+        "decimals": 8,
+        "tokenAddress": "0x86923f96303D656E4aa86D9d42D1e57ad2023fdC"
+      },
+      {
+        "label": "COIN/USD",
+        "asset": "COIN",
+        "address": "0xA3a468A452940B7D6b69991207B508c609a98Ef2",
+        "decimals": 8,
+        "tokenAddress": "0x6330D8C3178a418788dF01a47479c0ce7CCF450b"
+      },
+      {
+        "label": "MSTR/USD",
+        "asset": "MSTR",
+        "address": "0x396118bdFB181e6240E74D243F266B061c0edc3D",
+        "decimals": 8,
+        "tokenAddress": "0xec262a75e413fAfD0dF80480274532C79D42da09"
+      }
+    ],
+    "vaultCollateralOptions": [
+      {
+        "label": "WETH",
+        "address": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73"
+      },
+      {
+        "label": "USDG (mock)",
+        "address": "0x472028E12b4Ab5F873b712E348d32950cd6D26a7"
+      },
+      {
+        "label": "USDG (canonical)",
+        "address": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168"
+      }
+    ],
+    "pons": {
+      "v2LaunchFactory": "0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e",
+      "v1LaunchFactory": "0xA5aAb3F0c6EeadF30Ef1D3Eb997108E976351feB",
+      "weth": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+      "usdg": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168"
+    },
+    "umaBondCurrencyCircleUSDC": "0x43b322f8dc4D6cE4dE56054cDf5E7b1e3Fb06FB7"
+  },
+  "vault": {
+    "stakeToken": "0x43Df432c9C3E7A05e2b485f6E3ea9e3d10942f35",
+    "epochDuration": "604800",
+    "lockDuration": "604800",
+    "rewardTokens": [
+      "0x43b322f8dc4D6cE4dE56054cDf5E7b1e3Fb06FB7",
+      "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+      "0x472028E12b4Ab5F873b712E348d32950cd6D26a7",
+      "0x0000000000000000000000000000000000000000"
+    ]
+  },
+  "resolutionAdmins": [
+    "0x7360A1770146E5e4d41E322A474D498A5A7cfaa2",
+    "0x25908E06a5699776b28F4E258dFA1668D4Ee5aF2",
+    "0x8874c5A7F2d37fAF6bFc4b29C9A9594836138444",
+    "0x518AEeAe7641F403F25013D55227BE3014BB9d24"
+  ],
+  "nadResolutionAdmin": "0x7A981A271E12Dd22B61f9028F8CAf526ba53c3C5",
+  "notes": {
+    "tradingCollaterals": [
+      "MondaloreUSDC",
+      "USDG (mock mintable)",
+      "WETH",
+      "ETH"
+    ],
+    "fpmmCollaterals": [
+      "0x43b322f8dc4D6cE4dE56054cDf5E7b1e3Fb06FB7",
+      "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+      "0x472028E12b4Ab5F873b712E348d32950cd6D26a7"
+    ],
+    "primaryMarketFactory": "ZedkrFpmmMarketFactory",
+    "feeFlow": "Market deposit → 0.4% protocol fee → MondaloreFeeVault.receiveFees()",
+    "chainlinkSource": "https://docs.chain.link/data-feeds/price-feeds/addresses?network=robinhood",
+    "ponsDocs": "https://docs.ponsfamily.com/v2"
+  },
+  "deployedAt": "2026-08-20T10:00:57.649Z"
+}

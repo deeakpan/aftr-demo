@@ -14,13 +14,19 @@
  *   RESOLUTION_ADMINS        — comma-separated admin addresses (default: first 4 from wallets.json)
  *   MONAD_WETH               — existing WETH on Monad (if set, skips MockWETH deploy)
  *   MONAD_WRAP_MON           — MON to wrap into MockWETH for deployer (default: 1)
+ *   USE_REAL_USDG=1          — use canonical Robinhood USDG instead of deploying mintable mock
+ *   USDG_ADDRESS / ROBINHOOD_USDG — force a specific USDG (implies real/existing, skips mock deploy)
+ *   USDG_EXTRA_MINT          — extra mock USDG minted to deployer (default: 1000000)
  */
 const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
 const hre = require("hardhat");
 const { deployParimutuelFacade } = require("./lib/deploy-parimutuel-facade.cjs");
+const { deployFpmmStack } = require("./lib/deploy-fpmm-stack.cjs");
 const { WALLETS_PATH } = require("./lib/aftr-scripts-lib.cjs");
+const { robinhoodNetworkExternals } = require("./lib/robinhood-chainlink-feeds.cjs");
+const { registerPriceFeedsOnFactory } = require("./lib/register-price-feeds.cjs");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
 /** Circle test USDC on Base Sepolia (UMA-whitelisted). */
@@ -102,7 +108,27 @@ function networkExternals(chainId) {
       chainlinkFeeds: monadChainlinkFeedsForDeployment(),
     };
   }
-  throw new Error(`Unsupported chainId ${chainId}. Add networkExternals() mapping or use baseSepolia / monadTestnet.`);
+  if (chainId === 4663) {
+    const rh = robinhoodNetworkExternals();
+    if (!process.env.UMA_OOV2?.trim()) {
+      console.warn(
+        "Robinhood: UMA_OOV2 not set — price markets deploy fine; set a real OO before creating event (UMA) markets.",
+      );
+    }
+    return {
+      oo: rh.oo,
+      circleUsdc: rh.circleUsdc,
+      weth: rh.weth,
+      usdg: rh.usdg,
+      deployLocalWeth: false,
+      registerCircleUsdc: false,
+      ethFeed: rh.ethFeed,
+      chainlinkFeeds: rh.chainlinkFeeds,
+      vaultCollateralOptions: rh.vaultCollateralOptions,
+      pons: rh.pons,
+    };
+  }
+  throw new Error(`Unsupported chainId ${chainId}. Add networkExternals() mapping or use baseSepolia / monadTestnet / robinhoodMainnet.`);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -227,6 +253,7 @@ async function main() {
   const deploymentBlocks = { ...(prev?.deploymentBlocks ?? {}) };
 
   let monadExternals = null;
+  let robinhoodExternals = null;
   if (chainId === 10143 && netExt.deployLocalWeth) {
     monadExternals = await deployMonadTestExternals(hre, deployer, deployAndTrack, deploymentBlocks);
   } else if (chainId === 10143) {
@@ -234,14 +261,39 @@ async function main() {
       wethFeed: netExt.ethFeed,
       chainlinkFeeds: netExt.chainlinkFeeds,
     };
+  } else if (chainId === 4663) {
+    robinhoodExternals = {
+      weth: netExt.weth,
+      usdg: netExt.usdg,
+      wethFeed: netExt.ethFeed,
+      chainlinkFeeds: netExt.chainlinkFeeds,
+      vaultCollateralOptions: netExt.vaultCollateralOptions,
+      pons: netExt.pons,
+    };
   }
 
   const weth =
     process.env.MONAD_WETH?.trim() ||
     process.env.DRP_WETH?.trim() ||
+    process.env.ROBINHOOD_WETH?.trim() ||
     monadExternals?.weth ||
+    robinhoodExternals?.weth ||
     netExt.weth ||
     BASE_SEPOLIA_WETH;
+
+  // Canonical Robinhood USDG (Pons pair detection only — NOT trading collateral unless USE_REAL_USDG=1).
+  const realRobinhoodUsdg = robinhoodExternals?.usdg || netExt.usdg || null;
+  // Trading collateral: mintable mock by default so we can mint for testing.
+  // Set USE_REAL_USDG=1 (or USDG_ADDRESS / ROBINHOOD_USDG) to use a pre-existing token instead.
+  const useRealUsdg =
+    process.env.USE_REAL_USDG === "1" ||
+    Boolean(process.env.USDG_ADDRESS?.trim()) ||
+    Boolean(process.env.ROBINHOOD_USDG?.trim());
+  let usdgAddr = useRealUsdg
+    ? (process.env.USDG_ADDRESS?.trim() ||
+      process.env.ROBINHOOD_USDG?.trim() ||
+      realRobinhoodUsdg)
+    : null;
 
   const epochDuration = BigInt(process.env.VAULT_EPOCH_DURATION?.trim() || "604800");  // 7 days
   const lockDuration  = BigInt(process.env.VAULT_LOCK_DURATION?.trim()  || "604800");  // 7 days
@@ -262,6 +314,31 @@ async function main() {
     console.log(`  Minted ${extraUsdcMint} extra MondaloreUSDC to deployer`);
   } catch (e) {
     console.warn("  Extra MondaloreUSDC mint skipped:", e.shortMessage ?? e.message);
+  }
+
+  if (!usdgAddr) {
+    console.log("\n[1b/7] Deploying mintable USDG (mock trading collateral)...");
+    const USDGF = await hre.ethers.getContractFactory("USDG");
+    const { instance: usdgToken, address: deployedUsdg, blockNumber: usdgBlock } =
+      await deployAndTrack(USDGF, deployer.address);
+    usdgAddr = deployedUsdg;
+    deploymentBlocks.USDG = usdgBlock;
+    console.log(`  USDG (mock): ${usdgAddr} (block ${usdgBlock})`);
+    console.log("  Initial supply: 100,000 USDG to deployer");
+    if (realRobinhoodUsdg) {
+      console.log(`  (canonical Robinhood USDG kept for Pons pairs: ${realRobinhoodUsdg})`);
+    }
+
+    const extraUsdgMint = process.env.USDG_EXTRA_MINT?.trim() || "1000000";
+    try {
+      const extraUsdg = BigInt(extraUsdgMint) * 10n ** 6n;
+      await (await usdgToken.mint(deployer.address, extraUsdg)).wait();
+      console.log(`  Minted ${extraUsdgMint} extra USDG to deployer`);
+    } catch (e) {
+      console.warn("  Extra USDG mint skipped:", e.shortMessage ?? e.message);
+    }
+  } else {
+    console.log(`\n[1b/7] Using existing USDG (USE_REAL_USDG / USDG_ADDRESS): ${usdgAddr}`);
   }
 
   // ── 2. Mondalore governance token ───────────────────────────────────────────
@@ -312,6 +389,12 @@ async function main() {
     console.log("  Resolution admins (3-of-10):", resolutionAdmins.join(", "));
   }
 
+  const chainlinkFeedsToRegister = netExt.chainlinkFeeds ?? [];
+  if (chainlinkFeedsToRegister.length > 0) {
+    console.log(`  Registering ${chainlinkFeedsToRegister.length} Chainlink price feed(s) on factory…`);
+    await registerPriceFeedsOnFactory(factory, chainlinkFeedsToRegister, hre.ethers);
+  }
+
   // ── 5. Deployer lib (3 txs — avoids EIP-3860 initcode limit) ───────────────
   console.log("\n[5/7] Deploying MondaloreParimutuelDeployer + sub-deployers...");
   const {
@@ -332,10 +415,13 @@ async function main() {
   await (await factory.setMarketDeployer(marketDeployerAddress)).wait();
   console.log("  Linked factory.marketDeployer");
 
-  const registerWeth = chainId === 10143 && weth.toLowerCase() !== BASE_SEPOLIA_WETH.toLowerCase();
+  const registerWeth =
+    (chainId === 10143 && weth.toLowerCase() !== BASE_SEPOLIA_WETH.toLowerCase()) ||
+    chainId === 4663;
   const collateralLabels = ["MondaloreUSDC"];
   if (netExt.registerCircleUsdc && netExt.circleUsdc) collateralLabels.push("Circle USDC");
   if (registerWeth) collateralLabels.push("WETH");
+  if (usdgAddr) collateralLabels.push("USDG");
 
   console.log(`  Registering collaterals: ${collateralLabels.join(", ")}`);
   await (await factory.addSupportedCollateral(aftrUsdcAddr)).wait();
@@ -347,6 +433,9 @@ async function main() {
     await (await factory.setWrappedNativeToken(weth)).wait();
     await (await factory.addSupportedCollateral(hre.ethers.ZeroAddress)).wait();
   }
+  if (usdgAddr) {
+    await (await factory.addSupportedCollateral(usdgAddr)).wait();
+  }
 
   console.log("  Registering vault reward tokens...");
   await (await vault.addRewardToken(aftrUsdcAddr)).wait();
@@ -355,6 +444,9 @@ async function main() {
   }
   if (registerWeth) {
     await (await vault.addRewardToken(weth)).wait();
+  }
+  if (usdgAddr) {
+    await (await vault.addRewardToken(usdgAddr)).wait();
   }
   await (await vault.addRewardToken("0x0000000000000000000000000000000000000000")).wait();
   console.log(`  Vault reward tokens: ${collateralLabels.join(", ")}, native MON`);
@@ -367,6 +459,23 @@ async function main() {
   deploymentBlocks.MondaloreOrderBook = orderBookBlock;
   console.log(`  OrderBook: ${orderBookAddress} (block ${orderBookBlock})`);
 
+  // ── 7. Zedkr FPMM stack (Gnosis-style AMM markets) ─────────────────────────
+  console.log("\n[7/7] Deploying Zedkr FPMM stack (registry + factory + deployer)...");
+  const fpmmCollaterals = [aftrUsdcAddr];
+  if (netExt.registerCircleUsdc && netExt.circleUsdc) fpmmCollaterals.push(netExt.circleUsdc);
+  if (registerWeth) fpmmCollaterals.push(weth);
+  if (usdgAddr) fpmmCollaterals.push(usdgAddr);
+
+  const fpmmBotAdmin = process.env.PONS_RESOLUTION_ADMIN?.trim() || process.env.NAD_RESOLUTION_ADMIN?.trim() || deployer.address;
+  const fpmmResult = await deployFpmmStack(hre, deployer, vaultAddr, {
+    deployAndTrack,
+    deploymentBlocks,
+    chainlinkFeeds: chainlinkFeedsToRegister,
+    collateralTokens: fpmmCollaterals,
+    resolutionAdmins,
+    ponsResolutionAdmin: fpmmBotAdmin,
+  });
+
   // ── Write deployment JSON ──────────────────────────────────────────────────
   writeDeploymentJson(hre, {
     chainId,
@@ -376,12 +485,17 @@ async function main() {
       MondaloreToken:                    aftrTokenAddr,
       MondaloreFeeVault:                 vaultAddr,
       MondaloreUSDC:                     aftrUsdcAddr,
+      ...(usdgAddr ? { USDG: usdgAddr } : {}),
       MondaloreParimutuelMarketFactory:  factoryAddress,
       MondalorePriceMarketDeployer:      priceDep,
       MondaloreEventMarketDeployer:      eventDep,
       MondaloreParimutuelDeployer:       marketDeployerAddress,
       MondaloreOrderBook:                orderBookAddress,
-      ...(registerWeth ? { MockWETH: weth } : {}),
+      ZedkrCollateralRegistry:           fpmmResult.registry,
+      ZedkrFpmmMarketFactory:            fpmmResult.fpmmFactory,
+      ZedkrFpmmDeployer:                 fpmmResult.fpmmDeployer,
+      ...(registerWeth && chainId === 10143 ? { MockWETH: weth } : {}),
+      ...(chainId === 4663 && weth ? { WETH: weth } : {}),
     },
     // Block numbers for every contract — used as subgraph startBlock values.
     deploymentBlocks,
@@ -389,8 +503,17 @@ async function main() {
       optimisticOracleV2:           netExt.oo,
       umaBondCurrencyCircleUSDC:    netExt.circleUsdc || aftrUsdcAddr,
       ...(monadExternals?.chainlinkFeeds ? { chainlinkFeeds: monadExternals.chainlinkFeeds } : {}),
+      ...(robinhoodExternals?.chainlinkFeeds ? { chainlinkFeeds: robinhoodExternals.chainlinkFeeds } : {}),
+      ...(robinhoodExternals?.priceFeedAssets ? { priceFeedAssets: robinhoodExternals.priceFeedAssets } : {}),
       ...(monadExternals?.vaultCollateralOptions
         ? { vaultCollateralOptions: monadExternals.vaultCollateralOptions }
+        : {}),
+      ...(robinhoodExternals?.vaultCollateralOptions
+        ? { vaultCollateralOptions: robinhoodExternals.vaultCollateralOptions }
+        : {}),
+      // Keep canonical Robinhood USDG on pons.usdg for pair detection; trading mock lives in contracts.USDG.
+      ...(robinhoodExternals?.pons
+        ? { pons: { ...robinhoodExternals.pons, usdg: realRobinhoodUsdg ?? robinhoodExternals.pons.usdg } }
         : {}),
     },
     vault: {
@@ -401,6 +524,7 @@ async function main() {
         aftrUsdcAddr,
         ...(netExt.registerCircleUsdc && netExt.circleUsdc ? [netExt.circleUsdc] : []),
         ...(registerWeth ? [weth] : []),
+        ...(usdgAddr ? [usdgAddr] : []),
         "0x0000000000000000000000000000000000000000",
       ],
     },
@@ -408,10 +532,12 @@ async function main() {
     suggestedUmaReward: UMA_REWARD_USDC.toString(),
     notes: {
       tradingCollaterals: collateralLabels,
+      fpmmCollaterals: fpmmCollaterals,
+      primaryMarketFactory: "ZedkrFpmmMarketFactory",
       umaRewardToken: netExt.circleUsdc
         ? "Circle USDC when umaRewardCurrency is address(0) on factory"
         : "MondaloreUSDC when umaRewardCurrency is address(0) on factory",
-      feeFlow: "Market deposit → 1.2% → MondaloreFeeVault.receiveFees() → 0.2% stakers / 1.0% treasury",
+      feeFlow: "Market deposit → 0.4% protocol fee → MondaloreFeeVault.receiveFees()",
     },
   });
 
@@ -430,6 +556,8 @@ async function main() {
   console.log(`  MondaloreToken:                   ${aftrTokenAddr}`);
   console.log(`  MondaloreFeeVault:                ${vaultAddr}  ← feeRecipient`);
   console.log(`  MondaloreParimutuelMarketFactory: ${factoryAddress}`);
+  console.log(`  ZedkrFpmmMarketFactory:           ${fpmmResult.fpmmFactory}`);
+  console.log(`  ZedkrCollateralRegistry:          ${fpmmResult.registry}`);
   console.log(`  MondaloreOrderBook:               ${orderBookAddress}`);
   console.log("\nNext steps:");
   console.log("  1. subgraph/subgraph.yaml was updated — run: npm run subgraph:codegen && npm run subgraph:build");

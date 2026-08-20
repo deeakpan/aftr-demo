@@ -32,7 +32,7 @@ function parseCliArgs() {
   if (!marketIdRaw) {
     throw new Error(
       "Usage: npm run market:settle -- <id> [--outcome <n> --sigs-file sigs.json] [--network <name>]\n" +
-      "NAD_TOKEN: omit --outcome to auto-resolve from IPFS nadMarket + Nad.fun API.",
+      "PONS (NAD_TOKEN kind): omit --outcome to auto-resolve from IPFS ponsMarket (on-chain) or legacy nadMarket.",
     );
   }
   const id = Number(marketIdRaw);
@@ -76,7 +76,7 @@ async function main() {
   console.log("Deployment:", file);
   console.log("Market id:", marketId);
   console.log("Market:", marketAddress);
-  console.log("Kind:", kind === 0 ? "PRICE" : kind === 2 ? "NAD_TOKEN" : "EVENT");
+  console.log("Kind:", kind === 0 ? "PRICE" : kind === 2 ? "PONS (NAD_TOKEN kind)" : "EVENT");
   console.log("State:", state);
 
   if (state === 2) {
@@ -91,18 +91,24 @@ async function main() {
     console.log("Calling settlePrice()...");
     tx = await market.settlePrice();
   } else if (kind === 2) {
-    if (state !== 0) throw new Error(`Unexpected NAD_TOKEN market state: ${state}`);
+    if (state !== 0) throw new Error(`Unexpected PONS market state: ${state}`);
     let resolvedOutcome = outcomeIndex;
     if (!Number.isInteger(resolvedOutcome) || resolvedOutcome < 0) {
-      const { evaluateNadMarketFromUri } = require("./lib/nad-auto-resolve.cjs");
-      console.log("Evaluating NAD outcome from metadata + Nad.fun API...");
-      const evaluation = await evaluateNadMarketFromUri(metadataURI);
+      const { evaluateLaunchpadMarketFromUri } = require("./lib/launchpad-auto-resolve.cjs");
+      console.log("Evaluating launchpad outcome from metadata + on-chain Pons/Nad data...");
+      const evaluation = await evaluateLaunchpadMarketFromUri(metadataURI);
       resolvedOutcome = evaluation.outcomeIndex;
-      console.log(`Auto outcome: ${resolvedOutcome} (${evaluation.outcomeLabel})`);
+      console.log(`Auto outcome (${evaluation.launchpad}): ${resolvedOutcome} (${evaluation.outcomeLabel})`);
       console.log(`Reason: ${evaluation.reasoning}`);
     }
-    console.log(`Calling resolveNadToken(${resolvedOutcome})...`);
-    tx = await market.resolveNadToken(resolvedOutcome);
+    console.log(`Calling resolvePonsToken(${resolvedOutcome})...`);
+    try {
+      tx = await market.resolvePonsToken(resolvedOutcome);
+    } catch (e) {
+      // Backwards-compat with older deployments that only expose resolveNadToken().
+      console.warn("resolvePonsToken() failed; falling back to resolveNadToken().");
+      tx = await market.resolveNadToken(resolvedOutcome);
+    }
   } else {
     if (state !== 0) throw new Error(`Unexpected EVENT market state: ${state}`);
     if (!Number.isInteger(outcomeIndex) || outcomeIndex < 0) {

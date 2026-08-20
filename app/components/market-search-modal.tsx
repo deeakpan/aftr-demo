@@ -166,7 +166,7 @@ export function MarketSearchModal({ open, onClose, initialQuery = "", onQueryCha
         <div ref={listRef} className="max-h-[min(52vh,420px)] overflow-y-auto p-2">
           {loading && (
             <div className="flex items-center justify-center px-3 py-10">
-              <CircleNotch size={28} weight="bold" className="animate-spin text-[var(--accent)]" aria-label="Loading markets" />
+              <CircleNotch size={28} weight="bold" className="animate-spin text-[var(--muted)]" aria-label="Loading markets" />
             </div>
           )}
           {loadError && (

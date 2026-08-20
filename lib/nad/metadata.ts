@@ -129,7 +129,7 @@ export function buildNadTitle(opts: {
       return `Which hits $${formatUsd(params?.thresholdUsd)} mcap first by ${resolveAfterLabel}: ${tickers}?`;
     }
     default:
-      return `Nad.fun: $${sym}`;
+      return `Token: $${sym}`;
   }
 }
 

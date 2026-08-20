@@ -131,6 +131,19 @@ contract MondaloreParimutuelMarketFactory is Ownable2Step {
         emit NadResolutionAdminUpdated(admin);
     }
 
+    /// @notice Backwards-compatible alias setter for Ponsfamily resolution admin.
+    /// @dev Sets `nadResolutionAdmin` so existing markets and bots keep working.
+    function setPonsResolutionAdmin(address admin) external onlyOwner {
+        if (admin == address(0)) revert InvalidAddress();
+        nadResolutionAdmin = admin;
+        emit NadResolutionAdminUpdated(admin);
+    }
+
+    /// @notice Alias view required by `IMondaloreMarketFactoryResolution`.
+    function ponsResolutionAdmin() external view returns (address) {
+        return nadResolutionAdmin;
+    }
+
     /// @notice Set up to 10 wallets allowed to sign EVENT market resolutions (3-of-10 required on-chain).
     function setResolutionAdmins(address[] calldata admins) external onlyOwner {
         if (admins.length > MAX_RESOLUTION_ADMINS) revert TooManyResolutionAdmins();
@@ -171,8 +184,9 @@ contract MondaloreParimutuelMarketFactory is Ownable2Step {
         emit SupportedCollateralRemoved(token);
     }
 
-    /// @notice Register or disable a price feed for an asset key (e.g. keccak256(abi.encodePacked("BTC"))).
-    /// @dev Pass feed = address(0) to disable market creation for that asset.
+    /// @notice Register or disable a Chainlink (or mock) feed for an asset key (e.g. keccak256(abi.encodePacked("BTC"))).
+    /// @dev Callable any time by owner — add NVDA, AAPL, etc. as Chainlink publishes feeds on Robinhood Chain.
+    ///      Pass feed = address(0) to disable market creation for that asset.
     function setPriceFeed(bytes32 assetKey, address feed) external onlyOwner {
         if (assetKey == bytes32(0)) revert InvalidFeed();
         priceFeeds[assetKey] = feed;

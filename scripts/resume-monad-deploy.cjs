@@ -165,7 +165,7 @@ async function main() {
     resolutionAdmins,
     notes: {
       tradingCollaterals: ["MondaloreUSDC", "WETH"],
-      feeFlow: "Market deposit → 1.2% → MondaloreFeeVault.receiveFees() → 0.2% stakers / 1.0% treasury",
+      feeFlow: "Market deposit → 0.4% protocol fee → MondaloreFeeVault.receiveFees()",
     },
   });
 
