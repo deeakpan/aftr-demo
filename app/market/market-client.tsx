@@ -19,6 +19,7 @@ import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetwork
 import { formatMarketCardDate, formatMarketClosesTooltip } from "@/lib/market-cover";
 import { cacheMarketCardForDetail } from "@/lib/markets/market-card-cache";
 import { searchMarkets } from "@/lib/markets/market-search";
+import type { UiMarketKind } from "@/lib/markets/market-kind";
 import { marketPath } from "@/lib/markets/market-url";
 import { formatUserTxError } from "@/lib/tx-error";
 import { tradeFeesFromAmount } from "@/lib/trade-fees";
@@ -51,7 +52,7 @@ const WAD = BigInt("1000000000000000000");
 
 type UiMarket = {
   address: `0x${string}`;
-  kind: "Event" | "Price" | "Nad";
+  kind: UiMarketKind;
   outcomes: number;
   outcomeLabels: string[];
   title: string;

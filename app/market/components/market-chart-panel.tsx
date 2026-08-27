@@ -4,9 +4,10 @@ import { useState } from "react";
 import { MarketTradeList } from "@/app/market/components/market-trade-list";
 import { MarketTradeVolumeChart } from "@/app/market/components/market-trade-volume-chart";
 import { TradingViewChart } from "@/app/market/components/trading-view-chart";
+import type { UiMarketKind } from "@/lib/markets/market-kind";
 
 type Props = {
-  marketKind: "Event" | "Price" | "Nad";
+  marketKind: UiMarketKind;
   marketAddress: string;
   collateralDecimals: number;
   collateralTicker: string;

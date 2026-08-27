@@ -31,6 +31,7 @@ import {
   nadTokenForOutcome,
 } from "@/app/market/components/nad-market-list-card";
 import type { NadMarketConfig } from "@/lib/nad/types";
+import type { UiMarketKind } from "@/lib/markets/market-kind";
 import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
 import { marketPath } from "@/lib/markets/market-url";
 import { isFpmmMarket } from "@/lib/market-mechanism";
@@ -50,7 +51,7 @@ type PositionRow = {
   collateralAddress: `0x${string}`;
   marketTitle: string;
   slug?: string;
-  marketKind: "Event" | "Price" | "Nad" | "Pons";
+  marketKind: UiMarketKind;
   marketState: number;
   stakeEndUnix: number;
   winningOutcomeIndex: number | null;
@@ -78,7 +79,7 @@ type MarketPositionGroup = {
   collateralAddress: `0x${string}`;
   marketTitle: string;
   slug?: string;
-  marketKind: "Event" | "Price" | "Nad" | "Pons";
+  marketKind: UiMarketKind;
   marketState: number;
   stakeEndUnix: number;
   winningOutcomeIndex: number | null;
@@ -672,7 +673,7 @@ export function TradesClient() {
             collateralAddress: `0x${string}`;
             marketTitle: string;
             slug?: string;
-            marketKind: "Event" | "Price" | "Nad" | "Pons";
+            marketKind: UiMarketKind;
             marketState: number;
             stakeEndUnix: number;
             winningOutcomeIndex: number | null;

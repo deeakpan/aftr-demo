@@ -5,10 +5,11 @@ import { DexScreenerTokenChart } from "@/app/market/components/dexscreener-token
 import { MarketChartPanel } from "@/app/market/components/market-chart-panel";
 import { NadTokenPanel } from "@/app/market/components/nad-token-panel";
 import type { NadMarketConfig, NadTokenRef } from "@/lib/nad/types";
+import type { UiMarketKind } from "@/lib/markets/market-kind";
 
 type Props = {
   nadMarket: NadMarketConfig;
-  marketKind: "Event" | "Price" | "Nad";
+  marketKind: UiMarketKind;
   marketAddress: string;
   collateralDecimals: number;
   collateralTicker: string;
