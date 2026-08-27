@@ -170,7 +170,13 @@ export function MarketSearchModal({ open, onClose, initialQuery = "", onQueryCha
             </div>
           )}
           {loadError && (
-            <p className="px-3 py-6 text-center text-sm text-red-400">{loadError}</p>
+            <p className="px-3 py-6 text-center text-sm text-red-400">
+              {/HTTP request failed|fetch failed|Raw Call Arguments|Contract Call:/i.test(loadError)
+                ? "Couldn’t reach the network. Try again."
+                : loadError.length > 120
+                  ? `${loadError.slice(0, 117)}…`
+                  : loadError}
+            </p>
           )}
           {!loading && !loadError && !query.trim() && hits.length > 0 && (
             <p className="px-3 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">

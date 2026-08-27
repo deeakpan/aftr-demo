@@ -118,50 +118,67 @@ function ParaWalletBridge() {
     ranFor.current = key;
 
     void (async () => {
-      try {
-        const session = await (client.waitAndExportSession ?? client.exportSession)?.call(client, {
-          excludeSigners: false,
-        });
-        const sessionCookie = client.retrieveSessionCookie?.() ?? null;
-        const paraUserId = client.getUserId?.()?.trim();
-        const email = client.getEmail?.()?.trim();
-
-        const res = await fetch("/api/para/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            owner: embedded,
-            paraUserId,
-            session,
-            sessionCookie,
-            email,
-          }),
-        });
-        const registered = (await res.json()) as {
-          owner?: string;
-          walletId?: string;
-          paraUserId?: string | null;
-          email?: string | null;
-          error?: string;
-        };
-        if (!res.ok) throw new Error(registered.error || "Failed to register Para wallet.");
-        if (cancelled) return;
-
-        const apiOwner = registered.owner?.toLowerCase();
-        if (apiOwner && isAddress(apiOwner) && registered.walletId) {
-          const checksum = getAddress(apiOwner) as `0x${string}`;
-          setMe(checksum);
-          setParaWalletRecord({
-            owner: checksum,
-            walletId: registered.walletId,
-            paraUserId: registered.paraUserId,
-            email: registered.email,
-            updatedAt: Date.now(),
+      const maxAttempts = 3;
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+          const session = await (client.waitAndExportSession ?? client.exportSession)?.call(client, {
+            excludeSigners: false,
           });
+          if (cancelled) return;
+          const sessionCookie = client.retrieveSessionCookie?.() ?? null;
+          const paraUserId = client.getUserId?.()?.trim();
+          const email = client.getEmail?.()?.trim();
+
+          const res = await fetch("/api/para/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              owner: embedded,
+              paraUserId,
+              session,
+              sessionCookie,
+              email,
+            }),
+          });
+          const registered = (await res.json()) as {
+            owner?: string;
+            walletId?: string;
+            paraUserId?: string | null;
+            email?: string | null;
+            error?: string;
+          };
+          if (!res.ok) throw new Error(registered.error || "Failed to register Para wallet.");
+          if (cancelled) return;
+
+          const apiOwner = registered.owner?.toLowerCase();
+          if (apiOwner && isAddress(apiOwner) && registered.walletId) {
+            const checksum = getAddress(apiOwner) as `0x${string}`;
+            setMe(checksum);
+            setParaWalletRecord({
+              owner: checksum,
+              walletId: registered.walletId,
+              paraUserId: registered.paraUserId,
+              email: registered.email,
+              updatedAt: Date.now(),
+            });
+          }
+          return;
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          const transient =
+            /timeout|AxiosError|ParaApiError|network|fetch failed|aborted|ETIMEDOUT|EAI_AGAIN/i.test(
+              msg,
+            );
+          console.warn(
+            `Para wallet bridge attempt ${attempt}/${maxAttempts} failed:`,
+            transient ? "wallet service timeout/unreachable" : msg,
+          );
+          if (!transient || attempt === maxAttempts) {
+            if (!cancelled) ranFor.current = null;
+            return;
+          }
+          await new Promise((r) => setTimeout(r, 800 * attempt));
         }
-      } catch (e) {
-        console.error("Para wallet bridge failed", e);
-        if (!cancelled) ranFor.current = null;
       }
     })();
 

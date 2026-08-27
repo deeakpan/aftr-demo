@@ -24,6 +24,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ hash: result.hash });
   } catch (error) {
     const message = formatUserTxError(error, "Transaction failed. Try again.");
+    console.error("[para/send]", message, error instanceof Error ? error.message : error);
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

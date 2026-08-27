@@ -1,16 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { parseNadMarketStats, type NadLiveStats } from "@/lib/nad/market-stats";
-import type { NadTokenRef } from "@/lib/nad/types";
+import type { NadLiveStats } from "@/lib/nad/market-stats";
+import type { NadMarketConfig, NadTokenRef } from "@/lib/nad/types";
+import {
+  fetchLaunchpadTokenDisplay,
+  isPonsDisplayMarket,
+} from "@/lib/launchpad/fetch-token-display";
 
 export function useNadComparisonStats(
   tokens: NadTokenRef[],
   enabled: boolean,
   externalStats?: (NadLiveStats | null)[],
+  /** When provided, prefers Pons vs Nad API order from market config. */
+  nadMarket?: NadMarketConfig | null,
 ) {
   const [stats, setStats] = useState<(NadLiveStats | null)[]>(externalStats ?? []);
   const [loading, setLoading] = useState(false);
+  const preferPons = nadMarket ? isPonsDisplayMarket(nadMarket) : false;
 
   useEffect(() => {
     if (externalStats !== undefined) {
@@ -28,14 +35,8 @@ export function useNadComparisonStats(
     void (async () => {
       const results = await Promise.all(
         tokens.map(async (t) => {
-          try {
-            const res = await fetch(`/api/nad/token/${t.address}`);
-            if (!res.ok) return null;
-            const json = (await res.json()) as { market_info?: Record<string, unknown> };
-            return parseNadMarketStats(json.market_info ?? null, { isGraduated: t.isGraduated });
-          } catch {
-            return null;
-          }
+          const row = await fetchLaunchpadTokenDisplay(t, preferPons);
+          return row.stats;
         }),
       );
       if (!cancelled) {
@@ -47,7 +48,7 @@ export function useNadComparisonStats(
     return () => {
       cancelled = true;
     };
-  }, [enabled, externalStats, tokens.map((t) => t.address.toLowerCase()).join(",")]);
+  }, [enabled, externalStats, preferPons, tokens.map((t) => t.address.toLowerCase()).join(",")]);
 
   return { stats, loading };
 }

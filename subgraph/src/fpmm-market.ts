@@ -8,9 +8,13 @@ import {
   PonsTokenResolved,
   EventResolved,
 } from "../generated/templates/FpmmMarket/FpmmMarket";
-import { Market, MarketTrade, Trader, TraderMarketPosition } from "../generated/schema";
-import { creditRedemption } from "./market";
-import { ZERO, addrId, positionId, tradeId } from "./ids";
+import { Market, MarketTrade } from "../generated/schema";
+import {
+  creditRedemption,
+  loadOrCreatePosition,
+  loadOrCreateTrader,
+} from "./trade-helpers";
+import { addrId, tradeId } from "./ids";
 
 const MARKET_STATE_SETTLED = 2;
 
@@ -21,37 +25,6 @@ function markMarketSettled(marketAddr: Address, timestamp: BigInt): void {
   m.state = MARKET_STATE_SETTLED;
   m.settledAt = timestamp;
   m.save();
-}
-
-function loadOrCreateTrader(addr: Address): Trader {
-  const id = addrId(addr);
-  let t = Trader.load(id);
-  if (t == null) {
-    t = new Trader(id);
-    t.totalDeposited = ZERO;
-    t.totalRedeemed = ZERO;
-    t.save();
-  }
-  return t as Trader;
-}
-
-function loadOrCreatePosition(marketAddr: Address, traderAddr: Address): TraderMarketPosition {
-  const id = positionId(marketAddr, traderAddr);
-  let p = TraderMarketPosition.load(id);
-  if (p == null) {
-    const marketId = addrId(marketAddr);
-    const traderId = addrId(traderAddr);
-    p = new TraderMarketPosition(id);
-    p.market = marketId;
-    p.trader = traderId;
-    p.collateralIn = ZERO;
-    p.collateralOut = ZERO;
-    p.sharesIn = ZERO;
-    p.sharesOut = ZERO;
-    p.lastTradeTimestamp = ZERO;
-    p.save();
-  }
-  return p as TraderMarketPosition;
 }
 
 function saveTrade(

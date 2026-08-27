@@ -6,13 +6,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useWeb3Modal } from "@web3modal/wagmi/react";
-import { useAccount, useBalance, useDisconnect, useReadContract, useSignMessage } from "wagmi";
+import { useAccount, useDisconnect, useReadContract, useSignMessage } from "wagmi";
 import { formatUnits, parseAbi } from "viem";
 import { openParaModal, paraLogout } from "@/app/components/para-wallet-provider";
 import { signOutEverywhere } from "@/lib/auth-signout";
 import { isParaConfigured } from "@/lib/para-config";
 import { useMe } from "@/lib/useMe";
-import deployment, { DEPLOYMENT_CHAIN_ID } from "@/lib/deployment";
+import { DEPLOYMENT_CHAIN_ID } from "@/lib/deployment";
+import { USDG_TOKEN_LOGO } from "@/lib/brand-assets";
+import { tradingUsdgAddress } from "@/lib/usdg";
 import {
   BookOpenText,
   Check,
@@ -31,7 +33,13 @@ import {
   Trophy,
 } from "@phosphor-icons/react";
 import { getParaWalletRecord } from "@/lib/para-wallet-record";
-import { getUserProfileByAddress, saveUserProfile } from "@/lib/supabase/profiles";
+import {
+  getCachedProfileName,
+  getUserProfileByAddress,
+  saveUserProfile,
+  setCachedProfileName,
+  useProfileName,
+} from "@/lib/supabase/profiles";
 import { SidebarDrawer } from "@/app/components/sidebar-drawer";
 import { SidebarOpenContext } from "@/app/components/sidebar-context";
 import { MarketSearchModal } from "@/app/components/market-search-modal";
@@ -52,9 +60,9 @@ export function buildWalletGradient(input: string) {
 }
 
 export function createSuggestedUsername(address: string) {
-  const base = address.slice(2, 6).toLowerCase();
-  const suffix = Math.floor(Math.random() * 900 + 100);
-  return `trader_${base}_${suffix}`;
+  // Deterministic — random suffixes made every reload look like a “reset”.
+  const base = address.slice(2, 8).toLowerCase();
+  return `trader_${base}`;
 }
 
 function shortenAddress(address: string) {
@@ -70,10 +78,8 @@ function signedSessionKey(address: string) {
   return `aftrmarket-signed:${address.toLowerCase()}`;
 }
 
-/** Profile “USDC” row reads minted MondaloreUSDC (`symbol()` on-chain is still USDC). */
-const PROFILE_USDC_ADDRESS = (
-  deployment as unknown as { contracts?: { MondaloreUSDC?: string } }
-).contracts?.MondaloreUSDC as `0x${string}` | undefined;
+/** Profile balance uses trading USDG (mock or real via NEXT_PUBLIC_USE_MOCK_USDG). */
+const PROFILE_USDG_ADDRESS = tradingUsdgAddress() ?? undefined;
 const ERC20_ABI = parseAbi([
   "function balanceOf(address account) view returns (uint256)",
   "function decimals() view returns (uint8)",
@@ -103,6 +109,7 @@ export function AppLayout({
   const { address } = useAccount();
   const me = useMe();
   const sessionAddress = me ?? address;
+  const cachedProfileName = useProfileName(sessionAddress);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -127,7 +134,6 @@ export function AppLayout({
   const [isEditingProfileName, setIsEditingProfileName] = useState(false);
   const [profileNameDraft, setProfileNameDraft] = useState("");
   const [isSavingProfileName, setIsSavingProfileName] = useState(false);
-  const [balanceView, setBalanceView] = useState<"mon" | "usdc">("mon");
   /** `undefined` = still loading summary for connected wallet */
   const [walletGraphStats, setWalletGraphStats] = useState<
     | undefined
@@ -138,43 +144,39 @@ export function AppLayout({
         winRatePct: number | null;
       }
   >(undefined);
-  const { data: nativeBalance } = useBalance({
-    address: sessionAddress,
-    chainId: DEPLOYMENT_CHAIN_ID,
-    query: { enabled: Boolean(sessionAddress) },
-  });
-  const { data: usdcBalanceRaw } = useReadContract({
-    address: PROFILE_USDC_ADDRESS,
+  const { data: usdgBalanceRaw } = useReadContract({
+    address: PROFILE_USDG_ADDRESS,
     abi: ERC20_ABI,
     functionName: "balanceOf",
     args: sessionAddress ? [sessionAddress] : undefined,
-    query: { enabled: Boolean(sessionAddress && PROFILE_USDC_ADDRESS) },
+    chainId: DEPLOYMENT_CHAIN_ID,
+    query: { enabled: Boolean(sessionAddress && PROFILE_USDG_ADDRESS) },
   });
-  const { data: usdcDecimalsRaw } = useReadContract({
-    address: PROFILE_USDC_ADDRESS,
+  const { data: usdgDecimalsRaw } = useReadContract({
+    address: PROFILE_USDG_ADDRESS,
     abi: ERC20_ABI,
     functionName: "decimals",
-    query: { enabled: Boolean(PROFILE_USDC_ADDRESS) },
-  });
-  const { data: usdcSymbolRaw } = useReadContract({
-    address: PROFILE_USDC_ADDRESS,
-    abi: ERC20_ABI,
-    functionName: "symbol",
-    query: { enabled: Boolean(PROFILE_USDC_ADDRESS) },
+    chainId: DEPLOYMENT_CHAIN_ID,
+    query: { enabled: Boolean(PROFILE_USDG_ADDRESS) },
   });
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Keep header name in sync with shared localStorage store across page remounts.
+  useEffect(() => {
+    if (!sessionAddress) {
+      setProfileName("");
+      return;
+    }
+    if (cachedProfileName) setProfileName(cachedProfileName);
+  }, [sessionAddress, cachedProfileName]);
+
   useEffect(() => {
     if (!mounted || !sessionAddress) {
       hasRunAuthRef.current = "";
       return;
-    }
-    if (me) {
-      const record = getParaWalletRecord();
-      if (!record || record.owner.toLowerCase() !== me.toLowerCase()) return;
     }
     const authKey = sessionAddress.toLowerCase();
     if (hasRunAuthRef.current === authKey) return;
@@ -183,6 +185,15 @@ export function AppLayout({
     const runPostConnectFlow = async () => {
       setProfileError(null);
       setNameModalError(null);
+
+      // Para session: wait for wallet record when available, but never block profile hydrate.
+      if (me) {
+        const record = getParaWalletRecord();
+        if (record && record.owner.toLowerCase() !== me.toLowerCase()) {
+          hasRunAuthRef.current = "";
+          return;
+        }
+      }
 
       if (!me) {
         const alreadySigned = window.localStorage.getItem(signedSessionKey(sessionAddress)) === "1";
@@ -200,24 +211,43 @@ export function AppLayout({
         }
       }
 
+      const cachedName = getCachedProfileName(sessionAddress);
+      if (cachedName) setProfileName(cachedName);
+
       let existingProfile: { address: string; name: string } | null = null;
       try {
         existingProfile = await getUserProfileByAddress(sessionAddress);
       } catch {
-        setProfileName(createSuggestedUsername(sessionAddress));
-        setNameInput(createSuggestedUsername(sessionAddress));
+        // Supabase flaky — keep local name; only prompt if we have nothing.
+        if (cachedName) {
+          setProfileName(cachedName);
+          return;
+        }
+        const suggested = createSuggestedUsername(sessionAddress);
+        setProfileName(suggested);
+        setCachedProfileName(sessionAddress, suggested);
+        setNameInput(suggested);
         setShowNameModal(true);
         return;
       }
 
-      if (!existingProfile) {
-        const suggested = createSuggestedUsername(sessionAddress);
-        setNameInput(suggested);
-        setProfileName(suggested);
-        setShowNameModal(true);
-      } else {
+      if (existingProfile?.name) {
         setProfileName(existingProfile.name);
+        setCachedProfileName(sessionAddress, existingProfile.name);
+        return;
       }
+
+      if (cachedName) {
+        setProfileName(cachedName);
+        void saveUserProfile({ address: sessionAddress, name: cachedName }).catch(() => {});
+        return;
+      }
+
+      const suggested = createSuggestedUsername(sessionAddress);
+      setNameInput(suggested);
+      setProfileName(suggested);
+      setCachedProfileName(sessionAddress, suggested);
+      setShowNameModal(true);
     };
     void runPostConnectFlow();
   }, [sessionAddress, me, mounted, signMessageAsync]);
@@ -278,26 +308,11 @@ export function AppLayout({
 
   const isWalletConnected = mounted && Boolean(sessionAddress);
   const profileBalance = useMemo(() => {
-    if (balanceView === "usdc") {
-      const bal = (usdcBalanceRaw as bigint | undefined) ?? BigInt(0);
-      const decimals = Number(usdcDecimalsRaw ?? 6);
-      const symbol = typeof usdcSymbolRaw === "string" ? usdcSymbolRaw : "USDC";
-      const value = Number(formatUnits(bal, decimals));
-      return { amount: formatGroupedAmount(value, 2, 2), symbol };
-    }
-    if (!nativeBalance) return { amount: formatGroupedAmount(0, 4, 4), symbol: "ETH" };
-    const value = Number(formatUnits(nativeBalance.value, nativeBalance.decimals));
-    return {
-      amount: formatGroupedAmount(value, 4, 4),
-      symbol: nativeBalance.symbol || "ETH",
-    };
-  }, [
-    balanceView,
-    nativeBalance,
-    usdcBalanceRaw,
-    usdcDecimalsRaw,
-    usdcSymbolRaw,
-  ]);
+    const bal = (usdgBalanceRaw as bigint | undefined) ?? BigInt(0);
+    const decimals = Number(usdgDecimalsRaw ?? 6);
+    const value = Number(formatUnits(bal, decimals));
+    return { amount: formatGroupedAmount(value, 2, 2), symbol: "USDG" };
+  }, [usdgBalanceRaw, usdgDecimalsRaw]);
 
   const walletGraphSummary = useMemo(() => {
     if (walletGraphStats === undefined || walletGraphStats === null) return null;
@@ -342,6 +357,11 @@ export function AppLayout({
       cancelled = true;
     };
   }, [sessionAddress]);
+  const displayProfileName =
+    profileName ||
+    cachedProfileName ||
+    (sessionAddress ? createSuggestedUsername(sessionAddress) : "");
+
   const walletGradient = useMemo(
     () => (sessionAddress ? buildWalletGradient(sessionAddress) : "linear-gradient(135deg, #3f3f46, #18181b)"),
     [sessionAddress],
@@ -363,7 +383,7 @@ export function AppLayout({
   const submitProfileName = async () => {
     if (!sessionAddress || isSavingProfileName) return;
     if (!isEditingProfileName) {
-      setProfileNameDraft(profileName || createSuggestedUsername(sessionAddress));
+      setProfileNameDraft(displayProfileName || createSuggestedUsername(sessionAddress));
       setProfileError(null);
       setIsEditingProfileName(true);
       return;
@@ -372,9 +392,14 @@ export function AppLayout({
     setProfileError(null);
     try {
       const finalName = profileNameDraft.trim() || createSuggestedUsername(sessionAddress);
-      await saveUserProfile({ address: sessionAddress, name: finalName });
+      setCachedProfileName(sessionAddress, finalName);
       setProfileName(finalName);
       setIsEditingProfileName(false);
+      try {
+        await saveUserProfile({ address: sessionAddress, name: finalName });
+      } catch {
+        // Name already cached locally; ignore flaky Supabase sync.
+      }
     } catch (error) {
       setProfileError(error instanceof Error ? error.message : "Could not update profile name.");
     } finally {
@@ -391,7 +416,7 @@ export function AppLayout({
   return (
     <SidebarOpenContext.Provider value={isSidebarOpen}>
       <main
-        className={`mx-auto flex w-full flex-col ${
+        className={`mx-auto flex w-full flex-col overflow-x-hidden ${
           viewportLocked
             ? "h-dvh max-h-dvh min-h-0 overflow-hidden py-0 pb-24 md:pb-0"
             : "min-h-screen py-4 pb-24 md:pb-4"
@@ -465,9 +490,9 @@ export function AppLayout({
                     onMouseEnter={openProfilePopover}
                     onMouseLeave={scheduleProfileClose}
                   >
-                    {profileName ? (
-                      <span className="hidden max-w-[7.5rem] truncate text-sm font-medium text-white sm:inline">
-                        {profileName}
+                    {displayProfileName ? (
+                      <span className="hidden max-w-[7.5rem] truncate text-sm font-medium text-[var(--foreground)] sm:inline">
+                        {displayProfileName}
                       </span>
                     ) : null}
                     <button
@@ -521,14 +546,14 @@ export function AppLayout({
                                 />
                               ) : (
                                 <p className="truncate text-xs font-semibold text-[var(--foreground)]">
-                                  {profileName || (sessionAddress ? createSuggestedUsername(sessionAddress) : "-")}
+                                  {displayProfileName || "-"}
                                 </p>
                               )}
                               <button
                                 type="button"
                                 disabled={isSavingProfileName}
                                 onClick={() => void submitProfileName()}
-                                className="inline-flex h-7 w-7 shrink-0 cursor-pointer select-none items-center justify-center border border-[var(--border)] text-[var(--muted)] caret-transparent hover:text-white disabled:cursor-wait disabled:opacity-60"
+                                className="inline-flex h-7 w-7 shrink-0 cursor-pointer select-none items-center justify-center border border-[var(--border)] text-[var(--muted)] caret-transparent hover:text-[var(--foreground)] disabled:cursor-wait disabled:opacity-60"
                                 aria-label={
                                   isSavingProfileName
                                     ? "Saving username"
@@ -575,14 +600,19 @@ export function AppLayout({
                           <p className="py-1 text-[10px] uppercase tracking-wide text-[var(--muted)]">
                             Balance
                           </p>
-                          <button
-                            type="button"
-                            onClick={() => setBalanceView((v) => (v === "mon" ? "usdc" : "mon"))}
-                            className="mb-1 rounded-md px-1 py-0.5 text-xs text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
-                            title="Tap to switch ETH / USDC"
-                          >
-                            {profileBalance.amount} {profileBalance.symbol}
-                          </button>
+                          <div className="mb-1 flex items-center gap-2 px-1 py-0.5 text-xs text-[var(--foreground)]">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={USDG_TOKEN_LOGO}
+                              alt=""
+                              width={16}
+                              height={16}
+                              className="h-4 w-4 shrink-0 rounded-full"
+                            />
+                            <span className="tabular-nums">
+                              {profileBalance.amount} {profileBalance.symbol}
+                            </span>
+                          </div>
                           <p className="py-1 text-[10px] uppercase tracking-wide text-[var(--muted)]">Profile stats</p>
                           {walletGraphStats === undefined ? (
                             <p className="pb-2 text-xs text-[var(--muted)]">Loading…</p>
@@ -597,7 +627,9 @@ export function AppLayout({
                                   PnL:{" "}
                                   <span
                                     className={`font-semibold tabular-nums ${
-                                      walletGraphSummary.pnlUsd.startsWith("-") ? "text-rose-400" : "text-[#68e0a0]"
+                                      walletGraphSummary.pnlUsd.startsWith("-")
+                                        ? "text-[var(--outcome-no)]"
+                                        : "text-[var(--outcome-yes)]"
                                     }`}
                                   >
                                     ${walletGraphSummary.pnlUsd}
@@ -695,7 +727,7 @@ export function AppLayout({
         </header>
 
         {showFilterStrip && (
-          <div className="no-scrollbar mb-5 overflow-x-auto px-3 md:px-6">
+          <div className="no-scrollbar mb-5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-3 md:px-6">
             <div className="flex min-w-max items-end gap-6 border-b border-[var(--border)]">
               {[
                 "Trending",
@@ -719,8 +751,8 @@ export function AppLayout({
                   }}
                   className={`relative pb-2.5 text-sm transition ${
                     activeFilter === filter
-                      ? "font-semibold text-white"
-                      : "font-medium text-[var(--muted)] hover:text-white"
+                      ? "font-semibold text-[var(--foreground)]"
+                      : "font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
                   }`}
                 >
                   {filter}
@@ -796,9 +828,14 @@ export function AppLayout({
                   setNameModalError(null);
                   try {
                     const fallbackName = nameInput.trim() || createSuggestedUsername(sessionAddress);
-                    await saveUserProfile({ address: sessionAddress, name: fallbackName });
+                    setCachedProfileName(sessionAddress, fallbackName);
                     setProfileName(fallbackName);
                     setShowNameModal(false);
+                    try {
+                      await saveUserProfile({ address: sessionAddress, name: fallbackName });
+                    } catch {
+                      // Local name kept; Supabase may catch up later.
+                    }
                   } catch (error) {
                     setNameModalError(
                       error instanceof Error ? error.message : "Could not save profile name.",
@@ -820,9 +857,14 @@ export function AppLayout({
                   setNameModalError(null);
                   try {
                     const fallbackName = nameInput.trim() || createSuggestedUsername(sessionAddress);
-                    await saveUserProfile({ address: sessionAddress, name: fallbackName });
+                    setCachedProfileName(sessionAddress, fallbackName);
                     setProfileName(fallbackName);
                     setShowNameModal(false);
+                    try {
+                      await saveUserProfile({ address: sessionAddress, name: fallbackName });
+                    } catch {
+                      // Name already cached locally; ignore flaky Supabase sync.
+                    }
                   } catch (error) {
                     setNameModalError(
                       error instanceof Error ? error.message : "Could not save profile name.",

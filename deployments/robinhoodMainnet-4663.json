@@ -11,12 +11,14 @@
     "MondalorePriceMarketDeployer": "0x5996F959A947053Ac4118bDDaaa8264487A37D83",
     "MondaloreEventMarketDeployer": "0xD1E52A76e4603A0Bb49BfA334Dd5d1b706F8d3BB",
     "MondaloreParimutuelDeployer": "0x9F790364874718B37cccE0E75897270f24a29f5d",
-    "MondaloreOrderBook": "0xCf83a3F8DB6729D1287dc18c894E0Efbe3Be3F6e",
+    "MondaloreOrderBook": "0x24B358f040D8c7f840bB9Ee51ff7bf1B2Cc06Fa7",
     "ZedkrCollateralRegistry": "0xe54B482D19323Cf365eeF5cdA35cCC7887b932c1",
     "ZedkrFpmmMarketFactory": "0x92685D2Ca3025EE1c34A18e5c3aC1153F3797F04",
     "ZedkrFpmmDeployer": "0xE452116A0C6eC4fdf791d6235D0118C36B39b6EF",
     "WETH": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
-    "USDG": "0x472028E12b4Ab5F873b712E348d32950cd6D26a7"
+    "USDG": "0x472028E12b4Ab5F873b712E348d32950cd6D26a7",
+    "MondaloreOrderBookParimutuel": "0xCf83a3F8DB6729D1287dc18c894E0Efbe3Be3F6e",
+    "ZedkrFpmmOrderBookFactoryAdapter": "0xc5664FA37435E70e5112F221ab4f71AEF6D08fBa"
   },
   "deploymentBlocks": {
     "MondaloreUSDC": 41323004,
@@ -27,10 +29,12 @@
     "MondaloreParimutuelDeployer": 41330610,
     "MondalorePriceMarketDeployer": 41330522,
     "MondaloreEventMarketDeployer": 41330571,
-    "MondaloreOrderBook": 41331023,
+    "MondaloreOrderBook": 41559181,
     "ZedkrCollateralRegistry": 41331059,
     "ZedkrFpmmMarketFactory": 41331096,
-    "ZedkrFpmmDeployer": 41331138
+    "ZedkrFpmmDeployer": 41331138,
+    "MondaloreOrderBookParimutuel": 41331023,
+    "ZedkrFpmmOrderBookFactoryAdapter": 41559138
   },
   "external": {
     "optimisticOracleV2": "0x0000000000000000000000000000000000000001",
@@ -52,51 +56,63 @@
       },
       {
         "label": "AAPL/USD",
-        "asset": "AAPL"
+        "asset": "AAPL",
+        "logo": "https://financialmodelingprep.com/image-stock/AAPL.png"
       },
       {
         "label": "GOOGL/USD",
-        "asset": "GOOGL"
+        "asset": "GOOGL",
+        "logo": "https://financialmodelingprep.com/image-stock/GOOGL.png"
       },
       {
         "label": "MSFT/USD",
-        "asset": "MSFT"
+        "asset": "MSFT",
+        "logo": "https://financialmodelingprep.com/image-stock/MSFT.png"
       },
       {
         "label": "AMZN/USD",
-        "asset": "AMZN"
+        "asset": "AMZN",
+        "logo": "https://financialmodelingprep.com/image-stock/AMZN.png"
       },
       {
         "label": "META/USD",
-        "asset": "META"
+        "asset": "META",
+        "logo": "https://financialmodelingprep.com/image-stock/META.png"
       },
       {
         "label": "NVDA/USD",
-        "asset": "NVDA"
+        "asset": "NVDA",
+        "logo": "https://financialmodelingprep.com/image-stock/NVDA.png"
       },
       {
         "label": "TSLA/USD",
-        "asset": "TSLA"
+        "asset": "TSLA",
+        "logo": "https://financialmodelingprep.com/image-stock/TSLA.png"
       },
       {
         "label": "SPY/USD",
-        "asset": "SPY"
+        "asset": "SPY",
+        "logo": "https://financialmodelingprep.com/image-stock/SPY.png"
       },
       {
         "label": "QQQ/USD",
-        "asset": "QQQ"
+        "asset": "QQQ",
+        "logo": "https://financialmodelingprep.com/image-stock/QQQ.png"
       },
       {
         "label": "AMD/USD",
-        "asset": "AMD"
+        "asset": "AMD",
+        "logo": "https://financialmodelingprep.com/image-stock/AMD.png"
       },
       {
         "label": "COIN/USD",
-        "asset": "COIN"
+        "asset": "COIN",
+        "logo": "https://financialmodelingprep.com/image-stock/COIN.png"
       },
       {
         "label": "MSTR/USD",
-        "asset": "MSTR"
+        "asset": "MSTR",
+        "logo": "https://financialmodelingprep.com/image-stock/MSTR.png"
       }
     ],
     "chainlinkFeeds": [
@@ -134,84 +150,96 @@
         "asset": "AAPL",
         "address": "0x6B22A786bAa607d76728168703a39Ea9C99f2cD0",
         "decimals": 8,
-        "tokenAddress": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9"
+        "tokenAddress": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
+        "logo": "https://financialmodelingprep.com/image-stock/AAPL.png"
       },
       {
         "label": "GOOGL/USD",
         "asset": "GOOGL",
         "address": "0xF6f373a037c30F0e5010d854385cA89185AE638b",
         "decimals": 8,
-        "tokenAddress": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3"
+        "tokenAddress": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3",
+        "logo": "https://financialmodelingprep.com/image-stock/GOOGL.png"
       },
       {
         "label": "MSFT/USD",
         "asset": "MSFT",
         "address": "0x45C3C877C15E6BA2EBB19eA114Ea508d14C1Af2E",
         "decimals": 8,
-        "tokenAddress": "0xe93237C50D904957Cf27E7B1133b510C669c2e74"
+        "tokenAddress": "0xe93237C50D904957Cf27E7B1133b510C669c2e74",
+        "logo": "https://financialmodelingprep.com/image-stock/MSFT.png"
       },
       {
         "label": "AMZN/USD",
         "asset": "AMZN",
         "address": "0xD5a1508ceD74c084eBf3cBe853e2C968fB2a651C",
         "decimals": 8,
-        "tokenAddress": "0x12f190a9F9d7D37a250758b26824B97CE941bF54"
+        "tokenAddress": "0x12f190a9F9d7D37a250758b26824B97CE941bF54",
+        "logo": "https://financialmodelingprep.com/image-stock/AMZN.png"
       },
       {
         "label": "META/USD",
         "asset": "META",
         "address": "0x7C38C00C30BEe9378381E7B6135d7283356D71b1",
         "decimals": 8,
-        "tokenAddress": "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35"
+        "tokenAddress": "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35",
+        "logo": "https://financialmodelingprep.com/image-stock/META.png"
       },
       {
         "label": "NVDA/USD",
         "asset": "NVDA",
         "address": "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15",
         "decimals": 8,
-        "tokenAddress": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec"
+        "tokenAddress": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+        "logo": "https://financialmodelingprep.com/image-stock/NVDA.png"
       },
       {
         "label": "TSLA/USD",
         "asset": "TSLA",
         "address": "0x4A1166a659A55625345e9515b32adECea5547C38",
         "decimals": 8,
-        "tokenAddress": "0x322f0929c4625ed5bad873c95208d54e1c003b2d"
+        "tokenAddress": "0x322f0929c4625ed5bad873c95208d54e1c003b2d",
+        "logo": "https://financialmodelingprep.com/image-stock/TSLA.png"
       },
       {
         "label": "SPY/USD",
         "asset": "SPY",
         "address": "0x319724394D3A0e3669269846abE664Cd621f9f6A",
         "decimals": 8,
-        "tokenAddress": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c"
+        "tokenAddress": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c",
+        "logo": "https://financialmodelingprep.com/image-stock/SPY.png"
       },
       {
         "label": "QQQ/USD",
         "asset": "QQQ",
         "address": "0x80901d846d5D7B030F26B480776EE3b29374C2ae",
         "decimals": 8,
-        "tokenAddress": "0xD5f3879160bc7c32ebb4dC785F8a4F505888de68"
+        "tokenAddress": "0xD5f3879160bc7c32ebb4dC785F8a4F505888de68",
+        "logo": "https://financialmodelingprep.com/image-stock/QQQ.png"
       },
       {
         "label": "AMD/USD",
         "asset": "AMD",
         "address": "0x943A29E7ae51A4798823ca9eEd2ed533B2A22C72",
         "decimals": 8,
-        "tokenAddress": "0x86923f96303D656E4aa86D9d42D1e57ad2023fdC"
+        "tokenAddress": "0x86923f96303D656E4aa86D9d42D1e57ad2023fdC",
+        "logo": "https://financialmodelingprep.com/image-stock/AMD.png"
       },
       {
         "label": "COIN/USD",
         "asset": "COIN",
         "address": "0xA3a468A452940B7D6b69991207B508c609a98Ef2",
         "decimals": 8,
-        "tokenAddress": "0x6330D8C3178a418788dF01a47479c0ce7CCF450b"
+        "tokenAddress": "0x6330D8C3178a418788dF01a47479c0ce7CCF450b",
+        "logo": "https://financialmodelingprep.com/image-stock/COIN.png"
       },
       {
         "label": "MSTR/USD",
         "asset": "MSTR",
         "address": "0x396118bdFB181e6240E74D243F266B061c0edc3D",
         "decimals": 8,
-        "tokenAddress": "0xec262a75e413fAfD0dF80480274532C79D42da09"
+        "tokenAddress": "0xec262a75e413fAfD0dF80480274532C79D42da09",
+        "logo": "https://financialmodelingprep.com/image-stock/MSTR.png"
       }
     ],
     "vaultCollateralOptions": [
@@ -269,7 +297,8 @@
     "primaryMarketFactory": "ZedkrFpmmMarketFactory",
     "feeFlow": "Market deposit → 0.4% protocol fee → MondaloreFeeVault.receiveFees()",
     "chainlinkSource": "https://docs.chain.link/data-feeds/price-feeds/addresses?network=robinhood",
-    "ponsDocs": "https://docs.ponsfamily.com/v2"
+    "ponsDocs": "https://docs.ponsfamily.com/v2",
+    "orderBook": "MondaloreOrderBook is the FPMM CLOB (exact MondaloreOrderBook bytecode) via ZedkrFpmmOrderBookFactoryAdapter. MondaloreOrderBookParimutuel is the earlier pari-wired instance."
   },
   "deployedAt": "2026-08-20T10:00:57.649Z"
 }

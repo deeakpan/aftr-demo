@@ -38,7 +38,7 @@ export function MarketPreviewModal({
   description,
   selectedCategories,
   outcomes,
-  slug,
+  slug: _slug,
   stakeEndAt,
   resolveAfterAt,
   seedAmount,
@@ -91,7 +91,6 @@ export function MarketPreviewModal({
         </div>
 
         <div className="space-y-3 border-t border-[var(--border)] px-4 py-4 md:px-5">
-          {slug && <p className="font-mono text-[10px] text-[var(--muted)]">/{slug}</p>}
           <p className="text-[11px] leading-relaxed text-[var(--muted)] md:text-xs">
             {description || "No description provided."}
           </p>

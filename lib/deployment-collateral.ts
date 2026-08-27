@@ -1,5 +1,6 @@
 import deployment from "@/lib/deployment";
 import { zeroAddress, type Address } from "viem";
+import { tradingUsdgAddress } from "@/lib/usdg";
 
 const contracts = deployment.contracts as Record<string, string | undefined>;
 
@@ -12,6 +13,7 @@ export function collateralTickerFromDeployment(address: Address): string {
   const lower = address.toLowerCase();
   if (lower === zeroAddress.toLowerCase()) return "ETH";
   const aftrUsdc = contracts.MondaloreUSDC?.toLowerCase();
+  const tradingUsdg = tradingUsdgAddress()?.toLowerCase();
   const usdg = contracts.USDG?.toLowerCase();
   const circle = (
     deployment as unknown as {
@@ -21,6 +23,7 @@ export function collateralTickerFromDeployment(address: Address): string {
   const usdgExternal = (
     deployment as unknown as { external?: { pons?: { usdg?: string } } }
   ).external?.pons?.usdg?.toLowerCase();
+  if (tradingUsdg && lower === tradingUsdg) return "USDG";
   if (usdg && lower === usdg) return "USDG";
   if (usdgExternal && lower === usdgExternal) return "USDG";
   if (circle && lower === circle) return "USDC";

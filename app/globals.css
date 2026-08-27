@@ -16,10 +16,10 @@
   --surface: #161718;
   --surface-hover: #1e1f22;
   --elevated-card-shadow: 0 10px 28px rgb(0 0 0 / 0.45);
-  --outcome-yes: #22c55e;
-  --outcome-yes-hover: #16a34a;
-  --outcome-no: #ef4444;
-  --outcome-no-hover: #dc2626;
+  --outcome-yes: #15803d;
+  --outcome-yes-hover: #166534;
+  --outcome-no: #b91c1c;
+  --outcome-no-hover: #991b1b;
   --trade-highlight: #facc15;
   --glass-bg: color-mix(in srgb, var(--surface) 88%, rgb(255 255 255 / 0.04));
   --glass-border: color-mix(in srgb, var(--border) 70%, rgb(255 255 255 / 0.06));
@@ -38,10 +38,10 @@
   --surface: #ececee;
   --surface-hover: #e4e4e7;
   --elevated-card-shadow: 0 10px 28px rgb(11 12 14 / 0.08);
-  --outcome-yes: #22c55e;
-  --outcome-yes-hover: #16a34a;
-  --outcome-no: #ef4444;
-  --outcome-no-hover: #dc2626;
+  --outcome-yes: #166534;
+  --outcome-yes-hover: #14532d;
+  --outcome-no: #991b1b;
+  --outcome-no-hover: #7f1d1d;
   --trade-highlight: #facc15;
   --glass-bg: color-mix(in srgb, var(--card) 92%, rgb(11 12 14 / 0.03));
   --glass-border: color-mix(in srgb, var(--border) 80%, transparent);
@@ -132,11 +132,14 @@ body {
 }
 
 .no-scrollbar {
+  -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+  width: 0;
+  height: 0;
 }
 
 /** Thin themed scrollbar — use instead of the OS default. */
@@ -319,4 +322,53 @@ html[data-theme="light"] input[type="time"] {
   .trade-sheet-panel {
     animation: none;
   }
+}
+
+/** Market card close-date hover tip (left of date, white bubble + arrow). */
+.market-close-date-tip {
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 40;
+  max-width: min(70vw, 280px);
+  padding: 0.4rem 0.65rem;
+  border-radius: 0.65rem;
+  background: #ffffff;
+  color: #0a0a0a;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.12s ease, visibility 0.12s ease;
+}
+
+.market-close-date-tip::after {
+  content: "";
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 6px solid transparent;
+  border-left-color: #ffffff;
+}
+
+.market-close-date:hover .market-close-date-tip,
+.market-close-date:focus-visible .market-close-date-tip {
+  opacity: 1;
+  visibility: visible;
+}
+
+html[data-theme="light"] .market-close-date-tip {
+  background: #18181b;
+  color: #fafafa;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+html[data-theme="light"] .market-close-date-tip::after {
+  border-left-color: #18181b;
 }

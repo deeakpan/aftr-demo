@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { formatUnits, isAddress, parseAbiItem } from "viem";
+import { formatUnits, isAddress, parseAbi, parseAbiItem } from "viem";
 import deployment from "@/lib/deployment";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
 import { fetchIpfsMetadata, ipfsToHttp } from "@/lib/ipfs-metadata";
-import { launchpadMarketForDisplay, launchpadMarketFromMetadata } from "@/lib/launchpad-display";
-import { marketKindFromChain } from "@/lib/markets/market-kind";
+import { launchpadMarketForDisplay, launchpadMarketFromMetadata, uiMarketKindForDisplay } from "@/lib/launchpad-display";
 import { isListableMarket } from "@/lib/market-metadata";
 import { querySubgraph } from "@/lib/subgraph/client";
-import { isFpmmMarket } from "@/lib/market-mechanism";
-import { MARKET_READ_ABI, marketPoolFunction } from "@/lib/market-abi";
+import { MARKET_READ_ABI, marketTvlBalanceCall } from "@/lib/market-abi";
 
 const TOKENS_REDEEMED_EVENT = parseAbiItem(
   "event TokensRedeemed(address indexed user, uint8 indexed outcomeIndex, uint256 shares, uint256 payout)",
@@ -47,11 +45,15 @@ async function marketRedemptionTotal(
   market: `0x${string}`,
 ): Promise<bigint> {
   try {
+    const startBlock = BigInt(
+      (deployment as { deploymentBlocks?: { ZedkrFpmmMarketFactory?: number } }).deploymentBlocks
+        ?.ZedkrFpmmMarketFactory ?? 0,
+    );
     const logs = await deploymentPublicClient.getLogs({
       address: market,
       event: TOKENS_REDEEMED_EVENT,
       args: { user: wallet },
-      fromBlock: BigInt(0),
+      fromBlock: startBlock > BigInt(0) ? startBlock : BigInt(0),
       toBlock: "latest",
     });
     let total = BigInt(0);
@@ -113,42 +115,43 @@ async function buildRowsForMarket(
   const numOutcomes = Number(outcomesRaw);
   const collateralDecimals = Number(collateralDecimalsRaw);
   const state = Number(stateRaw);
-  const kind = marketKindFromChain(Number(kindRaw));
-  const isFpmm = await isFpmmMarket(publicClient, market);
-  const poolFn = marketPoolFunction(isFpmm);
   const metadataUriStr = String(metadataUri || "");
   const metadata = await fetchIpfsMetadata(metadataUriStr);
   if (!isListableMarket(metadataUriStr, metadata?.image, launchpadMarketFromMetadata(metadata as Record<string, unknown> | null) ?? metadata?.nadMarket)) {
     return [];
   }
+  const kind = uiMarketKindForDisplay(Number(kindRaw), metadata as Record<string, unknown> | null);
   const marketTitle = metadata?.title?.trim() || `${kind} market`;
   const marketSlug = metadata?.slug?.trim() || undefined;
   const labels = metadata?.outcomes?.filter((x): x is string => typeof x === "string") ?? [];
   const fallbackLabels = Array.from({ length: numOutcomes }, (_, i) => `Outcome ${i + 1}`);
   const outcomeLabels = labels.length > 0 ? labels : fallbackLabels;
 
+  const collateralAddress = collateralAddressRaw as `0x${string}`;
   const outcomeContracts = Array.from({ length: numOutcomes }, (_, i) => [
     { address: market, abi: MARKET_ABI, functionName: "priceOf" as const, args: [i] as const },
-    { address: market, abi: MARKET_ABI, functionName: poolFn as "realPool" | "poolBalances", args: [BigInt(i)] as const },
     { address: market, abi: MARKET_ABI, functionName: "outcomeToken" as const, args: [BigInt(i)] as const },
   ]).flat();
 
-  const outcomeReads = outcomeContracts.length
-    ? await publicClient.multicall({ contracts: outcomeContracts })
-    : [];
+  const [outcomeReads, tvlReads] = await Promise.all([
+    outcomeContracts.length
+      ? publicClient.multicall({ contracts: outcomeContracts })
+      : Promise.resolve([]),
+    publicClient.multicall({
+      contracts: [marketTvlBalanceCall(market, collateralAddress)],
+    }),
+  ]);
 
   let chancePct = numOutcomes >= 2 ? 50 : Math.max(1, Math.round(100 / Math.max(1, numOutcomes)));
   let outcomeChancePcts = Array.from({ length: numOutcomes }, (_, i) =>
     i === 0 ? chancePct : Math.round((100 - chancePct) / Math.max(1, numOutcomes - 1)),
   );
 
-  let poolTvlRaw = BigInt(0);
+  const poolTvlRaw = (tvlReads[0]?.result as bigint | undefined) ?? BigInt(0);
   const outcomeTokens: `0x${string}`[] = [];
   for (let i = 0; i < numOutcomes; i += 1) {
-    const price = outcomeReads[i * 3]?.result as bigint | undefined;
-    const pool = outcomeReads[i * 3 + 1]?.result as bigint | undefined;
-    const token = outcomeReads[i * 3 + 2]?.result as `0x${string}` | undefined;
-    if (pool !== undefined) poolTvlRaw += pool;
+    const price = outcomeReads[i * 2]?.result as bigint | undefined;
+    const token = outcomeReads[i * 2 + 1]?.result as `0x${string}` | undefined;
     if (price !== undefined) {
       outcomeChancePcts[i] = clampPct(Number(formatUnits(price, 18)) * 100);
     }

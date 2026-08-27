@@ -22,7 +22,13 @@ export async function GET() {
       { headers: { "Cache-Control": cacheControl } },
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not load markets.";
+    const raw = error instanceof Error ? error.message : "Could not load markets.";
+    const message =
+      /fetch failed|HTTP request failed|EAI_AGAIN|ETIMEDOUT|Connect Timeout/i.test(raw)
+        ? "Market RPC is temporarily unreachable. Try again in a moment."
+        : raw.length > 160
+          ? `${raw.slice(0, 157)}…`
+          : raw;
     return NextResponse.json(
       { error: message, markets: [], chainId: deployment.chainId },
       { status: 502, headers: { "Cache-Control": "no-store" } },

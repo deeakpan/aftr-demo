@@ -63,12 +63,12 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
     <>
       <div
         onClick={onClose}
-        className={`fixed inset-0 z-[100] bg-black/60 transition-opacity duration-300 ${
+        className={`fixed inset-0 z-[100] bg-black/60 transition-opacity duration-300 [html[data-theme=light]_&]:bg-black/40 ${
           isOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
       <aside
-        className={`sidebar-scroll fixed inset-y-0 left-0 z-[110] flex h-dvh w-[272px] max-w-[82vw] flex-col bg-black px-4 pb-5 pt-4 transition-transform duration-300 ${
+        className={`sidebar-scroll fixed inset-y-0 left-0 z-[110] flex h-dvh w-[272px] max-w-[82vw] flex-col border-r border-[var(--border)] bg-[var(--background)] px-4 pb-5 pt-4 transition-transform duration-300 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -78,13 +78,12 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
               <Image
                 src={logoSrc}
                 alt="Zedkr Market"
-
                 fill
                 className="object-contain object-center"
                 sizes="32px"
               />
             </span>
-            <span className="truncate text-base font-semibold tracking-tight text-white">
+            <span className="truncate text-base font-semibold tracking-tight text-[var(--foreground)]">
               Zedkr
             </span>
           </Link>
@@ -92,7 +91,7 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
             type="button"
             onClick={onClose}
             aria-label="Close sidebar"
-            className="flex h-9 w-9 shrink-0 items-center justify-center text-white"
+            className="flex h-9 w-9 shrink-0 items-center justify-center text-[var(--foreground)]"
           >
             <List size={22} weight="bold" />
           </button>
@@ -107,8 +106,10 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
                 href={href}
                 onClick={onClose}
                 aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium text-white transition ${
-                  active ? "bg-[#1a1a1c]" : "hover:bg-[#1a1a1c]/70"
+                className={`flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium text-[var(--foreground)] transition ${
+                  active
+                    ? "bg-[var(--surface)]"
+                    : "hover:bg-[var(--surface-hover)]"
                 }`}
               >
                 <Icon size={22} weight="fill" className={`shrink-0 ${iconClass}`} />
@@ -124,13 +125,13 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
             target="_blank"
             rel="noopener noreferrer"
             onClick={onClose}
-            className="mb-4 flex items-center gap-3 rounded-full bg-[#1a1a1c] px-3 py-2.5 text-sm font-medium text-white transition hover:bg-[#222226]"
+            className="mb-4 flex items-center gap-3 rounded-full bg-[var(--surface)] px-3 py-2.5 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
           >
             <Question size={22} weight="fill" className="shrink-0 text-[#ff8ca8]" />
             <span>Help & Feedback</span>
           </a>
 
-          <div className="border-t border-white/10 pt-4">
+          <div className="border-t border-[var(--border)] pt-4">
             <div className="flex flex-col gap-2 text-sm text-[var(--foreground)]">
               <Link href="/how-it-works" onClick={onClose} className="hover:underline">
                 How it works
@@ -144,12 +145,12 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
                 Docs
               </a>
             </div>
-            <p className="mt-4 text-xs text-white/80">© 2026 All rights reserved</p>
+            <p className="mt-4 text-xs text-[var(--muted)]">© 2026 All rights reserved</p>
             <div className="mt-3 flex items-center gap-2">
               <a
                 href="#"
                 aria-label="Twitter"
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-white/15 text-white/80 transition hover:text-white"
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border)] text-[var(--muted)] transition hover:text-[var(--foreground)]"
               >
                 <XLogo size={14} weight="bold" />
               </a>
@@ -158,7 +159,7 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Zedkr"
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-white/15 text-white/80 transition hover:text-white"
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--border)] text-[var(--muted)] transition hover:text-[var(--foreground)]"
               >
                 <TelegramLogo size={14} weight="bold" />
               </a>

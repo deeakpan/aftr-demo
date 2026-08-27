@@ -50,7 +50,7 @@ type PositionRow = {
   collateralAddress: `0x${string}`;
   marketTitle: string;
   slug?: string;
-  marketKind: "Event" | "Price" | "Nad";
+  marketKind: "Event" | "Price" | "Nad" | "Pons";
   marketState: number;
   stakeEndUnix: number;
   winningOutcomeIndex: number | null;
@@ -78,7 +78,7 @@ type MarketPositionGroup = {
   collateralAddress: `0x${string}`;
   marketTitle: string;
   slug?: string;
-  marketKind: "Event" | "Price" | "Nad";
+  marketKind: "Event" | "Price" | "Nad" | "Pons";
   marketState: number;
   stakeEndUnix: number;
   winningOutcomeIndex: number | null;
@@ -138,6 +138,26 @@ function formatCompactSharesInline(raw: bigint, decimals: number): string | null
 function fmtTs(seconds: number) {
   if (!Number.isFinite(seconds) || seconds <= 0) return "—";
   return new Date(seconds * 1000).toLocaleString();
+}
+
+/** Money on trade cards — readable, not 6-decimal noise. */
+function formatCollateralDisplay(raw: bigint, decimals: number): string {
+  const n = Number(formatUnits(raw, decimals));
+  if (!Number.isFinite(n)) return "0";
+  const abs = Math.abs(n);
+  if (abs >= 100) return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  if (abs >= 1) return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  if (abs >= 0.01) return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  return n.toLocaleString(undefined, { maximumSignificantDigits: 3 });
+}
+
+function formatCardCloseLabel(stakeEndUnix: number, fallback: string) {
+  if (!Number.isFinite(stakeEndUnix) || stakeEndUnix <= 0) return fallback;
+  return new Date(stakeEndUnix * 1000).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function stateLabel(state: number, stakeEndUnix: number) {
@@ -316,6 +336,53 @@ type ClaimOverride = {
   claimedAt: number;
 };
 
+function SettledResultStats({
+  invested,
+  redeemed,
+  tick,
+  fmtAmount,
+}: {
+  invested: bigint;
+  redeemed: bigint;
+  tick: string;
+  fmtAmount: (v: bigint) => string;
+}) {
+  const net = redeemed - invested;
+  const netPositive = net > BigInt(0);
+  const netZero = net === BigInt(0);
+  const netTone = netPositive
+    ? "text-[var(--outcome-yes)]"
+    : netZero
+      ? "text-[var(--muted)]"
+      : "text-[var(--outcome-no)]";
+
+  return (
+    <div className="mt-1.5 flex w-full max-w-[14rem] items-stretch justify-center gap-0 border-t border-[var(--border)] pt-1.5">
+      <div className="flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1">
+        <span className={`text-[12px] font-bold tabular-nums leading-none ${netTone}`}>
+          {netPositive ? "+" : netZero ? "" : "−"}
+          {fmtAmount(netPositive || netZero ? net : -net)}
+        </span>
+        <span className="text-[9px] font-medium uppercase tracking-wide text-[var(--muted)]">
+          {netZero ? "Even" : netPositive ? "Profit" : "Loss"}
+        </span>
+      </div>
+      <div className="w-px shrink-0 self-stretch bg-[var(--border)]" aria-hidden />
+      <div className="flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1">
+        <span className="text-[12px] font-semibold tabular-nums leading-none text-[var(--foreground)]">
+          {fmtAmount(invested)}
+        </span>
+        <span className="text-[9px] font-medium uppercase tracking-wide text-[var(--muted)]">
+          Spent
+        </span>
+      </div>
+      <span className="sr-only">
+        {tick}
+      </span>
+    </div>
+  );
+}
+
 function SettledMarketSummary({
   invested,
   redeemed,
@@ -329,72 +396,58 @@ function SettledMarketSummary({
   fmtAmount: (v: bigint) => string;
   justClaimed?: boolean;
 }) {
-  const net = redeemed - invested;
   const hasRedeemed = redeemed > BigInt(0);
   const hasInvested = invested > BigInt(0);
 
-  if (justClaimed && hasRedeemed) {
-    return (
-      <div className={`${MARKET_CARD_OUTCOMES_BOX} justify-center gap-1 text-center`}>
-        <p className="text-sm font-bold text-emerald-400 [html[data-theme=light]_&]:text-emerald-700">
-          Successfully claimed
-        </p>
-        <p className="text-[13px] font-semibold tabular-nums text-[var(--foreground)]">
-          {fmtAmount(redeemed)} {tick}
-        </p>
-        {hasInvested && (
-          <p className="text-[11px] text-[var(--muted)]">
-            {net >= BigInt(0)
-              ? `Net on this market: +${fmtAmount(net)} ${tick}`
-              : `Net on this market: −${fmtAmount(-net)} ${tick} (includes losing positions)`}
-          </p>
-        )}
-      </div>
-    );
-  }
-
   if (hasRedeemed) {
-    const netPositive = net > BigInt(0);
-    const netZero = net === BigInt(0);
     return (
-      <div className={`${MARKET_CARD_OUTCOMES_BOX} justify-center gap-0.5`}>
-        <p className="text-[11px] font-medium text-[var(--muted)]">Redeemed</p>
-        <p className="text-[13px] font-semibold tabular-nums text-[var(--foreground)]">
-          {fmtAmount(redeemed)} {tick}
-        </p>
-        {hasInvested && (
-          <p
-            className={`text-[11px] font-semibold tabular-nums ${
-              netPositive
-                ? "text-emerald-400 [html[data-theme=light]_&]:text-emerald-700"
-                : netZero
-                  ? "text-[var(--muted)]"
-                  : "text-rose-400 [html[data-theme=light]_&]:text-rose-700"
-            }`}
-          >
-            {netPositive
-              ? `Won ${fmtAmount(net)} ${tick}`
-              : netZero
-                ? "Break even"
-                : `Net −${fmtAmount(-net)} ${tick}`}
+      <div className={`${MARKET_CARD_OUTCOMES_BOX} items-center justify-center text-center`}>
+        {justClaimed ? (
+          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--outcome-yes)]">
+            Claimed
+          </p>
+        ) : (
+          <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--muted)]">
+            Payout
           </p>
         )}
+        <p className="text-[17px] font-bold tabular-nums leading-none tracking-tight text-[var(--foreground)] md:text-[18px]">
+          {fmtAmount(redeemed)}
+          <span className="ml-1 text-[11px] font-semibold text-[var(--muted)]">{tick}</span>
+        </p>
+        {hasInvested ? (
+          <SettledResultStats
+            invested={invested}
+            redeemed={redeemed}
+            tick={tick}
+            fmtAmount={fmtAmount}
+          />
+        ) : null}
       </div>
     );
   }
 
   if (hasInvested) {
     return (
-      <div className={`${MARKET_CARD_OUTCOMES_BOX} items-center justify-center`}>
-        <p className="text-sm font-bold text-rose-400 [html[data-theme=light]_&]:text-rose-700">You lost</p>
+      <div className={`${MARKET_CARD_OUTCOMES_BOX} items-center justify-center text-center`}>
+        <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--outcome-no)]">
+          Lost
+        </p>
+        <p className="mt-1 text-[17px] font-bold tabular-nums leading-none tracking-tight text-[var(--foreground)]">
+          {fmtAmount(invested)}
+          <span className="ml-1 text-[11px] font-semibold text-[var(--muted)]">{tick}</span>
+        </p>
+        <p className="mt-1.5 text-[10px] text-[var(--muted)]">No winning shares</p>
       </div>
     );
   }
 
   return (
-    <div className={`${MARKET_CARD_OUTCOMES_BOX} items-center justify-center gap-0.5 text-center`}>
-      <p className="text-sm font-semibold text-[var(--foreground)]">Settled</p>
-      <p className="text-[11px] text-[var(--muted)]">No outcome tokens held on-chain anymore.</p>
+    <div className={`${MARKET_CARD_OUTCOMES_BOX} items-center justify-center gap-1 text-center`}>
+      <p className="text-[13px] font-semibold text-[var(--foreground)]">Settled</p>
+      <p className="max-w-[12rem] text-[10px] leading-snug text-[var(--muted)]">
+        No outcome tokens left on this market
+      </p>
     </div>
   );
 }
@@ -426,10 +479,7 @@ function ClaimWinningsButton({
   const maxPayout = useMemo(() => {
     if (redemptionRate <= BigInt(0) || maxShares <= BigInt(0)) return "0";
     const estPayoutWei = (maxShares * redemptionRate) / BigInt(10 ** 18);
-    const raw = formatUnits(estPayoutWei, shareDecimals);
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return raw;
-    return n.toLocaleString(undefined, { maximumFractionDigits: 6 });
+    return formatCollateralDisplay(estPayoutWei, shareDecimals);
   }, [maxShares, redemptionRate, shareDecimals]);
 
   const redeem = async () => {
@@ -509,19 +559,27 @@ function ClaimWinningsButton({
   };
 
   return (
-    <div onClick={(e) => e.stopPropagation()} className="flex h-full flex-col justify-center">
-      <p className="mb-1 text-xs font-semibold text-emerald-400">
-        {formatShareAmount(maxShares, shareDecimals)}
-      </p>
-      <p className="mb-1 text-[11px] text-[var(--muted)]">Est. payout: {maxPayout} {collateralTicker}</p>
+    <div onClick={(e) => e.stopPropagation()} className="flex h-full flex-col justify-center gap-1.5">
+      <div className="text-center">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--muted)]">
+          Ready to claim
+        </p>
+        <p className="mt-0.5 text-[17px] font-bold tabular-nums leading-none tracking-tight text-[var(--foreground)]">
+          {maxPayout}
+          <span className="ml-1 text-[11px] font-semibold text-[var(--muted)]">{collateralTicker}</span>
+        </p>
+        <p className="mt-1 text-[10px] text-[var(--muted)]">
+          {formatShareAmount(maxShares, shareDecimals)}
+        </p>
+      </div>
       {status && (
-        <p className={`mb-1.5 text-[11px] ${statusIsError ? "text-rose-300" : "text-emerald-300"}`}>{status}</p>
+        <p className={`text-center text-[11px] ${statusIsError ? "text-[var(--outcome-no)]" : "text-[var(--outcome-yes)]"}`}>{status}</p>
       )}
       <button
         type="button"
         disabled={busy}
         onClick={() => void redeem()}
-        className="w-full rounded-xl bg-emerald-500 py-2.5 text-sm font-bold text-white shadow-[0_0_16px_rgba(16,185,129,0.3)] transition hover:bg-emerald-400 active:scale-[0.98] disabled:opacity-60"
+        className="w-full rounded-xl bg-[var(--outcome-yes)] py-2 text-sm font-bold text-white transition hover:bg-[var(--outcome-yes-hover)] active:scale-[0.98] disabled:opacity-60"
       >
         {busy ? "Claiming…" : "Claim Winnings"}
       </button>
@@ -606,16 +664,15 @@ export function TradesClient() {
       }
       setIsLoading(true);
       setError("");
+      const maxAttempts = 3;
       try {
-        const res = await fetch(`/api/trades/positions?wallet=${address}`, { cache: "no-store" });
-        const raw = await res.text();
         let json: {
           rows?: Array<{
             marketAddress: `0x${string}`;
             collateralAddress: `0x${string}`;
             marketTitle: string;
             slug?: string;
-            marketKind: "Event" | "Price" | "Nad";
+            marketKind: "Event" | "Price" | "Nad" | "Pons";
             marketState: number;
             stakeEndUnix: number;
             winningOutcomeIndex: number | null;
@@ -637,15 +694,43 @@ export function TradesClient() {
           }>;
           error?: string;
           unavailable?: boolean;
-        };
-        try {
-          json = raw ? (JSON.parse(raw) as typeof json) : {};
-        } catch {
-          throw new Error("Could not load trades.");
+          reason?: string;
+        } = {};
+        let lastStatus = 0;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+          const res = await fetch(`/api/trades/positions?wallet=${address}`, { cache: "no-store" });
+          lastStatus = res.status;
+          const raw = await res.text();
+          try {
+            json = raw ? (JSON.parse(raw) as typeof json) : {};
+          } catch {
+            if (attempt < maxAttempts && (res.status === 404 || res.status >= 500 || !raw)) {
+              await new Promise((r) => setTimeout(r, 400 * attempt));
+              continue;
+            }
+            throw new Error(
+              res.status === 404
+                ? "Trades API is warming up. Refresh and try again."
+                : "Could not load trades.",
+            );
+          }
+          if (!res.ok) {
+            if (attempt < maxAttempts && (res.status === 404 || res.status >= 500)) {
+              await new Promise((r) => setTimeout(r, 400 * attempt));
+              continue;
+            }
+            throw new Error(json.error || "Could not load trades.");
+          }
+          break;
         }
-        if (!res.ok) {
-          throw new Error(json.error || "Could not load trades.");
+
+        if (json.unavailable) {
+          setRows([]);
+          setError(json.reason || "Trades indexer is temporarily unavailable. Try again shortly.");
+          return;
         }
+
         const parsed: PositionRow[] = (json.rows ?? []).map((r) => ({
           marketAddress: r.marketAddress,
           collateralAddress: r.collateralAddress,
@@ -655,11 +740,11 @@ export function TradesClient() {
           marketState: r.marketState,
           stakeEndUnix: r.stakeEndUnix,
           winningOutcomeIndex: r.winningOutcomeIndex,
-          redemptionRate: BigInt(r.redemptionRate),
+          redemptionRate: BigInt(r.redemptionRate || "0"),
           outcomeIndex: r.outcomeIndex,
           outcomeLabel: r.outcomeLabel,
           outcomeLabels: r.outcomeLabels,
-          balance: BigInt(r.balance),
+          balance: BigInt(r.balance || "0"),
           collateralDecimals: r.collateralDecimals,
           chancePct: clampPct(r.chancePct),
           outcomeChancePcts: (r.outcomeChancePcts ?? []).map((p) => clampPct(p)),
@@ -684,6 +769,7 @@ export function TradesClient() {
           }
           return next;
         });
+        void lastStatus;
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not load trades.");
       } finally {
@@ -752,14 +838,12 @@ export function TradesClient() {
                 winIdx !== null && winBal > BigInt(0) && !claimOverride && g.marketState === 2;
               const justClaimed = Boolean(claimOverride);
               const tick = collateralTickerFromDeployment(g.collateralAddress);
-              const fmtIndexed = (v: bigint) =>
-                Number(formatUnits(v, g.collateralDecimals)).toLocaleString(undefined, {
-                  maximumFractionDigits: 6,
-                });
+              const fmtIndexed = (v: bigint) => formatCollateralDisplay(v, g.collateralDecimals);
               const tradingClosed =
                 g.marketState !== 0 || Math.floor(Date.now() / 1000) >= g.stakeEndUnix;
               const nadMarket =
                 g.nadMarket ?? nadMarketByAddress[g.marketAddress.toLowerCase()] ?? null;
+              const closeLabel = formatCardCloseLabel(g.stakeEndUnix, g.stakeEndsLabel);
 
               return (
                 <article
@@ -773,7 +857,7 @@ export function TradesClient() {
                     {g.imageUrl ? (
                       <img
                         src={g.imageUrl}
-                        alt={g.marketTitle}
+                        alt=""
                         className="h-full w-full object-cover object-center"
                       />
                     ) : (
@@ -785,14 +869,15 @@ export function TradesClient() {
                   )}
 
                   <div className={MARKET_CARD_TRADES_BODY_CLASS}>
-                    <p
-                      className={`${MARKET_CARD_TRADES_TITLE_CLASS} cursor-pointer underline-offset-2 hover:underline`}
+                    <button
+                      type="button"
+                      className={`${MARKET_CARD_TRADES_TITLE_CLASS} block w-full cursor-pointer border-0 bg-transparent p-0 text-left transition-opacity hover:opacity-80`}
                       onClick={() =>
                         router.push(marketPath({ slug: g.slug, address: g.marketAddress }))
                       }
                     >
                       {g.marketTitle}
-                    </p>
+                    </button>
                     <p className={MARKET_CARD_TRADES_META_CLASS}>
                       {g.marketKind} · {stateLabel(g.marketState, g.stakeEndUnix)}
                     </p>
@@ -844,22 +929,22 @@ export function TradesClient() {
                   </div>
 
                   <div className={MARKET_CARD_TRADES_FOOTER_SLOT_CLASS}>
-                  <div className="flex shrink-0 items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] text-[var(--muted)]">
+                  <div className="flex shrink-0 items-center justify-between gap-2 border-t border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] text-[var(--muted)]">
                     <Tip label="Total Value Locked">
                       <div className="inline-flex items-center gap-1.5 font-semibold text-[var(--foreground)]">
                         <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-[#4f7cff] to-[#6dff8e]" />
                         {`$${tvlOverrides[g.marketAddress] ?? g.poolTvlDisplay}`}
                       </div>
                     </Tip>
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <Tip label="Refresh TVL">
                         <button type="button" onClick={(e) => { e.stopPropagation(); void refreshTvl(g); }}
-                          className="inline-flex items-center transition hover:text-[var(--foreground)]">
+                          className="inline-flex shrink-0 items-center transition hover:text-[var(--foreground)]">
                           <ArrowsClockwise size={12} className={tvlRefreshing[g.marketAddress] ? "animate-spin" : ""} />
                         </button>
                       </Tip>
                       <Tip label="Staking ends">
-                        <span>{g.stakeEndsLabel}</span>
+                        <span className="truncate tabular-nums">{closeLabel}</span>
                       </Tip>
                       <MarketShareButton
                         address={g.marketAddress}

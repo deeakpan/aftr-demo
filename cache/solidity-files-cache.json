@@ -2,7 +2,7 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\access\\Ownable2Step.sol": {
-      "lastModificationDate": 1775211769270,
+      "lastModificationDate": 1782287270460,
       "contentHash": "4c23c95621f1bdfb8c47bcb3795c53e8",
       "sourceName": "@openzeppelin/contracts/access/Ownable2Step.sol",
       "solcConfig": {
@@ -44,7 +44,7 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\IERC20.sol": {
-      "lastModificationDate": 1775211768623,
+      "lastModificationDate": 1782287266146,
       "contentHash": "9261adf6457863de3e9892f51317ec89",
       "sourceName": "@openzeppelin/contracts/token/ERC20/IERC20.sol",
       "solcConfig": {
@@ -84,7 +84,7 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\utils\\SafeERC20.sol": {
-      "lastModificationDate": 1775211769455,
+      "lastModificationDate": 1782287270825,
       "contentHash": "bf8e9c3398d381dc66c5302267927386",
       "sourceName": "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
       "solcConfig": {
@@ -127,7 +127,7 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\access\\Ownable.sol": {
-      "lastModificationDate": 1775211769257,
+      "lastModificationDate": 1782287270446,
       "contentHash": "d3c790edc9ccf808a17c5a6cd13614fd",
       "sourceName": "@openzeppelin/contracts/access/Ownable.sol",
       "solcConfig": {
@@ -169,7 +169,7 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\ERC20.sol": {
-      "lastModificationDate": 1775211767315,
+      "lastModificationDate": 1782287263463,
       "contentHash": "d15c4d05583536e080f1960ab282772d",
       "sourceName": "@openzeppelin/contracts/token/ERC20/ERC20.sol",
       "solcConfig": {
@@ -214,7 +214,7 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\Context.sol": {
-      "lastModificationDate": 1775211766589,
+      "lastModificationDate": 1782287262025,
       "contentHash": "67bfbc07588eb8683b3fd8f6f909563e",
       "sourceName": "@openzeppelin/contracts/utils/Context.sol",
       "solcConfig": {
@@ -254,7 +254,7 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\extensions\\IERC20Metadata.sol": {
-      "lastModificationDate": 1775211768657,
+      "lastModificationDate": 1782287266175,
       "contentHash": "513778b30d2750f5d2b9b19bbcf748a5",
       "sourceName": "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
       "solcConfig": {
@@ -296,7 +296,7 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\interfaces\\draft-IERC6093.sol": {
-      "lastModificationDate": 1775211766883,
+      "lastModificationDate": 1782287262547,
       "contentHash": "bcc76f4747d56c28c40ae272ef3470a6",
       "sourceName": "@openzeppelin/contracts/interfaces/draft-IERC6093.sol",
       "solcConfig": {
@@ -338,7 +338,7 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\Address.sol": {
-      "lastModificationDate": 1775211766282,
+      "lastModificationDate": 1782287261440,
       "contentHash": "44f61b7a5cd41aa205efaebb4686f797",
       "sourceName": "@openzeppelin/contracts/utils/Address.sol",
       "solcConfig": {
@@ -381,7 +381,7 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\ReentrancyGuard.sol": {
-      "lastModificationDate": 1775211769372,
+      "lastModificationDate": 1782287270648,
       "contentHash": "6e5efb502dd6652d12ad15eea2c5bdf4",
       "sourceName": "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
       "solcConfig": {
@@ -423,7 +423,7 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\Errors.sol": {
-      "lastModificationDate": 1775211767764,
+      "lastModificationDate": 1782287264901,
       "contentHash": "6b5eac2b85500c3012977849cfd633d8",
       "sourceName": "@openzeppelin/contracts/utils/Errors.sol",
       "solcConfig": {
@@ -463,7 +463,7 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\LowLevelCall.sol": {
-      "lastModificationDate": 1775211769076,
+      "lastModificationDate": 1782287270045,
       "contentHash": "0474caccabcd255a35c82fe878701271",
       "sourceName": "@openzeppelin/contracts/utils/LowLevelCall.sol",
       "solcConfig": {
@@ -503,7 +503,7 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\StorageSlot.sol": {
-      "lastModificationDate": 1775211769619,
+      "lastModificationDate": 1782287271275,
       "contentHash": "e656d64c4ce918f3d13030b91c935134",
       "sourceName": "@openzeppelin/contracts/utils/StorageSlot.sol",
       "solcConfig": {
@@ -543,7 +543,7 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\interfaces\\IERC1363.sol": {
-      "lastModificationDate": 1775211768381,
+      "lastModificationDate": 1782287265996,
       "contentHash": "a7fd0f05e36b0d0a21c75340c9c639ec",
       "sourceName": "@openzeppelin/contracts/interfaces/IERC1363.sol",
       "solcConfig": {
@@ -586,7 +586,7 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\interfaces\\IERC20.sol": {
-      "lastModificationDate": 1775211768607,
+      "lastModificationDate": 1782287266127,
       "contentHash": "68620db2da7583d9a4919096ac77f577",
       "sourceName": "@openzeppelin/contracts/interfaces/IERC20.sol",
       "solcConfig": {
@@ -626,7 +626,7 @@
       "artifacts": []
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\interfaces\\IERC165.sol": {
-      "lastModificationDate": 1775211768477,
+      "lastModificationDate": 1782287266056,
       "contentHash": "947853028399b7de34bcc3704ee06e99",
       "sourceName": "@openzeppelin/contracts/interfaces/IERC165.sol",
       "solcConfig": {
@@ -666,7 +666,7 @@
       "artifacts": []
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\introspection\\IERC165.sol": {
-      "lastModificationDate": 1775211768513,
+      "lastModificationDate": 1782287266077,
       "contentHash": "7074c93b1ea0a122063f26ddd1db1032",
       "sourceName": "@openzeppelin/contracts/utils/introspection/IERC165.sol",
       "solcConfig": {
@@ -706,7 +706,7 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\introspection\\ERC165.sol": {
-      "lastModificationDate": 1775211767235,
+      "lastModificationDate": 1782287263279,
       "contentHash": "0906d06dca25210d4696dcef6dad2909",
       "sourceName": "@openzeppelin/contracts/utils/introspection/ERC165.sol",
       "solcConfig": {
@@ -2009,8 +2009,8 @@
       ]
     },
     "C:\\Users\\USER\\aftermarket\\contracts\\factory\\ZedkrFpmmMarketFactory.sol": {
-      "lastModificationDate": 1787171958472,
-      "contentHash": "e4eae03fc000f281f7977acf441aa812",
+      "lastModificationDate": 1787242550133,
+      "contentHash": "19307376e4eea3efd061e97a6b4ed133",
       "sourceName": "contracts/factory/ZedkrFpmmMarketFactory.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -2314,6 +2314,47 @@
       ],
       "artifacts": [
         "USDG"
+      ]
+    },
+    "C:\\Users\\USER\\aftermarket\\contracts\\orderbook\\ZedkrFpmmOrderBookFactoryAdapter.sol": {
+      "lastModificationDate": 1787242549969,
+      "contentHash": "4fd9e1f8caf24eb08acda22b61e28cbc",
+      "sourceName": "contracts/orderbook/ZedkrFpmmOrderBookFactoryAdapter.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "IZedkrFpmmMarketFactoryView",
+        "ZedkrFpmmOrderBookFactoryAdapter"
       ]
     }
   }

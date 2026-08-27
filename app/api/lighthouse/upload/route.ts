@@ -1,10 +1,23 @@
 import { NextResponse } from "next/server";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const LIGHTHOUSE_ADD_URL = "https://upload.lighthouse.storage/api/v0/add";
+
+function networkDetail(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const cause = (error as Error & { cause?: unknown }).cause;
+  if (cause instanceof Error) {
+    const code = (cause as Error & { code?: string }).code;
+    return [error.message, code, cause.message].filter(Boolean).join(": ");
+  }
+  return error.message;
+}
 
 async function uploadToLighthouse(payload: FormData, apiKey: string) {
   const controller = new AbortController();
-  const timeoutMs = 30_000;
+  const timeoutMs = 45_000;
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(LIGHTHOUSE_ADD_URL, {
@@ -18,13 +31,25 @@ async function uploadToLighthouse(payload: FormData, apiKey: string) {
   }
 }
 
-async function uploadWithRetry(payload: FormData, apiKey: string) {
+async function uploadWithRetry(payloadFactory: () => FormData, apiKey: string) {
   try {
-    return await uploadToLighthouse(payload, apiKey);
-  } catch {
-    // single retry for transient network timeout
-    return await uploadToLighthouse(payload, apiKey);
+    return await uploadToLighthouse(payloadFactory(), apiKey);
+  } catch (first) {
+    console.warn("[lighthouse/upload] retry after", networkDetail(first));
+    return await uploadToLighthouse(payloadFactory(), apiKey);
   }
+}
+
+/** Buffer request bytes so undici doesn't stream a half-consumed File upstream. */
+async function fileToBlob(file: File): Promise<{ blob: Blob; name: string }> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (bytes.byteLength === 0) {
+    throw new Error("Uploaded file is empty.");
+  }
+  return {
+    blob: new Blob([bytes], { type: file.type || "application/octet-stream" }),
+    name: file.name || "upload.bin",
+  };
 }
 
 export async function POST(req: Request) {
@@ -36,30 +61,63 @@ export async function POST(req: Request) {
     );
   }
 
-  const form = await req.formData();
-  const kind = String(form.get("kind") ?? "file");
-  const payload = new FormData();
+  let form: FormData;
+  try {
+    form = await req.formData();
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Invalid multipart body.", details: networkDetail(error) },
+      { status: 400 },
+    );
+  }
 
-  if (kind === "json") {
-    const json = String(form.get("json") ?? "");
-    const filename = String(form.get("filename") ?? "metadata.json");
-    if (!json) return NextResponse.json({ error: "Missing json payload." }, { status: 400 });
-    payload.append("file", new Blob([json], { type: "application/json" }), filename);
-  } else {
-    const file = form.get("file");
-    if (!(file instanceof File)) {
-      return NextResponse.json({ error: "Missing file upload." }, { status: 400 });
+  const kind = String(form.get("kind") ?? "file");
+  let buildPayload: () => FormData;
+
+  try {
+    if (kind === "json") {
+      const json = String(form.get("json") ?? "");
+      const filename = String(form.get("filename") ?? "metadata.json");
+      if (!json) {
+        return NextResponse.json({ error: "Missing json payload." }, { status: 400 });
+      }
+      const bytes = new TextEncoder().encode(json);
+      buildPayload = () => {
+        const payload = new FormData();
+        payload.append(
+          "file",
+          new Blob([bytes], { type: "application/json" }),
+          filename,
+        );
+        return payload;
+      };
+    } else {
+      const file = form.get("file");
+      if (!(file instanceof File)) {
+        return NextResponse.json({ error: "Missing file upload." }, { status: 400 });
+      }
+      const { blob, name } = await fileToBlob(file);
+      buildPayload = () => {
+        const payload = new FormData();
+        payload.append("file", blob, name);
+        return payload;
+      };
     }
-    payload.append("file", file, file.name);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Invalid upload payload." },
+      { status: 400 },
+    );
   }
 
   let res: Response;
   try {
-    res = await uploadWithRetry(payload, apiKey);
+    res = await uploadWithRetry(buildPayload, apiKey);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown upload failure";
+    const details = networkDetail(error);
+    console.error("[lighthouse/upload] failed", details);
     return NextResponse.json(
-      { error: "Lighthouse upload request failed.", details: message },
+      { error: "Lighthouse upload request failed.", details },
       { status: 504 },
     );
   }
@@ -72,6 +130,7 @@ export async function POST(req: Request) {
     // keep raw text for debugging upstream errors.
   }
   if (!res.ok) {
+    console.error("[lighthouse/upload] upstream", res.status, raw.slice(0, 300));
     return NextResponse.json(
       { error: `Lighthouse upload failed (${res.status}).`, details: data },
       { status: 502 },

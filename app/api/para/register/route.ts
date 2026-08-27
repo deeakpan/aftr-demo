@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { registerParaWallet } from "@/lib/para-session";
+import { formatUserTxError } from "@/lib/tx-error";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Para register failed.";
+    const message = formatUserTxError(error, "Wallet sign-in failed. Try again.");
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

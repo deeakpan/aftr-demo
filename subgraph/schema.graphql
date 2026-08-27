@@ -36,7 +36,7 @@ type MarketTrade @entity(immutable: true) {
   blockNumber: BigInt!
   collateralAmount: BigInt!
   outcomeIndex: Int!
-  """deposit | buy | sell | redeem"""
+  """buy | sell | redeem"""
   kind: String!
 }
 
@@ -89,4 +89,38 @@ type EpochFees @entity(immutable: false) {
   totalFees: BigInt!
   stakerShare: BigInt!
   treasuryShare: BigInt!
+}
+
+"""Resting limit order on MondaloreOrderBook (emitted only for unfilled remainder)."""
+type LimitOrder @entity(immutable: false) {
+  id: ID!                 # orderId (bytes32 hex)
+  """Set when the market was indexed via FpmmFactory; null for unknown/parimutuel markets."""
+  market: Market
+  marketAddress: String!
+  token: String!          # outcome ERC20
+  user: String!
+  price: BigInt!          # collateral per 1e{tokenDec} outcome tokens
+  amount: BigInt!         # tokens remaining at place (buy) or tokens escrowed (sell)
+  isBuy: Boolean!
+  """open | cancelled"""
+  status: String!
+  createdAt: BigInt!
+  createdAtBlock: BigInt!
+  cancelledAt: BigInt
+  txHash: String!
+}
+
+"""One CLOB fill (OrderMatched). amount = outcome tokens transferred; match event has no orderId."""
+type LimitOrderFill @entity(immutable: true) {
+  id: ID!                 # txHash-logIndex
+  market: Market
+  marketAddress: String!
+  token: String!
+  maker: String!
+  taker: String!
+  price: BigInt!
+  amount: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: String!
 }

@@ -9,11 +9,17 @@ import {
   formatNadMcapUsd,
   formatNadPriceUsd,
   formatNadVolume,
-  parseNadMarketStats,
+  type NadLiveStats,
 } from "@/lib/nad/market-stats";
+import {
+  fetchLaunchpadTokenDisplay,
+  isPonsDisplayMarket,
+} from "@/lib/launchpad/fetch-token-display";
 
 type Props = {
   nadMarket: NadMarketConfig;
+  /** Notify parent which token tab is active (for DexScreener / chart fallback). */
+  onActiveTokenChange?: (token: NadTokenRef) => void;
 };
 
 function TokenTicker({ symbol, address }: { symbol: string; address: string }) {
@@ -47,15 +53,18 @@ function TokenTicker({ symbol, address }: { symbol: string; address: string }) {
 
 function TokenStatsBody({
   token,
-  marketRaw,
+  stats,
+  volumeLabel,
   loading,
+  externalLink,
 }: {
   token: NadTokenRef;
-  marketRaw: Record<string, unknown> | null;
+  stats: NadLiveStats | null;
+  volumeLabel: string;
   loading: boolean;
+  externalLink: string;
 }) {
-  const stats = parseNadMarketStats(marketRaw, { isGraduated: token.isGraduated });
-  const phase = token.isGraduated || stats.isOnDex ? "DEX" : "Bonding curve";
+  const phase = token.isGraduated || stats?.isOnDex ? "DEX" : "Bonding curve";
 
   return (
     <>
@@ -78,12 +87,12 @@ function TokenStatsBody({
           {token.name ? <p className="truncate text-xs text-[var(--muted)]">{token.name}</p> : null}
         </div>
         <a
-          href={ponsTokenPageUrl(token.address)}
+          href={externalLink}
           target="_blank"
           rel="noopener noreferrer"
           className="shrink-0 text-[var(--muted)] transition hover:text-[var(--foreground)]"
-          aria-label={`Open $${token.symbol} on Pons`}
-          title="Open on Pons"
+          aria-label={`Open $${token.symbol}`}
+          title="Open token page"
         >
           <ArrowSquareOut size={18} weight="bold" />
         </a>
@@ -97,25 +106,25 @@ function TokenStatsBody({
         <div className="rounded-lg bg-[var(--surface)] px-2.5 py-2">
           <p className="text-[var(--muted)]">Price (USD)</p>
           <p className="font-semibold tabular-nums text-[var(--foreground)]">
-            {loading ? "…" : formatNadPriceUsd(stats.priceUsd)}
+            {loading ? "…" : formatNadPriceUsd(stats?.priceUsd ?? null)}
           </p>
         </div>
         <div className="rounded-lg bg-[var(--surface)] px-2.5 py-2">
           <p className="text-[var(--muted)]">Market cap</p>
           <p className="font-semibold tabular-nums text-[var(--foreground)]">
-            {loading ? "…" : formatNadMcapUsd(stats.marketCapUsd)}
+            {loading ? "…" : formatNadMcapUsd(stats?.marketCapUsd ?? null)}
           </p>
         </div>
         <div className="rounded-lg bg-[var(--surface)] px-2.5 py-2">
           <p className="text-[var(--muted)]">Holders</p>
           <p className="font-semibold tabular-nums text-[var(--foreground)]">
-            {loading ? "…" : formatNadHolderCount(stats.holderCount)}
+            {loading ? "…" : formatNadHolderCount(stats?.holderCount ?? null)}
           </p>
         </div>
         <div className="col-span-2 rounded-lg bg-[var(--surface)] px-2.5 py-2">
           <p className="text-[var(--muted)]">Volume</p>
           <p className="font-semibold tabular-nums text-[var(--foreground)]">
-            {loading ? "…" : formatNadVolume(marketRaw?.volume as string | undefined)}
+            {loading ? "…" : volumeLabel}
           </p>
         </div>
       </div>
@@ -123,10 +132,13 @@ function TokenStatsBody({
   );
 }
 
-export function NadTokenPanel({ nadMarket }: Props) {
+export function NadTokenPanel({ nadMarket, onActiveTokenChange }: Props) {
   const tokens = nadMarket.tokens;
+  const preferPons = isPonsDisplayMarket(nadMarket);
   const [tab, setTab] = useState(0);
-  const [rows, setRows] = useState<{ token: NadTokenRef; marketRaw: Record<string, unknown> | null }[]>([]);
+  const [rows, setRows] = useState<
+    { token: NadTokenRef; stats: NadLiveStats | null; volumeLabel: string }[]
+  >([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -136,14 +148,13 @@ export function NadTokenPanel({ nadMarket }: Props) {
     void (async () => {
       const results = await Promise.all(
         tokens.map(async (token) => {
-          try {
-            const res = await fetch(`/api/nad/token/${token.address}`);
-            if (!res.ok) return { token, marketRaw: null };
-            const json = (await res.json()) as { market_info?: Record<string, unknown> };
-            return { token, marketRaw: json.market_info ?? null };
-          } catch {
-            return { token, marketRaw: null };
-          }
+          const row = await fetchLaunchpadTokenDisplay(token, preferPons);
+          const volumeRaw = row.marketRaw?.volume;
+          const volumeLabel =
+            typeof volumeRaw === "string" || typeof volumeRaw === "number"
+              ? formatNadVolume(String(volumeRaw))
+              : "—";
+          return { token: row.token, stats: row.stats, volumeLabel };
         }),
       );
       if (!cancelled) {
@@ -154,13 +165,26 @@ export function NadTokenPanel({ nadMarket }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [tokens.map((t) => t.address.toLowerCase()).join(",")]);
+  }, [preferPons, tokens.map((t) => t.address.toLowerCase()).join(",")]);
+
+  const isComparison = nadMarket.mode === "comparison" && tokens.length > 1;
+  const active = Math.min(tab, Math.max(tokens.length - 1, 0));
+  const activeRow = rows[active] ?? {
+    token: tokens[active]!,
+    stats: null,
+    volumeLabel: "—",
+  };
+
+  useEffect(() => {
+    if (!tokens[active]) return;
+    onActiveTokenChange?.(rows[active]?.token ?? tokens[active]!);
+  }, [active, rows, tokens, onActiveTokenChange]);
 
   if (tokens.length === 0) return null;
 
-  const isComparison = nadMarket.mode === "comparison" && tokens.length > 1;
-  const active = Math.min(tab, tokens.length - 1);
-  const activeRow = rows[active] ?? { token: tokens[active]!, marketRaw: null };
+  const externalLink = preferPons
+    ? ponsTokenPageUrl(activeRow.token.address)
+    : `https://testnet.nad.fun/tokens/${activeRow.token.address}`;
 
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4">
@@ -183,11 +207,27 @@ export function NadTokenPanel({ nadMarket }: Props) {
             ))}
           </div>
           <div className="pt-4">
-            <TokenStatsBody token={activeRow.token} marketRaw={activeRow.marketRaw} loading={loading} />
+            <TokenStatsBody
+              token={activeRow.token}
+              stats={activeRow.stats}
+              volumeLabel={activeRow.volumeLabel}
+              loading={loading}
+              externalLink={externalLink}
+            />
           </div>
         </>
       ) : (
-        <TokenStatsBody token={tokens[0]!} marketRaw={rows[0]?.marketRaw ?? null} loading={loading} />
+        <TokenStatsBody
+          token={rows[0]?.token ?? tokens[0]!}
+          stats={rows[0]?.stats ?? null}
+          volumeLabel={rows[0]?.volumeLabel ?? "—"}
+          loading={loading}
+          externalLink={
+            preferPons
+              ? ponsTokenPageUrl((rows[0]?.token ?? tokens[0]!).address)
+              : `https://testnet.nad.fun/tokens/${(rows[0]?.token ?? tokens[0]!).address}`
+          }
+        />
       )}
     </div>
   );

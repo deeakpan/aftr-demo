@@ -214,6 +214,15 @@ contract ZedkrFpmmMarketFactory is Ownable2Step {
         return _marketOutcomeTokens[market];
     }
 
+    /// @notice True if `token` is a registered outcome ERC20 for `market` (OrderBook / CLOB).
+    function isOutcomeTokenForMarket(address market, address token) external view returns (bool) {
+        address[] storage arr = _marketOutcomeTokens[market];
+        for (uint256 i = 0; i < arr.length; i++) {
+            if (arr[i] == token) return true;
+        }
+        return false;
+    }
+
     function marketsLength() external view returns (uint256) {
         return markets.length;
     }

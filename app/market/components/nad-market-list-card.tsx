@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowsClockwise, ChartBar, Clock, Flag } from "@phosphor-icons/react";
+import { ArrowsClockwise, ChartBar, Flag } from "@phosphor-icons/react";
 import { useMemo } from "react";
 import type { NadMarketConfig } from "@/lib/nad/types";
 import type { NadLiveStats } from "@/lib/nad/market-stats";
@@ -20,6 +20,7 @@ import {
   MARKET_CARD_SHELL_CLASS,
   MARKET_CARD_HOVER_CLASS,
   MARKET_CARD_TITLE_CLASS,
+  MarketCloseDate,
 } from "@/app/market/components/market-list-card";
 import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
 
@@ -30,6 +31,7 @@ export type NadMarketListCardProps = {
   outcomeChancePcts?: number[];
   poolTvl?: string;
   resolveAfter?: string;
+  resolveAfterTooltip?: string;
   showNewBadge?: boolean;
   onTitleClick?: () => void;
   onTrade?: (outcomeIndex: number) => void;
@@ -124,6 +126,7 @@ export function NadMarketListCard({
   outcomeChancePcts,
   poolTvl,
   resolveAfter,
+  resolveAfterTooltip,
   showNewBadge = false,
   onTitleClick,
   onTrade,
@@ -145,6 +148,7 @@ export function NadMarketListCard({
     nadMarket.tokens,
     showMcapButtons && previewTokenStats === undefined,
     previewTokenStats,
+    nadMarket,
   );
 
   const mcapByAddress = useMemo(() => {
@@ -327,13 +331,10 @@ export function NadMarketListCard({
             </button>
           )}
           {resolveAfter && (
-            <span className="inline-flex items-center gap-1 whitespace-nowrap">
-              <Clock size={13} />
-              {resolveAfter}
-            </span>
+            <MarketCloseDate label={resolveAfter} tooltip={resolveAfterTooltip} iconSize={13} />
           )}
           {tradingClosed && (
-            <span className="inline-flex items-center gap-1 text-rose-400">
+            <span className="inline-flex items-center gap-1 text-[var(--outcome-no)]">
               <Flag size={13} weight="fill" />
               Closed
             </span>

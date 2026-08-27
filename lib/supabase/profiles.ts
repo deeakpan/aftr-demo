@@ -1,3 +1,10 @@
+import {
+  clearCachedProfileName,
+  getCachedProfileName,
+  setCachedProfileName,
+  useProfileName,
+} from "@/lib/profile-name-store";
+
 export type UserProfileInput = {
   address: string;
   name: string;
@@ -6,6 +13,13 @@ export type UserProfileInput = {
 export type UserProfile = {
   address: string;
   name: string;
+};
+
+export {
+  clearCachedProfileName,
+  getCachedProfileName,
+  setCachedProfileName,
+  useProfileName,
 };
 
 async function readJson<T>(res: Response): Promise<T> {
@@ -25,7 +39,9 @@ export async function getUserProfileByAddress(address: string): Promise<UserProf
   if (!res.ok) {
     throw new Error(body.error || "Profile lookup failed.");
   }
-  return body.profile ?? null;
+  const profile = body.profile ?? null;
+  if (profile?.name) setCachedProfileName(normalizedAddress, profile.name);
+  return profile;
 }
 
 export async function saveUserProfile({ address, name }: UserProfileInput): Promise<UserProfile> {
@@ -38,6 +54,9 @@ export async function saveUserProfile({ address, name }: UserProfileInput): Prom
   if (!trimmedName) {
     throw new Error("Name is required.");
   }
+
+  // Always cache locally first so UI doesn't reset if Supabase times out.
+  setCachedProfileName(normalizedAddress, trimmedName);
 
   const res = await fetch("/api/profile", {
     method: "POST",

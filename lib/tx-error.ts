@@ -36,7 +36,11 @@ function looksLikeRawDump(msg: string): boolean {
 export function formatUserTxError(error: unknown, fallback = "Transaction failed. Try again."): string {
   const blob = asText(error);
 
-  if (/insufficient balance|insufficient funds/i.test(blob)) {
+  if (/insufficient balance|insufficient funds|Not enough (ETH|MON) for gas/i.test(blob)) {
+    if (/Not enough (ETH|MON) for gas/i.test(blob)) {
+      const cleaned = stripRpcDump(blob);
+      if (cleaned && cleaned.length < 180) return cleaned;
+    }
     return "Not enough ETH for gas. Add ETH to this wallet and try again.";
   }
   if (/user rejected|rejected the request/i.test(blob)) {
@@ -50,6 +54,22 @@ export function formatUserTxError(error: unknown, fallback = "Transaction failed
   }
   if (/rate limit|too many requests|15\/sec/i.test(blob)) {
     return "Network busy — try again in a moment.";
+  }
+  if (/EAI_AGAIN|ENOTFOUND|getaddrinfo|Para network error|api\.getpara\.com|api\.beta\.getpara\.com|fetch failed/i.test(blob)) {
+    return "Wallet signing is temporarily unreachable. Wait a few seconds and try again.";
+  }
+  if (
+    /ParaApiError|AxiosError|timeout of \d+ms exceeded|ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT|AbortError|The operation was aborted/i.test(
+      blob,
+    )
+  ) {
+    return "Wallet service timed out. Wait a few seconds and try again.";
+  }
+  if (/StakePeriodEnded|0x9622d9cf/i.test(blob)) {
+    return "Trading has closed for this market.";
+  }
+  if (/Slippage|0x7dd37f70/i.test(blob)) {
+    return "Price moved too much. Increase slippage or try a smaller size.";
   }
   if (/execution reverted|reverted with the following signature/i.test(blob)) {
     return "Transaction reverted. Check balances, approval, and market settings.";

@@ -46,7 +46,7 @@ export function metadataTitle(md: IpfsMarketMetadata | null | undefined, kind: U
   const title = md?.title?.trim() || md?.question?.trim();
   if (title) return title;
   if (kind === "Price") return "Price market";
-  if (kind === "Nad") return "Launchpad market";
+  if (kind === "Nad" || kind === "Pons") return "Launchpad market";
   return "Event market";
 }
 

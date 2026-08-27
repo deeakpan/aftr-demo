@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowsClockwise, CaretDown, CheckCircle, Gear, WarningCircle, X } from "@phosphor-icons/react";
+import { ArrowsClockwise, CaretDown, CheckCircle, Gear, X } from "@phosphor-icons/react";
 import { formatUnits } from "viem";
 import { txExplorerUrl } from "@/lib/chain";
 import { isUsdStyledCollateralTicker } from "@/lib/deployment-collateral";
 import { BinaryProbabilityPipe, binaryOutcomePillClass } from "@/app/market/components/market-list-card";
+import {
+  SLIPPAGE_PRESETS_BPS,
+  slippageBpsToInput,
+  slippageInputToBps,
+} from "@/lib/trade-slippage";
 
 export type LimitOrderParams = {
   side: "buy" | "sell";
@@ -19,6 +24,8 @@ export type TradeSuccessResult = {
   amountLabel: string;
   sharesLabel: string;
   txHash?: string;
+  /** Defaults to buy copy when omitted. */
+  side?: "buy" | "sell";
 };
 
 type TradeModalProps = {
@@ -32,6 +39,8 @@ type TradeModalProps = {
   priceRangeLine: string | null;
   stakeEnds: string;
   resolveAfter: string;
+  /** Full close timestamp on hover (e.g. "Closes: Jan 1, 2027, 05:59 GMT+1"). */
+  resolveAfterTooltip?: string;
   outcomeLabels: string[];
   selectedOutcomeIndex: number;
   onSelectOutcome: (index: number) => void;
@@ -42,18 +51,24 @@ type TradeModalProps = {
   walletBalanceWei: bigint | null;
   outcomeTokenBalanceWei?: bigint | null;
   priceOfRaw: bigint | null;
+  /** Est. outcome shares (buy: out / sell: in). */
   tokensFormatted: string | null;
+  /** Collateral amount for the trade (buy: spend / sell: receive). */
+  collateralFormatted?: string | null;
   pricePerTokenLabel: string | null;
   slippageBps: number;
-  onCycleSlippage: () => void;
+  onSlippageBpsChange: (bps: number) => void;
   isNativeCollateral: boolean;
-  needsApproval: boolean;
-  approvalIcon: "none" | "warn" | "ok";
-  approvalLine: string;
   tradeDisabled: boolean;
   status: string;
   busy: boolean;
-  onSubmit: () => void;
+  onSubmit: (side: "buy" | "sell") => void;
+  /** FPMM markets: show Market Buy/Sell toggle and enable sell submits. */
+  marketSellEnabled?: boolean;
+  marketSide?: "buy" | "sell";
+  onMarketSideChange?: (side: "buy" | "sell") => void;
+  /** Fill amount with max sellable collateral return for the selected outcome. */
+  onFillMaxSell?: () => void | Promise<void>;
   /** Optional — enables the Limit tab */
   onSubmitLimit?: (params: LimitOrderParams) => Promise<void>;
   tradeSuccess?: TradeSuccessResult | null;
@@ -152,6 +167,7 @@ export function TradeModal({
   priceRangeLine,
   stakeEnds,
   resolveAfter,
+  resolveAfterTooltip,
   outcomeLabels,
   selectedOutcomeIndex,
   onSelectOutcome,
@@ -163,17 +179,19 @@ export function TradeModal({
   outcomeTokenBalanceWei = null,
   priceOfRaw,
   tokensFormatted,
+  collateralFormatted = null,
   pricePerTokenLabel,
   slippageBps,
-  onCycleSlippage,
+  onSlippageBpsChange,
   isNativeCollateral,
-  needsApproval,
-  approvalIcon,
-  approvalLine,
   tradeDisabled,
   status,
   busy,
   onSubmit,
+  marketSellEnabled = false,
+  marketSide: marketSideProp,
+  onMarketSideChange,
+  onFillMaxSell,
   onSubmitLimit,
   tradeSuccess = null,
   onDismissSuccess,
@@ -183,6 +201,14 @@ export function TradeModal({
   belowPanel,
 }: TradeModalProps) {
   const [orderMode, setOrderMode] = useState<"market" | "limit">("market");
+  const [slippageOpen, setSlippageOpen] = useState(false);
+  const [slippageDraft, setSlippageDraft] = useState(() => slippageBpsToInput(slippageBps));
+  const [marketSideInternal, setMarketSideInternal] = useState<"buy" | "sell">("buy");
+  const marketSide = marketSideProp ?? marketSideInternal;
+  const setMarketSide = (side: "buy" | "sell") => {
+    onMarketSideChange?.(side);
+    if (marketSideProp === undefined) setMarketSideInternal(side);
+  };
   const [limitSide, setLimitSide] = useState<"buy" | "sell">("buy");
   const [limitPrice, setLimitPrice] = useState("");
   const [limitAmount, setLimitAmount] = useState("");
@@ -191,6 +217,20 @@ export function TradeModal({
   const [limitBusy, setLimitBusy] = useState(false);
   const [outcomeMenuOpen, setOutcomeMenuOpen] = useState(false);
   const outcomeMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!slippageOpen) setSlippageDraft(slippageBpsToInput(slippageBps));
+  }, [slippageBps, slippageOpen]);
+
+  const commitSlippageDraft = (raw: string = slippageDraft) => {
+    const next = slippageInputToBps(raw);
+    if (next == null) {
+      setSlippageDraft(slippageBpsToInput(slippageBps));
+      return;
+    }
+    onSlippageBpsChange(next);
+    setSlippageDraft(slippageBpsToInput(next));
+  };
 
   const labels = outcomeLabels.length > 0 ? outcomeLabels : ["Outcome 0"];
   const balanceNum = walletBalanceWei != null ? Number(formatUnits(walletBalanceWei, collateralDecimals)) : null;
@@ -218,6 +258,10 @@ export function TradeModal({
   };
 
   const setMarketAmountMax = () => {
+    if (marketSide === "sell") {
+      void onFillMaxSell?.();
+      return;
+    }
     if (balanceNum == null || !Number.isFinite(balanceNum)) return;
     setAmount(balanceNum.toFixed(2));
   };
@@ -235,17 +279,15 @@ export function TradeModal({
     return Math.round(100 / Math.max(labels.length, 1));
   };
 
-  const hasTradeAmount = Boolean(tokensFormatted);
   const marketPriceReady = Boolean(priceOfRaw && priceOfRaw > BigInt(0));
+  const effectiveMarketSide = marketSellEnabled ? marketSide : "buy";
   const marketCtaLabel = busy
     ? "Processing…"
     : !isWalletConnected
       ? "Sign up to trade"
       : !marketPriceReady
         ? "Loading price…"
-        : needsApproval && hasTradeAmount
-          ? `Approve & Buy ${selectedLabel}`
-          : `Buy ${selectedLabel}`;
+        : `${effectiveMarketSide === "sell" ? "Sell" : "Buy"} ${selectedLabel}`;
 
   const limitTokensNum = useMemo(() => {
     const p = Number(limitPrice);
@@ -480,14 +522,23 @@ export function TradeModal({
   const amountInputMarket = (
     <div>
       <div className="mb-3 flex items-end justify-between gap-3">
-        <span className="shrink-0 pb-1 text-sm font-medium text-[var(--foreground)]">Amount</span>
+        <span className="shrink-0 pb-1 text-sm font-medium text-[var(--foreground)]">
+          {effectiveMarketSide === "sell" ? "Receive" : "Amount"}
+        </span>
         <RightAlignedAmountInput
           value={amount}
           onChange={setAmount}
           showDollar={isUsdStyledCollateralTicker(collateralTicker)}
         />
       </div>
-      {balanceFormatted != null && (
+      {effectiveMarketSide === "sell" ? (
+        tokenBalanceFormatted != null ? (
+          <p className="mb-2 text-[10px] text-[var(--muted)]">
+            {selectedLabel} shares{" "}
+            <span className="font-mono text-[var(--foreground)]/80">{tokenBalanceFormatted}</span>
+          </p>
+        ) : null
+      ) : balanceFormatted != null ? (
         <p className="mb-2 text-[10px] text-[var(--muted)]">
           Balance{" "}
           <span className="font-mono text-[var(--foreground)]/80">
@@ -496,7 +547,7 @@ export function TradeModal({
             {!isUsdStyledCollateralTicker(collateralTicker) ? ` ${collateralTicker}` : ""}
           </span>
         </p>
-      )}
+      ) : null}
       <div className="flex gap-1.5">
         {QUICK_INCREMENTS.map((q) => (
           <button
@@ -511,7 +562,12 @@ export function TradeModal({
         <button
           type="button"
           onClick={setMarketAmountMax}
-          className="flex-1 rounded-lg bg-[var(--surface)] py-2 text-xs font-semibold text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+          disabled={
+            effectiveMarketSide === "sell"
+              ? !onFillMaxSell || tokenBalanceNum == null || tokenBalanceNum <= 0
+              : balanceNum == null
+          }
+          className="flex-1 rounded-lg bg-[var(--surface)] py-2 text-xs font-semibold text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:opacity-40"
         >
           Max
         </button>
@@ -525,14 +581,22 @@ export function TradeModal({
         <CheckCircle size={36} weight="fill" />
       </div>
       <h3 className="mt-4 text-lg font-bold text-[var(--foreground)]">Trade complete</h3>
-      <p className="mt-1 text-sm text-[var(--muted)]">You bought {tradeSuccess.outcomeLabel}</p>
+      <p className="mt-1 text-sm text-[var(--muted)]">
+        {tradeSuccess.side === "sell"
+          ? `You sold ${tradeSuccess.outcomeLabel}`
+          : `You bought ${tradeSuccess.outcomeLabel}`}
+      </p>
       <div className="mt-5 w-full space-y-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-[var(--muted)]">Spent</span>
+          <span className="text-[var(--muted)]">
+            {tradeSuccess.side === "sell" ? "Received" : "Spent"}
+          </span>
           <span className="font-semibold tabular-nums text-[var(--foreground)]">{tradeSuccess.amountLabel}</span>
         </div>
         <div className="flex items-center justify-between text-xs">
-          <span className="text-[var(--muted)]">Shares received</span>
+          <span className="text-[var(--muted)]">
+            {tradeSuccess.side === "sell" ? "Shares sold" : "Shares received"}
+          </span>
           <span className="font-semibold tabular-nums text-[var(--foreground)]">{tradeSuccess.sharesLabel}</span>
         </div>
         {tradeSuccess.txHash && (
@@ -571,7 +635,10 @@ export function TradeModal({
             <button
               key={m}
               type="button"
-              onClick={() => setOrderMode(m)}
+              onClick={() => {
+                setOrderMode(m);
+                if (m !== "market") setSlippageOpen(false);
+              }}
               className={`text-sm font-semibold capitalize transition ${
                 orderMode === m
                   ? "text-[var(--foreground)]"
@@ -585,14 +652,99 @@ export function TradeModal({
         {orderMode === "market" && (
           <button
             type="button"
-            onClick={onCycleSlippage}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-            title={`Slippage ${(slippageBps / 100).toFixed(1)}%`}
+            onClick={() => {
+              setSlippageOpen((v) => !v);
+              setSlippageDraft(slippageBpsToInput(slippageBps));
+            }}
+            className={`flex h-8 items-center gap-1.5 rounded-full px-2 text-[11px] font-semibold transition hover:bg-[var(--surface-hover)] ${
+              slippageOpen ? "bg-[var(--surface)] text-[var(--foreground)]" : "text-[var(--muted)] hover:text-[var(--foreground)]"
+            }`}
+            title="Slippage settings"
           >
-            <Gear size={18} weight="bold" />
+            <Gear size={16} weight="bold" />
+            <span className="tabular-nums">{(slippageBps / 100).toFixed(slippageBps % 100 === 0 ? 0 : 1)}%</span>
           </button>
         )}
       </div>
+
+      {orderMode === "market" && slippageOpen && (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold text-[var(--foreground)]">Slippage tolerance</p>
+            <p className="text-[10px] text-[var(--muted)]">Saved as default</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex flex-1 items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--card)] px-2.5 py-2">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={slippageDraft}
+                onChange={(e) => {
+                  const cleaned = e.target.value.replace(/[^\d.]/g, "");
+                  const parts = cleaned.split(".");
+                  const next =
+                    parts.length > 2 ? `${parts[0]}.${parts.slice(1).join("")}` : cleaned;
+                  setSlippageDraft(next.slice(0, 6));
+                }}
+                onBlur={() => commitSlippageDraft()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    commitSlippageDraft();
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                className="w-full bg-transparent text-sm font-semibold tabular-nums text-[var(--foreground)] outline-none"
+                aria-label="Slippage percent"
+              />
+              <span className="text-xs font-semibold text-[var(--muted)]">%</span>
+            </div>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {SLIPPAGE_PRESETS_BPS.map((bps) => (
+              <button
+                key={bps}
+                type="button"
+                onClick={() => {
+                  onSlippageBpsChange(bps);
+                  setSlippageDraft(slippageBpsToInput(bps));
+                }}
+                className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold tabular-nums transition ${
+                  slippageBps === bps
+                    ? "bg-[var(--foreground)] text-[var(--background)]"
+                    : "bg-[var(--card)] text-[var(--muted)] hover:text-[var(--foreground)]"
+                }`}
+              >
+                {bps % 100 === 0 ? `${bps / 100}%` : `${(bps / 100).toFixed(1)}%`}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {orderMode === "market" && marketSellEnabled && (
+        <div className="flex gap-5">
+          {(["buy", "sell"] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => {
+                setMarketSide(s);
+                setAmount("");
+              }}
+              className={`text-sm font-semibold capitalize transition ${
+                marketSide === s
+                  ? s === "buy"
+                    ? "text-[var(--outcome-yes)]"
+                    : "text-[var(--outcome-no)]"
+                  : "text-[var(--muted)] hover:text-[var(--foreground)]/75"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
 
       {orderMode === "limit" && (
         <div className="flex gap-5">
@@ -620,40 +772,67 @@ export function TradeModal({
       {orderMode === "market" ? (
         <>
           {amountInputMarket}
-          {approvalLine ? (
-            <div className={`flex items-start gap-2 rounded-lg px-2.5 py-1.5 ${approvalIcon === "warn" ? "bg-amber-500/10 [html[data-theme=dark]_&]:bg-amber-500/8" : "glass-panel-inset"}`}>
-              {approvalIcon === "warn" && <WarningCircle className="mt-0.5 shrink-0 text-amber-400/80" size={13} weight="bold" />}
-              {approvalIcon === "ok" && <CheckCircle className="mt-0.5 shrink-0 text-[var(--outcome-yes)]/80" size={13} weight="bold" />}
-              <p className={`min-w-0 flex-1 text-[10px] leading-snug ${approvalIcon === "warn" ? "text-amber-900 [html[data-theme=dark]_&]:text-amber-200/80" : "text-[var(--muted)]"}`}>
-                {approvalLine}
-              </p>
-            </div>
-          ) : null}
           <TradeSummaryBox
-            rows={[
-              {
-                label: "Est. tokens",
-                value: tokensFormatted ?? "—",
-                valueClass: "font-semibold text-[var(--muted)]",
-              },
-              {
-                label: "Price / token",
-                value: pricePerTokenLabel ?? "—",
-                valueClass: "font-semibold text-[var(--foreground)]",
-              },
-              {
-                label: "Slippage",
-                value: `${(slippageBps / 100).toFixed(1)}%`,
-                valueClass: "font-semibold text-[var(--muted)]",
-              },
-            ]}
+            rows={
+              effectiveMarketSide === "sell"
+                ? [
+                    {
+                      label: `Est. receive`,
+                      value: collateralFormatted
+                        ? isUsdStyledCollateralTicker(collateralTicker)
+                          ? `$${collateralFormatted} ${collateralTicker}`
+                          : `${collateralFormatted} ${collateralTicker}`
+                        : "—",
+                      valueClass: "font-semibold text-[var(--trade-highlight)]",
+                    },
+                    {
+                      label: "Shares sold",
+                      value: tokensFormatted ?? "—",
+                      valueClass: "font-semibold text-[var(--muted)]",
+                    },
+                    {
+                      label: "Price / share",
+                      value: pricePerTokenLabel ?? "—",
+                      valueClass: "font-semibold text-[var(--foreground)]",
+                    },
+                    {
+                      label: "Slippage",
+                      value: `${(slippageBps / 100).toFixed(slippageBps % 100 === 0 ? 0 : 1)}%`,
+                      valueClass: "font-semibold text-[var(--muted)]",
+                    },
+                  ]
+                : [
+                    {
+                      label: "Est. shares",
+                      value: tokensFormatted ?? "—",
+                      valueClass: "font-semibold text-[var(--muted)]",
+                    },
+                    {
+                      label: "Price / share",
+                      value: pricePerTokenLabel ?? "—",
+                      valueClass: "font-semibold text-[var(--foreground)]",
+                    },
+                    {
+                      label: "Slippage",
+                      value: `${(slippageBps / 100).toFixed(slippageBps % 100 === 0 ? 0 : 1)}%`,
+                      valueClass: "font-semibold text-[var(--muted)]",
+                    },
+                  ]
+            }
           />
-          {status && <p className="text-center text-[10px] text-[var(--muted)]">{status}</p>}
+          {status &&
+            !/^(Preparing trade|Approve collateral|Submitting trade)/i.test(status.trim()) && (
+              <p className="text-center text-[10px] text-[var(--muted)]">{status}</p>
+            )}
           <button
             type="button"
-            onClick={onSubmit}
+            onClick={() => onSubmit(effectiveMarketSide)}
             disabled={busy || tradeDisabled || !marketPriceReady}
-            className="w-full rounded-xl bg-[var(--outcome-yes)] py-3.5 text-center text-sm font-bold text-white transition hover:bg-[var(--outcome-yes-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+            className={`w-full rounded-xl py-3.5 text-center text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-40 ${
+              effectiveMarketSide === "sell"
+                ? "bg-[var(--outcome-no)] hover:bg-[var(--outcome-no-hover)]"
+                : "bg-[var(--outcome-yes)] hover:bg-[var(--outcome-yes-hover)]"
+            }`}
           >
             {tradeDisabled ? "Trading closed" : marketCtaLabel}
           </button>
@@ -724,7 +903,7 @@ export function TradeModal({
             <TradeSummaryBox
               rows={[
                 {
-                  label: "Est. tokens",
+                  label: "Est. shares",
                   value: limitDerived.tokens ?? "—",
                   valueClass: "font-semibold text-[var(--muted)]",
                 },
@@ -736,7 +915,7 @@ export function TradeModal({
                     : "font-semibold text-[var(--muted)]",
                 },
                 {
-                  label: "Price / token",
+                  label: "Price / share",
                   value: limitPriceLabel,
                   valueClass: "font-semibold text-[var(--foreground)]",
                 },
@@ -794,9 +973,9 @@ export function TradeModal({
             <span
               className={`rounded border px-1.5 py-0.5 text-[9px] font-bold tracking-wide
               ${selectedOutcomeIndex === 0
-                ? "border-[var(--outcome-yes)]/35 bg-[var(--outcome-yes)]/10 text-[var(--outcome-yes)] [html[data-theme=light]_&]:text-green-800 [html[data-theme=light]_&]:bg-green-50"
+                ? "border-[var(--outcome-yes)]/35 bg-[var(--outcome-yes)]/10 text-[var(--outcome-yes)]"
                 : selectedOutcomeIndex === 1
-                  ? "border-[var(--outcome-no)]/35 bg-[var(--outcome-no)]/10 text-[var(--outcome-no)] [html[data-theme=light]_&]:text-rose-800 [html[data-theme=light]_&]:bg-rose-50"
+                  ? "border-[var(--outcome-no)]/35 bg-[var(--outcome-no)]/10 text-[var(--outcome-no)]"
                   : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]"}`}
             >
               {selectedLabel.toUpperCase()}
@@ -808,7 +987,13 @@ export function TradeModal({
           <p className="mt-1 text-[10px] leading-snug text-[var(--muted)]">
             Staking ends <span className="text-[var(--foreground)]/90">{stakeEnds}</span>
             <span className="mx-1.5 text-[var(--border)]">·</span>
-            Expires <span className="text-[var(--foreground)]/90">{resolveAfter}</span>
+            Expires{" "}
+            <span
+              className="cursor-default text-[var(--foreground)]/90"
+              title={resolveAfterTooltip || undefined}
+            >
+              {resolveAfter}
+            </span>
           </p>
         </div>
         <button

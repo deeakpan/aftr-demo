@@ -40,7 +40,7 @@ export function OutcomeOrderBook({
       ) : (
         <div className="grid grid-cols-2 gap-3 text-xs">
           <div>
-            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-500">Bids</p>
+            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--outcome-yes)]">Bids</p>
             <div className="space-y-1">
               {[...snapshot!.bidPrices.map((p, i) => ({ p, v: snapshot!.bidVolumes[i]! }))]
                 .sort((a, b) => Number(b.p - a.p))
@@ -48,9 +48,9 @@ export function OutcomeOrderBook({
                 .map(({ p, v }, i) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between rounded-md bg-emerald-500/5 px-2.5 py-1.5"
+                    className="flex items-center justify-between rounded-md bg-[var(--outcome-yes)]/5 px-2.5 py-1.5"
                   >
-                    <span className="font-mono font-semibold text-emerald-400">
+                    <span className="font-mono font-semibold text-[var(--outcome-yes)]">
                       ${formatUnits(p, collateralDecimals)}
                     </span>
                     <span className="font-mono text-[var(--muted)]">
@@ -63,7 +63,7 @@ export function OutcomeOrderBook({
             </div>
           </div>
           <div>
-            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-rose-500">Asks</p>
+            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--outcome-no)]">Asks</p>
             <div className="space-y-1">
               {[...snapshot!.askPrices.map((p, i) => ({ p, v: snapshot!.askVolumes[i]! }))]
                 .sort((a, b) => Number(a.p - b.p))
@@ -71,9 +71,9 @@ export function OutcomeOrderBook({
                 .map(({ p, v }, i) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between rounded-md bg-rose-500/5 px-2.5 py-1.5"
+                    className="flex items-center justify-between rounded-md bg-[var(--outcome-no)]/5 px-2.5 py-1.5"
                   >
-                    <span className="font-mono font-semibold text-rose-400">
+                    <span className="font-mono font-semibold text-[var(--outcome-no)]">
                       ${formatUnits(p, collateralDecimals)}
                     </span>
                     <span className="font-mono text-[var(--muted)]">

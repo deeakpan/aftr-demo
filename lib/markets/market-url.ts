@@ -33,11 +33,7 @@ export function marketPath(opts: { slug?: string | null; address: string }): str
   return `/market/${opts.address}`;
 }
 
-/** Public / share URL — vanity slug when available, otherwise address. */
+/** Public / share URL — always address-based (no vanity slug in the path). */
 export function marketPublicUrl(opts: { slug?: string | null; address: string }): string {
-  const slug = opts.slug?.trim();
-  if (slug && !isReservedMarketSlug(slug)) {
-    return `${siteUrl()}/market/${encodeURIComponent(normalizeMarketSlug(slug))}`;
-  }
   return `${siteUrl()}/market/${opts.address}`;
 }

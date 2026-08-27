@@ -9,7 +9,12 @@ import {
   type TransactionSerializable,
 } from "viem";
 import { privateKeyToAccount, toAccount } from "viem/accounts";
-import { DEPLOYMENT_CHAIN, DEPLOYMENT_CHAIN_ID, deploymentRpcUrl } from "@/lib/chain";
+import {
+  DEPLOYMENT_CHAIN,
+  DEPLOYMENT_CHAIN_ID,
+  NATIVE_CURRENCY_SYMBOL,
+  deploymentRpcUrl,
+} from "@/lib/chain";
 import { paraRest } from "@/lib/para-rest";
 import { getParaWalletByOwner } from "@/lib/para-wallets-store";
 import { formatUserTxError } from "@/lib/tx-error";
@@ -29,7 +34,10 @@ async function maybeTopUpGas(owner: `0x${string}`) {
   if (!key) return;
   const publicClient = createPublicClient({ chain: DEPLOYMENT_CHAIN, transport: http(rpcUrl()) });
   const bal = await publicClient.getBalance({ address: owner });
-  const min = BigInt(process.env.MARKET_GAS_MIN_WEI ?? "10000000000000000"); // 0.01 MON
+  // Default min is chain-aware: 0.0002 ETH on Robinhood, 0.01 MON on Monad.
+  const defaultMin =
+    NATIVE_CURRENCY_SYMBOL === "ETH" ? "200000000000000" : "10000000000000000";
+  const min = BigInt(process.env.MARKET_GAS_MIN_WEI ?? defaultMin);
   if (bal >= min) return;
   const account = privateKeyToAccount(key);
   const wallet = createWalletClient({
@@ -37,13 +45,18 @@ async function maybeTopUpGas(owner: `0x${string}`) {
     chain: DEPLOYMENT_CHAIN,
     transport: http(rpcUrl()),
   });
-  const amount = BigInt(process.env.MARKET_GAS_TOPUP_WEI ?? "20000000000000000"); // 0.02 MON
+  const defaultTopup =
+    NATIVE_CURRENCY_SYMBOL === "ETH" ? "500000000000000" : "20000000000000000";
+  const amount = BigInt(process.env.MARKET_GAS_TOPUP_WEI ?? defaultTopup);
   const hash = await wallet.sendTransaction({ to: owner, value: amount });
   await publicClient.waitForTransactionReceipt({ hash });
 }
 
-const MAX_GAS_TOPUP = parseEther("5");
-const FUNDER_GAS_RESERVE = parseEther("0.02");
+const MAX_GAS_TOPUP =
+  NATIVE_CURRENCY_SYMBOL === "ETH" ? parseEther("0.01") : parseEther("5");
+/** Keep a little native on the funder so it can keep paying its own gas. */
+const FUNDER_GAS_RESERVE =
+  NATIVE_CURRENCY_SYMBOL === "ETH" ? parseEther("0.0002") : parseEther("0.02");
 
 /** Monad nodes reject type-2 txs unless balance covers gasLimit * maxFeePerGas. */
 async function ensureNativeForTx(
@@ -58,19 +71,20 @@ async function ensureNativeForTx(
   const shortfall = needed - bal;
   if (!key) {
     throw new Error(
-      `Not enough MON for gas. Need ~${formatEther(needed)} MON reserved, wallet has ${formatEther(bal)} MON.`,
+      `Not enough ${NATIVE_CURRENCY_SYMBOL} for gas. Need ~${formatEther(needed)} reserved, wallet has ${formatEther(bal)}.`,
     );
   }
   const funder = privateKeyToAccount(key);
   const funderBal = await publicClient.getBalance({ address: funder.address });
   const maxSend =
     funderBal > FUNDER_GAS_RESERVE ? funderBal - FUNDER_GAS_RESERVE : BigInt(0);
-  let topup = shortfall + parseEther("0.05");
+  const buffer = NATIVE_CURRENCY_SYMBOL === "ETH" ? parseEther("0.0005") : parseEther("0.05");
+  let topup = shortfall + buffer;
   if (topup > MAX_GAS_TOPUP) topup = MAX_GAS_TOPUP;
   if (topup > maxSend) topup = maxSend;
   if (topup <= BigInt(0)) {
     throw new Error(
-      `Not enough MON for gas. Need ~${formatEther(needed)} MON reserved, wallet has ${formatEther(bal)} MON.`,
+      `Not enough ${NATIVE_CURRENCY_SYMBOL} for gas. Need ~${formatEther(needed)} reserved, wallet has ${formatEther(bal)}.`,
     );
   }
   const wallet = createWalletClient({
@@ -83,7 +97,7 @@ async function ensureNativeForTx(
   const after = await publicClient.getBalance({ address: owner });
   if (after < needed) {
     throw new Error(
-      `Not enough MON for gas. Need ~${formatEther(needed)} MON reserved, wallet has ${formatEther(after)} MON.`,
+      `Not enough ${NATIVE_CURRENCY_SYMBOL} for gas. Need ~${formatEther(needed)} reserved, wallet has ${formatEther(after)}.`,
     );
   }
 }
@@ -157,9 +171,14 @@ export async function sendViaPara(owner: `0x${string}`, tx: { to: `0x${string}`;
   const gas = estimated + estimated / BigInt(10);
   const block = await publicClient.getBlock({ blockTag: "latest" });
   const fees = await publicClient.estimateFeesPerGas();
-  const baseFee = block.baseFeePerGas ?? BigInt(0);
-  const maxPriorityFeePerGas = fees.maxPriorityFeePerGas ?? BigInt(1_000_000_000);
-  const maxFeePerGas = baseFee + maxPriorityFeePerGas * 2n;
+  const baseFee = block.baseFeePerGas ?? fees.gasPrice ?? BigInt(1);
+  // Robinhood often reports priority=0; zero tip / maxFee==baseFee can get rejected.
+  const tipFloor = BigInt(1_000); // tiny non-zero tip
+  const maxPriorityFeePerGas =
+    fees.maxPriorityFeePerGas && fees.maxPriorityFeePerGas > BigInt(0)
+      ? fees.maxPriorityFeePerGas
+      : tipFloor;
+  const maxFeePerGas = baseFee * 2n + maxPriorityFeePerGas;
   const reserved = (tx.value ?? BigInt(0)) + gas * maxFeePerGas;
   await ensureNativeForTx(owner, publicClient, reserved);
 
@@ -198,7 +217,7 @@ export async function sendViaPara(owner: `0x${string}`, tx: { to: `0x${string}`;
     if (/insufficient balance/i.test(raw)) {
       const bal = await publicClient.getBalance({ address: owner });
       throw new Error(
-        `Not enough MON for gas. Need ~${formatEther(reserved)} MON reserved, wallet has ${formatEther(bal)} MON.`,
+        `Not enough ${NATIVE_CURRENCY_SYMBOL} for gas. Need ~${formatEther(reserved)} reserved, wallet has ${formatEther(bal)}.`,
       );
     }
     throw new Error(formatUserTxError(e, "Transaction failed. Try again."));

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft } from "@phosphor-icons/react";
 import {
   formatUnits,
@@ -17,12 +18,13 @@ import { useSidebarOpen } from "@/app/components/sidebar-context";
 import { MarketChartPanel } from "@/app/market/components/market-chart-panel";
 import { MarketShareButton } from "@/app/market/components/market-share-button";
 import { MarketTradeList } from "@/app/market/components/market-trade-list";
-import { NadTokenPanel } from "@/app/market/components/nad-token-panel";
+import { LaunchpadTokenSection } from "@/app/market/components/launchpad-token-section";
 import { MultiOutcomeMarketSection } from "@/app/market/components/multi-outcome-market-section";
 import { OutcomeOrderBook } from "@/app/market/components/outcome-order-book";
 import { LimitOrderParams, TradeModal, type TradeSuccessResult } from "@/app/market/components/trade-modal";
 import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import { collateralTickerFromDeployment, isUsdStyledCollateralTicker } from "@/lib/deployment-collateral";
+import { formatMarketCardDate, formatMarketClosesTooltip } from "@/lib/market-cover";
 import { deploymentPublicClient, readMarketPrice } from "@/lib/deployment-public-client";
 import {
   mergeListItemIntoDetail,
@@ -48,12 +50,19 @@ import deployment, { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL, wrongNetwork
 import { isFpmmMarket } from "@/lib/market-mechanism";
 import { formatUserTxError } from "@/lib/tx-error";
 import { tradeFeesFromAmount } from "@/lib/trade-fees";
+import { applySlippageMaxIn, applySlippageMinOut, estimateFpmmBuyTokensOut, estimateFpmmSellTokensIn, estimateMaxFpmmSellReturn } from "@/lib/fpmm-trade";
 import {
   MARKET_READ_ABI,
   marketBuyCall,
+  marketSellCall,
 } from "@/lib/market-abi";
+import {
+  DEFAULT_SLIPPAGE_BPS,
+  clampSlippageBps,
+  readDefaultSlippageBps,
+  writeDefaultSlippageBps,
+} from "@/lib/trade-slippage";
 const WAD = BigInt("1000000000000000000");
-const SLIPPAGE_PRESETS = [50, 100, 200, 300] as const;
 
 const ORDERBOOK_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
   .MondaloreOrderBook as `0x${string}`;
@@ -112,6 +121,12 @@ function formatLoadError(error: unknown): string {
 
 function formatTradeError(error: unknown): string {
   const msg = error instanceof Error ? error.message : String(error);
+  if (/StakePeriodEnded|0x9622d9cf|trading closed|stake (period )?end/i.test(msg)) {
+    return "Trading has closed for this market.";
+  }
+  if (/Slippage|0x7dd37f70/i.test(msg)) {
+    return "Price moved too much. Increase slippage or try a smaller size.";
+  }
   if (msg.includes("returned no data") || msg.includes("not a contract") || msg.includes(`not found on ${DEPLOYMENT_NETWORK_LABEL}`)) {
     return `Market price unavailable. Confirm you are on ${DEPLOYMENT_NETWORK_LABEL} and refresh the page.`;
   }
@@ -209,6 +224,7 @@ export function MarketDetailClient({
   initialMarket = null,
   initialLoadError = null,
 }: Props) {
+  const router = useRouter();
   const publicClient = deploymentPublicClient;
   const { address, chainId, writeContract } = useSessionWallet();
 
@@ -257,13 +273,15 @@ export function MarketDetailClient({
   const [tradePriceRaw, setTradePriceRaw] = useState<bigint | null>(null);
   const [collateralBalance, setCollateralBalance] = useState<bigint | null>(null);
   const [collateralAllowance, setCollateralAllowance] = useState<bigint | null>(null);
-  const [tradeSlippageBps, setTradeSlippageBps] = useState(200);
+  const [tradeSlippageBps, setTradeSlippageBps] = useState(DEFAULT_SLIPPAGE_BPS);
+  const [tradeSide, setTradeSide] = useState<"buy" | "sell">("buy");
   const [tradeModalClock, setTradeModalClock] = useState(0);
 
   // Limit order state (UI state is internal to TradeModal; parent only tracks refresh tick)
   const [limitRefreshTick, setLimitRefreshTick] = useState(0);
   const [outcomeTokens, setOutcomeTokens] = useState<Record<number, `0x${string}`>>({});
   const [outcomeTokenBalance, setOutcomeTokenBalance] = useState<bigint | null>(null);
+  const [outcomeTokenAllowance, setOutcomeTokenAllowance] = useState<bigint | null>(null);
   const [marketIsFpmm, setMarketIsFpmm] = useState(false);
   const [obSnapshot, setObSnapshot] = useState<ObSnapshot | null>(null);
   const [chartThemeKey, setChartThemeKey] = useState(() =>
@@ -333,8 +351,11 @@ export function MarketDetailClient({
         if (cancelled) return;
         const addr = typeof j.address === "string" ? j.address.trim() : "";
         if (addr && isAddress(addr)) {
-          setSlugAddress(getAddress(addr) as `0x${string}`);
+          const checksum = getAddress(addr) as `0x${string}`;
+          setSlugAddress(checksum);
           setSlugResolveFailed(false);
+          // Replace vanity slug URL with address-only path.
+          router.replace(`/market/${checksum}`);
         } else {
           setSlugAddress(null);
           setSlugResolveFailed(true);
@@ -564,6 +585,16 @@ export function MarketDetailClient({
     if (!t || !Number.isFinite(Number(t)) || Number(t) <= 0) return null;
     try {
       const amountWei = parseUnits(t, market.collateralDecimals);
+      if (tradeSide === "sell") {
+        const sharesWei = (amountWei * WAD) / tradePriceRaw;
+        if (sharesWei === BigInt(0)) return null;
+        return {
+          spend: formatUnits(amountWei, market.collateralDecimals),
+          tokens: formatUnits(sharesWei, market.collateralDecimals),
+          amountWei,
+          sharesWei,
+        };
+      }
       const { netAmount } = tradeFeesFromAmount(amountWei);
       const sharesWei = (netAmount * WAD) / tradePriceRaw;
       if (sharesWei === BigInt(0)) return null;
@@ -576,7 +607,7 @@ export function MarketDetailClient({
     } catch {
       return null;
     }
-  }, [market, tradePriceRaw, tradeAmount]);
+  }, [market, tradePriceRaw, tradeAmount, tradeSide]);
 
   const pricePerTokenLabel = useMemo(() => {
     if (!tradeSummary || tradeSummary.sharesWei === BigInt(0) || !market) return null;
@@ -588,55 +619,50 @@ export function MarketDetailClient({
 
   const isNativeCollateral = Boolean(market?.collateralAddress?.toLowerCase() === zeroAddress.toLowerCase());
 
-  const needsApproval = Boolean(
-    market &&
-      !isNativeCollateral &&
-      tradeSummary &&
-      collateralAllowance !== null &&
-      collateralAllowance < tradeSummary.amountWei,
-  );
-
-  const approvalIcon = useMemo(() => {
-    if (isNativeCollateral || !address) return "none" as const;
-    if (collateralAllowance === null) return "none" as const;
-    if (!tradeSummary) return "none" as const;
-    return needsApproval ? ("warn" as const) : ("ok" as const);
-  }, [isNativeCollateral, address, collateralAllowance, tradeSummary, needsApproval]);
-
   const tradeDisabled = useMemo(() => {
     void tradeModalClock;
     if (!market) return true;
     const now = Math.floor(Date.now() / 1000);
     if (market.marketState !== 0) return true;
     if (now >= market.resolveAfterUnix) return true;
-    if (now >= market.stakeEndUnix) return true;
+    if (tradeSide === "buy" && now >= market.stakeEndUnix) return true;
     if (marketIsFpmm && market.collateralAddress.toLowerCase() === zeroAddress.toLowerCase()) return true;
+    if (tradeSide === "sell" && !marketIsFpmm) return true;
     return false;
-  }, [market, marketIsFpmm, tradeModalClock]);
+  }, [market, marketIsFpmm, tradeModalClock, tradeSide]);
 
-  const approvalLine = useMemo(() => {
-    if (!market) return "";
-    const tick = collateralTickerFromDeployment(market.collateralAddress);
-    if (isNativeCollateral) return "Native collateral — no token approval.";
-    if (!address || !tradeSummary) return "";
-    if (collateralAllowance === null) return "Loading allowance…";
-    const cur = formatUnits(collateralAllowance, market.collateralDecimals);
-    const req = tradeSummary.spend;
-    const enough = collateralAllowance >= tradeSummary.amountWei;
-    return enough
-      ? `Sufficient · ${cur} ${tick} covers ${req} ${tick}`
-      : `Approve first · ${cur} ${tick} allowance, need ${req} ${tick}`;
-  }, [market, address, collateralAllowance, tradeSummary, isNativeCollateral]);
+  useEffect(() => {
+    setTradeSlippageBps(readDefaultSlippageBps());
+  }, []);
 
-  const cycleSlippage = () => {
-    setTradeSlippageBps((prev) => {
-      const idx = SLIPPAGE_PRESETS.indexOf(prev as (typeof SLIPPAGE_PRESETS)[number]);
-      const i = idx < 0 ? 0 : (idx + 1) % SLIPPAGE_PRESETS.length;
-      return SLIPPAGE_PRESETS[i]!;
-    });
+  const setTradeSlippageDefault = (bps: number) => {
+    const next = clampSlippageBps(bps);
+    setTradeSlippageBps(next);
+    writeDefaultSlippageBps(next);
   };
 
-  const submitTrade = async () => {
+  const fillMaxSell = async () => {
+    if (!market || !publicClient || outcomeTokenBalance == null || outcomeTokenBalance <= BigInt(0)) {
+      return;
+    }
+    try {
+      const maxReturn = await estimateMaxFpmmSellReturn(
+        publicClient,
+        market.address,
+        selectedOutcome,
+        outcomeTokenBalance,
+      );
+      if (maxReturn <= BigInt(0)) {
+        setTradeStatus("No sellable size for this pool.");
+        return;
+      }
+      setTradeAmount(formatUnits(maxReturn, market.collateralDecimals));
+    } catch (error) {
+      setTradeStatus(formatTradeError(error));
+    }
+  };
+
+  const submitTrade = async (side: "buy" | "sell" = "buy") => {
     if (!market || !publicClient || !address) {
       setTradeStatus("Connect wallet first.");
       return;
@@ -646,8 +672,16 @@ export function MarketDetailClient({
       setTradeStatus(`Market is ${market.stateLabel.toLowerCase()}.`);
       return;
     }
-    if (now >= market.resolveAfterUnix || now >= market.stakeEndUnix) {
+    if (now >= market.resolveAfterUnix) {
       setTradeStatus("Trading closed for this market.");
+      return;
+    }
+    if (side === "buy" && now >= market.stakeEndUnix) {
+      setTradeStatus("Trading closed for this market.");
+      return;
+    }
+    if (side === "sell" && !marketIsFpmm) {
+      setTradeStatus("Market sell is only available on FPMM markets.");
       return;
     }
     if (chainId !== DEPLOYMENT_CHAIN_ID) {
@@ -660,19 +694,100 @@ export function MarketDetailClient({
     }
     try {
       setTradeBusy(true);
-      setTradeStatus("Preparing trade...");
+      setTradeStatus("");
       const amountUnits = parseUnits(tradeAmount, market.collateralDecimals);
       const currentPrice = tradePriceRaw;
       if (!currentPrice || currentPrice <= BigInt(0)) {
         setTradeStatus("Market price unavailable. Refresh and try again.");
         return;
       }
-      // Use net amount (after 1.0% fee) for slippage baseline so minSharesOut
-      // matches what the contract will actually mint.
-      const { netAmount: netAmountEst } = tradeFeesFromAmount(amountUnits);
-      const estSharesNet = (netAmountEst * WAD) / currentPrice;
-      const slipBps = Math.min(5000, Math.max(1, tradeSlippageBps));
-      const minSharesOut = (estSharesNet * BigInt(10_000 - slipBps)) / BigInt(10000);
+
+      if (side === "sell") {
+        const token = outcomeTokens[selectedOutcome];
+        if (!token) {
+          setTradeStatus("Fetching share token — try again.");
+          return;
+        }
+        const tokensIn = await estimateFpmmSellTokensIn(
+          publicClient,
+          market.address,
+          selectedOutcome,
+          amountUnits,
+        );
+        if (tokensIn <= BigInt(0)) {
+          setTradeStatus("Trade size too small for this pool.");
+          return;
+        }
+        if (outcomeTokenBalance != null && tokensIn > outcomeTokenBalance) {
+          setTradeStatus("Insufficient shares for this sell size.");
+          return;
+        }
+        const maxOutcomeTokens = applySlippageMaxIn(tokensIn, tradeSlippageBps);
+        const allowance = (await publicClient.readContract({
+          address: token,
+          abi: ERC20_ABI,
+          functionName: "allowance",
+          args: [address, market.address],
+        })) as bigint;
+        if (allowance < maxOutcomeTokens) {
+          const approveHash = await writeContract({
+            address: token,
+            abi: ERC20_ABI,
+            functionName: "approve",
+            args: [market.address, maxOutcomeTokens],
+            account: address,
+          });
+          await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        }
+        const sellCall = marketSellCall({
+          outcomeIndex: selectedOutcome,
+          returnAmount: amountUnits,
+          maxOutcomeTokens,
+        });
+        const txHash = await writeContract({
+          address: market.address,
+          abi: sellCall.abi,
+          functionName: sellCall.functionName,
+          args: sellCall.args as never,
+          account: address,
+          gas: BigInt(500_000),
+        });
+        await publicClient.waitForTransactionReceipt({ hash: txHash });
+        const tick = collateralTickerFromDeployment(market.collateralAddress);
+        const receiveLabel = isUsdStyledCollateralTicker(tick)
+          ? `$${tradeAmount} ${tick}`
+          : `${tradeAmount} ${tick}`;
+        setTradeSuccess({
+          outcomeLabel: market.outcomeLabels[selectedOutcome] ?? `Outcome ${selectedOutcome + 1}`,
+          amountLabel: receiveLabel,
+          sharesLabel: formatUnits(tokensIn, market.collateralDecimals),
+          txHash,
+          side: "sell",
+        });
+        setTradeStatus("");
+        setTradeAmount("");
+        void reload();
+        return;
+      }
+
+      let minSharesOut: bigint;
+      if (marketIsFpmm) {
+        const expectedOut = await estimateFpmmBuyTokensOut(
+          publicClient,
+          market.address,
+          selectedOutcome,
+          amountUnits,
+        );
+        if (expectedOut <= BigInt(0)) {
+          setTradeStatus("Trade size too small for this pool.");
+          return;
+        }
+        minSharesOut = applySlippageMinOut(expectedOut, tradeSlippageBps);
+      } else {
+        const { netAmount: netAmountEst } = tradeFeesFromAmount(amountUnits);
+        const estSharesNet = (netAmountEst * WAD) / currentPrice;
+        minSharesOut = applySlippageMinOut(estSharesNet, tradeSlippageBps);
+      }
       const isNative = market.collateralAddress.toLowerCase() === zeroAddress.toLowerCase();
       if (!isNative) {
         const allowance = (await publicClient.readContract({
@@ -682,7 +797,6 @@ export function MarketDetailClient({
           args: [address, market.address],
         })) as bigint;
         if (allowance < amountUnits) {
-          setTradeStatus("Approve collateral...");
           const approveHash = await writeContract({
             address: market.collateralAddress,
             abi: ERC20_ABI,
@@ -693,7 +807,10 @@ export function MarketDetailClient({
           await publicClient.waitForTransactionReceipt({ hash: approveHash });
         }
       }
-      setTradeStatus("Submitting trade...");
+      if (Math.floor(Date.now() / 1000) >= market.stakeEndUnix) {
+        setTradeStatus("Trading has closed for this market.");
+        return;
+      }
       const buyCall = marketBuyCall(marketIsFpmm, {
         outcomeIndex: selectedOutcome,
         amountUnits,
@@ -719,6 +836,7 @@ export function MarketDetailClient({
         amountLabel: spendLabel,
         sharesLabel: tradeSummary?.tokens ?? "—",
         txHash,
+        side: "buy",
       });
       setTradeStatus("");
       setTradeAmount("");
@@ -748,24 +866,46 @@ export function MarketDetailClient({
     return () => { cancelled = true; };
   }, [market, publicClient, selectedOutcome, outcomeTokens]);
 
-  // Fetch outcome token balance (for sell orders)
+  // Fetch outcome token balance + market allowance (for sell)
   useEffect(() => {
     const token = outcomeTokens[selectedOutcome];
-    if (!market || !publicClient || !address || !token) { setOutcomeTokenBalance(null); return; }
+    if (!market || !publicClient || !address || !token) {
+      setOutcomeTokenBalance(null);
+      setOutcomeTokenAllowance(null);
+      return;
+    }
     let cancelled = false;
     void (async () => {
       try {
-        const bal = (await publicClient.readContract({
-          address: token,
-          abi: ERC20_ABI,
-          functionName: "balanceOf",
-          args: [address],
-        })) as bigint;
-        if (!cancelled) setOutcomeTokenBalance(bal);
-      } catch { if (!cancelled) setOutcomeTokenBalance(null); }
+        const [bal, allowance] = await Promise.all([
+          publicClient.readContract({
+            address: token,
+            abi: ERC20_ABI,
+            functionName: "balanceOf",
+            args: [address],
+          }) as Promise<bigint>,
+          publicClient.readContract({
+            address: token,
+            abi: ERC20_ABI,
+            functionName: "allowance",
+            args: [address, market.address],
+          }) as Promise<bigint>,
+        ]);
+        if (!cancelled) {
+          setOutcomeTokenBalance(bal);
+          setOutcomeTokenAllowance(allowance);
+        }
+      } catch {
+        if (!cancelled) {
+          setOutcomeTokenBalance(null);
+          setOutcomeTokenAllowance(null);
+        }
+      }
     })();
-    return () => { cancelled = true; };
-  }, [market, publicClient, address, selectedOutcome, outcomeTokens, limitRefreshTick]);
+    return () => {
+      cancelled = true;
+    };
+  }, [market, publicClient, address, selectedOutcome, outcomeTokens, limitRefreshTick, tradeBusy]);
 
   // Fetch orderbook snapshot for selected outcome
   useEffect(() => {
@@ -1035,7 +1175,7 @@ export function MarketDetailClient({
                   <span className="text-3xl font-bold text-[var(--outcome-yes)]">
                     {market.outcomeLabels[0] ?? "Yes"}
                   </span>
-                  <span className="text-sm font-semibold text-[var(--outcome-yes)] [html[data-theme=light]_&]:text-green-700">
+                  <span className="text-sm font-semibold text-[var(--outcome-yes)]">
                     ↑ {market.chancePct.toFixed(1)}%
                   </span>
                 </div>
@@ -1068,7 +1208,16 @@ export function MarketDetailClient({
                 />
                 {market.nadMarket ? (
                   <div className="mt-6">
-                    <NadTokenPanel nadMarket={market.nadMarket} />
+                    <LaunchpadTokenSection
+                      nadMarket={market.nadMarket}
+                      marketKind={market.kind}
+                      marketAddress={market.address}
+                      collateralDecimals={market.collateralDecimals}
+                      collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
+                      outcomeLabels={market.outcomeLabels}
+                      chartThemeKey={chartThemeKey}
+                      hideMarketChartFallback
+                    />
                   </div>
                 ) : null}
                 <MarketTradeList
@@ -1080,18 +1229,15 @@ export function MarketDetailClient({
                 />
               </>
             ) : market.nadMarket ? (
-              <div className="space-y-4">
-                <NadTokenPanel nadMarket={market.nadMarket} />
-                <MarketChartPanel
-                  marketKind={market.kind}
-                  marketAddress={market.address}
-                  collateralDecimals={market.collateralDecimals}
-                  collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
-                  outcomeLabels={market.outcomeLabels}
-                  tvSymbol={null}
-                  chartThemeKey={chartThemeKey}
-                />
-              </div>
+              <LaunchpadTokenSection
+                nadMarket={market.nadMarket}
+                marketKind={market.kind}
+                marketAddress={market.address}
+                collateralDecimals={market.collateralDecimals}
+                collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
+                outcomeLabels={market.outcomeLabels}
+                chartThemeKey={chartThemeKey}
+              />
             ) : (
               <MarketChartPanel
                 marketKind={market.kind}
@@ -1159,7 +1305,10 @@ export function MarketDetailClient({
                     marketTitle={market.title}
                     priceRangeLine={market.priceBinByOutcome?.[selectedOutcome] ?? null}
                     stakeEnds={market.stakeEnds}
-                    resolveAfter={market.resolveAfter}
+                    resolveAfter={
+                      formatMarketCardDate(market.resolveAfterUnix * 1000) ?? market.resolveAfter
+                    }
+                    resolveAfterTooltip={formatMarketClosesTooltip(market.resolveAfterUnix * 1000)}
                     outcomeLabels={market.outcomeLabels}
                     selectedOutcomeIndex={selectedOutcome}
                     onSelectOutcome={setSelectedOutcome}
@@ -1174,17 +1323,19 @@ export function MarketDetailClient({
                     walletBalanceWei={collateralBalance}
                     outcomeTokenBalanceWei={outcomeTokenBalance}
                     tokensFormatted={tradeSummary?.tokens ?? null}
+                    collateralFormatted={tradeSummary?.spend ?? null}
                     pricePerTokenLabel={pricePerTokenLabel}
                     slippageBps={tradeSlippageBps}
-                    onCycleSlippage={cycleSlippage}
+                    onSlippageBpsChange={setTradeSlippageDefault}
                     isNativeCollateral={isNativeCollateral}
-                    needsApproval={needsApproval}
-                    approvalIcon={approvalIcon}
-                    approvalLine={approvalLine}
                     tradeDisabled={tradeDisabled}
                     status={tradeStatus}
                     busy={tradeBusy}
-                    onSubmit={() => void submitTrade()}
+                    marketSellEnabled={marketIsFpmm}
+                    marketSide={tradeSide}
+                    onMarketSideChange={setTradeSide}
+                    onFillMaxSell={() => void fillMaxSell()}
+                    onSubmit={(side) => void submitTrade(side)}
                     onSubmitLimit={submitLimitOrderFromParams}
                     tradeSuccess={tradeSuccess}
                     onDismissSuccess={() => setTradeSuccess(null)}
@@ -1237,7 +1388,10 @@ export function MarketDetailClient({
           marketTitle={market.title}
           priceRangeLine={market.priceBinByOutcome?.[selectedOutcome] ?? null}
           stakeEnds={market.stakeEnds}
-          resolveAfter={market.resolveAfter}
+          resolveAfter={
+            formatMarketCardDate(market.resolveAfterUnix * 1000) ?? market.resolveAfter
+          }
+          resolveAfterTooltip={formatMarketClosesTooltip(market.resolveAfterUnix * 1000)}
           outcomeLabels={market.outcomeLabels}
           selectedOutcomeIndex={selectedOutcome}
           onSelectOutcome={setSelectedOutcome}
@@ -1252,18 +1406,20 @@ export function MarketDetailClient({
           walletBalanceWei={collateralBalance}
           outcomeTokenBalanceWei={outcomeTokenBalance}
           tokensFormatted={tradeSummary?.tokens ?? null}
+          collateralFormatted={tradeSummary?.spend ?? null}
           pricePerTokenLabel={pricePerTokenLabel}
           slippageBps={tradeSlippageBps}
-          onCycleSlippage={cycleSlippage}
+          onSlippageBpsChange={setTradeSlippageDefault}
           isNativeCollateral={isNativeCollateral}
-          needsApproval={needsApproval}
-          approvalIcon={approvalIcon}
-          approvalLine={approvalLine}
           tradeDisabled={tradeDisabled}
           status={tradeStatus}
           busy={tradeBusy}
-          onSubmit={() => {
-            void submitTrade();
+          marketSellEnabled={marketIsFpmm}
+          marketSide={tradeSide}
+          onMarketSideChange={setTradeSide}
+          onFillMaxSell={() => void fillMaxSell()}
+          onSubmit={(side) => {
+            void submitTrade(side);
           }}
           onSubmitLimit={submitLimitOrderFromParams}
           tradeSuccess={tradeSuccess}
@@ -1271,6 +1427,7 @@ export function MarketDetailClient({
             setTradeSuccess(null);
             setTradeOpen(false);
             setTradeAmount("");
+            setTradeSide("buy");
           }}
           belowPanel={
             market.marketState === 0 ? (

@@ -94,22 +94,39 @@ export function isBuyTradeKind(kind: string): boolean {
   return kind === "buy" || kind === "deposit";
 }
 
+const ERC20_BALANCE_ABI = parseAbi(["function balanceOf(address account) view returns (uint256)"]);
+
+/**
+ * Market TVL in collateral units.
+ * FPMM `poolBalances` are outcome-token amounts (seeding 100 → ~100 per outcome); summing them
+ * double-counts. Use the market's collateral token balance instead.
+ * Parimutuel `realPool` sums to the same collateral locked, but balanceOf is the source of truth.
+ */
 export async function readMarketPoolTotal(
   client: PublicClient,
   market: Address,
-  outcomeCount: number,
-  isFpmm: boolean,
+  _outcomeCount: number,
+  _isFpmm: boolean,
 ): Promise<bigint> {
-  const fn = marketPoolFunction(isFpmm);
-  const pools = await Promise.all(
-    Array.from({ length: outcomeCount }, (_, i) =>
-      client.readContract({
-        address: market,
-        abi: MARKET_READ_ABI,
-        functionName: fn,
-        args: [BigInt(i)],
-      }) as Promise<bigint>,
-    ),
-  );
-  return pools.reduce((acc, v) => acc + v, BigInt(0));
+  const collateral = (await client.readContract({
+    address: market,
+    abi: MARKET_READ_ABI,
+    functionName: "collateralAddress",
+  })) as Address;
+  return (await client.readContract({
+    address: collateral,
+    abi: ERC20_BALANCE_ABI,
+    functionName: "balanceOf",
+    args: [market],
+  })) as bigint;
+}
+
+/** Same TVL definition for multicall batching (list / detail loaders). */
+export function marketTvlBalanceCall(market: Address, collateral: Address) {
+  return {
+    address: collateral,
+    abi: ERC20_BALANCE_ABI,
+    functionName: "balanceOf" as const,
+    args: [market] as const,
+  };
 }

@@ -34,17 +34,19 @@ type MarketsListResult = {
   markets: SubgraphMarketIndex[];
 };
 
-/** Markets with list fields from subgraph (newest first). Empty if subgraph is down. */
-export async function fetchMarketsFromSubgraph(first = 500): Promise<SubgraphMarketIndex[]> {
+/** Markets with list fields from subgraph (newest first). */
+export async function fetchMarketsFromSubgraph(
+  first = 500,
+): Promise<{ ok: true; markets: SubgraphMarketIndex[] } | { ok: false; markets: [] }> {
   const result = await querySubgraph<MarketsListResult>(MARKETS_LIST_QUERY, { first });
-  if (!result.ok) return [];
-  return result.data.markets ?? [];
+  if (!result.ok) return { ok: false, markets: [] };
+  return { ok: true, markets: result.data.markets ?? [] };
 }
 
 /** @deprecated Use fetchMarketsFromSubgraph — address list only. */
 export async function fetchMarketAddressesFromSubgraph(first = 500): Promise<`0x${string}`[]> {
-  const markets = await fetchMarketsFromSubgraph(first);
-  return markets
+  const result = await fetchMarketsFromSubgraph(first);
+  return result.markets
     .map((m) => m.id.trim())
     .filter((id): id is `0x${string}` => /^0x[a-fA-F0-9]{40}$/.test(id));
 }

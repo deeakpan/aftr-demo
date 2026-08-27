@@ -80,6 +80,8 @@ export function MultiOutcomeMarketSection({
   const { stats: liveStats, loading: statsLoading } = useNadComparisonStats(
     comparisonTokens,
     showMcapRows,
+    undefined,
+    nadMarket,
   );
 
   const mcapByAddress = new Map<string, number | null>();

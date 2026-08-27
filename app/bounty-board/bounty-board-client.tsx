@@ -96,7 +96,7 @@ export function BountyBoardClient() {
                 </span>
                 <span className="text-right tabular-nums text-[var(--muted)]">{r.marketCount}</span>
                 <span
-                  className={`text-right tabular-nums font-semibold ${r.pnlUsd.startsWith("-") ? "text-rose-500 [html[data-theme=dark]_&]:text-rose-400" : "text-emerald-600 [html[data-theme=dark]_&]:text-emerald-400"}`}
+                  className={`text-right tabular-nums font-semibold ${r.pnlUsd.startsWith("-") ? "text-[var(--outcome-no)]" : "text-[var(--outcome-yes)]"}`}
                 >
                   ${r.pnlUsd}
                 </span>

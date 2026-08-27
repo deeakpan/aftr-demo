@@ -1,18 +1,13 @@
-import { formatUnits, parseAbi } from "viem";
+import { formatUnits, parseAbi, type Abi } from "viem";
 import { unstable_cache } from "next/cache";
 import { fetchMarketsFromSubgraph, type SubgraphMarketIndex } from "@/lib/subgraph/market-index";
 import { fpmmFactoryAddress, parimutuelFactoryAddress } from "@/lib/market-factory";
-import { marketPoolFunction } from "@/lib/market-abi";
-import { isFpmmMarket } from "@/lib/market-mechanism";
+import { marketTvlBalanceCall } from "@/lib/market-abi";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
 import { fetchIpfsMetadata, ipfsToHttp, type IpfsMarketMetadata } from "@/lib/ipfs-metadata";
 import { isListableMarket } from "@/lib/market-metadata";
-import { launchpadMarketForDisplay, launchpadMarketFromMetadata } from "@/lib/launchpad-display";
-import { isPriceMarketKind, marketKindFromChain, type UiMarketKind } from "@/lib/markets/market-kind";
-
-import { fpmmFactoryAddress, parimutuelFactoryAddress } from "@/lib/market-factory";
-import { marketPoolFunction } from "@/lib/market-abi";
-import { isFpmmMarket } from "@/lib/market-mechanism";
+import { launchpadMarketForDisplay, launchpadMarketFromMetadata, uiMarketKindForDisplay } from "@/lib/launchpad-display";
+import { isPriceMarketKind, type UiMarketKind } from "@/lib/markets/market-kind";
 
 const FACTORY_ABI = parseAbi([
   "function marketsLength() view returns (uint256)",
@@ -310,7 +305,7 @@ function buildMarketListItem(
   priceBinByOutcome?: string[],
 ): MarketListItem {
   const isPrice = isPriceMarketKind(slice.kind);
-  const uiKind = marketKindFromChain(slice.kind);
+  const uiKind = uiMarketKindForDisplay(slice.kind, md as Record<string, unknown> | null);
   const outcomeCount = slice.outcomeCount;
 
   const fallbackLabels = Array.from({ length: outcomeCount }, (_, i) => `Outcome ${i + 1}`);
@@ -374,7 +369,7 @@ function buildMarketListItem(
 async function multicallChunked(
   contracts: readonly {
     address: `0x${string}`;
-    abi: typeof MARKET_ABI | typeof FACTORY_ABI;
+    abi: Abi;
     functionName: string;
     args?: readonly unknown[];
   }[],
@@ -424,8 +419,9 @@ async function listFactoryMarkets(
 
 async function resolveMarketEntries(): Promise<MarketLoadEntry[]> {
   const fromSubgraph = await fetchMarketsFromSubgraph(500);
-  if (fromSubgraph.length > 0) {
-    return fromSubgraph
+  // Subgraph answered (even with zero markets) — trust it; skip flaky RPC factory scan.
+  if (fromSubgraph.ok) {
+    return fromSubgraph.markets
       .map((m) => ({
         address: m.id.trim() as `0x${string}`,
         subgraph: m,
@@ -435,10 +431,18 @@ async function resolveMarketEntries(): Promise<MarketLoadEntry[]> {
   }
 
   const entries: MarketLoadEntry[] = [];
-  const pari = parimutuelFactoryAddress();
   const fpmm = fpmmFactoryAddress();
-  if (pari) entries.push(...(await listFactoryMarkets(pari, false)));
-  if (fpmm) entries.push(...(await listFactoryMarkets(fpmm, true)));
+  try {
+    if (fpmm) {
+      entries.push(...(await listFactoryMarkets(fpmm, true)));
+    } else {
+      const pari = parimutuelFactoryAddress();
+      if (pari) entries.push(...(await listFactoryMarkets(pari, false)));
+    }
+  } catch (error) {
+    console.warn("[load-markets] factory scan failed:", error instanceof Error ? error.message : error);
+    return [];
+  }
 
   const byAddr = new Map<string, MarketLoadEntry>();
   for (const e of entries) {
@@ -547,27 +551,29 @@ async function loadMarketsListUncached(): Promise<MarketListItem[]> {
   const phase2Contracts = entries.flatMap((entry, i) => {
     const slice = slices[i];
     if (!slice || slice.outcomeCount <= 0) return [];
-    const poolFn = marketPoolFunction(entry.isFpmm);
-    return Array.from({ length: slice.outcomeCount }, (_, o) => [
-      {
-        address: entry.address,
-        abi: MARKET_ABI,
-        functionName: poolFn as "realPool" | "poolBalances",
-        args: [BigInt(o)] as const,
-      },
-      {
-        address: entry.address,
-        abi: MARKET_ABI,
-        functionName: "priceOf" as const,
-        args: [o] as const,
-      },
-    ]).flat();
+    // Prices only — TVL uses collateral balanceOf(market), not sum of outcome pools.
+    return Array.from({ length: slice.outcomeCount }, (_, o) => ({
+      address: entry.address,
+      abi: MARKET_ABI,
+      functionName: "priceOf" as const,
+      args: [o] as const,
+    }));
   });
 
-  const phase2 = phase2Contracts.length ? await multicallChunked(phase2Contracts) : [];
+  const tvlContracts = entries.flatMap((entry, i) => {
+    const slice = slices[i];
+    if (!slice) return [];
+    return [marketTvlBalanceCall(entry.address, slice.collateralAddress)];
+  });
+
+  const [phase2, tvlReads] = await Promise.all([
+    phase2Contracts.length ? multicallChunked(phase2Contracts) : Promise.resolve([]),
+    tvlContracts.length ? multicallChunked(tvlContracts) : Promise.resolve([]),
+  ]);
 
   const rows: MarketListItem[] = [];
   let phase2Idx = 0;
+  let tvlIdx = 0;
   for (let i = 0; i < entries.length; i += 1) {
     const entry = entries[i]!;
     const slice = slices[i];
@@ -575,16 +581,19 @@ async function loadMarketsListUncached(): Promise<MarketListItem[]> {
 
     const md = slice.uri ? (mdByUri.get(slice.uri) ?? null) : null;
     const launchpadRaw = launchpadMarketFromMetadata(md as Record<string, unknown> | null);
-    if (!isListableMarket(slice.uri, md?.image, launchpadRaw ?? md?.nadMarket)) continue;
+    if (!isListableMarket(slice.uri, md?.image, launchpadRaw ?? md?.nadMarket)) {
+      phase2Idx += slice.outcomeCount;
+      tvlIdx += 1;
+      continue;
+    }
 
-    let poolTvlRaw = BigInt(0);
     const priceResults: bigint[] = [];
     for (let o = 0; o < slice.outcomeCount; o += 1) {
-      const pool = phase2[phase2Idx++]?.result as bigint | undefined;
       const price = phase2[phase2Idx++]?.result as bigint | undefined;
-      if (pool !== undefined) poolTvlRaw += pool;
       if (price !== undefined) priceResults.push(price);
     }
+
+    const poolTvlRaw = (tvlReads[tvlIdx++]?.result as bigint | undefined) ?? BigInt(0);
 
     rows.push(buildMarketListItem(entry.address, slice, md, poolTvlRaw, priceResults));
   }
@@ -654,31 +663,32 @@ async function loadMarketRow(
   const outcomeCount = Number(outcomes);
   const dec = Number(collateralDecimals);
   const isPrice = isPriceMarketKind(Number(kind));
-  const isFpmm = await isFpmmMarket(publicClient, marketAddress);
-  const poolFn = marketPoolFunction(isFpmm);
 
-  const outcomeContracts = Array.from({ length: outcomeCount }, (_, i) => [
-    { address: marketAddress, abi: MARKET_ABI, functionName: poolFn as "realPool" | "poolBalances", args: [BigInt(i)] as const },
-    { address: marketAddress, abi: MARKET_ABI, functionName: "priceOf" as const, args: [i] as const },
-  ]).flat();
+  const outcomeContracts = Array.from({ length: outcomeCount }, (_, i) => ({
+    address: marketAddress,
+    abi: MARKET_ABI,
+    functionName: "priceOf" as const,
+    args: [i] as const,
+  }));
 
-  const [md, outcomeReads] = await Promise.all([
+  const [md, outcomeReads, tvlRead] = await Promise.all([
     fetchIpfsMetadata(uri),
     outcomeContracts.length
       ? publicClient.multicall({ contracts: outcomeContracts })
       : Promise.resolve([]),
+    publicClient.multicall({
+      contracts: [marketTvlBalanceCall(marketAddress, collateralAddress)],
+    }),
   ]);
 
   if (requireListable && !isListableMarket(uri, md?.image, launchpadMarketFromMetadata(md as Record<string, unknown> | null) ?? md?.nadMarket)) {
     return null;
   }
 
-  let poolTvlRaw = BigInt(0);
+  const poolTvlRaw = (tvlRead[0]?.result as bigint | undefined) ?? BigInt(0);
   const priceResults: bigint[] = [];
   for (let i = 0; i < outcomeCount; i += 1) {
-    const pool = outcomeReads[i * 2]?.result as bigint | undefined;
-    const price = outcomeReads[i * 2 + 1]?.result as bigint | undefined;
-    if (pool !== undefined) poolTvlRaw += pool;
+    const price = outcomeReads[i]?.result as bigint | undefined;
     if (price !== undefined) priceResults.push(price);
   }
 

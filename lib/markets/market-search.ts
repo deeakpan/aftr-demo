@@ -172,6 +172,8 @@ export function marketSearchSubtitle(market: MarketSearchRecord): string {
 
 export function marketKindBadge(kind: string): string {
   switch (kind) {
+    case "Pons":
+      return "PONS";
     case "Nad":
       return "NAD";
     case "Price":

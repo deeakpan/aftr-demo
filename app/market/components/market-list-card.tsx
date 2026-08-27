@@ -14,6 +14,8 @@ export type MarketListCardProps = {
   /** Formatted TVL string without currency symbol (e.g. "5,490"). */
   poolTvl?: string;
   resolveAfter?: string;
+  /** Full close timestamp shown on hover (e.g. "Closes: Jan 1, 2027, 05:59 GMT+1"). */
+  resolveAfterTooltip?: string;
   /** Show orange NEW badge instead of volume. */
   showNewBadge?: boolean;
   onTitleClick?: () => void;
@@ -39,6 +41,35 @@ function evenSplitPct(count: number, index: number) {
   if (count <= 0) return 0;
   const base = Math.floor(100 / count);
   return index === 0 ? 100 - base * (count - 1) : base;
+}
+
+export function MarketCloseDate({
+  label,
+  tooltip,
+  iconSize = 12,
+}: {
+  label: string;
+  tooltip?: string;
+  iconSize?: number;
+}) {
+  return (
+    <span
+      className="market-close-date group relative inline-flex cursor-default items-center gap-1 tabular-nums"
+      tabIndex={tooltip ? 0 : undefined}
+      aria-label={tooltip || label}
+    >
+      <Clock size={iconSize} />
+      <span>{label}</span>
+      {tooltip ? (
+        <span
+          role="tooltip"
+          className="market-close-date-tip pointer-events-none absolute right-[calc(100%+10px)] top-1/2 z-40 max-w-[min(70vw,280px)] -translate-y-1/2 whitespace-nowrap rounded-[0.65rem] bg-white px-2.5 py-1.5 text-[11px] font-medium leading-snug text-zinc-950 opacity-0 shadow-[0_8px_24px_rgb(0_0_0_/_0.35)] invisible transition-[opacity,visibility] duration-100 group-hover:opacity-100 group-hover:visible group-focus-visible:opacity-100 group-focus-visible:visible [html[data-theme=light]_&]:bg-zinc-900 [html[data-theme=light]_&]:text-zinc-50 [html[data-theme=light]_&]:shadow-[0_8px_24px_rgb(0_0_0_/_0.18)]"
+        >
+          {tooltip}
+        </span>
+      ) : null}
+    </span>
+  );
 }
 
 /** Shared card body sizing — markets & trades use the same fixed outcome block height. */
@@ -151,6 +182,7 @@ export function MarketListCard({
   outcomeChancePcts,
   poolTvl,
   resolveAfter,
+  resolveAfterTooltip,
   showNewBadge = false,
   onTitleClick,
   onTrade,
@@ -315,10 +347,7 @@ export function MarketListCard({
             </button>
           )}
           {resolveAfter && (
-            <span className="inline-flex items-center gap-1 tabular-nums">
-              <Clock size={12} />
-              {resolveAfter}
-            </span>
+            <MarketCloseDate label={resolveAfter} tooltip={resolveAfterTooltip} iconSize={12} />
           )}
         </div>
       </div>
