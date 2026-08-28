@@ -407,7 +407,19 @@ function ParaWalletProviderInner({ children }: { children: ReactNode }) {
       <ParaProviderMin
         paraClientConfig={{ env, apiKey: getParaApiKey(), opts: { configOverrides } }}
         config={{ appName: "Zedkr Market" }}
-        waitForReady={false}
+        callbacks={{
+          onLogin: (event) => {
+            const data = event.detail?.data;
+            if (data?.isComplete && !data?.isError) {
+              markParaLoginRequested();
+              resetBridgeImpl?.();
+            }
+          },
+          onAccountSetup: () => {
+            markParaLoginRequested();
+            resetBridgeImpl?.();
+          },
+        }}
         configOverrides={configOverrides}
         paraModalConfig={{
           recoverySecretStepEnabled: false,

@@ -51,8 +51,8 @@
     "subgraph:deploy-studio": "node scripts/subgraph-studio-deploy.cjs"
   },
   "dependencies": {
-    "@getpara/evm-wallet-connectors": "3.14.0",
-    "@getpara/react-sdk-lite": "3.14.0",
+    "@getpara/evm-wallet-connectors": "^3.16.0",
+    "@getpara/react-sdk-lite": "^3.16.0",
     "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/react-slider": "^1.4.7",
     "@supabase/supabase-js": "^2.101.0",
