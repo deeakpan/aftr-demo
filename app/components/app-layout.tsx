@@ -8,7 +8,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useWeb3Modal } from "@web3modal/wagmi/react";
 import { useDisconnect, useReadContract, useSignMessage } from "wagmi";
 import { formatUnits, parseAbi } from "viem";
-import { openParaModal, paraLogout } from "@/app/components/para-wallet-provider";
+import { openParaModal, paraLogout, resetParaAuth } from "@/app/components/para-wallet-provider";
 import { useParaSessionContext } from "@/app/components/para-session-context";
 import { signOutEverywhere } from "@/lib/auth-signout";
 import { isParaConfigured } from "@/lib/para-config";
@@ -109,8 +109,15 @@ export function AppLayout({
 }: AppLayoutProps) {
   const { open } = useWeb3Modal();
   const me = useMe();
-  const { sessionAddress, isPara, isConnected: sessionConnected, isParaSigningIn } = useSessionAddress();
-  const { bridgeError } = useParaSessionContext();
+  const {
+    sessionAddress,
+    isPara,
+    isConnected: sessionConnected,
+    isParaSigningIn,
+    isParaConnecting,
+    isParaStuck,
+  } = useSessionAddress();
+  const { bridgeError, bridgeStatus } = useParaSessionContext();
   const cachedProfileName = useProfileName(sessionAddress);
   const router = useRouter();
   const pathname = usePathname();
@@ -707,15 +714,40 @@ export function AppLayout({
                     )}
                   </div>
                 </>
-              ) : isParaSigningIn ? (
-                <button
-                  type="button"
-                  disabled
-                  className="inline-flex h-11 cursor-wait select-none items-center gap-2 rounded-full bg-[var(--foreground)]/80 px-5 text-sm font-semibold text-[var(--background)] caret-transparent"
-                >
-                  <CircleNotch size={16} className="animate-spin" />
-                  Signing in…
-                </button>
+              ) : bridgeStatus === "failed" ? (
+                <div className="flex max-w-[min(100vw-8rem,20rem)] flex-col items-end gap-1">
+                  <button
+                    type="button"
+                    onClick={() => void resetParaAuth()}
+                    className="inline-flex h-11 cursor-pointer select-none items-center rounded-full bg-[var(--foreground)] px-5 text-sm font-semibold text-[var(--background)] caret-transparent hover:opacity-90"
+                  >
+                    Reset &amp; sign in
+                  </button>
+                  {bridgeError ? (
+                    <p className="max-w-full truncate text-[10px] text-red-400" title={bridgeError}>
+                      {bridgeError}
+                    </p>
+                  ) : null}
+                </div>
+              ) : isParaConnecting || isParaStuck ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex h-11 cursor-wait select-none items-center gap-2 rounded-full bg-[var(--foreground)]/80 px-5 text-sm font-semibold text-[var(--background)] caret-transparent"
+                  >
+                    <CircleNotch size={16} className="animate-spin" />
+                    {isParaSigningIn ? "Signing in…" : "Connecting…"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void resetParaAuth()}
+                    className="inline-flex h-11 cursor-pointer select-none items-center rounded-full border border-[var(--border)] px-4 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+                    title="Clear Para session and sign in again"
+                  >
+                    Disconnect
+                  </button>
+                </div>
               ) : (
                 <button
                   type="button"

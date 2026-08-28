@@ -17,22 +17,27 @@ import {
   ParaSessionProvider,
   type ParaBridgeStatus,
 } from "@/app/components/para-session-context";
-import { isSigningOut } from "@/lib/auth-signout";
-import { clearParaLoginRequested, isParaLoginRequested, markParaLoginRequested } from "@/lib/para-login-request";
+import { isSigningOut, signOutEverywhere } from "@/lib/auth-signout";
+import {
+  clearParaLoginRequested,
+  isParaLoginRequested,
+  markParaLoginRequested,
+} from "@/lib/para-login-request";
 import { getParaApiKey, getParaEnvName, isParaConfigured } from "@/lib/para-config";
 import { getParaWalletRecord, setParaWalletRecord } from "@/lib/para-wallet-record";
+import { useSignInAttempt } from "@/lib/use-sign-in-attempt";
 import { setMe, useMe } from "@/lib/useMe";
 
 type OpenFn = () => void;
 let openImpl: OpenFn | null = null;
 let closeImpl: (() => void) | null = null;
 let logoutImpl: (() => Promise<void>) | null = null;
-let queuedOpen = false;
+/** Reset bridge retry guard when user clicks Sign in again. */
+let resetBridgeImpl: (() => void) | null = null;
 
 export function openParaModal() {
   markParaLoginRequested();
-  if (openImpl) openImpl();
-  else queuedOpen = true;
+  resetBridgeImpl?.();
 }
 
 export function closeParaModal() {
@@ -41,6 +46,13 @@ export function closeParaModal() {
 
 export async function paraLogout() {
   await logoutImpl?.();
+}
+
+/** Clear app + Para session and open fresh auth (fixes stale wallet dashboard). */
+export async function resetParaAuth() {
+  await signOutEverywhere(() => paraLogout());
+  markParaLoginRequested();
+  resetBridgeImpl?.();
 }
 
 function pickEmbeddedAddress(
@@ -58,24 +70,79 @@ function pickEmbeddedAddress(
   return undefined;
 }
 
+function hasAppSession(me: `0x${string}` | undefined) {
+  const record = getParaWalletRecord();
+  return Boolean(me || record?.owner);
+}
+
 function ParaControls() {
   const { openModal, closeModal } = useModal();
   const { logoutAsync } = useLogout();
 
   useEffect(() => {
-    openImpl = () => openModal();
+    openImpl = () => {
+      // Routed by ParaSignInRouter — tick via markParaLoginRequested in openParaModal.
+    };
     closeImpl = () => closeModal();
     logoutImpl = () => logoutAsync();
-    if (queuedOpen) {
-      queuedOpen = false;
-      openModal();
-    }
     return () => {
       openImpl = null;
       closeImpl = null;
       logoutImpl = null;
     };
   }, [openModal, closeModal, logoutAsync]);
+
+  return null;
+}
+
+/** Never show Para wallet dashboard when the app session is missing. */
+function ParaModalGuard() {
+  const me = useMe();
+  const account = useAccount();
+  const { closeModal } = useModal();
+
+  useEffect(() => {
+    if (hasAppSession(me)) return;
+    if (account?.isConnected) closeModal();
+  }, [me, account?.isConnected, closeModal]);
+
+  return null;
+}
+
+/** On Sign in: show auth if Para is logged out; otherwise bridge silently (never wallet dashboard). */
+function ParaSignInRouter() {
+  const signInAttempt = useSignInAttempt();
+  const me = useMe();
+  const account = useAccount();
+  const { data: wallet } = useWallet();
+  const { openModal, closeModal } = useModal();
+  const lastHandled = useRef(0);
+
+  useEffect(() => {
+    if (signInAttempt === 0 || signInAttempt === lastHandled.current) return;
+    if (!isParaLoginRequested()) return;
+    lastHandled.current = signInAttempt;
+
+    if (hasAppSession(me)) {
+      closeModal();
+      clearParaLoginRequested();
+      return;
+    }
+
+    const addr = pickEmbeddedAddress(account, wallet);
+    const paraConnected = Boolean(account?.isConnected);
+
+    // Never show Para wallet dashboard when app session is missing.
+    closeModal();
+
+    if (!paraConnected) {
+      openModal();
+      return;
+    }
+
+    // Connected but wallet address still hydrating — stay closed; ParaWalletBridge will run.
+    if (!addr) return;
+  }, [signInAttempt, me, account, wallet, openModal, closeModal]);
 
   return null;
 }
@@ -102,7 +169,6 @@ function ParaSync({
       return;
     }
 
-    // Session identity is API wallet B (pregen), never the embedded auth wallet A.
     const record = getParaWalletRecord();
     if (record?.owner && (!me || me.toLowerCase() !== record.owner.toLowerCase())) {
       setMe(record.owner);
@@ -117,8 +183,8 @@ function ParaSync({
       closeParaModal();
     } else if (!paraConnected) {
       setBridgeState("idle");
-    } else if (isParaLoginRequested() && paraConnected) {
-      // Para cookie exists but app session isn't ready — hide wallet chrome, bridge in background.
+    } else {
+      // Para cookie restored without app session — bridge in background, keep modal closed.
       closeParaModal();
     }
   }, [account, wallet, me, setParaAuthed, setBridgeState]);
@@ -132,6 +198,7 @@ function ParaWalletBridge({
   setBridgeState: (status: ParaBridgeStatus, error?: string | null) => void;
 }) {
   const me = useMe();
+  const signInAttempt = useSignInAttempt();
   const account = useAccount();
   const client = useClient();
   const { data: wallet } = useWallet();
@@ -140,8 +207,16 @@ function ParaWalletBridge({
   const embedded = pickEmbeddedAddress(account, wallet);
 
   useEffect(() => {
+    resetBridgeImpl = () => {
+      ranFor.current = null;
+    };
+    return () => {
+      resetBridgeImpl = null;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isConnected || !client || !embedded) return;
-    // After handover, me is wallet B — do not re-register or clobber it.
     if (me && me.toLowerCase() !== embedded.toLowerCase()) {
       setBridgeState("idle");
       clearParaLoginRequested();
@@ -152,7 +227,9 @@ function ParaWalletBridge({
 
     let cancelled = false;
     ranFor.current = key;
-    if (isParaLoginRequested()) setBridgeState("registering");
+    if (isParaLoginRequested() || !hasAppSession(me)) {
+      setBridgeState("registering");
+    }
 
     void (async () => {
       const maxAttempts = 3;
@@ -237,7 +314,7 @@ function ParaWalletBridge({
     return () => {
       cancelled = true;
     };
-  }, [isConnected, embedded, client, me, setBridgeState]);
+  }, [isConnected, embedded, client, me, signInAttempt, setBridgeState]);
 
   return null;
 }
@@ -253,7 +330,7 @@ function ParaWalletProviderInner({ children }: { children: ReactNode }) {
   };
 
   const env = getParaEnvName() === "PROD" ? Environment.PROD : Environment.BETA;
-  const logo = `${window.location.origin}/logo.png`;
+  const logo = `${typeof window !== "undefined" ? window.location.origin : ""}/logo.png`;
   const configOverrides = {
     themeConfig: {
       mode: "dark" as const,
@@ -303,6 +380,8 @@ function ParaWalletProviderInner({ children }: { children: ReactNode }) {
       >
         {children}
         <ParaControls />
+        <ParaModalGuard />
+        <ParaSignInRouter />
         <ParaSync setParaAuthed={setParaAuthed} setBridgeState={setBridgeState} />
         <ParaWalletBridge setBridgeState={setBridgeState} />
       </ParaProviderMin>
