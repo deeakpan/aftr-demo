@@ -215,7 +215,7 @@ function ParaSync({
 
   useEffect(() => {
     const paraConnected = Boolean(account?.isConnected || account?.embedded?.isConnected);
-    setParaAuthed((prev) => (prev === paraConnected ? prev : paraConnected));
+    setParaAuthed(paraConnected);
 
     if (isSigningOut()) {
       if (me) setMe(undefined);
