@@ -1,5 +1,14 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
+
+type Listener = () => void;
+const listeners = new Set<Listener>();
+
+function emit() {
+  listeners.forEach((l) => l());
+}
+
 export type ParaWalletRecord = {
   owner: `0x${string}`;
   walletId: string;
@@ -31,4 +40,16 @@ export function setParaWalletRecord(record: ParaWalletRecord | null) {
   } catch {
     // ignore
   }
+  emit();
+}
+
+export function useParaWalletRecord(): ParaWalletRecord | null {
+  return useSyncExternalStore(
+    (onStoreChange) => {
+      listeners.add(onStoreChange);
+      return () => listeners.delete(onStoreChange);
+    },
+    getParaWalletRecord,
+    () => null,
+  );
 }

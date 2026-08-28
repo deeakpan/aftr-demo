@@ -12,6 +12,7 @@ export async function POST(req: Request) {
       to?: string;
       data?: string;
       value?: string;
+      walletId?: string;
     };
     if (!body.owner || !isAddress(body.owner) || !body.to || !isAddress(body.to)) {
       return NextResponse.json({ error: "Invalid owner or to address." }, { status: 400 });
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
       to: getAddress(body.to) as `0x${string}`,
       data: (body.data as Hex | undefined) ?? "0x",
       value: body.value ? BigInt(body.value) : BigInt(0),
-    });
+    }, body.walletId?.trim());
     return NextResponse.json({ hash: result.hash });
   } catch (error) {
     const message = formatUserTxError(error, "Transaction failed. Try again.");

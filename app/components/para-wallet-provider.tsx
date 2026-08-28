@@ -13,6 +13,10 @@ import {
 } from "@getpara/react-sdk-lite";
 import "@getpara/react-sdk-lite/styles.css";
 import { getAddress, isAddress } from "viem";
+import {
+  ParaSessionProvider,
+  type ParaBridgeStatus,
+} from "@/app/components/para-session-context";
 import { isSigningOut } from "@/lib/auth-signout";
 import { getParaApiKey, getParaEnvName, isParaConfigured } from "@/lib/para-config";
 import { getParaWalletRecord, setParaWalletRecord } from "@/lib/para-wallet-record";
@@ -74,31 +78,52 @@ function ParaControls() {
   return null;
 }
 
-function ParaSync() {
+function ParaSync({
+  setParaAuthed,
+  setBridgeState,
+}: {
+  setParaAuthed: (next: boolean) => void;
+  setBridgeState: (status: ParaBridgeStatus, error?: string | null) => void;
+}) {
   const me = useMe();
   const account = useAccount();
   const { data: wallet } = useWallet();
 
   useEffect(() => {
+    const addr = pickEmbeddedAddress(account, wallet);
+    const paraConnected = Boolean(account?.isConnected && addr);
+    setParaAuthed(paraConnected);
+
     if (isSigningOut()) {
       if (me) setMe(undefined);
+      setBridgeState("idle");
       return;
     }
+
     // Session identity is API wallet B (pregen), never the embedded auth wallet A.
     const record = getParaWalletRecord();
     if (record?.owner && (!me || me.toLowerCase() !== record.owner.toLowerCase())) {
       setMe(record.owner);
+      setBridgeState("idle");
     }
-    const addr = pickEmbeddedAddress(account, wallet);
-    // Close as soon as the embedded EVM wallet exists — do not wait for Para's
-    // post-auth "Select wallets" iframe (Solana/Cosmos), which we never use.
+
+    if (paraConnected && !me && !record?.owner) {
+      setBridgeState("registering");
+    } else if (me || record?.owner) {
+      setBridgeState("idle");
+    }
+
     if (account.isConnected && addr) closeParaModal();
-  }, [account, wallet, me]);
+  }, [account, wallet, me, setParaAuthed, setBridgeState]);
 
   return null;
 }
 
-function ParaWalletBridge() {
+function ParaWalletBridge({
+  setBridgeState,
+}: {
+  setBridgeState: (status: ParaBridgeStatus, error?: string | null) => void;
+}) {
   const me = useMe();
   const account = useAccount();
   const client = useClient();
@@ -110,12 +135,16 @@ function ParaWalletBridge() {
   useEffect(() => {
     if (!isConnected || !client || !embedded) return;
     // After handover, me is wallet B — do not re-register or clobber it.
-    if (me && me.toLowerCase() !== embedded.toLowerCase()) return;
+    if (me && me.toLowerCase() !== embedded.toLowerCase()) {
+      setBridgeState("idle");
+      return;
+    }
     const key = embedded.toLowerCase();
     if (ranFor.current === key) return;
 
     let cancelled = false;
     ranFor.current = key;
+    setBridgeState("registering");
 
     void (async () => {
       const maxAttempts = 3;
@@ -161,6 +190,9 @@ function ParaWalletBridge() {
               email: registered.email,
               updatedAt: Date.now(),
             });
+            setBridgeState("idle");
+          } else {
+            throw new Error("Para register returned an invalid wallet.");
           }
           return;
         } catch (e) {
@@ -174,7 +206,10 @@ function ParaWalletBridge() {
             transient ? "wallet service timeout/unreachable" : msg,
           );
           if (!transient || attempt === maxAttempts) {
-            if (!cancelled) ranFor.current = null;
+            if (!cancelled) {
+              ranFor.current = null;
+              setBridgeState("failed", msg);
+            }
             return;
           }
           await new Promise((r) => setTimeout(r, 800 * attempt));
@@ -185,16 +220,20 @@ function ParaWalletBridge() {
     return () => {
       cancelled = true;
     };
-  }, [isConnected, embedded, client, me]);
+  }, [isConnected, embedded, client, me, setBridgeState]);
 
   return null;
 }
 
-export function ParaWalletProvider({ children }: { children: ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+function ParaWalletProviderInner({ children }: { children: ReactNode }) {
+  const [paraAuthed, setParaAuthed] = useState(false);
+  const [bridgeStatus, setBridgeStatus] = useState<ParaBridgeStatus>("idle");
+  const [bridgeError, setBridgeError] = useState<string | null>(null);
 
-  if (!mounted || !isParaConfigured()) return <>{children}</>;
+  const setBridgeState = (status: ParaBridgeStatus, error: string | null = null) => {
+    setBridgeStatus(status);
+    setBridgeError(error);
+  };
 
   const env = getParaEnvName() === "PROD" ? Environment.PROD : Environment.BETA;
   const logo = `${window.location.origin}/logo.png`;
@@ -219,33 +258,51 @@ export function ParaWalletProvider({ children }: { children: ReactNode }) {
       hideWallets: true,
       logo,
     },
-    // Partner portal defaults to every chain's wallets; we only use email/Google/X.
     externalWalletConfig: {
       wallets: [] as string[],
     },
   };
 
   return (
-    <ParaProviderMin
-      paraClientConfig={{ env, apiKey: getParaApiKey(), opts: { configOverrides } }}
-      config={{ appName: "Zedkr Market" }}
-      waitForReady={false}
-      callbacks={{
-        onLogin: () => closeParaModal(),
-      }}
-      configOverrides={configOverrides}
-      paraModalConfig={{
-        recoverySecretStepEnabled: false,
-        hideWallets: true,
-        authLayout: [AuthLayout.AUTH_FULL],
+    <ParaSessionProvider
+      value={{
+        paraAuthed,
+        bridgeStatus,
+        bridgeError,
+        setParaAuthed,
+        setBridgeState,
       }}
     >
-      {children}
-      <ParaControls />
-      <ParaSync />
-      <ParaWalletBridge />
-    </ParaProviderMin>
+      <ParaProviderMin
+        paraClientConfig={{ env, apiKey: getParaApiKey(), opts: { configOverrides } }}
+        config={{ appName: "Zedkr Market" }}
+        waitForReady={false}
+        callbacks={{
+          onLogin: () => closeParaModal(),
+        }}
+        configOverrides={configOverrides}
+        paraModalConfig={{
+          recoverySecretStepEnabled: false,
+          hideWallets: true,
+          authLayout: [AuthLayout.AUTH_FULL],
+        }}
+      >
+        {children}
+        <ParaControls />
+        <ParaSync setParaAuthed={setParaAuthed} setBridgeState={setBridgeState} />
+        <ParaWalletBridge setBridgeState={setBridgeState} />
+      </ParaProviderMin>
+    </ParaSessionProvider>
   );
+}
+
+export function ParaWalletProvider({ children }: { children: ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted || !isParaConfigured()) return <>{children}</>;
+
+  return <ParaWalletProviderInner>{children}</ParaWalletProviderInner>;
 }
 
 export { getMe } from "@/lib/useMe";

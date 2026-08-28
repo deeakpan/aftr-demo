@@ -156,9 +156,14 @@ function pickSignedTx(res: SignTxResponse): Hex {
   return (raw.startsWith("0x") ? raw : `0x${raw}`) as Hex;
 }
 
-export async function sendViaPara(owner: `0x${string}`, tx: { to: `0x${string}`; data?: Hex; value?: bigint }) {
+export async function sendViaPara(
+  owner: `0x${string}`,
+  tx: { to: `0x${string}`; data?: Hex; value?: bigint },
+  walletIdHint?: string,
+) {
   const mapping = await getParaWalletByOwner(owner);
-  if (!mapping) throw new Error(`No Para REST wallet for ${owner}`);
+  const walletId = mapping?.walletId?.trim() || walletIdHint?.trim();
+  if (!walletId) throw new Error(`No Para REST wallet for ${owner}`);
 
   const publicClient = createPublicClient({ chain: DEPLOYMENT_CHAIN, transport: http(rpcUrl()) });
   const nonce = await publicClient.getTransactionCount({ address: owner, blockTag: "pending" });
@@ -205,7 +210,7 @@ export async function sendViaPara(owner: `0x${string}`, tx: { to: `0x${string}`;
     throw new Error(formatUserTxError(e, "Transaction would revert. Check seed, times, and approval."));
   }
 
-  const signed = await paraRestSignTransaction(mapping.walletId, prepared);
+  const signed = await paraRestSignTransaction(walletId, prepared);
   try {
     const hash = await withRpcRetry(() =>
       publicClient.sendRawTransaction({ serializedTransaction: pickSignedTx(signed) }),

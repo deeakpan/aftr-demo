@@ -6,12 +6,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useWeb3Modal } from "@web3modal/wagmi/react";
-import { useAccount, useDisconnect, useReadContract, useSignMessage } from "wagmi";
+import { useDisconnect, useReadContract, useSignMessage } from "wagmi";
 import { formatUnits, parseAbi } from "viem";
 import { openParaModal, paraLogout } from "@/app/components/para-wallet-provider";
+import { useParaSessionContext } from "@/app/components/para-session-context";
 import { signOutEverywhere } from "@/lib/auth-signout";
 import { isParaConfigured } from "@/lib/para-config";
 import { useMe } from "@/lib/useMe";
+import { useSessionAddress } from "@/lib/use-session-address";
 import { DEPLOYMENT_CHAIN_ID } from "@/lib/deployment";
 import { USDG_TOKEN_LOGO } from "@/lib/brand-assets";
 import { tradingUsdgAddress } from "@/lib/usdg";
@@ -106,9 +108,9 @@ export function AppLayout({
   viewportLocked = false,
 }: AppLayoutProps) {
   const { open } = useWeb3Modal();
-  const { address } = useAccount();
   const me = useMe();
-  const sessionAddress = me ?? address;
+  const { sessionAddress, isPara, isConnected: sessionConnected, isParaSigningIn } = useSessionAddress();
+  const { bridgeError } = useParaSessionContext();
   const cachedProfileName = useProfileName(sessionAddress);
   const router = useRouter();
   const pathname = usePathname();
@@ -195,7 +197,7 @@ export function AppLayout({
         }
       }
 
-      if (!me) {
+      if (!isPara) {
         const alreadySigned = window.localStorage.getItem(signedSessionKey(sessionAddress)) === "1";
         if (!alreadySigned) {
           try {
@@ -306,7 +308,7 @@ export function AppLayout({
     window.localStorage.setItem("aftrmarket-theme", nextTheme);
   };
 
-  const isWalletConnected = mounted && Boolean(sessionAddress);
+  const isWalletConnected = mounted && sessionConnected;
   const profileBalance = useMemo(() => {
     const bal = (usdgBalanceRaw as bigint | undefined) ?? BigInt(0);
     const decimals = Number(usdgDecimalsRaw ?? 6);
@@ -705,6 +707,15 @@ export function AppLayout({
                     )}
                   </div>
                 </>
+              ) : isParaSigningIn ? (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex h-11 cursor-wait select-none items-center gap-2 rounded-full bg-[var(--foreground)]/80 px-5 text-sm font-semibold text-[var(--background)] caret-transparent"
+                >
+                  <CircleNotch size={16} className="animate-spin" />
+                  Signing in…
+                </button>
               ) : (
                 <button
                   type="button"
@@ -718,6 +729,7 @@ export function AppLayout({
                     });
                   }}
                   className="inline-flex h-11 cursor-pointer select-none items-center rounded-full bg-[var(--foreground)] px-5 text-sm font-semibold text-[var(--background)] caret-transparent hover:opacity-90"
+                  title={bridgeError ?? undefined}
                 >
                   Sign in
                 </button>

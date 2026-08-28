@@ -29,6 +29,7 @@ export async function sendViaParaClient(params: {
   data?: Hex;
   value?: bigint;
 }): Promise<Hash> {
+  const record = getParaWalletRecord();
   const res = await fetch("/api/para/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -37,6 +38,7 @@ export async function sendViaParaClient(params: {
       to: params.to,
       data: params.data ?? "0x",
       value: params.value?.toString(),
+      walletId: record?.walletId,
     }),
   });
   const json = (await res.json()) as { hash?: string; error?: string };
