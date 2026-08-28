@@ -114,11 +114,13 @@ function ParaSync({
     if (me || record?.owner) {
       setBridgeState("idle");
       clearParaLoginRequested();
+      closeParaModal();
     } else if (!paraConnected) {
       setBridgeState("idle");
+    } else if (isParaLoginRequested() && paraConnected) {
+      // Para cookie exists but app session isn't ready — hide wallet chrome, bridge in background.
+      closeParaModal();
     }
-
-    if (account.isConnected && addr) closeParaModal();
   }, [account, wallet, me, setParaAuthed, setBridgeState]);
 
   return null;
@@ -204,6 +206,7 @@ function ParaWalletBridge({
             });
             setBridgeState("idle");
             clearParaLoginRequested();
+            closeParaModal();
           } else {
             throw new Error("Para register returned an invalid wallet.");
           }
@@ -291,9 +294,6 @@ function ParaWalletProviderInner({ children }: { children: ReactNode }) {
         paraClientConfig={{ env, apiKey: getParaApiKey(), opts: { configOverrides } }}
         config={{ appName: "Zedkr Market" }}
         waitForReady={false}
-        callbacks={{
-          onLogin: () => closeParaModal(),
-        }}
         configOverrides={configOverrides}
         paraModalConfig={{
           recoverySecretStepEnabled: false,
