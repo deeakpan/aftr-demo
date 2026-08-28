@@ -116,6 +116,7 @@ export function AppLayout({
     isParaSigningIn,
     isParaConnecting,
     isParaStuck,
+    signInAttempt,
   } = useSessionAddress();
   const { bridgeError, bridgeStatus } = useParaSessionContext();
   const cachedProfileName = useProfileName(sessionAddress);
@@ -125,6 +126,7 @@ export function AppLayout({
   const { disconnect } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
   const [mounted, setMounted] = useState(false);
+  const [signInTimedOut, setSignInTimedOut] = useState(false);
   const hasRunAuthRef = useRef("");
   const profileCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showNameModal, setShowNameModal] = useState(false);
@@ -172,6 +174,15 @@ export function AppLayout({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (sessionConnected || bridgeStatus !== "registering") {
+      setSignInTimedOut(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setSignInTimedOut(true), 15_000);
+    return () => window.clearTimeout(timer);
+  }, [sessionConnected, bridgeStatus, signInAttempt]);
 
   // Keep header name in sync with shared localStorage store across page remounts.
   useEffect(() => {
@@ -714,8 +725,8 @@ export function AppLayout({
                     )}
                   </div>
                 </>
-              ) : bridgeStatus === "failed" ? (
-                <div className="flex max-w-[min(100vw-8rem,20rem)] flex-col items-end gap-1">
+              ) : bridgeStatus === "failed" || signInTimedOut ? (
+                <div className="flex max-w-[min(100vw-8rem,22rem)] flex-col items-end gap-1">
                   <button
                     type="button"
                     onClick={() => void resetParaAuth()}
@@ -723,30 +734,37 @@ export function AppLayout({
                   >
                     Reset &amp; sign in
                   </button>
-                  {bridgeError ? (
-                    <p className="max-w-full truncate text-[10px] text-red-400" title={bridgeError}>
-                      {bridgeError}
-                    </p>
-                  ) : null}
+                  <p
+                    className="max-w-full text-right text-[11px] leading-snug text-red-400"
+                    title={bridgeError ?? undefined}
+                  >
+                    {bridgeError ||
+                      (signInTimedOut
+                        ? "Sign-in is taking too long. Reset and try again."
+                        : "Sign-in failed.")}
+                  </p>
                 </div>
               ) : isParaConnecting || isParaStuck ? (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled
-                    className="inline-flex h-11 cursor-wait select-none items-center gap-2 rounded-full bg-[var(--foreground)]/80 px-5 text-sm font-semibold text-[var(--background)] caret-transparent"
-                  >
-                    <CircleNotch size={16} className="animate-spin" />
-                    {isParaSigningIn ? "Signing in…" : "Connecting…"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void resetParaAuth()}
-                    className="inline-flex h-11 cursor-pointer select-none items-center rounded-full border border-[var(--border)] px-4 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
-                    title="Clear Para session and sign in again"
-                  >
-                    Disconnect
-                  </button>
+                <div className="flex max-w-[min(100vw-8rem,22rem)] flex-col items-end gap-1">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled
+                      className="inline-flex h-11 cursor-wait select-none items-center gap-2 rounded-full bg-[var(--foreground)]/80 px-5 text-sm font-semibold text-[var(--background)] caret-transparent"
+                    >
+                      <CircleNotch size={16} className="animate-spin" />
+                      {isParaSigningIn ? "Signing in…" : "Connecting…"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void resetParaAuth()}
+                      className="inline-flex h-11 cursor-pointer select-none items-center rounded-full border border-[var(--border)] px-4 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+                      title="Clear Para session and sign in again"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-[var(--muted)]">Usually finishes in a few seconds…</p>
                 </div>
               ) : (
                 <button

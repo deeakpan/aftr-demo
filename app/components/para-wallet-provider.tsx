@@ -79,18 +79,37 @@ async function sleep(ms: number) {
   await new Promise((r) => setTimeout(r, ms));
 }
 
-/** Poll Para client until user id is available after OAuth (no session export — that can hang). */
-async function waitForParaUserId(
+/** Poll until Para user id is available after OAuth. */
+async function waitForParaAuth(
   client: NonNullable<ReturnType<typeof useClient>>,
-  timeoutMs = 20_000,
-): Promise<string> {
+  account: ReturnType<typeof useAccount>,
+  timeoutMs = 12_000,
+): Promise<{ paraUserId: string; email?: string }> {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
-    const id = client.getUserId?.()?.trim();
-    if (id) return id;
-    await sleep(250);
+    const fromClient = client.getUserId?.()?.trim();
+    const fromAccount =
+      account.embedded && "userId" in account.embedded
+        ? (account.embedded.userId as string | undefined)?.trim()
+        : undefined;
+    let fromStorage: string | undefined;
+    try {
+      fromStorage = window.localStorage.getItem("@CAPSULE/userId")?.trim() || undefined;
+    } catch {
+      fromStorage = undefined;
+    }
+    const paraUserId = fromClient || fromAccount || fromStorage;
+    if (paraUserId) {
+      const email =
+        client.getEmail?.()?.trim() ||
+        (account.embedded && "email" in account.embedded
+          ? (account.embedded.email as string | undefined)?.trim()
+          : undefined);
+      return { paraUserId, email };
+    }
+    await sleep(200);
   }
-  throw new Error("Para sign-in did not finish in time. Try Disconnect, then sign in again.");
+  throw new Error("Para sign-in timed out. Click Disconnect, then sign in again.");
 }
 
 function ParaControls() {
@@ -178,7 +197,7 @@ function ParaSync({
 
   useEffect(() => {
     const addr = pickEmbeddedAddress(account, wallet);
-    const paraConnected = Boolean(account?.isConnected && addr);
+    const paraConnected = Boolean(account?.isConnected || account?.embedded?.isConnected);
     setParaAuthed(paraConnected);
 
     if (isSigningOut()) {
@@ -220,13 +239,19 @@ function ParaWalletBridge({
   const account = useAccount();
   const client = useClient();
   const { data: wallet } = useWallet();
-  const ranFor = useRef<string | null>(null);
-  const isConnected = Boolean(account?.isConnected);
+  const isConnected = Boolean(account?.isConnected || account?.embedded?.isConnected);
   const embedded = pickEmbeddedAddress(account, wallet);
+  const ranFor = useRef<string | null>(null);
+  const inFlightRef = useRef(false);
+  const embeddedRef = useRef(embedded);
+  embeddedRef.current = embedded;
+  const accountRef = useRef(account);
+  accountRef.current = account;
 
   useEffect(() => {
     resetBridgeImpl = () => {
       ranFor.current = null;
+      inFlightRef.current = false;
     };
     return () => {
       resetBridgeImpl = null;
@@ -238,83 +263,70 @@ function ParaWalletBridge({
     if (hasAppSession(me)) return;
 
     const bridgeKey = signInAttempt > 0 ? `attempt:${signInAttempt}` : "passive";
+    if (inFlightRef.current) return;
     if (ranFor.current === bridgeKey) return;
 
     let cancelled = false;
+    inFlightRef.current = true;
     ranFor.current = bridgeKey;
     setBridgeState("registering");
 
     void (async () => {
-      const maxAttempts = 3;
-      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-        try {
-          const paraUserId = await waitForParaUserId(client);
-          if (cancelled) return;
+      try {
+        const { paraUserId, email } = await waitForParaAuth(client, accountRef.current);
+        if (cancelled) return;
 
-          const email = client.getEmail?.()?.trim();
-          const authOwner = embedded;
+        const res = await fetch("/api/para/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            owner: embeddedRef.current,
+            paraUserId,
+            email,
+          }),
+        });
+        const registered = (await res.json()) as {
+          owner?: string;
+          walletId?: string;
+          paraUserId?: string | null;
+          email?: string | null;
+          error?: string;
+        };
+        if (!res.ok) throw new Error(registered.error || "Failed to register Para wallet.");
+        if (cancelled) return;
 
-          const res = await fetch("/api/para/register", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              owner: authOwner,
-              paraUserId,
-              email,
-            }),
+        const apiOwner = registered.owner?.toLowerCase();
+        if (apiOwner && isAddress(apiOwner) && registered.walletId) {
+          const checksum = getAddress(apiOwner) as `0x${string}`;
+          setMe(checksum);
+          setParaWalletRecord({
+            owner: checksum,
+            walletId: registered.walletId,
+            paraUserId: registered.paraUserId ?? paraUserId,
+            email: registered.email ?? email ?? null,
+            updatedAt: Date.now(),
           });
-          const registered = (await res.json()) as {
-            owner?: string;
-            walletId?: string;
-            paraUserId?: string | null;
-            email?: string | null;
-            error?: string;
-          };
-          if (!res.ok) throw new Error(registered.error || "Failed to register Para wallet.");
-          if (cancelled) return;
-
-          const apiOwner = registered.owner?.toLowerCase();
-          if (apiOwner && isAddress(apiOwner) && registered.walletId) {
-            const checksum = getAddress(apiOwner) as `0x${string}`;
-            setMe(checksum);
-            setParaWalletRecord({
-              owner: checksum,
-              walletId: registered.walletId,
-              paraUserId: registered.paraUserId ?? paraUserId,
-              email: registered.email ?? email ?? null,
-              updatedAt: Date.now(),
-            });
-            setBridgeState("idle");
-            clearParaLoginRequested();
-            closeParaModal();
-          } else {
-            throw new Error("Para register returned an invalid wallet.");
-          }
-          return;
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          const transient =
-            /timeout|timed out|AxiosError|ParaApiError|network|fetch failed|aborted|ETIMEDOUT|EAI_AGAIN|did not finish in time/i.test(
-              msg,
-            );
-          console.warn(`Para wallet bridge attempt ${attempt}/${maxAttempts} failed:`, msg);
-          if (!transient || attempt === maxAttempts) {
-            if (!cancelled) {
-              ranFor.current = null;
-              setBridgeState("failed", msg);
-              clearParaLoginRequested();
-            }
-            return;
-          }
-          await sleep(800 * attempt);
+          setBridgeState("idle");
+          clearParaLoginRequested();
+          closeParaModal();
+        } else {
+          throw new Error("Para register returned an invalid wallet.");
         }
+      } catch (e) {
+        if (cancelled) return;
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn("Para wallet bridge failed:", msg);
+        ranFor.current = null;
+        setBridgeState("failed", msg);
+      } finally {
+        inFlightRef.current = false;
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [isConnected, embedded, client, me, signInAttempt, setBridgeState]);
+  }, [isConnected, client, me, signInAttempt, setBridgeState]);
 
   return null;
 }
