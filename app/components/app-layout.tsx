@@ -176,13 +176,13 @@ export function AppLayout({
   }, []);
 
   useEffect(() => {
-    if (sessionConnected || bridgeStatus !== "registering") {
+    if (sessionConnected || !isParaConnecting) {
       setSignInTimedOut(false);
       return;
     }
     const timer = window.setTimeout(() => setSignInTimedOut(true), 15_000);
     return () => window.clearTimeout(timer);
-  }, [sessionConnected, bridgeStatus, signInAttempt]);
+  }, [sessionConnected, isParaConnecting, signInAttempt]);
 
   // Keep header name in sync with shared localStorage store across page remounts.
   useEffect(() => {
@@ -740,7 +740,9 @@ export function AppLayout({
                   >
                     {bridgeError ||
                       (signInTimedOut
-                        ? "Sign-in is taking too long. Reset and try again."
+                        ? typeof window !== "undefined"
+                          ? `Sign-in timed out. In Para Developer Portal → Allowed Origins, add ${window.location.origin}`
+                          : "Sign-in timed out. Reset and try again."
                         : "Sign-in failed.")}
                   </p>
                 </div>

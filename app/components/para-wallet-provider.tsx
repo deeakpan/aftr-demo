@@ -86,6 +86,11 @@ async function waitForParaAuth(
   timeoutMs = 12_000,
 ): Promise<{ paraUserId: string; email?: string }> {
   const started = Date.now();
+  const originHint =
+    typeof window !== "undefined"
+      ? ` Add ${window.location.origin} to Allowed Origins in the Para Developer Portal.`
+      : "";
+
   while (Date.now() - started < timeoutMs) {
     const fromClient = client.getUserId?.()?.trim();
     const fromAccount =
@@ -109,7 +114,20 @@ async function waitForParaAuth(
     }
     await sleep(200);
   }
-  throw new Error("Para sign-in timed out. Click Disconnect, then sign in again.");
+  throw new Error(`Para sign-in timed out.${originHint} Then Disconnect and sign in again.`);
+}
+
+async function waitForParaClient(
+  readClient: () => ReturnType<typeof useClient>,
+  timeoutMs = 15_000,
+): Promise<NonNullable<ReturnType<typeof useClient>>> {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const c = readClient();
+    if (c) return c;
+    await sleep(200);
+  }
+  throw new Error("Para SDK did not initialize. Refresh and try again.");
 }
 
 function ParaControls() {
@@ -243,6 +261,8 @@ function ParaWalletBridge({
   const embedded = pickEmbeddedAddress(account, wallet);
   const ranFor = useRef<string | null>(null);
   const inFlightRef = useRef(false);
+  const clientRef = useRef(client);
+  clientRef.current = client;
   const embeddedRef = useRef(embedded);
   embeddedRef.current = embedded;
   const accountRef = useRef(account);
@@ -259,7 +279,7 @@ function ParaWalletBridge({
   }, []);
 
   useEffect(() => {
-    if (!isConnected || !client) return;
+    if (!isConnected) return;
     if (hasAppSession(me)) return;
 
     const bridgeKey = signInAttempt > 0 ? `attempt:${signInAttempt}` : "passive";
@@ -273,7 +293,10 @@ function ParaWalletBridge({
 
     void (async () => {
       try {
-        const { paraUserId, email } = await waitForParaAuth(client, accountRef.current);
+        const readyClient = clientRef.current ?? (await waitForParaClient(() => clientRef.current));
+        if (cancelled) return;
+
+        const { paraUserId, email } = await waitForParaAuth(readyClient, accountRef.current);
         if (cancelled) return;
 
         const res = await fetch("/api/para/register", {
@@ -325,8 +348,10 @@ function ParaWalletBridge({
 
     return () => {
       cancelled = true;
+      inFlightRef.current = false;
+      if (!hasAppSession(me)) ranFor.current = null;
     };
-  }, [isConnected, client, me, signInAttempt, setBridgeState]);
+  }, [isConnected, me, signInAttempt, setBridgeState]);
 
   return null;
 }
