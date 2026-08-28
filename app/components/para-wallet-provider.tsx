@@ -75,6 +75,24 @@ function hasAppSession(me: `0x${string}` | undefined) {
   return Boolean(me || record?.owner);
 }
 
+async function sleep(ms: number) {
+  await new Promise((r) => setTimeout(r, ms));
+}
+
+/** Poll Para client until user id is available after OAuth (no session export — that can hang). */
+async function waitForParaUserId(
+  client: NonNullable<ReturnType<typeof useClient>>,
+  timeoutMs = 20_000,
+): Promise<string> {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const id = client.getUserId?.()?.trim();
+    if (id) return id;
+    await sleep(250);
+  }
+  throw new Error("Para sign-in did not finish in time. Try Disconnect, then sign in again.");
+}
+
 function ParaControls() {
   const { openModal, closeModal } = useModal();
   const { logoutAsync } = useLogout();
@@ -216,47 +234,32 @@ function ParaWalletBridge({
   }, []);
 
   useEffect(() => {
-    if (!isConnected || !client || !embedded) return;
-    if (me && me.toLowerCase() !== embedded.toLowerCase()) {
-      setBridgeState("idle");
-      clearParaLoginRequested();
-      return;
-    }
-    const key = embedded.toLowerCase();
-    if (ranFor.current === key) return;
+    if (!isConnected || !client) return;
+    if (hasAppSession(me)) return;
+
+    const bridgeKey = signInAttempt > 0 ? `attempt:${signInAttempt}` : "passive";
+    if (ranFor.current === bridgeKey) return;
 
     let cancelled = false;
-    ranFor.current = key;
-    if (isParaLoginRequested() || !hasAppSession(me)) {
-      setBridgeState("registering");
-    }
+    ranFor.current = bridgeKey;
+    setBridgeState("registering");
 
     void (async () => {
       const maxAttempts = 3;
-      const bridgeTimeoutMs = 45_000;
       for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
         try {
-          const session = await Promise.race([
-            (client.waitAndExportSession ?? client.exportSession)?.call(client, {
-              excludeSigners: false,
-            }),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("Para session export timed out")), bridgeTimeoutMs),
-            ),
-          ]);
+          const paraUserId = await waitForParaUserId(client);
           if (cancelled) return;
-          const sessionCookie = client.retrieveSessionCookie?.() ?? null;
-          const paraUserId = client.getUserId?.()?.trim();
+
           const email = client.getEmail?.()?.trim();
+          const authOwner = embedded;
 
           const res = await fetch("/api/para/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              owner: embedded,
+              owner: authOwner,
               paraUserId,
-              session,
-              sessionCookie,
               email,
             }),
           });
@@ -277,8 +280,8 @@ function ParaWalletBridge({
             setParaWalletRecord({
               owner: checksum,
               walletId: registered.walletId,
-              paraUserId: registered.paraUserId,
-              email: registered.email,
+              paraUserId: registered.paraUserId ?? paraUserId,
+              email: registered.email ?? email ?? null,
               updatedAt: Date.now(),
             });
             setBridgeState("idle");
@@ -291,13 +294,10 @@ function ParaWalletBridge({
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           const transient =
-            /timeout|timed out|AxiosError|ParaApiError|network|fetch failed|aborted|ETIMEDOUT|EAI_AGAIN/i.test(
+            /timeout|timed out|AxiosError|ParaApiError|network|fetch failed|aborted|ETIMEDOUT|EAI_AGAIN|did not finish in time/i.test(
               msg,
             );
-          console.warn(
-            `Para wallet bridge attempt ${attempt}/${maxAttempts} failed:`,
-            transient ? "wallet service timeout/unreachable" : msg,
-          );
+          console.warn(`Para wallet bridge attempt ${attempt}/${maxAttempts} failed:`, msg);
           if (!transient || attempt === maxAttempts) {
             if (!cancelled) {
               ranFor.current = null;
@@ -306,7 +306,7 @@ function ParaWalletBridge({
             }
             return;
           }
-          await new Promise((r) => setTimeout(r, 800 * attempt));
+          await sleep(800 * attempt);
         }
       }
     })();

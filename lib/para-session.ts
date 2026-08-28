@@ -37,10 +37,12 @@ function asList(json: unknown): ParaWallet[] {
   return [];
 }
 
-export function apiWalletIdentifier(data: { owner: string; paraUserId?: string | null }) {
+export function apiWalletIdentifier(data: { owner?: string; paraUserId?: string | null }) {
   const id = data.paraUserId?.trim();
   if (id) return `para:${id}`;
-  return `para-owner:${data.owner.toLowerCase()}`;
+  const owner = data.owner?.trim();
+  if (owner && isAddress(owner)) return `para-owner:${owner.toLowerCase()}`;
+  throw new Error("Missing Para user id or owner for API wallet.");
 }
 
 async function ensureParaApiWallet(data: RegisterInput): Promise<ParaWallet> {
@@ -67,12 +69,14 @@ async function ensureParaApiWallet(data: RegisterInput): Promise<ParaWallet> {
 }
 
 export async function registerParaWallet(data: RegisterInput) {
+  const paraUserId = data.paraUserId?.trim();
   const authOwner = data.owner?.trim();
-  if (!authOwner || !isAddress(authOwner)) {
-    throw new Error("Missing Para auth wallet address.");
+
+  if (!paraUserId && (!authOwner || !isAddress(authOwner))) {
+    throw new Error("Missing Para user id or auth wallet address.");
   }
 
-  const created = await ensureParaApiWallet({ ...data, owner: authOwner });
+  const created = await ensureParaApiWallet({ ...data, owner: authOwner ?? "", paraUserId });
   const address = created.address?.trim();
   const walletId = created.id?.trim();
   if (!address || !isAddress(address) || !walletId) {
