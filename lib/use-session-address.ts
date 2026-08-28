@@ -3,7 +3,7 @@
 import { useAccount as useWagmiAccount } from "wagmi";
 import { useParaWalletRecord } from "@/lib/para-wallet-record";
 import { useParaSessionContext } from "@/app/components/para-session-context";
-import { isParaLoginRequested } from "@/lib/para-login-request";
+import { useParaLoginRequested } from "@/lib/para-login-request";
 import { useSignInAttempt } from "@/lib/use-sign-in-attempt";
 import { useMe } from "@/lib/useMe";
 
@@ -14,7 +14,7 @@ export function useSessionAddress() {
   const { address: wagmiAddress } = useWagmiAccount();
   const { paraAuthed, bridgeStatus } = useParaSessionContext();
   const signInAttempt = useSignInAttempt();
-  const loginRequested = isParaLoginRequested();
+  const loginRequested = useParaLoginRequested();
 
   const sessionAddress = me ?? paraRecord?.owner ?? wagmiAddress;
 

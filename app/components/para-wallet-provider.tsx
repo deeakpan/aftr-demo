@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AuthLayout,
   Environment,
@@ -26,7 +26,7 @@ import {
 import { getParaApiKey, getParaEnvName, isParaConfigured } from "@/lib/para-config";
 import { getParaWalletRecord, setParaWalletRecord } from "@/lib/para-wallet-record";
 import { useSignInAttempt } from "@/lib/use-sign-in-attempt";
-import { setMe, useMe } from "@/lib/useMe";
+import { getMe, setMe, useMe } from "@/lib/useMe";
 
 type OpenFn = () => void;
 let openImpl: OpenFn | null = null;
@@ -41,7 +41,7 @@ export function openParaModal() {
 }
 
 export function closeParaModal() {
-  closeImpl?.();
+  queueMicrotask(() => closeImpl?.());
 }
 
 export async function paraLogout() {
@@ -214,9 +214,8 @@ function ParaSync({
   const { data: wallet } = useWallet();
 
   useEffect(() => {
-    const addr = pickEmbeddedAddress(account, wallet);
     const paraConnected = Boolean(account?.isConnected || account?.embedded?.isConnected);
-    setParaAuthed(paraConnected);
+    setParaAuthed((prev) => (prev === paraConnected ? prev : paraConnected));
 
     if (isSigningOut()) {
       if (me) setMe(undefined);
@@ -225,7 +224,7 @@ function ParaSync({
     }
 
     const record = getParaWalletRecord();
-    if (record?.owner && (!me || me.toLowerCase() !== record.owner.toLowerCase())) {
+    if (record?.owner && me?.toLowerCase() !== record.owner.toLowerCase()) {
       setMe(record.owner);
       setBridgeState("idle");
       clearParaLoginRequested();
@@ -239,10 +238,9 @@ function ParaSync({
     } else if (!paraConnected) {
       setBridgeState("idle");
     } else {
-      // Para cookie restored without app session — bridge in background, keep modal closed.
       closeParaModal();
     }
-  }, [account, wallet, me, setParaAuthed, setBridgeState]);
+  }, [account?.isConnected, account?.embedded?.isConnected, me, setBridgeState, setParaAuthed]);
 
   return null;
 }
@@ -361,10 +359,44 @@ function ParaWalletProviderInner({ children }: { children: ReactNode }) {
   const [bridgeStatus, setBridgeStatus] = useState<ParaBridgeStatus>("idle");
   const [bridgeError, setBridgeError] = useState<string | null>(null);
 
-  const setBridgeState = (status: ParaBridgeStatus, error: string | null = null) => {
-    setBridgeStatus(status);
-    setBridgeError(error);
-  };
+  const setBridgeState = useCallback((status: ParaBridgeStatus, error: string | null = null) => {
+    setBridgeStatus((prev) => {
+      if (prev === status) return prev;
+      return status;
+    });
+    setBridgeError((prev) => {
+      if (prev === error) return prev;
+      return error;
+    });
+  }, []);
+
+  const sessionValue = useMemo(
+    () => ({
+      paraAuthed,
+      bridgeStatus,
+      bridgeError,
+      setParaAuthed,
+      setBridgeState,
+    }),
+    [paraAuthed, bridgeStatus, bridgeError, setBridgeState],
+  );
+
+  const paraCallbacks = useMemo(
+    () => ({
+      onLogin: (event: { detail?: { data?: { isComplete?: boolean; isError?: boolean } } }) => {
+        const data = event.detail?.data;
+        if (!data?.isComplete || data?.isError || hasAppSession(getMe())) return;
+        markParaLoginRequested();
+        resetBridgeImpl?.();
+      },
+      onAccountSetup: () => {
+        if (hasAppSession(getMe())) return;
+        markParaLoginRequested();
+        resetBridgeImpl?.();
+      },
+    }),
+    [],
+  );
 
   const env = getParaEnvName() === "PROD" ? Environment.PROD : Environment.BETA;
   const logo = `${typeof window !== "undefined" ? window.location.origin : ""}/logo.png`;
@@ -395,36 +427,14 @@ function ParaWalletProviderInner({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ParaSessionProvider
-      value={{
-        paraAuthed,
-        bridgeStatus,
-        bridgeError,
-        setParaAuthed,
-        setBridgeState,
-      }}
-    >
+    <ParaSessionProvider value={sessionValue}>
       <ParaProviderMin
         paraClientConfig={{ env, apiKey: getParaApiKey(), opts: { configOverrides } }}
         config={{ appName: "Zedkr Market" }}
-        callbacks={{
-          onLogin: (event) => {
-            const data = event.detail?.data;
-            if (data?.isComplete && !data?.isError) {
-              markParaLoginRequested();
-              resetBridgeImpl?.();
-            }
-          },
-          onAccountSetup: () => {
-            markParaLoginRequested();
-            resetBridgeImpl?.();
-          },
-        }}
+        callbacks={paraCallbacks}
         configOverrides={configOverrides}
         paraModalConfig={{
           recoverySecretStepEnabled: false,
-          hideWallets: true,
-          authLayout: [AuthLayout.AUTH_FULL],
         }}
       >
         {children}

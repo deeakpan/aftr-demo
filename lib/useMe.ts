@@ -38,6 +38,8 @@ export function getMe(): `0x${string}` | undefined {
 export function setMe(next: string | undefined) {
   if (typeof window === "undefined") return;
   const normalized = normalize(next);
+  const current = readMe();
+  if (current === normalized) return;
   try {
     if (!normalized) window.localStorage.removeItem(ME_KEY);
     else window.localStorage.setItem(ME_KEY, normalized);
