@@ -18,6 +18,7 @@ import {
   type ParaBridgeStatus,
 } from "@/app/components/para-session-context";
 import { isSigningOut } from "@/lib/auth-signout";
+import { clearParaLoginRequested, isParaLoginRequested, markParaLoginRequested } from "@/lib/para-login-request";
 import { getParaApiKey, getParaEnvName, isParaConfigured } from "@/lib/para-config";
 import { getParaWalletRecord, setParaWalletRecord } from "@/lib/para-wallet-record";
 import { setMe, useMe } from "@/lib/useMe";
@@ -29,6 +30,7 @@ let logoutImpl: (() => Promise<void>) | null = null;
 let queuedOpen = false;
 
 export function openParaModal() {
+  markParaLoginRequested();
   if (openImpl) openImpl();
   else queuedOpen = true;
 }
@@ -105,11 +107,14 @@ function ParaSync({
     if (record?.owner && (!me || me.toLowerCase() !== record.owner.toLowerCase())) {
       setMe(record.owner);
       setBridgeState("idle");
+      clearParaLoginRequested();
+      return;
     }
 
-    if (paraConnected && !me && !record?.owner) {
-      setBridgeState("registering");
-    } else if (me || record?.owner) {
+    if (me || record?.owner) {
+      setBridgeState("idle");
+      clearParaLoginRequested();
+    } else if (!paraConnected) {
       setBridgeState("idle");
     }
 
@@ -137,6 +142,7 @@ function ParaWalletBridge({
     // After handover, me is wallet B — do not re-register or clobber it.
     if (me && me.toLowerCase() !== embedded.toLowerCase()) {
       setBridgeState("idle");
+      clearParaLoginRequested();
       return;
     }
     const key = embedded.toLowerCase();
@@ -144,15 +150,21 @@ function ParaWalletBridge({
 
     let cancelled = false;
     ranFor.current = key;
-    setBridgeState("registering");
+    if (isParaLoginRequested()) setBridgeState("registering");
 
     void (async () => {
       const maxAttempts = 3;
+      const bridgeTimeoutMs = 45_000;
       for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
         try {
-          const session = await (client.waitAndExportSession ?? client.exportSession)?.call(client, {
-            excludeSigners: false,
-          });
+          const session = await Promise.race([
+            (client.waitAndExportSession ?? client.exportSession)?.call(client, {
+              excludeSigners: false,
+            }),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("Para session export timed out")), bridgeTimeoutMs),
+            ),
+          ]);
           if (cancelled) return;
           const sessionCookie = client.retrieveSessionCookie?.() ?? null;
           const paraUserId = client.getUserId?.()?.trim();
@@ -191,6 +203,7 @@ function ParaWalletBridge({
               updatedAt: Date.now(),
             });
             setBridgeState("idle");
+            clearParaLoginRequested();
           } else {
             throw new Error("Para register returned an invalid wallet.");
           }
@@ -198,7 +211,7 @@ function ParaWalletBridge({
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           const transient =
-            /timeout|AxiosError|ParaApiError|network|fetch failed|aborted|ETIMEDOUT|EAI_AGAIN/i.test(
+            /timeout|timed out|AxiosError|ParaApiError|network|fetch failed|aborted|ETIMEDOUT|EAI_AGAIN/i.test(
               msg,
             );
           console.warn(
@@ -209,6 +222,7 @@ function ParaWalletBridge({
             if (!cancelled) {
               ranFor.current = null;
               setBridgeState("failed", msg);
+              clearParaLoginRequested();
             }
             return;
           }

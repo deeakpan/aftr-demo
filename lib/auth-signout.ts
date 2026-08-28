@@ -1,7 +1,8 @@
 "use client";
 
-import { setMe } from "@/lib/useMe";
+import { clearParaLoginRequested } from "@/lib/para-login-request";
 import { setParaWalletRecord } from "@/lib/para-wallet-record";
+import { setMe } from "@/lib/useMe";
 
 let signingOut = false;
 
@@ -18,5 +19,6 @@ export async function signOutEverywhere(paraLogout?: () => Promise<void> | void)
   }
   setParaWalletRecord(null);
   setMe(undefined);
+  clearParaLoginRequested();
   signingOut = false;
 }
