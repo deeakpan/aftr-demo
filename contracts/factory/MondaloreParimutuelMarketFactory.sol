@@ -44,7 +44,9 @@ contract MondaloreParimutuelMarketFactory is Ownable2Step {
     /// @notice Registered Chainlink (or mock) feed per asset key, e.g. keccak256(abi.encodePacked("BTC")).
     mapping(bytes32 => address) public priceFeeds;
 
-    address public feeRecipient;
+    address public platformDev;
+    address public distribution;
+    address public treasury;
     address public optimisticOracleV2;
     /// @notice Default UMA bond token (WETH on Base / Base Sepolia). Used when EventMarketParams.umaRewardCurrency is address(0).
     address public umaBondCurrency;
@@ -63,6 +65,7 @@ contract MondaloreParimutuelMarketFactory is Ownable2Step {
     event SupportedCollateralRemoved(address indexed token);
     event PriceFeedUpdated(bytes32 indexed assetKey, address feed);
     event FeeRecipientUpdated(address indexed recipient);
+    event FeeSplitUpdated(address platformDev, address distribution, address treasury);
     event OptimisticOracleV2Updated(address indexed oracle);
     event UmaBondCurrencyUpdated(address indexed currency);
     event MarketDeployerUpdated(address indexed deployer);
@@ -82,8 +85,7 @@ contract MondaloreParimutuelMarketFactory is Ownable2Step {
     );
 
     constructor(address owner_, address feeRecipient_, address optimisticOracleV2_, address umaBondCurrency_) Ownable(owner_) {
-        if (feeRecipient_ == address(0)) revert InvalidAddress();
-        feeRecipient = feeRecipient_;
+        treasury = feeRecipient_;
         optimisticOracleV2 = optimisticOracleV2_;
         umaBondCurrency = umaBondCurrency_;
     }
@@ -93,10 +95,23 @@ contract MondaloreParimutuelMarketFactory is Ownable2Step {
         _;
     }
 
+    /// @notice Legacy alias for `treasury`. Address(0) is allowed (share goes to the creator).
+    function feeRecipient() public view returns (address) {
+        return treasury;
+    }
+
     function setFeeRecipient(address r) external onlyOwner {
-        if (r == address(0)) revert InvalidAddress();
-        feeRecipient = r;
+        treasury = r;
         emit FeeRecipientUpdated(r);
+        emit FeeSplitUpdated(platformDev, distribution, treasury);
+    }
+
+    function setFeeSplit(address platformDev_, address distribution_, address treasury_) external onlyOwner {
+        platformDev = platformDev_;
+        distribution = distribution_;
+        treasury = treasury_;
+        emit FeeSplitUpdated(platformDev_, distribution_, treasury_);
+        emit FeeRecipientUpdated(treasury_);
     }
 
     function setOptimisticOracleV2(address oo) external onlyOwner {
@@ -140,6 +155,10 @@ contract MondaloreParimutuelMarketFactory is Ownable2Step {
     }
 
     /// @notice Alias view required by `IMondaloreMarketFactoryResolution`.
+    function tokenResolutionAdmin() external view returns (address) {
+        return nadResolutionAdmin;
+    }
+
     function ponsResolutionAdmin() external view returns (address) {
         return nadResolutionAdmin;
     }
@@ -309,7 +328,7 @@ contract MondaloreParimutuelMarketFactory is Ownable2Step {
         if (marketDeployer == address(0)) revert InvalidDeployer();
         (address market, address[] memory tokens) = MondaloreParimutuelDeployer(marketDeployer).deployPriceMarket(
             owner(),
-            feeRecipient,
+            treasury,
             creator,
             effectiveCollateral,
             collateralDecimals,
@@ -356,7 +375,7 @@ contract MondaloreParimutuelMarketFactory is Ownable2Step {
         if (marketDeployer == address(0)) revert InvalidDeployer();
         (address market, address[] memory tokens) = MondaloreParimutuelDeployer(marketDeployer).deployEventMarket(
             owner(),
-            feeRecipient,
+            treasury,
             creator,
             effectiveCollateral,
             collateralDecimals,
@@ -397,7 +416,7 @@ contract MondaloreParimutuelMarketFactory is Ownable2Step {
         if (marketDeployer == address(0)) revert InvalidDeployer();
         (address market, address[] memory tokens) = MondaloreParimutuelDeployer(marketDeployer).deployNadTokenMarket(
             owner(),
-            feeRecipient,
+            treasury,
             creator,
             effectiveCollateral,
             collateralDecimals,

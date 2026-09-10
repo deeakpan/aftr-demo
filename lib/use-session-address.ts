@@ -1,40 +1,26 @@
 "use client";
 
+import { useAccount as useParaAccount } from "@getpara/react-sdk-lite";
+import { getAddress, isAddress } from "viem";
 import { useAccount as useWagmiAccount } from "wagmi";
-import { useParaWalletRecord } from "@/lib/para-wallet-record";
-import { useParaSessionContext } from "@/app/components/para-session-context";
-import { useParaLoginRequested } from "@/lib/para-login-request";
-import { useSignInAttempt } from "@/lib/use-sign-in-attempt";
-import { useMe } from "@/lib/useMe";
+import { useWalletAddress } from "@/lib/para-wallet";
 
-/** Signed-in address for header, profile, and trades — Para API wallet preferred. */
+/** Signed-in address: live Para wallet when `isConnected`, else wagmi. Never localStorage. */
 export function useSessionAddress() {
-  const me = useMe();
-  const paraRecord = useParaWalletRecord();
+  const { isConnected: paraConnected } = useParaAccount();
+  const paraAddressRaw = useWalletAddress();
   const { address: wagmiAddress } = useWagmiAccount();
-  const { paraAuthed, bridgeStatus } = useParaSessionContext();
-  const signInAttempt = useSignInAttempt();
-  const loginRequested = useParaLoginRequested();
 
-  const sessionAddress = me ?? paraRecord?.owner ?? wagmiAddress;
+  const paraAddress =
+    paraConnected && paraAddressRaw && isAddress(paraAddressRaw)
+      ? (getAddress(paraAddressRaw) as `0x${string}`)
+      : undefined;
 
-  const isParaConnecting =
-    !sessionAddress &&
-    bridgeStatus !== "failed" &&
-    (bridgeStatus === "registering" || paraAuthed);
-
-  const isParaSigningIn = loginRequested && isParaConnecting;
-
-  /** Para cookie exists but bridge is idle (e.g. export/register failed without marking failed). */
-  const isParaStuck = paraAuthed && !sessionAddress && bridgeStatus === "idle";
+  const sessionAddress = paraAddress ?? wagmiAddress;
 
   return {
     sessionAddress,
-    isPara: Boolean(me ?? paraRecord?.owner),
+    isPara: Boolean(paraAddress),
     isConnected: Boolean(sessionAddress),
-    isParaSigningIn,
-    isParaConnecting,
-    isParaStuck,
-    signInAttempt,
   };
 }

@@ -9,6 +9,8 @@ import "../token/ZedkrOutcomeToken.sol";
 import "../fpmm/ZedkrFpmmMath.sol";
 import "../interfaces/IMondaloreAggregatorV3.sol";
 import "../interfaces/IMondaloreMarketFactoryResolution.sol";
+import "../interfaces/IZedkrFeeSplit.sol";
+import "../libraries/ZedkrTradeFees.sol";
 
 /// @title ZedkrFpmmMarket
 /// @notice Gnosis-style fixed-payout FPMM for Zedkr: constant-product trading, admin/oracle resolution.
@@ -18,8 +20,10 @@ contract ZedkrFpmmMarket is Ownable2Step, ReentrancyGuard {
 
     uint256 public constant BPS_DENOMINATOR = 10_000;
     uint256 public constant TRADE_FEE_TOTAL_BPS = 100;
-    uint256 public constant CREATOR_FEE_BPS = 60;
-    uint256 public constant PROTOCOL_FEE_BPS = 40;
+    uint256 public constant CREATOR_FEE_BPS = 25;
+    uint256 public constant PLATFORM_DEV_FEE_BPS = 25;
+    uint256 public constant DISTRIBUTION_FEE_BPS = 25;
+    uint256 public constant TREASURY_FEE_BPS = 25;
     uint256 public constant MIN_TRADE = 1000;
     uint256 public constant FIXED_REDEMPTION_RATE = 1e18;
 
@@ -33,7 +37,7 @@ contract ZedkrFpmmMarket is Ownable2Step, ReentrancyGuard {
     enum MarketKind {
         PRICE,
         EVENT,
-        PONS_TOKEN
+        TOKEN
     }
 
     enum PriceThresholdKind {
@@ -99,7 +103,7 @@ contract ZedkrFpmmMarket is Ownable2Step, ReentrancyGuard {
     event MarketSettled(uint256 winningOutcomeIndex);
     event TokensRedeemed(address indexed user, uint8 indexed outcomeIndex, uint256 shares, uint256 payout);
     event EventResolved(uint8 indexed outcomeIndex, address indexed caller, uint256 adminSignatures);
-    event PonsTokenResolved(uint8 indexed outcomeIndex, address indexed resolver);
+    event TokenResolved(uint8 indexed outcomeIndex, address indexed resolver);
 
     error OnlyFactory();
     error AlreadyInitialized();
@@ -115,7 +119,7 @@ contract ZedkrFpmmMarket is Ownable2Step, ReentrancyGuard {
     error BelowMinFunding();
     error InvalidShareRecipient();
     error InvalidResolutionSignatures();
-    error NotPonsResolutionAdmin();
+    error NotTokenResolutionAdmin();
 
     modifier onlyFactory() {
         if (msg.sender != factory) revert OnlyFactory();
@@ -142,7 +146,7 @@ contract ZedkrFpmmMarket is Ownable2Step, ReentrancyGuard {
         uint256 minInitialFunding_
     ) Ownable(owner_) {
         require(
-            factory_ != address(0) && owner_ != address(0) && feeRecipient_ != address(0) && creator_ != address(0),
+            factory_ != address(0) && owner_ != address(0) && creator_ != address(0),
             "Zero address"
         );
         require(collateralToken_ != address(0), "Collateral");
@@ -300,11 +304,8 @@ contract ZedkrFpmmMarket is Ownable2Step, ReentrancyGuard {
 
         IERC20(collateralToken).safeTransferFrom(msg.sender, address(this), investmentAmount);
 
-        uint256 creatorFee = (investmentAmount * CREATOR_FEE_BPS) / BPS_DENOMINATOR;
-        uint256 protocolFee = (investmentAmount * PROTOCOL_FEE_BPS) / BPS_DENOMINATOR;
-        uint256 netAmount = investmentAmount - creatorFee - protocolFee;
-        if (creatorFee > 0) IERC20(collateralToken).safeTransfer(creator, creatorFee);
-        if (protocolFee > 0) IERC20(collateralToken).safeTransfer(feeRecipient, protocolFee);
+        uint256 netAmount = _payTradeFees(investmentAmount);
+        if (netAmount == 0) revert ZeroAmount();
 
         uint256[] memory pools = poolBalances;
         uint256 tokensOut = ZedkrFpmmMath.calcBuyAmount(netAmount, outcomeIndex, pools, 0);
@@ -338,14 +339,24 @@ contract ZedkrFpmmMarket is Ownable2Step, ReentrancyGuard {
         _outcomeTokens[outcomeIndex].burnFrom(msg.sender, tokensIn);
         _applySell(outcomeIndex, returnAmount, tokensIn);
 
-        uint256 protocolFee = (returnAmount * PROTOCOL_FEE_BPS) / BPS_DENOMINATOR;
-        uint256 creatorFee = (returnAmount * CREATOR_FEE_BPS) / BPS_DENOMINATOR;
-        uint256 netReturn = returnAmount - protocolFee - creatorFee;
-        if (creatorFee > 0) IERC20(collateralToken).safeTransfer(creator, creatorFee);
-        if (protocolFee > 0) IERC20(collateralToken).safeTransfer(feeRecipient, protocolFee);
+        uint256 netReturn = _payTradeFees(returnAmount);
         IERC20(collateralToken).safeTransfer(msg.sender, netReturn);
 
         emit FpmmSell(msg.sender, outcomeIndex, returnAmount, tokensIn);
+    }
+
+    function _payTradeFees(uint256 amount) internal returns (uint256 netAmount) {
+        IZedkrFeeSplit splitCfg = IZedkrFeeSplit(factory);
+        address platformDev_ = splitCfg.platformDev();
+        address distribution_ = splitCfg.distribution();
+        address treasury_ = splitCfg.treasury();
+        ZedkrTradeFees.Split memory fees = ZedkrTradeFees.quote(amount, platformDev_, distribution_, treasury_);
+        IERC20 token = IERC20(collateralToken);
+        if (fees.creatorAmt > 0) token.safeTransfer(creator, fees.creatorAmt);
+        if (fees.platformDevAmt > 0) token.safeTransfer(platformDev_, fees.platformDevAmt);
+        if (fees.distributionAmt > 0) token.safeTransfer(distribution_, fees.distributionAmt);
+        if (fees.treasuryAmt > 0) token.safeTransfer(treasury_, fees.treasuryAmt);
+        return fees.netAmount;
     }
 
     function settlePrice() external nonReentrant {
@@ -404,18 +415,18 @@ contract ZedkrFpmmMarket is Ownable2Step, ReentrancyGuard {
         emit EventResolved(outcomeIndex, msg.sender, valid);
     }
 
-    function resolvePonsToken(uint8 outcomeIndex) external nonReentrant {
+    function resolveToken(uint8 outcomeIndex) external nonReentrant {
         if (!initialized) revert NotInitialized();
-        if (marketKind != MarketKind.PONS_TOKEN) revert InvalidState();
+        if (marketKind != MarketKind.TOKEN) revert InvalidState();
         if (state != MarketState.OPEN) revert InvalidState();
         if (block.timestamp < resolveAfterTimestamp) revert TooEarlyToResolve();
         if (outcomeIndex >= numOutcomes) revert InvalidOutcome();
-        if (msg.sender != IMondaloreMarketFactoryResolution(factory).ponsResolutionAdmin()) {
-            revert NotPonsResolutionAdmin();
+        if (msg.sender != IMondaloreMarketFactoryResolution(factory).tokenResolutionAdmin()) {
+            revert NotTokenResolutionAdmin();
         }
 
         _finalizeSettlement(outcomeIndex, int256(uint256(outcomeIndex)));
-        emit PonsTokenResolved(outcomeIndex, msg.sender);
+        emit TokenResolved(outcomeIndex, msg.sender);
     }
 
     function redeem(uint8 outcomeIndex, uint256 shareAmount) external nonReentrant {

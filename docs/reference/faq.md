@@ -9,7 +9,6 @@ No. You connect a crypto wallet. Your wallet address is your account.
 ### Which tokens do I need?
 
 - **USDC or MON** to trade markets (match the market’s collateral)
-- **MONDO** to stake on the Stake page
 - A small amount of **native gas token** for transaction fees
 
 ### Why is the app asking me to switch networks?
@@ -107,22 +106,6 @@ Yes. Reach out on Telegram — [@mondalorecommunity](https://t.me/mondalorecommu
 ### Where are the contract addresses?
 
 See [Deployments](deployments.md) for Monad Testnet and Monad Mainnet chain IDs and contract addresses. Mainnet Mondalore deployments are **TBA**.
-
----
-
-## Staking
-
-### What is the difference between MONDO staking and market “stake end”?
-
-**MONDO staking** is depositing MONDO in the fee vault for protocol rewards. **Stake end** on a market is when trading closes for that prediction market. Unrelated concepts.
-
-### Can I withdraw MONDO immediately after staking?
-
-No. Each deposit has a **minimum lock**. After unlock, withdrawal is available.
-
-### Does staking guarantee a fixed return?
-
-No. Rewards depend on trading volume and your share of total staked MONDO.
 
 ---
 

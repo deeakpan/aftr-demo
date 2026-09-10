@@ -38,12 +38,6 @@
 * [Nad markets](creating-markets/nad-markets.md)
 * [Seed liquidity](creating-markets/seed-liquidity.md)
 
-## Staking
-
-* [Overview](staking/README.md)
-* [How staking works](staking/how-staking-works.md)
-* [Rewards & withdrawals](staking/rewards-and-withdrawals.md)
-
 ## Reference
 
 * [Overview](reference/README.md)

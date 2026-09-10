@@ -5,6 +5,7 @@
  *   MondaloreParimutuelMarketFactory + deployers, MondaloreOrderBook.
  *
  * Usage:
+ *   npx hardhat run scripts/deploy-aftr-full-stack.cjs --network unichainSepolia
  *   npx hardhat run scripts/deploy-aftr-full-stack.cjs --network monadTestnet
  *
  * Env (optional):
@@ -128,7 +129,23 @@ function networkExternals(chainId) {
       pons: rh.pons,
     };
   }
-  throw new Error(`Unsupported chainId ${chainId}. Add networkExternals() mapping or use baseSepolia / monadTestnet / robinhoodMainnet.`);
+  if (chainId === 1301) {
+    console.warn(
+      "Unichain Sepolia: no public Chainlink feeds — deploy will create MockWETH + MockChainlinkFeed (ETH/BTC).",
+    );
+    return {
+      oo: process.env.UMA_OOV2?.trim() || "0x0000000000000000000000000000000000000001",
+      circleUsdc: process.env.UMA_BOND_CURRENCY?.trim() || null,
+      deployLocalWeth: true,
+      deployMockFeeds: true,
+      registerCircleUsdc: Boolean(process.env.UMA_BOND_CURRENCY?.trim()),
+      ethFeed: null,
+      chainlinkFeeds: [],
+    };
+  }
+  throw new Error(
+    `Unsupported chainId ${chainId}. Add networkExternals() mapping or use baseSepolia / monadTestnet / robinhoodMainnet / unichainSepolia.`,
+  );
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -136,6 +153,10 @@ function networkExternals(chainId) {
 /**
  * Deploy a contract and return { instance, address, blockNumber }.
  * blockNumber is the block the deployment tx was mined in.
+ */
+/**
+ * Deploy a contract and return { instance, address, blockNumber }.
+ * Prefer the Wallet-backed deployAndTrack inside main() on flaky L2 RPCs.
  */
 async function deployAndTrack(factory, ...args) {
   const instance = await factory.deploy(...args);
@@ -204,7 +225,7 @@ function loadResolutionAdmins(deployerAddress) {
 /** Deploy MockWETH on Monad testnet; use official Chainlink feeds (no mocks). */
 async function deployMonadTestExternals(hre_, deployer, deployAndTrack, deploymentBlocks) {
   console.log("\n[0a] Deploying MockWETH...");
-  const WethF = await hre_.ethers.getContractFactory("MockWETH");
+  const WethF = await hre_.ethers.getContractFactory("MockWETH", deployer);
   const { instance: weth, address: wethAddress, blockNumber: wethBlock } = await deployAndTrack(WethF);
   deploymentBlocks.MockWETH = wethBlock;
   console.log(`  MockWETH: ${wethAddress} (block ${wethBlock})`);
@@ -238,13 +259,110 @@ async function deployMonadTestExternals(hre_, deployer, deployAndTrack, deployme
   };
 }
 
+/** Deploy MockWETH + mock Chainlink feeds (Unichain Sepolia has no public Chainlink). */
+async function deployUnichainTestExternals(hre_, deployer, deployAndTrack, deploymentBlocks) {
+  console.log("\n[0a] Deploying MockWETH (Unichain Sepolia)...");
+  const WethF = await hre_.ethers.getContractFactory("MockWETH", deployer);
+  const { instance: weth, address: wethAddress, blockNumber: wethBlock } = await deployAndTrack(WethF);
+  deploymentBlocks.MockWETH = wethBlock;
+  console.log(`  MockWETH: ${wethAddress} (block ${wethBlock})`);
+
+  console.log("[0b] Deploying MockChainlinkFeed ETH/USD + BTC/USD...");
+  const FeedF = await hre_.ethers.getContractFactory("MockChainlinkFeed", deployer);
+  const ethAnswer = 3500n * 10n ** 8n;
+  const btcAnswer = 100_000n * 10n ** 8n;
+  const { address: ethFeed, blockNumber: ethFeedBlock } = await deployAndTrack(
+    FeedF,
+    ethAnswer,
+    8,
+    deployer.address,
+  );
+  deploymentBlocks.MockEthUsdFeed = ethFeedBlock;
+  const { address: btcFeed, blockNumber: btcFeedBlock } = await deployAndTrack(
+    FeedF,
+    btcAnswer,
+    8,
+    deployer.address,
+  );
+  deploymentBlocks.MockBtcUsdFeed = btcFeedBlock;
+  console.log(`  MockEthUsdFeed: ${ethFeed} ($${Number(ethAnswer) / 1e8})`);
+  console.log(`  MockBtcUsdFeed: ${btcFeed} ($${Number(btcAnswer) / 1e8})`);
+
+  const wrapEth = process.env.UNICHAIN_WRAP_ETH?.trim() || process.env.MONAD_WRAP_MON?.trim();
+  const wrapAmount = wrapEth ? hre_.ethers.parseEther(wrapEth) : hre_.ethers.parseEther("0.01");
+  try {
+    const bal = await hre_.ethers.provider.getBalance(deployer.address);
+    if (bal > wrapAmount + hre_.ethers.parseEther("0.005")) {
+      const tx = await weth.deposit({ value: wrapAmount });
+      await tx.wait();
+      console.log(`  Wrapped ${hre_.ethers.formatEther(wrapAmount)} ETH → WETH for deployer`);
+    }
+  } catch (e) {
+    console.warn("  Skipped WETH wrap:", e.shortMessage ?? e.message);
+  }
+
+  const chainlinkFeeds = [
+    {
+      label: "ETH/USD",
+      asset: "ETH",
+      logo: "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
+      address: ethFeed,
+    },
+    {
+      label: "BTC/USD",
+      asset: "BTC",
+      logo: "https://assets.coingecko.com/coins/images/1/large/bitcoin.png",
+      address: btcFeed,
+    },
+  ];
+
+  return {
+    weth: wethAddress,
+    wethFeed: ethFeed,
+    btcFeed,
+    ethFeed,
+    chainlinkFeeds,
+    vaultCollateralOptions: [{ label: "WETH", address: wethAddress }],
+    mockFeeds: { MockEthUsdFeed: ethFeed, MockBtcUsdFeed: btcFeed },
+  };
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const [deployer] = await hre.ethers.getSigners();
+  const [hhDeployer] = await hre.ethers.getSigners();
+  const pk = process.env.PRIVATE_KEY?.trim();
+  if (!pk) throw new Error("PRIVATE_KEY required");
+
+  // Unichain (and some L2 RPCs) break HardhatEthersProvider nonce caching — use a plain JsonRpcProvider.
+  const rpcUrl =
+    process.env.RPC_URL?.trim() ||
+    (hre.network.config && hre.network.config.url) ||
+    "https://unichain-sepolia-rpc.publicnode.com";
+  const netProbe = await hre.ethers.provider.getNetwork();
+  const chainId = Number(netProbe.chainId);
+  const provider =
+    chainId === 1301
+      ? new hre.ethers.JsonRpcProvider(rpcUrl, chainId)
+      : hre.ethers.provider;
+
+  const deployer = new hre.ethers.Wallet(pk.startsWith("0x") ? pk : `0x${pk}`, provider);
   console.log("Deployer:", deployer.address);
-  const net = await hre.ethers.provider.getNetwork();
-  const chainId = Number(net.chainId);
+  if (deployer.address.toLowerCase() !== hhDeployer.address.toLowerCase()) {
+    console.warn(`  Note: Hardhat signer ${hhDeployer.address} differs from PRIVATE_KEY wallet`);
+  }
+  const latestNonce = await provider.getTransactionCount(deployer.address, "latest");
+  const pendingNonce = await provider.getTransactionCount(deployer.address, "pending");
+  console.log(`  Chain ${chainId}; nonce latest=${latestNonce} pending=${pendingNonce}`);
+
+  async function deployAndTrack(factory, ...args) {
+    const f = factory.connect(deployer);
+    // Let Wallet manage nonce against a healthy RPC (publicnode). Do not pass explicit nonce —
+    // mixed auto + manual counters race with mint()/set*() calls.
+    const instance = await f.deploy(...args);
+    const receipt = await instance.deploymentTransaction().wait();
+    return { instance, address: await instance.getAddress(), blockNumber: receipt.blockNumber };
+  }
 
   const netExt = networkExternals(chainId);
   const prev = tryReadDeployment(hre.network.name, chainId);
@@ -254,6 +372,7 @@ async function main() {
 
   let monadExternals = null;
   let robinhoodExternals = null;
+  let unichainExternals = null;
   if (chainId === 10143 && netExt.deployLocalWeth) {
     monadExternals = await deployMonadTestExternals(hre, deployer, deployAndTrack, deploymentBlocks);
   } else if (chainId === 10143) {
@@ -270,13 +389,17 @@ async function main() {
       vaultCollateralOptions: netExt.vaultCollateralOptions,
       pons: netExt.pons,
     };
+  } else if (chainId === 1301 && netExt.deployLocalWeth) {
+    unichainExternals = await deployUnichainTestExternals(hre, deployer, deployAndTrack, deploymentBlocks);
   }
 
   const weth =
     process.env.MONAD_WETH?.trim() ||
     process.env.DRP_WETH?.trim() ||
     process.env.ROBINHOOD_WETH?.trim() ||
+    process.env.UNICHAIN_WETH?.trim() ||
     monadExternals?.weth ||
+    unichainExternals?.weth ||
     robinhoodExternals?.weth ||
     netExt.weth ||
     BASE_SEPOLIA_WETH;
@@ -301,7 +424,7 @@ async function main() {
 
   // ── 1. MondaloreUSDC test token ─────────────────────────────────────────────
   console.log("\n[1/7] Deploying MondaloreUSDC (test collateral)...");
-  const MondaloreUF = await hre.ethers.getContractFactory("MondaloreUSDC");
+  const MondaloreUF = await hre.ethers.getContractFactory("MondaloreUSDC", deployer);
   const { instance: aftrUsdc, address: aftrUsdcAddr, blockNumber: aftrUsdcBlock } =
     await deployAndTrack(MondaloreUF, deployer.address);
   deploymentBlocks.MondaloreUSDC = aftrUsdcBlock;
@@ -318,7 +441,7 @@ async function main() {
 
   if (!usdgAddr) {
     console.log("\n[1b/7] Deploying mintable USDG (mock trading collateral)...");
-    const USDGF = await hre.ethers.getContractFactory("USDG");
+    const USDGF = await hre.ethers.getContractFactory("USDG", deployer);
     const { instance: usdgToken, address: deployedUsdg, blockNumber: usdgBlock } =
       await deployAndTrack(USDGF, deployer.address);
     usdgAddr = deployedUsdg;
@@ -343,7 +466,7 @@ async function main() {
 
   // ── 2. Mondalore governance token ───────────────────────────────────────────
   console.log("\n[2/7] Deploying MONDO token (MondaloreToken)...");
-  const MondaloreTokenF = await hre.ethers.getContractFactory("MondaloreToken");
+  const MondaloreTokenF = await hre.ethers.getContractFactory("MondaloreToken", deployer);
   const { address: aftrTokenAddr, blockNumber: aftrTokenBlock } =
     await deployAndTrack(MondaloreTokenF, deployer.address, aftrInitialMint);
   deploymentBlocks.MondaloreToken = aftrTokenBlock;
@@ -352,7 +475,7 @@ async function main() {
 
   // ── 3. MondaloreFeeVault ────────────────────────────────────────────────────
   console.log("\n[3/7] Deploying MondaloreFeeVault...");
-  const VaultF = await hre.ethers.getContractFactory("MondaloreFeeVault");
+  const VaultF = await hre.ethers.getContractFactory("MondaloreFeeVault", deployer);
   const { instance: vault, address: vaultAddr, blockNumber: vaultBlock } =
     await deployAndTrack(VaultF, deployer.address, aftrTokenAddr, epochDuration, lockDuration);
   deploymentBlocks.MondaloreFeeVault = vaultBlock;
@@ -362,7 +485,7 @@ async function main() {
   // ── 4. Factory ─────────────────────────────────────────────────────────────
   // feeRecipient = vault so protocol fees flow into the staking accumulator.
   console.log("\n[4/7] Deploying MondaloreParimutuelMarketFactory...");
-  const FactoryF = await hre.ethers.getContractFactory("MondaloreParimutuelMarketFactory");
+  const FactoryF = await hre.ethers.getContractFactory("MondaloreParimutuelMarketFactory", deployer);
   const { instance: factory, address: factoryAddress, blockNumber: factoryBlock } =
     await deployAndTrack(
       FactoryF,
@@ -389,7 +512,10 @@ async function main() {
     console.log("  Resolution admins (3-of-10):", resolutionAdmins.join(", "));
   }
 
-  const chainlinkFeedsToRegister = netExt.chainlinkFeeds ?? [];
+  const chainlinkFeedsToRegister =
+    (unichainExternals?.chainlinkFeeds?.length ? unichainExternals.chainlinkFeeds : null) ||
+    netExt.chainlinkFeeds ||
+    [];
   if (chainlinkFeedsToRegister.length > 0) {
     console.log(`  Registering ${chainlinkFeedsToRegister.length} Chainlink price feed(s) on factory…`);
     await registerPriceFeedsOnFactory(factory, chainlinkFeedsToRegister, hre.ethers);
@@ -417,6 +543,7 @@ async function main() {
 
   const registerWeth =
     (chainId === 10143 && weth.toLowerCase() !== BASE_SEPOLIA_WETH.toLowerCase()) ||
+    chainId === 1301 ||
     chainId === 4663;
   const collateralLabels = ["MondaloreUSDC"];
   if (netExt.registerCircleUsdc && netExt.circleUsdc) collateralLabels.push("Circle USDC");
@@ -453,7 +580,7 @@ async function main() {
 
   // ── 6. OrderBook ───────────────────────────────────────────────────────────
   console.log("\n[6/7] Deploying MondaloreOrderBook...");
-  const OrderBookF = await hre.ethers.getContractFactory("MondaloreOrderBook");
+  const OrderBookF = await hre.ethers.getContractFactory("MondaloreOrderBook", deployer);
   const { address: orderBookAddress, blockNumber: orderBookBlock } =
     await deployAndTrack(OrderBookF, factoryAddress, deployer.address, deployer.address);
   deploymentBlocks.MondaloreOrderBook = orderBookBlock;
@@ -494,8 +621,9 @@ async function main() {
       ZedkrCollateralRegistry:           fpmmResult.registry,
       ZedkrFpmmMarketFactory:            fpmmResult.fpmmFactory,
       ZedkrFpmmDeployer:                 fpmmResult.fpmmDeployer,
-      ...(registerWeth && chainId === 10143 ? { MockWETH: weth } : {}),
+      ...(registerWeth && (chainId === 10143 || chainId === 1301) ? { MockWETH: weth } : {}),
       ...(chainId === 4663 && weth ? { WETH: weth } : {}),
+      ...(unichainExternals?.mockFeeds ?? {}),
     },
     // Block numbers for every contract — used as subgraph startBlock values.
     deploymentBlocks,
@@ -503,10 +631,14 @@ async function main() {
       optimisticOracleV2:           netExt.oo,
       umaBondCurrencyCircleUSDC:    netExt.circleUsdc || aftrUsdcAddr,
       ...(monadExternals?.chainlinkFeeds ? { chainlinkFeeds: monadExternals.chainlinkFeeds } : {}),
+      ...(unichainExternals?.chainlinkFeeds ? { chainlinkFeeds: unichainExternals.chainlinkFeeds } : {}),
       ...(robinhoodExternals?.chainlinkFeeds ? { chainlinkFeeds: robinhoodExternals.chainlinkFeeds } : {}),
       ...(robinhoodExternals?.priceFeedAssets ? { priceFeedAssets: robinhoodExternals.priceFeedAssets } : {}),
       ...(monadExternals?.vaultCollateralOptions
         ? { vaultCollateralOptions: monadExternals.vaultCollateralOptions }
+        : {}),
+      ...(unichainExternals?.vaultCollateralOptions
+        ? { vaultCollateralOptions: unichainExternals.vaultCollateralOptions }
         : {}),
       ...(robinhoodExternals?.vaultCollateralOptions
         ? { vaultCollateralOptions: robinhoodExternals.vaultCollateralOptions }

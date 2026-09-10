@@ -4,7 +4,9 @@ export function formatPonsPriceUsd(value: number | null): string {
   if (value == null || !Number.isFinite(value)) return "—";
   if (value >= 1) return `$${value.toLocaleString(undefined, { maximumFractionDigits: 4 })}`;
   if (value >= 0.0001) return `$${value.toFixed(6)}`;
-  return `$${value.toExponential(2)}`;
+  // Sub-$0.0001: plain decimals, never scientific notation (e.g. $0.00000701).
+  const fixed = value.toFixed(12).replace(/\.?0+$/, "");
+  return `$${fixed}`;
 }
 
 export function formatPonsMcapUsd(value: number | null): string {
@@ -19,7 +21,7 @@ export function formatProgressPercent(value: number | null): string {
   return `${value.toFixed(1)}%`;
 }
 
-export function defaultUsdThreshold(stats: PonsLiveStats | null): string {
+export function defaultUsdThreshold(stats: { marketCapUsd?: number | null } | null): string {
   const mcap = stats?.marketCapUsd;
   if (mcap != null && mcap > 0) {
     const target = Math.max(mcap * 1.25, mcap + 10_000);
@@ -34,7 +36,11 @@ export function defaultProgressThreshold(stats: PonsLiveStats | null): number {
   return 50;
 }
 
-export function usdThresholdSliderRange(stats: PonsLiveStats | null): { min: number; max: number; step: number } {
+export function usdThresholdSliderRange(stats: { marketCapUsd?: number | null } | null): {
+  min: number;
+  max: number;
+  step: number;
+} {
   const mcap = stats?.marketCapUsd ?? 50_000;
   const min = Math.max(1_000, Math.floor(mcap * 0.25));
   const max = Math.max(min * 2, Math.ceil(mcap * 4));
@@ -45,7 +51,7 @@ export function formatUsdThresholdValue(n: number): string {
   return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
 
-export function maxTokenMcap(stats: (PonsLiveStats | null)[]): number {
+export function maxTokenMcap(stats: ({ marketCapUsd?: number | null } | null)[]): number {
   return stats.reduce((best, s) => Math.max(best, s?.marketCapUsd ?? 0), 0);
 }
 
@@ -66,7 +72,7 @@ export function validateProgressParity(stats: (PonsLiveStats | null)[]): string 
   return null;
 }
 
-export function validateMcapParity(stats: (PonsLiveStats | null)[]): string | null {
+export function validateMcapParity(stats: ({ marketCapUsd?: number | null } | null)[]): string | null {
   const values = stats.map((s) => s?.marketCapUsd).filter((v): v is number => v != null && Number.isFinite(v));
   if (values.length < 2) return null;
   const max = Math.max(...values);

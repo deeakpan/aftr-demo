@@ -1,4 +1,4 @@
-/** WalletConnect flags safe to import from server or client bundles. */
+/** WalletConnect is optional. Para sign-in does not use this. */
 export const envProjectId = (process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "").trim();
 export const hasWalletConnectProjectId = envProjectId.length > 0;
-export const walletConnectProjectId = hasWalletConnectProjectId ? envProjectId : "demo-project-id";
+export const walletConnectProjectId = envProjectId;

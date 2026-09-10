@@ -15,21 +15,21 @@ async function deployParimutuelFacade(hre, deploySigner, factoryAddress, deployA
     nonce: BigInt(nonce) + 2n,
   });
 
-  const PriceDF = await hre.ethers.getContractFactory("MondalorePriceMarketDeployer");
+  const PriceDF = await hre.ethers.getContractFactory("MondalorePriceMarketDeployer", deploySigner);
   const { address: priceDep, blockNumber: priceBlock } = await deployAndTrack(
     PriceDF,
     predictedFacade,
     factoryAddress,
   );
 
-  const EventDF = await hre.ethers.getContractFactory("MondaloreEventMarketDeployer");
+  const EventDF = await hre.ethers.getContractFactory("MondaloreEventMarketDeployer", deploySigner);
   const { address: eventDep, blockNumber: eventBlock } = await deployAndTrack(
     EventDF,
     predictedFacade,
     factoryAddress,
   );
 
-  const FacadeF = await hre.ethers.getContractFactory("MondaloreParimutuelDeployer");
+  const FacadeF = await hre.ethers.getContractFactory("MondaloreParimutuelDeployer", deploySigner);
   const { address: facadeAddr, blockNumber: facadeBlock } = await deployAndTrack(
     FacadeF,
     factoryAddress,

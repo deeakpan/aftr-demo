@@ -35,19 +35,21 @@ function initWeb3Modal(config: Config, projectId: string) {
   window.__aftr_w3m_initialized__ = true;
 }
 
-export function Providers({ children }: { children: ReactNode }) {
-  const [ready, setReady] = useState(false);
+function WagmiApp({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<Config | null>(null);
 
   useEffect(() => {
-    void import("./wagmi-config.client").then(({ wagmiConfig, walletConnectProjectId }) => {
-      initWeb3Modal(wagmiConfig, walletConnectProjectId);
-      setConfig(wagmiConfig);
-      setReady(true);
-    });
+    void import("./wagmi-config.client").then(
+      ({ wagmiConfig, hasWalletConnectProjectId, walletConnectProjectId }) => {
+        if (hasWalletConnectProjectId) {
+          initWeb3Modal(wagmiConfig, walletConnectProjectId);
+        }
+        setConfig(wagmiConfig);
+      },
+    );
   }, []);
 
-  if (!ready || !config) {
+  if (!config) {
     return (
       <div
         className="min-h-screen bg-[var(--background)]"
@@ -57,11 +59,15 @@ export function Providers({ children }: { children: ReactNode }) {
     );
   }
 
+  return <WagmiProvider config={config}>{children}</WagmiProvider>;
+}
+
+export function Providers({ children }: { children: ReactNode }) {
   return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <ParaWalletProvider>{children}</ParaWalletProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
+    <QueryClientProvider client={queryClient}>
+      <ParaWalletProvider>
+        <WagmiApp>{children}</WagmiApp>
+      </ParaWalletProvider>
+    </QueryClientProvider>
   );
 }

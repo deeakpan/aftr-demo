@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { formatUnits, parseAbi, parseUnits, zeroAddress } from "viem";
 import { useSessionWallet } from "@/lib/session-wallet";
-import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import { AppLayout } from "@/app/components/app-layout";
 import { MarketListCard, MarketListCardSkeleton, MARKET_CARD_GRID_CLASS } from "@/app/market/components/market-list-card";
 import { NadMarketListCard } from "@/app/market/components/nad-market-list-card";
@@ -811,12 +810,6 @@ export function MarketClient() {
               ),
             )}
           </div>
-        )}
-        {!hasWalletConnectProjectId && (
-          <p className="mt-4 text-sm text-red-400">
-            Add <code className="rounded bg-[var(--surface)] px-1.5 py-0.5 text-xs">NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code>{" "}
-            in <code className="rounded bg-[var(--surface)] px-1.5 py-0.5 text-xs">.env</code>, then restart the dev server.
-          </p>
         )}
       </section>
       <TradeModal

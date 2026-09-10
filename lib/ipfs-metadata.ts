@@ -1,11 +1,11 @@
 import { unstable_cache } from "next/cache";
 import { withRetries } from "./fetch-retry";
 
-const IPFS_GATEWAYS = [
-  "https://gateway.lighthouse.storage/ipfs/",
-  "https://cloudflare-ipfs.com/ipfs/",
+/** Public gateways — Lighthouse shared gateway is premium-only (HTTP 402) and is omitted. */
+const PUBLIC_IPFS_GATEWAYS = [
   "https://ipfs.io/ipfs/",
   "https://dweb.link/ipfs/",
+  "https://cloudflare-ipfs.com/ipfs/",
 ] as const;
 
 const METADATA_FETCH_TIMEOUT_MS = 6_000;
@@ -23,6 +23,7 @@ export type IpfsMarketMetadata = {
   resolutionSources?: Array<{ label?: string; url: string } | string>;
   nadMarket?: import("@/lib/nad/types").NadMarketConfig;
   ponsMarket?: import("@/lib/pons/types").PonsMarketConfig;
+  tokenMarket?: import("@/lib/token-market/types").TokenMarketConfig;
   marketKind?: string;
 };
 
@@ -39,11 +40,31 @@ export type IpfsFetchOptions = {
   onAttempt?: (info: IpfsFetchAttemptInfo) => void;
 };
 
+/** Dedicated Lighthouse gateway from dashboard profile, e.g. https://xxx.lighthouse.storage/ipfs/ */
+function dedicatedGatewayBase(): string | null {
+  const raw =
+    process.env.LIGHTHOUSE_GATEWAY_URL?.trim() ||
+    process.env.IPFS_GATEWAY?.trim() ||
+    process.env.NEXT_PUBLIC_IPFS_GATEWAY?.trim() ||
+    "";
+  if (!raw) return null;
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  return withScheme.replace(/\/?$/, "/").replace(/\/ipfs\/?$/, "/ipfs/");
+}
+
+function gatewayList(): string[] {
+  const dedicated = dedicatedGatewayBase();
+  const bases = dedicated ? [dedicated, ...PUBLIC_IPFS_GATEWAYS] : [...PUBLIC_IPFS_GATEWAYS];
+  return [...new Set(bases.map((b) => (b.endsWith("/") ? b : `${b}/`)))];
+}
+
 export function ipfsToHttp(uri: string): string {
   const trimmed = uri.trim();
   if (!trimmed) return "";
   if (trimmed.startsWith("ipfs://")) {
-    return `https://gateway.lighthouse.storage/ipfs/${trimmed.replace("ipfs://", "")}`;
+    const cid = trimmed.slice(7).trim();
+    const base = dedicatedGatewayBase() || "https://ipfs.io/ipfs/";
+    return `${base.replace(/\/?$/, "/")}${cid}`;
   }
   return trimmed;
 }
@@ -57,13 +78,13 @@ function resolveMetadataFetchUrls(uri: string): string[] {
   if (trimmed.startsWith("ipfs://")) {
     const cid = trimmed.slice(7).trim();
     if (!cid) return [];
-    return IPFS_GATEWAYS.map((gateway) => `${gateway}${cid}`);
+    return gatewayList().map((gateway) => `${gateway}${cid}`);
   }
   return [];
 }
 
 function lighthouseHeaders(url: string): Record<string, string> | undefined {
-  if (!url.includes("lighthouse.storage")) return undefined;
+  if (!/lighthouse\.storage/i.test(url)) return undefined;
   const lighthouseKey = process.env.LIGHTHOUSE_API_KEY?.trim();
   if (!lighthouseKey) return undefined;
   return { Authorization: `Bearer ${lighthouseKey}` };
@@ -85,29 +106,38 @@ async function fetchMetadataUrl(url: string, timeoutMs: number): Promise<IpfsMar
   return json;
 }
 
-/** Race gateways in parallel; first success wins. */
+/** Race gateways; first success wins (do not wait for slow failures). */
 async function fetchIpfsMetadataOnce(
   urls: string[],
   timeoutMs: number,
   onAttempt?: IpfsFetchOptions["onAttempt"],
   attempt = 1,
 ): Promise<IpfsMarketMetadata> {
-  const errors: string[] = [];
+  if (urls.length === 0) throw new Error("no gateways");
 
-  const results = await Promise.allSettled(
-    urls.map(async (url) => {
+  return await new Promise<IpfsMarketMetadata>((resolve, reject) => {
+    let pending = urls.length;
+    const errors: string[] = [];
+    let settled = false;
+
+    for (const url of urls) {
       onAttempt?.({ phase: "gateway", attempt, url });
-      return fetchMetadataUrl(url, timeoutMs);
-    }),
-  );
-
-  for (const result of results) {
-    if (result.status === "fulfilled") return result.value;
-    const msg = result.reason instanceof Error ? result.reason.message : String(result.reason);
-    errors.push(msg);
-  }
-
-  throw new Error(errors[0] ?? "all gateways failed");
+      void fetchMetadataUrl(url, timeoutMs)
+        .then((value) => {
+          if (settled) return;
+          settled = true;
+          resolve(value);
+        })
+        .catch((err) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          errors.push(msg);
+          pending -= 1;
+          if (!settled && pending === 0) {
+            reject(new Error(errors[0] ?? "all gateways failed"));
+          }
+        });
+    }
+  });
 }
 
 async function fetchIpfsMetadataUncached(uri: string, options: IpfsFetchOptions = {}): Promise<IpfsMarketMetadata | null> {
@@ -157,7 +187,7 @@ export async function fetchIpfsMetadata(uri: string): Promise<IpfsMarketMetadata
 
   const cached = unstable_cache(
     () => fetchIpfsMetadataUncached(trimmed, { attempts: 2, timeoutMs: METADATA_FETCH_TIMEOUT_MS }),
-    ["ipfs-market-metadata", trimmed],
+    ["ipfs-market-metadata", trimmed, dedicatedGatewayBase() ?? "public"],
     { revalidate: 300 },
   );
 

@@ -4,6 +4,8 @@ import type { NadMarketConfig } from "@/lib/nad/types";
 import type { PonsMarketConfig } from "@/lib/pons/types";
 import { ponsMarketForCardPreview } from "@/lib/pons/adapt-display";
 import { parseLaunchpadMarketFromMetadata } from "@/lib/pons/parse-config";
+import { tokenMarketForCardPreview } from "@/lib/token-market/adapt-display";
+import { parseTokenMarketFromMetadata } from "@/lib/token-market/parse-config";
 
 function isPonsConfig(
   cfg: PonsMarketConfig | NadMarketConfig,
@@ -18,22 +20,26 @@ export function launchpadMarketFromMetadata(
   return parseLaunchpadMarketFromMetadata(md);
 }
 
-/** UI label for chain kind 2 — Pons metadata → "Pons", legacy Nad.fun → "Nad". */
+/** UI label for chain kind 2 — token-link → "Token", legacy Pons / Nad otherwise. */
 export function uiMarketKindForDisplay(
   chainKind: number,
   md?: Record<string, unknown> | null,
 ): UiMarketKind {
   const base = marketKindFromChain(chainKind);
-  if (base !== "Nad") return base;
+  if (base !== "Token" && base !== "Nad") return base;
+  if (parseTokenMarketFromMetadata(md)) return "Token";
   const raw = launchpadMarketFromMetadata(md);
   if (raw && "launchpad" in raw && raw.launchpad === "pons") return "Pons";
-  return "Nad";
+  if (raw) return "Nad";
+  return "Token";
 }
 
 /** Map launchpad metadata to Nad card shape (Pons → adapted; Nad → as-is). */
 export function launchpadMarketForDisplay(
   md: Record<string, unknown> | null | undefined,
 ): NadMarketConfig | undefined {
+  const token = parseTokenMarketFromMetadata(md as Record<string, unknown> | null);
+  if (token) return tokenMarketForCardPreview(token);
   const parsed = launchpadMarketFromMetadata(md);
   if (!parsed) {
     const legacy = md?.nadMarket;

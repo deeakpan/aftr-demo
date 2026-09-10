@@ -10,7 +10,7 @@ import "../token/ZedkrOutcomeToken.sol";
 import "./ZedkrFpmmDeployer.sol";
 
 /// @title ZedkrFpmmMarketFactory
-/// @notice Creates Zedkr FPMM markets (PRICE / EVENT / PONS) with whitelisted collateral via registry.
+/// @notice Creates Zedkr FPMM markets (PRICE / EVENT / TOKEN) with whitelisted collateral via registry.
 contract ZedkrFpmmMarketFactory is Ownable2Step {
     using SafeERC20 for IERC20;
 
@@ -18,10 +18,14 @@ contract ZedkrFpmmMarketFactory is Ownable2Step {
     uint256 public constant RESOLUTION_THRESHOLD = 3;
 
     ZedkrCollateralRegistry public immutable collateralRegistry;
-    address public feeRecipient;
+    /// @notice 25% of the 1% trade fee. Address(0) routes that share to the market creator.
+    address public platformDev;
+    /// @notice 25% of the 1% trade fee. Address(0) routes that share to the market creator.
+    address public distribution;
+    /// @notice 25% of the 1% trade fee. Address(0) routes that share to the market creator.
+    address public treasury;
     address public marketDeployer;
-    address public ponsResolutionAdmin;
-    // `ponsResolutionAdmin` public getter satisfies IMondaloreMarketFactoryResolution.
+    address public tokenResolutionAdmin;
 
     mapping(address => bool) public isResolutionAdmin;
     address[] public resolutionAdmins;
@@ -32,8 +36,9 @@ contract ZedkrFpmmMarketFactory is Ownable2Step {
     mapping(address => address[]) private _marketOutcomeTokens;
 
     event FeeRecipientUpdated(address indexed recipient);
+    event FeeSplitUpdated(address platformDev, address distribution, address treasury);
     event MarketDeployerUpdated(address indexed deployer);
-    event PonsResolutionAdminUpdated(address indexed admin);
+    event TokenResolutionAdminUpdated(address indexed admin);
     event PriceFeedUpdated(bytes32 indexed assetKey, address feed);
     event MarketCreated(
         address indexed market,
@@ -61,15 +66,28 @@ contract ZedkrFpmmMarketFactory is Ownable2Step {
     error InvalidResolutionAdmin();
 
     constructor(address owner_, address feeRecipient_, ZedkrCollateralRegistry registry_) Ownable(owner_) {
-        if (feeRecipient_ == address(0) || address(registry_) == address(0)) revert InvalidAddress();
-        feeRecipient = feeRecipient_;
+        if (address(registry_) == address(0)) revert InvalidAddress();
+        treasury = feeRecipient_;
         collateralRegistry = registry_;
     }
 
+    /// @notice Legacy alias for `treasury`. Address(0) is allowed (share goes to the creator).
+    function feeRecipient() public view returns (address) {
+        return treasury;
+    }
+
     function setFeeRecipient(address r) external onlyOwner {
-        if (r == address(0)) revert InvalidAddress();
-        feeRecipient = r;
+        treasury = r;
         emit FeeRecipientUpdated(r);
+        emit FeeSplitUpdated(platformDev, distribution, treasury);
+    }
+
+    function setFeeSplit(address platformDev_, address distribution_, address treasury_) external onlyOwner {
+        platformDev = platformDev_;
+        distribution = distribution_;
+        treasury = treasury_;
+        emit FeeSplitUpdated(platformDev_, distribution_, treasury_);
+        emit FeeRecipientUpdated(treasury_);
     }
 
     function setMarketDeployer(address d) external onlyOwner {
@@ -78,14 +96,18 @@ contract ZedkrFpmmMarketFactory is Ownable2Step {
         emit MarketDeployerUpdated(d);
     }
 
-    function setPonsResolutionAdmin(address admin) external onlyOwner {
+    function setTokenResolutionAdmin(address admin) external onlyOwner {
         if (admin == address(0)) revert InvalidAddress();
-        ponsResolutionAdmin = admin;
-        emit PonsResolutionAdminUpdated(admin);
+        tokenResolutionAdmin = admin;
+        emit TokenResolutionAdminUpdated(admin);
     }
 
     function nadResolutionAdmin() external view returns (address) {
-        return ponsResolutionAdmin;
+        return tokenResolutionAdmin;
+    }
+
+    function ponsResolutionAdmin() external view returns (address) {
+        return tokenResolutionAdmin;
     }
 
     function setResolutionAdmins(address[] calldata admins) external onlyOwner {
@@ -165,7 +187,7 @@ contract ZedkrFpmmMarketFactory is Ownable2Step {
         address[] memory tokens;
         (market, tokens) = ZedkrFpmmDeployer(marketDeployer).deployPriceMarket(
             owner(),
-            feeRecipient,
+            treasury,
             msg.sender,
             p.base.collateralToken,
             p.base.collateralDecimals,
@@ -206,8 +228,8 @@ contract ZedkrFpmmMarketFactory is Ownable2Step {
         market = _createResolutionMarket(p, ZedkrFpmmMarket.MarketKind.EVENT);
     }
 
-    function createPonsMarket(FpmmMarketParams calldata p) external returns (address market) {
-        market = _createResolutionMarket(p, ZedkrFpmmMarket.MarketKind.PONS_TOKEN);
+    function createTokenMarket(FpmmMarketParams calldata p) external returns (address market) {
+        market = _createResolutionMarket(p, ZedkrFpmmMarket.MarketKind.TOKEN);
     }
 
     function getMarketOutcomeTokens(address market) external view returns (address[] memory) {
@@ -242,7 +264,7 @@ contract ZedkrFpmmMarketFactory is Ownable2Step {
         if (kind == ZedkrFpmmMarket.MarketKind.EVENT) {
             (market, tokens) = ZedkrFpmmDeployer(marketDeployer).deployEventMarket(
                 owner(),
-                feeRecipient,
+                treasury,
                 msg.sender,
                 p.collateralToken,
                 p.collateralDecimals,
@@ -254,9 +276,9 @@ contract ZedkrFpmmMarketFactory is Ownable2Step {
                 p.outcomeLabels
             );
         } else {
-            (market, tokens) = ZedkrFpmmDeployer(marketDeployer).deployPonsMarket(
+            (market, tokens) = ZedkrFpmmDeployer(marketDeployer).deployTokenMarket(
                 owner(),
-                feeRecipient,
+                treasury,
                 msg.sender,
                 p.collateralToken,
                 p.collateralDecimals,

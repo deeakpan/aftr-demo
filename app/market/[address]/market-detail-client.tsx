@@ -22,7 +22,6 @@ import { LaunchpadTokenSection } from "@/app/market/components/launchpad-token-s
 import { MultiOutcomeMarketSection } from "@/app/market/components/multi-outcome-market-section";
 import { OutcomeOrderBook } from "@/app/market/components/outcome-order-book";
 import { LimitOrderParams, TradeModal, type TradeSuccessResult } from "@/app/market/components/trade-modal";
-import { hasWalletConnectProjectId } from "@/app/wagmi-config";
 import { collateralTickerFromDeployment, isUsdStyledCollateralTicker } from "@/lib/deployment-collateral";
 import { formatMarketCardDate, formatMarketClosesTooltip } from "@/lib/market-cover";
 import { deploymentPublicClient, readMarketPrice } from "@/lib/deployment-public-client";
@@ -1367,12 +1366,6 @@ export function MarketDetailClient({
             setTradeSuccess(null);
           }}
         />
-      )}
-
-      {!hasWalletConnectProjectId && (
-        <p className="px-4 py-3 text-sm text-red-400 md:px-6">
-          Add NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID in .env for full wallet support.
-        </p>
       )}
 
       {market && (

@@ -49,6 +49,7 @@ export function LaunchpadTokenSection({
       {activeToken ? (
         <DexScreenerTokenChart
           tokenAddress={activeToken.address}
+          pairUrl={nadMarket.apiBaseUrl || null}
           onAvailabilityChange={onDexAvailability}
         />
       ) : null}

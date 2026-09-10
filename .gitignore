@@ -64,3 +64,8 @@ website/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Nested repos (separate remotes)
+admin/
+themarinas-app/
+

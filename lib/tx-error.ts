@@ -55,6 +55,11 @@ export function formatUserTxError(error: unknown, fallback = "Transaction failed
   if (/rate limit|too many requests|15\/sec/i.test(blob)) {
     return "Network busy — try again in a moment.";
   }
+  if (/Just a moment|cdn-cgi\/challenge|__cf_chl|Status:\s*403/i.test(blob) || blob.length > 2000) {
+    if (/cloudflare|Just a moment|403|cdn-cgi/i.test(blob)) {
+      return "Robinhood public RPC is behind a Cloudflare challenge. Set NEXT_PUBLIC_RPC_URL to an Alchemy or QuickNode endpoint.";
+    }
+  }
   if (/EAI_AGAIN|ENOTFOUND|getaddrinfo|Para network error|api\.getpara\.com|api\.beta\.getpara\.com|fetch failed/i.test(blob)) {
     return "Wallet signing is temporarily unreachable. Wait a few seconds and try again.";
   }

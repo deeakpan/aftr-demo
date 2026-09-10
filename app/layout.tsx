@@ -23,6 +23,14 @@ export const metadata: Metadata = {
   title: "Zedkr Market | Prediction markets on Robinhood Chain",
   description:
     "Zedkr Market is a Zedkr product for creating and trading prediction markets on Robinhood Chain.",
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png", sizes: "512x512" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: "/favicon.png",
+    apple: "/apple-icon.png",
+  },
 };
 
 export default function RootLayout({

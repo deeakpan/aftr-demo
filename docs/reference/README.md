@@ -17,9 +17,7 @@ Quick lookup for terms, numbers, and common questions. Use this section when you
 | Pool trade fee (total) | 1.5% |
 | Creator share | 0.3% |
 | Protocol share | 1.2% |
-| Staker share (of trade notional) | 0.2% |
 | Collateral types | USDC, MON |
-| Staking token | MONDO → sMONDO (1:1) |
 
 ## Document map
 
@@ -30,4 +28,3 @@ Quick lookup for terms, numbers, and common questions. Use this section when you
 | Portfolio | [Positions](../positions/README.md) |
 | Market mechanics | [Markets](../markets/README.md) |
 | Launch a market | [Creating markets](../creating-markets/README.md) |
-| Protocol stake | [Staking](../staking/README.md) |

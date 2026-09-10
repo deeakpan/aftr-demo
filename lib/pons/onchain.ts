@@ -2,7 +2,6 @@ import {
   createPublicClient,
   formatUnits,
   getAddress,
-  http,
   isAddress,
   parseAbi,
   parseEther,
@@ -11,6 +10,7 @@ import {
 } from "viem";
 import { chainlinkFeedByTokenAddress, chainlinkFeedByAsset } from "@/lib/chainlink-feeds";
 import { robinhoodMainnet, ponsRpcUrl } from "@/lib/chain";
+import { deploymentHttpTransport } from "@/lib/rpc-transport";
 import { deploymentExternal } from "@/lib/deployment";
 import {
   knownPonsInfraLabel,
@@ -60,7 +60,7 @@ const ERC20_DECIMALS_ABI = parseAbi(["function decimals() view returns (uint8)"]
 function publicClient() {
   return createPublicClient({
     chain: robinhoodMainnet,
-    transport: http(ponsRpcUrl()),
+    transport: deploymentHttpTransport(ponsRpcUrl()),
   });
 }
 

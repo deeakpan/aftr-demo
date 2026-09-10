@@ -1,6 +1,6 @@
 # Deployments
 
-Mondalore runs on **Monad Testnet** and **Monad Mainnet**. Confirm the network in your wallet before trading, creating, or staking.
+Mondalore runs on **Monad Testnet** and **Monad Mainnet**. Confirm the network in your wallet before trading or creating.
 
 Each market also has its own contract address (created by the factory). You will see that address on the market detail page.
 
@@ -71,7 +71,7 @@ The live app currently uses **Monad Testnet**.
 <td data-label="Address"><span class="ca">0x4573d4C6C68ee5AAEC09f2f6F60b342A541dA06b</span></td>
 </tr>
 <tr>
-<td data-label="Contract">Fee vault (staking)</td>
+<td data-label="Contract">Fee vault</td>
 <td data-label="Address"><span class="ca">0x3870Fd628e43FbEE7f2a1a922ACa13b3f1B53329</span></td>
 </tr>
 <tr>
@@ -119,7 +119,7 @@ The live app currently uses **Monad Testnet**.
 <td data-label="Address"><span class="tba">TBA</span></td>
 </tr>
 <tr>
-<td data-label="Contract">Fee vault (staking)</td>
+<td data-label="Contract">Fee vault</td>
 <td data-label="Address"><span class="tba">TBA</span></td>
 </tr>
 <tr>

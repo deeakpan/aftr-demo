@@ -2,15 +2,18 @@
 
 import {
   encodeFunctionData,
+  getAddress,
+  isAddress,
   type Abi,
   type Hash,
   type Hex,
 } from "viem";
 import { useAccount, useWalletClient } from "wagmi";
+import { exportParaSession } from "@/app/components/para-wallet-provider";
 import { DEPLOYMENT_CHAIN_ID } from "@/lib/deployment";
-import { getParaWalletRecord } from "@/lib/para-wallet-record";
+import { useWalletAddress } from "@/lib/para-wallet";
 import { formatUserTxError } from "@/lib/tx-error";
-import { getMe, useMe } from "@/lib/useMe";
+import { useAccount as useParaAccount } from "@getpara/react-sdk-lite";
 
 export type SessionWriteContractParams = {
   address: `0x${string}`;
@@ -29,16 +32,16 @@ export async function sendViaParaClient(params: {
   data?: Hex;
   value?: bigint;
 }): Promise<Hash> {
-  const record = getParaWalletRecord();
+  const session = await exportParaSession();
   const res = await fetch("/api/para/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      session,
       owner: params.owner,
       to: params.to,
       data: params.data ?? "0x",
       value: params.value?.toString(),
-      walletId: record?.walletId,
     }),
   });
   const json = (await res.json()) as { hash?: string; error?: string };
@@ -48,54 +51,48 @@ export async function sendViaParaClient(params: {
   return json.hash as Hash;
 }
 
-function paraSessionOwner(): `0x${string}` | undefined {
-  return getParaWalletRecord()?.owner ?? getMe();
-}
-
 export async function writeSessionContract(params: SessionWriteContractParams): Promise<Hash> {
-  const me = paraSessionOwner();
-  const owner = (params.account ?? me) as `0x${string}` | undefined;
+  const owner = params.account as `0x${string}` | undefined;
   if (!owner) throw new Error("Connect wallet first.");
 
-  if (me) {
-    const data = encodeFunctionData({
+  if (params.walletClient) {
+    return params.walletClient.writeContract({
+      chain: params.walletClient.chain,
+      address: params.address,
       abi: params.abi,
-      functionName: params.functionName as never,
-      args: (params.args ?? []) as never,
-    });
-    return sendViaParaClient({
-      owner: me,
-      to: params.address,
-      data,
+      functionName: params.functionName,
+      args: params.args,
+      account: owner,
       value: params.value,
-    });
+      gas: params.gas,
+    } as never);
   }
 
-  const walletClient = params.walletClient as
-    | { chain?: unknown; writeContract: (args: never) => Promise<Hash> }
-    | null
-    | undefined;
-  if (!walletClient) throw new Error("Connect wallet first.");
-  return walletClient.writeContract({
-    chain: walletClient.chain,
-    address: params.address,
+  const data = encodeFunctionData({
     abi: params.abi,
-    functionName: params.functionName,
-    args: params.args,
-    account: owner,
+    functionName: params.functionName as never,
+    args: (params.args ?? []) as never,
+  });
+  return sendViaParaClient({
+    owner,
+    to: params.address,
+    data,
     value: params.value,
-    gas: params.gas,
-  } as never);
+  });
 }
 
-/** Signed-in identity: Para API wallet B, else wagmi. */
+/** Signed-in identity: live Para wallet, else wagmi. */
 export function useSessionWallet() {
-  const me = useMe();
+  const { isConnected: paraConnected } = useParaAccount();
+  const paraAddressRaw = useWalletAddress();
   const { address: wagmiAddress, chainId: wagmiChainId } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const paraOwner = paraSessionOwner() ?? me;
-  const address = paraOwner ?? wagmiAddress;
-  const isPara = Boolean(paraOwner);
+  const paraAddress =
+    paraConnected && paraAddressRaw && isAddress(paraAddressRaw)
+      ? (getAddress(paraAddressRaw) as `0x${string}`)
+      : undefined;
+  const address = paraAddress ?? wagmiAddress;
+  const isPara = Boolean(paraAddress);
 
   return {
     address,
@@ -107,7 +104,7 @@ export function useSessionWallet() {
       writeSessionContract({
         ...params,
         account: params.account ?? address,
-        walletClient: walletClient as SessionWriteContractParams["walletClient"],
+        walletClient: isPara ? null : (walletClient as SessionWriteContractParams["walletClient"]),
       }),
   };
 }

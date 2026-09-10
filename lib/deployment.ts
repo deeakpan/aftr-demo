@@ -1,5 +1,6 @@
 import monadDeployment from "@/deployments/monadTestnet-10143.json";
 import robinhoodDeployment from "@/deployments/robinhoodMainnet-4663.json";
+import unichainDeployment from "@/deployments/unichainSepolia-1301.json";
 import { DEPLOYMENT_CHAIN_ID, DEPLOYMENT_NETWORK_LABEL } from "@/lib/chain";
 import {
   activeMarketFactoryAddress,
@@ -10,6 +11,7 @@ import {
 const DEPLOYMENTS = {
   10143: monadDeployment,
   4663: robinhoodDeployment,
+  1301: unichainDeployment,
 } as const;
 
 const deployment =
@@ -35,7 +37,13 @@ export function marketFactoryAddress(): `0x${string}` | null {
 export { fpmmFactoryAddress, usesFpmmMechanism };
 
 export function undeployedStackMessage(): string {
-  return `Zedkr Market is not deployed on ${DEPLOYMENT_NETWORK_LABEL} yet. Run: npx hardhat run scripts/deploy-aftr-full-stack.cjs --network robinhoodMainnet`;
+  const network =
+    DEPLOYMENT_CHAIN_ID === 1301
+      ? "unichainSepolia"
+      : DEPLOYMENT_CHAIN_ID === 10143
+        ? "monadTestnet"
+        : "robinhoodMainnet";
+  return `Zedkr Market is not deployed on ${DEPLOYMENT_NETWORK_LABEL} yet. Run: npx hardhat run scripts/deploy-aftr-full-stack.cjs --network ${network}`;
 }
 
 export type DeploymentExternal = {

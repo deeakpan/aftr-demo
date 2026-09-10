@@ -6,7 +6,7 @@ Mondalore runs entirely through your crypto wallet. There is no traditional emai
 
 1. **A supported wallet** — any standard Web3 wallet that works with the network Mondalore is deployed on.
 2. **Collateral** — USDC or MON in that wallet, depending on which market you want to trade.
-3. **A small amount of network gas** — to approve transactions (trades, claims, stakes).
+3. **A small amount of network gas** — to approve transactions (trades, claims).
 
 ## The basic flow
 
@@ -21,7 +21,7 @@ Mondalore runs entirely through your crypto wallet. There is no traditional emai
 Markets settle in one of two collaterals:
 
 - **USDC** — stable dollar-pegged collateral; amounts are easy to read as familiar dollar values.
-- **MON** — the network’s native token; used on some markets and for staking MONDO.
+- **MON** — the network’s native token; used on some markets.
 
 Always check which collateral a market uses before trading. You cannot mix collaterals within a single market.
 
@@ -33,7 +33,6 @@ Always check which collateral a market uses before trading. You cannot mix colla
 | **Market detail** | Read the question, see odds, trade, view activity |
 | **Trades** | Your open positions and claim buttons |
 | **Create** | Launch a new market |
-| **Stake** | Stake MONDO for protocol fee share |
 
 ## Next steps
 

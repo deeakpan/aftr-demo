@@ -8,6 +8,7 @@
  */
 const fs = require("fs");
 const path = require("path");
+const { execSync } = require("child_process");
 const hre = require("hardhat");
 const { deployFpmmStack } = require("./lib/deploy-fpmm-stack.cjs");
 const { registerPriceFeedsOnFactory } = require("./lib/register-price-feeds.cjs");
@@ -62,7 +63,7 @@ async function main() {
         (chainId === 4663 ? robinhoodNetworkExternals().usdg : null)
       : null);
 
-  const collaterals = [prev.contracts?.MondaloreUSDC].filter(Boolean);
+  const collaterals = [prev.contracts?.MondaloreUSDC, prev.contracts?.WETH].filter(Boolean);
   if (usdg) collaterals.push(usdg);
   else if (!prev.contracts?.USDG) {
     console.warn(
@@ -99,11 +100,28 @@ async function main() {
       ...(prev.notes ?? {}),
       primaryMarketFactory: "ZedkrFpmmMarketFactory",
       fpmmCollaterals: collaterals,
+      feeFlow:
+        "1% trade fee split 25/25/25/25 creator / platformDev / distribution / treasury; address(0) share pays the market creator",
     },
     deployedAt: new Date().toISOString(),
   };
 
   fs.writeFileSync(depPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+  const adminDepPath = path.join(__dirname, "..", "admin", "deployments", `${hre.network.name}-${chainId}.json`);
+  if (fs.existsSync(path.dirname(adminDepPath))) {
+    fs.writeFileSync(adminDepPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+    console.log("Wrote:", adminDepPath);
+  }
+
+  try {
+    execSync("node scripts/subgraph-update-config.cjs", {
+      cwd: path.join(__dirname, ".."),
+      stdio: "inherit",
+    });
+  } catch (e) {
+    console.warn("subgraph-update-config failed:", e?.message ?? e);
+  }
+
   console.log("\nWrote:", depPath);
   console.log("  ZedkrFpmmMarketFactory:", result.fpmmFactory);
   console.log("  ZedkrCollateralRegistry:", result.registry);

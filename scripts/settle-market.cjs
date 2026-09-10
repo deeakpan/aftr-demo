@@ -32,7 +32,7 @@ function parseCliArgs() {
   if (!marketIdRaw) {
     throw new Error(
       "Usage: npm run market:settle -- <id> [--outcome <n> --sigs-file sigs.json] [--network <name>]\n" +
-      "PONS (NAD_TOKEN kind): omit --outcome to auto-resolve from IPFS ponsMarket (on-chain) or legacy nadMarket.",
+      "TOKEN (kind 2): omit --outcome to auto-resolve from IPFS tokenMarket (Dexscreener/Gecko) or legacy pons/nad.",
     );
   }
   const id = Number(marketIdRaw);
@@ -76,7 +76,7 @@ async function main() {
   console.log("Deployment:", file);
   console.log("Market id:", marketId);
   console.log("Market:", marketAddress);
-  console.log("Kind:", kind === 0 ? "PRICE" : kind === 2 ? "PONS (NAD_TOKEN kind)" : "EVENT");
+  console.log("Kind:", kind === 0 ? "PRICE" : kind === 2 ? "TOKEN" : "EVENT");
   console.log("State:", state);
 
   if (state === 2) {
@@ -91,23 +91,26 @@ async function main() {
     console.log("Calling settlePrice()...");
     tx = await market.settlePrice();
   } else if (kind === 2) {
-    if (state !== 0) throw new Error(`Unexpected PONS market state: ${state}`);
+    if (state !== 0) throw new Error(`Unexpected TOKEN market state: ${state}`);
     let resolvedOutcome = outcomeIndex;
     if (!Number.isInteger(resolvedOutcome) || resolvedOutcome < 0) {
       const { evaluateLaunchpadMarketFromUri } = require("./lib/launchpad-auto-resolve.cjs");
-      console.log("Evaluating launchpad outcome from metadata + on-chain Pons/Nad data...");
+      console.log("Evaluating token/launchpad outcome from metadata + Dexscreener/Gecko (or legacy Pons/Nad)...");
       const evaluation = await evaluateLaunchpadMarketFromUri(metadataURI);
       resolvedOutcome = evaluation.outcomeIndex;
       console.log(`Auto outcome (${evaluation.launchpad}): ${resolvedOutcome} (${evaluation.outcomeLabel})`);
       console.log(`Reason: ${evaluation.reasoning}`);
     }
-    console.log(`Calling resolvePonsToken(${resolvedOutcome})...`);
+    console.log(`Calling resolveToken/resolvePonsToken(${resolvedOutcome})...`);
     try {
-      tx = await market.resolvePonsToken(resolvedOutcome);
-    } catch (e) {
-      // Backwards-compat with older deployments that only expose resolveNadToken().
-      console.warn("resolvePonsToken() failed; falling back to resolveNadToken().");
-      tx = await market.resolveNadToken(resolvedOutcome);
+      tx = await market.resolveToken(resolvedOutcome);
+    } catch (e1) {
+      try {
+        tx = await market.resolvePonsToken(resolvedOutcome);
+      } catch (e2) {
+        console.warn("resolveToken/resolvePonsToken failed; falling back to resolveNadToken().");
+        tx = await market.resolveNadToken(resolvedOutcome);
+      }
     }
   } else {
     if (state !== 0) throw new Error(`Unexpected EVENT market state: ${state}`);

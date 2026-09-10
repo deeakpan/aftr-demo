@@ -86,11 +86,7 @@ Tolerance for pool price movement between quote and execution. Protects against 
 
 ## Protocol fee
 
-1.2% of each pool trade paid to the protocol (partly shared with MONDO stakers).
-
-## MONDO / sMONDO
-
-MONDO is the staking token. sMONDO is the non-transferable receipt received when you stake MONDO 1:1.
+1.2% of each pool trade paid to the protocol.
 
 ## TVL (pool size)
 

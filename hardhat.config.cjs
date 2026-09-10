@@ -29,6 +29,15 @@ module.exports = {
         ? [process.env.PRIVATE_KEY.startsWith("0x") ? process.env.PRIVATE_KEY : `0x${process.env.PRIVATE_KEY}`]
         : [],
     },
+    unichainSepolia: {
+      // Official sepolia.unichain.org returns broken eth_getTransactionCount("pending") (=0).
+      url: process.env.RPC_URL || "https://unichain-sepolia-rpc.publicnode.com",
+      chainId: 1301,
+      timeout: 180_000,
+      accounts: process.env.PRIVATE_KEY
+        ? [process.env.PRIVATE_KEY.startsWith("0x") ? process.env.PRIVATE_KEY : `0x${process.env.PRIVATE_KEY}`]
+        : [],
+    },
   },
   solidity: {
     version: "0.8.24",

@@ -1,10 +1,11 @@
-import { type Abi, createPublicClient, http } from "viem";
+import { type Abi, createPublicClient } from "viem";
 import { DEPLOYMENT_CHAIN, DEPLOYMENT_NETWORK_LABEL, deploymentRpcUrl } from "@/lib/chain";
+import { deploymentHttpTransport } from "@/lib/rpc-transport";
 
-/** Monad Testnet reads — always uses deployment RPC, independent of wallet chain. */
+/** Chain reads — always uses deployment RPC, independent of wallet chain. */
 export const deploymentPublicClient = createPublicClient({
   chain: DEPLOYMENT_CHAIN,
-  transport: http(deploymentRpcUrl()),
+  transport: deploymentHttpTransport(deploymentRpcUrl()),
 });
 
 export async function assertMarketContract(marketAddress: `0x${string}`): Promise<void> {

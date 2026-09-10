@@ -8,8 +8,9 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "../token/MondaloreOutcomeToken.sol";
 import "../interfaces/IMondaloreAggregatorV3.sol";
-import "../interfaces/IMondaloreFeeReceiver.sol";
 import "../interfaces/IMondaloreMarketFactoryResolution.sol";
+import "../interfaces/IZedkrFeeSplit.sol";
+import "../libraries/ZedkrTradeFees.sol";
 
 interface IDRPDebtRepay {
     function usdead() external view returns (address);
@@ -24,10 +25,11 @@ contract MondaloreVParimutuelMarket is Ownable2Step, ReentrancyGuard {
     uint256 public constant BPS_DENOMINATOR = 10_000;
     /// @notice Total fee taken from each trade (1.0%).
     uint256 public constant TRADE_FEE_TOTAL_BPS = 100;
-    /// @notice Of the 1.0% trade fee, 0.6% goes to the market creator.
-    uint256 public constant CREATOR_FEE_BPS = 60;
-    /// @notice Remaining 0.4% goes to the protocol fee recipient.
-    uint256 public constant PROTOCOL_FEE_BPS = 40;
+    /// @notice 0.25% of notional to the market creator (plus any zero-address shares).
+    uint256 public constant CREATOR_FEE_BPS = 25;
+    uint256 public constant PLATFORM_DEV_FEE_BPS = 25;
+    uint256 public constant DISTRIBUTION_FEE_BPS = 25;
+    uint256 public constant TREASURY_FEE_BPS = 25;
     bytes32 private constant EVENT_RESOLUTION_TYPEHASH =
         keccak256("EventResolution(address market,uint8 outcomeIndex,uint256 chainId)");
     bytes32 private constant EIP712_DOMAIN_TYPEHASH =
@@ -191,7 +193,7 @@ contract MondaloreVParimutuelMarket is Ownable2Step, ReentrancyGuard {
         uint256 maxPriceStaleness_,
         uint256 minBootstrapTotal_
     ) Ownable(owner_) {
-        require(factory_ != address(0) && owner_ != address(0) && feeRecipient_ != address(0), "Zero address");
+        require(factory_ != address(0) && owner_ != address(0), "Zero address");
         require(creator_ != address(0), "Zero creator");
         require(numOutcomes_ >= 2 && numOutcomes_ <= 32, "Outcomes range");
         require(virtualReserve_ > 0, "Virtual reserve");
@@ -293,8 +295,9 @@ contract MondaloreVParimutuelMarket is Ownable2Step, ReentrancyGuard {
         uint256 amount = unclaimedResidue;
         require(amount > 0, "No residue");
         unclaimedResidue = 0;
-        _sendCollateral(feeRecipient, amount);
-        emit ResidueClaimed(feeRecipient, amount);
+        address to = _treasuryPayee();
+        _sendCollateral(to, amount);
+        emit ResidueClaimed(to, amount);
     }
 
     /// @notice Fix #7: After all winners have redeemed, sweep any rounding dust to feeRecipient.
@@ -316,8 +319,9 @@ contract MondaloreVParimutuelMarket is Ownable2Step, ReentrancyGuard {
         uint256 available = bal > unclaimedResidue ? bal - unclaimedResidue : 0;
         uint256 dust = available > outstanding ? available - outstanding : 0;
         if (dust > 0) {
-            _sendCollateral(feeRecipient, dust);
-            emit ResidueClaimed(feeRecipient, dust);
+            address to = _treasuryPayee();
+            _sendCollateral(to, dust);
+            emit ResidueClaimed(to, dust);
         }
     }
 
@@ -351,13 +355,7 @@ contract MondaloreVParimutuelMarket is Ownable2Step, ReentrancyGuard {
             IERC20(collateralAddress).safeTransferFrom(msg.sender, address(this), amount);
         }
 
-        // Deduct 1.0% trade fee: 0.6% to creator, 0.4% to protocol fee recipient.
-        uint256 creatorFee = (amount * CREATOR_FEE_BPS) / BPS_DENOMINATOR;
-        uint256 protocolFee = (amount * PROTOCOL_FEE_BPS) / BPS_DENOMINATOR;
-        uint256 netAmount = amount - creatorFee - protocolFee;
-
-        if (creatorFee > 0) _sendCollateral(creator, creatorFee);
-        if (protocolFee > 0) _sendProtocolFee(protocolFee);
+        uint256 netAmount = _payTradeFees(amount);
 
         uint256 p = priceOf(outcomeIndex);
         require(p > 0, "Price");
@@ -571,34 +569,22 @@ contract MondaloreVParimutuelMarket is Ownable2Step, ReentrancyGuard {
         }
     }
 
-    /// @dev Send protocol fees to feeRecipient. If feeRecipient implements IMondaloreFeeReceiver,
-    ///      call receiveFees() so the vault accumulator updates atomically.
-    ///      Falls back to a plain transfer for non-vault recipients.
-    function _sendProtocolFee(uint256 amount) private {
-        if (amount == 0) return;
-        // Check if feeRecipient implements the vault hook (low-level staticcall to avoid revert on EOA).
-        bool isVault = _supportsReceiveFees(feeRecipient);
-        if (isVault) {
-            if (collateralAddress == address(0)) {
-                IMondaloreFeeReceiver(feeRecipient).receiveFees{value: amount}(address(0), amount);
-            } else {
-                IERC20(collateralAddress).forceApprove(feeRecipient, amount);
-                IMondaloreFeeReceiver(feeRecipient).receiveFees(collateralAddress, amount);
-            }
-        } else {
-            _sendCollateral(feeRecipient, amount);
-        }
+    function _treasuryPayee() private view returns (address) {
+        address t = IZedkrFeeSplit(factory).treasury();
+        return t == address(0) ? creator : t;
     }
 
-    /// @dev Returns true if `target` has code and responds to the IMondaloreFeeReceiver selector.
-    function _supportsReceiveFees(address target) private view returns (bool) {
-        if (target.code.length == 0) return false;
-        // ERC165-style check: call supportsInterface(IMondaloreFeeReceiver.receiveFees.selector)
-        // We use a simpler approach: check for a known 4-byte selector via staticcall.
-        (bool ok, bytes memory ret) = target.staticcall(
-            abi.encodeWithSignature("supportsInterface(bytes4)", type(IMondaloreFeeReceiver).interfaceId)
-        );
-        return ok && ret.length == 32 && abi.decode(ret, (bool));
+    function _payTradeFees(uint256 amount) private returns (uint256 netAmount) {
+        IZedkrFeeSplit splitCfg = IZedkrFeeSplit(factory);
+        address platformDev_ = splitCfg.platformDev();
+        address distribution_ = splitCfg.distribution();
+        address treasury_ = splitCfg.treasury();
+        ZedkrTradeFees.Split memory fees = ZedkrTradeFees.quote(amount, platformDev_, distribution_, treasury_);
+        if (fees.creatorAmt > 0) _sendCollateral(creator, fees.creatorAmt);
+        if (fees.platformDevAmt > 0) _sendCollateral(platformDev_, fees.platformDevAmt);
+        if (fees.distributionAmt > 0) _sendCollateral(distribution_, fees.distributionAmt);
+        if (fees.treasuryAmt > 0) _sendCollateral(treasury_, fees.treasuryAmt);
+        return fees.netAmount;
     }
 
     function _winningOutcomePrice(uint256 normalizedPrice) internal view returns (uint256) {

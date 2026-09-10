@@ -5,7 +5,7 @@ import {
   TokensRedeemed,
   MarketInitialized,
   MarketSettled,
-  PonsTokenResolved,
+  TokenResolved,
   EventResolved,
 } from "../generated/templates/FpmmMarket/FpmmMarket";
 import { Market, MarketTrade } from "../generated/schema";
@@ -141,7 +141,7 @@ export function handleMarketSettled(event: MarketSettled): void {
   markMarketSettled(event.address, event.block.timestamp);
 }
 
-export function handlePonsTokenResolved(event: PonsTokenResolved): void {
+export function handleTokenResolved(event: TokenResolved): void {
   markMarketSettled(event.address, event.block.timestamp);
 }
 

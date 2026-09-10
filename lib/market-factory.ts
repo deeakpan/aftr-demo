@@ -1,10 +1,12 @@
 import monadDeployment from "@/deployments/monadTestnet-10143.json";
 import robinhoodDeployment from "@/deployments/robinhoodMainnet-4663.json";
+import unichainDeployment from "@/deployments/unichainSepolia-1301.json";
 import { DEPLOYMENT_CHAIN_ID } from "@/lib/chain";
 
 const DEPLOYMENTS = {
   10143: monadDeployment,
   4663: robinhoodDeployment,
+  1301: unichainDeployment,
 } as const;
 
 const deploymentRecord =

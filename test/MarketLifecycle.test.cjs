@@ -12,8 +12,8 @@ const { deployParimutuelFacade } = require("../scripts/lib/deploy-parimutuel-fac
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const BPS = 10_000n;
-const CREATOR_FEE_BPS = 60n;   // 0.6%
-const PROTOCOL_FEE_BPS = 40n; // 0.4%
+const FEE_SHARE_BPS = 25n;
+const TRADE_FEE_TOTAL_BPS = 100n;
 const MIN_DEPOSIT = 1000n;
 
 function bps(amount, fee) {
@@ -68,7 +68,7 @@ async function deployStack(owner, feeRecipient) {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe("Market Lifecycle — Create, Trade, Redeem", function () {
-  let owner, creator, trader1, trader2, feeRecipient;
+  let owner, creator, trader1, trader2, feeRecipient, platformDev, distribution;
   let usdc, factory;
   let market, marketAddr;
   let outcomeTokens;
@@ -78,8 +78,9 @@ describe("Market Lifecycle — Create, Trade, Redeem", function () {
   const TRADE_AMOUNT = ethers.parseUnits("100", 6);        // 100 USDC per trade
 
   before(async function () {
-    [owner, creator, trader1, trader2, feeRecipient] = await ethers.getSigners();
+    [owner, creator, trader1, trader2, feeRecipient, platformDev, distribution] = await ethers.getSigners();
     ({ usdc, factory } = await deployStack(owner, feeRecipient));
+    await factory.connect(owner).setFeeSplit(platformDev.address, distribution.address, feeRecipient.address);
 
     // Mint USDC to creator and traders
     await usdc.connect(owner).mint(creator.address, ethers.parseUnits("10000", 6));
@@ -195,11 +196,13 @@ describe("Market Lifecycle — Create, Trade, Redeem", function () {
   // ─── 2. Trading (Deposit) ────────────────────────────────────────────────────
 
   describe("2. Trading — deposit with fee split", function () {
-    let creatorBalBefore, feeRecipientBalBefore;
+    let creatorBalBefore, platformBalBefore, distBalBefore, feeRecipientBalBefore;
     let trader1SharesBefore;
 
     before(async function () {
       creatorBalBefore = await usdc.balanceOf(creator.address);
+      platformBalBefore = await usdc.balanceOf(platformDev.address);
+      distBalBefore = await usdc.balanceOf(distribution.address);
       feeRecipientBalBefore = await usdc.balanceOf(feeRecipient.address);
       trader1SharesBefore = await outcomeTokens[0].balanceOf(trader1.address);
 
@@ -208,16 +211,12 @@ describe("Market Lifecycle — Create, Trade, Redeem", function () {
       await market.connect(trader1).deposit(0, TRADE_AMOUNT, trader1.address, 0n);
     });
 
-    it("creator received 0.6% fee", async function () {
-      const expectedFee = bps(TRADE_AMOUNT, CREATOR_FEE_BPS);
-      const creatorBalAfter = await usdc.balanceOf(creator.address);
-      expect(creatorBalAfter - creatorBalBefore).to.equal(expectedFee);
-    });
-
-    it("feeRecipient received 0.4% fee", async function () {
-      const expectedFee = bps(TRADE_AMOUNT, PROTOCOL_FEE_BPS);
-      const feeRecipientBalAfter = await usdc.balanceOf(feeRecipient.address);
-      expect(feeRecipientBalAfter - feeRecipientBalBefore).to.equal(expectedFee);
+    it("splits 1% equally across creator, platform dev, distribution, and treasury", async function () {
+      const share = bps(TRADE_AMOUNT, FEE_SHARE_BPS);
+      expect(await usdc.balanceOf(creator.address) - creatorBalBefore).to.equal(share);
+      expect(await usdc.balanceOf(platformDev.address) - platformBalBefore).to.equal(share);
+      expect(await usdc.balanceOf(distribution.address) - distBalBefore).to.equal(share);
+      expect(await usdc.balanceOf(feeRecipient.address) - feeRecipientBalBefore).to.equal(share);
     });
 
     it("trader1 received outcome shares", async function () {
@@ -226,7 +225,7 @@ describe("Market Lifecycle — Create, Trade, Redeem", function () {
     });
 
     it("realPool[0] increased by netAmount", async function () {
-      const netAmount = TRADE_AMOUNT - bps(TRADE_AMOUNT, CREATOR_FEE_BPS) - bps(TRADE_AMOUNT, PROTOCOL_FEE_BPS);
+      const netAmount = TRADE_AMOUNT - bps(TRADE_AMOUNT, TRADE_FEE_TOTAL_BPS);
       // Pool was BOOTSTRAP_AMOUNT/2 before trade
       const expectedPool = BOOTSTRAP_AMOUNT / 2n + netAmount;
       expect(await market.realPool(0)).to.equal(expectedPool);

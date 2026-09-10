@@ -15,21 +15,21 @@ async function deployFpmmStack(hre, deployer, feeRecipient, opts) {
   const deploymentBlocks = opts.deploymentBlocks ?? {};
 
   console.log("\n[FPMM] Deploying ZedkrCollateralRegistry...");
-  const RegistryF = await hre.ethers.getContractFactory("ZedkrCollateralRegistry");
+  const RegistryF = await hre.ethers.getContractFactory("ZedkrCollateralRegistry", deployer);
   const { instance: registry, address: registryAddr, blockNumber: registryBlock } =
     await deployAndTrack(RegistryF, deployer.address);
   deploymentBlocks.ZedkrCollateralRegistry = registryBlock;
   console.log(`  ZedkrCollateralRegistry: ${registryAddr} (block ${registryBlock})`);
 
   console.log("[FPMM] Deploying ZedkrFpmmMarketFactory...");
-  const FactoryF = await hre.ethers.getContractFactory("ZedkrFpmmMarketFactory");
+  const FactoryF = await hre.ethers.getContractFactory("ZedkrFpmmMarketFactory", deployer);
   const { instance: fpmmFactory, address: fpmmFactoryAddr, blockNumber: fpmmFactoryBlock } =
     await deployAndTrack(FactoryF, deployer.address, feeRecipient, registryAddr);
   deploymentBlocks.ZedkrFpmmMarketFactory = fpmmFactoryBlock;
   console.log(`  ZedkrFpmmMarketFactory: ${fpmmFactoryAddr} (block ${fpmmFactoryBlock})`);
 
   console.log("[FPMM] Deploying ZedkrFpmmDeployer...");
-  const DeployerF = await hre.ethers.getContractFactory("ZedkrFpmmDeployer");
+  const DeployerF = await hre.ethers.getContractFactory("ZedkrFpmmDeployer", deployer);
   const { address: fpmmDeployerAddr, blockNumber: fpmmDeployerBlock } =
     await deployAndTrack(DeployerF, fpmmFactoryAddr);
   deploymentBlocks.ZedkrFpmmDeployer = fpmmDeployerBlock;
@@ -46,9 +46,9 @@ async function deployFpmmStack(hre, deployer, feeRecipient, opts) {
     console.warn("  FPMM: fewer than 3 resolution admins — event markets blocked until setResolutionAdmins");
   }
 
-  const ponsAdmin = opts.ponsResolutionAdmin ?? deployer.address;
-  await (await fpmmFactory.setPonsResolutionAdmin(ponsAdmin)).wait();
-  console.log(`  FPMM ponsResolutionAdmin: ${ponsAdmin}`);
+  const ponsAdmin = opts.ponsResolutionAdmin ?? opts.tokenResolutionAdmin ?? deployer.address;
+  await (await fpmmFactory.setTokenResolutionAdmin(ponsAdmin)).wait();
+  console.log(`  FPMM tokenResolutionAdmin: ${ponsAdmin}`);
 
   const feeds = opts.chainlinkFeeds ?? [];
   if (feeds.length > 0) {

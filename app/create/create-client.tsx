@@ -23,10 +23,10 @@ import { MarketCoverCropper } from "@/app/components/market-cover-cropper";
 import { MarketListCard } from "@/app/market/components/market-list-card";
 import { NadMarketListCard } from "@/app/market/components/nad-market-list-card";
 import {
-  PonsMarketCreateSection,
-  type PonsCreateDraft,
-} from "@/app/create/components/pons-market-create-section";
-import { ponsMarketForCardPreview, ponsStatsForCardPreview } from "@/lib/pons/adapt-display";
+  TokenMarketCreateSection,
+  type TokenCreateDraft,
+} from "@/app/create/components/token-market-create-section";
+import { tokenMarketForCardPreview, tokenStatsForCardPreview } from "@/lib/token-market/adapt-display";
 import { PolymarketImportModal } from "@/app/create/components/polymarket-import-modal";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
 import deployment, {
@@ -50,10 +50,10 @@ import { marketSlugPrefixLabel } from "@/lib/site-url";
 import { brandSectionHeading, brandSectionLabel } from "@/lib/brand-font";
 import { formatMarketCardDate, formatMarketClosesTooltip, MARKET_COVER_RATIO_LABEL } from "@/lib/market-cover";
 import {
-  isPonsQuestionType,
-  validatePonsResolveAfter,
-} from "@/lib/pons/question-types";
-import type { PonsQuestionType } from "@/lib/pons/types";
+  isTokenQuestionType,
+  validateTokenResolveAfter,
+} from "@/lib/token-market/question-types";
+import type { TokenQuestionType } from "@/lib/token-market/types";
 import { USDG_TOKEN_LOGO } from "@/lib/brand-assets";
 import { CreateConfirmModal } from "@/app/create/components/create-confirm-modal";
 import { resolveAssetLogo } from "@/lib/asset-logos";
@@ -228,7 +228,7 @@ const FPMM_FACTORY_ABI = parseAbi([
   "function resolutionAdmins(uint256 index) view returns (address)",
   "function resolutionThreshold() view returns (uint256)",
   "function createEventMarket((address collateralToken,uint8 collateralDecimals,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,uint256 minInitialFunding,uint256 initialFunding,uint256[] fundingHint,address shareRecipient) p) returns (address market)",
-  "function createPonsMarket((address collateralToken,uint8 collateralDecimals,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,uint256 minInitialFunding,uint256 initialFunding,uint256[] fundingHint,address shareRecipient) p) returns (address market)",
+  "function createTokenMarket((address collateralToken,uint8 collateralDecimals,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,uint256 minInitialFunding,uint256 initialFunding,uint256[] fundingHint,address shareRecipient) p) returns (address market)",
   // Nested `base` matches ZedkrFpmmMarketFactory.PriceMarketParams
   "function createPriceMarket(((address collateralToken,uint8 collateralDecimals,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,uint256 minInitialFunding,uint256 initialFunding,uint256[] fundingHint,address shareRecipient) base,bytes32 priceAssetKey,uint256 priceThreshold,uint8 priceKind,uint256 priceUpperBound,uint256 maxPriceStaleness,uint256[] priceBinLower,uint256[] priceBinUpper) p) returns (address market)",
   "event MarketCreated(address indexed market, uint8 indexed kind, address indexed collateralToken, address[] outcomeTokens, string[] outcomeLabels, uint256 stakeEndTimestamp, uint256 resolveAfterTimestamp, bytes32 metadataHash, address creator)",
@@ -389,7 +389,7 @@ function createStageLabel(status: string): string {
 }
 
 function isCreateProgressStatus(status: string): boolean {
-  return /preparing transaction|waiting for approval|simulating market|creating market|creating pons|market created successfully/i.test(
+  return /preparing transaction|waiting for approval|simulating market|creating market|creating token|creating pons|market created successfully/i.test(
     status,
   );
 }
@@ -421,7 +421,7 @@ type CreateMarketFn =
   | "createEventMarket"
   | "createPriceMarket"
   | "createNadTokenMarket"
-  | "createPonsMarket";
+  | "createTokenMarket";
 
 function fpmmMarketCreateParams(
   functionName: CreateMarketFn,
@@ -590,10 +590,12 @@ function DateTimePicker({
   );
 }
 
-type CreateMarketKind = "event" | "price" | "pons";
+type CreateMarketKind = "event" | "price" | "token";
 
 function parseCreateMarketKind(raw: string | null): CreateMarketKind {
-  if (raw === "price" || raw === "pons" || raw === "event") return raw;
+  if (raw === "price" || raw === "event" || raw === "token" || raw === "pons") {
+    return raw === "pons" ? "token" : raw;
+  }
   return "event";
 }
 
@@ -601,13 +603,13 @@ export function CreateClient() {
   const publicClient = deploymentPublicClient;
   const { address, chainId, writeContract } = useSessionWallet();
   const [marketKind, setMarketKindState] = useState<CreateMarketKind>("event");
-  const [ponsQuestionType, setPonsQuestionType] = useState<PonsQuestionType>("mcap_usd_above");
+  const [tokenQuestionType, setTokenQuestionType] = useState<TokenQuestionType>("mcap_usd_above");
 
-  const writeCreateQuery = (kind: CreateMarketKind, q: PonsQuestionType) => {
+  const writeCreateQuery = (kind: CreateMarketKind, q: TokenQuestionType) => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
     url.searchParams.set("type", kind);
-    if (kind === "pons") url.searchParams.set("q", q);
+    if (kind === "token") url.searchParams.set("q", q);
     else url.searchParams.delete("q");
     const next = `${url.pathname}${url.search}`;
     const current = `${window.location.pathname}${window.location.search}`;
@@ -619,7 +621,7 @@ export function CreateClient() {
       const params = new URLSearchParams(window.location.search);
       setMarketKindState(parseCreateMarketKind(params.get("type")));
       const q = params.get("q");
-      setPonsQuestionType(isPonsQuestionType(q) ? q : "mcap_usd_above");
+      setTokenQuestionType(isTokenQuestionType(q) ? q : "mcap_usd_above");
     };
     applyFromLocation();
     window.addEventListener("popstate", applyFromLocation);
@@ -628,7 +630,7 @@ export function CreateClient() {
 
   const setMarketKind = (id: CreateMarketKind) => {
     setMarketKindState(id);
-    writeCreateQuery(id, ponsQuestionType);
+    writeCreateQuery(id, tokenQuestionType);
   };
   const [eventMode, setEventMode] = useState<"binary" | "multiple">("binary");
   const [title, setTitle] = useState("");
@@ -687,8 +689,8 @@ export function CreateClient() {
   const [isCreateComplete, setIsCreateComplete] = useState(false);
   const [createdMarketAddress, setCreatedMarketAddress] = useState("");
   const [createTxHash, setCreateTxHash] = useState<`0x${string}` | "">("");
-  const [ponsDraft, setPonsDraft] = useState<PonsCreateDraft | null>(null);
-  const [ponsDuplicateBlocked, setPonsDuplicateBlocked] = useState(false);
+  const [tokenDraft, setTokenDraft] = useState<TokenCreateDraft | null>(null);
+  const [tokenDuplicateBlocked, setTokenDuplicateBlocked] = useState(false);
   const [polyImportOpen, setPolyImportOpen] = useState(false);
 
   useEffect(() => {
@@ -1060,10 +1062,10 @@ export function CreateClient() {
   }, [collateral.isNative]);
 
   const seedOutcomeCount = useMemo(() => {
-    if (marketKind === "pons") return (ponsDraft?.outcomes ?? []).filter((o) => o.trim()).length;
+    if (marketKind === "token") return (tokenDraft?.outcomes ?? []).filter((o) => o.trim()).length;
     if (marketKind === "event") return outcomes.map((o) => o.trim()).filter(Boolean).length;
     return 2;
-  }, [marketKind, ponsDraft?.outcomes, outcomes]);
+  }, [marketKind, tokenDraft?.outcomes, outcomes]);
 
   const seedQuickAmounts = useMemo(
     () => buildSeedQuickAmounts(collateral.decimals, seedOutcomeCount, minSeedAmount),
@@ -1096,25 +1098,25 @@ export function CreateClient() {
 
   const effectiveTitle = useMemo(
     () =>
-      marketKind === "pons"
-        ? (ponsDraft?.title ?? "")
+      marketKind === "token"
+        ? (tokenDraft?.title ?? "")
         : marketKind === "price"
           ? generatedPricePrompt
           : title,
-    [generatedPricePrompt, marketKind, title, ponsDraft?.title],
+    [generatedPricePrompt, marketKind, title, tokenDraft?.title],
   );
 
   // Auto-generate slug from title/prompt unless user has manually edited it
   useEffect(() => {
     if (slugManual) return;
     const source =
-      marketKind === "pons"
-        ? (ponsDraft?.title ?? "")
+      marketKind === "token"
+        ? (tokenDraft?.title ?? "")
         : marketKind === "price"
           ? generatedPricePrompt
           : title;
     setSlug(slugify(source));
-  }, [title, generatedPricePrompt, marketKind, slugManual, ponsDraft?.title]);
+  }, [title, generatedPricePrompt, marketKind, slugManual, tokenDraft?.title]);
 
   // Duplicate / reserved slug check
   useEffect(() => {
@@ -1206,9 +1208,9 @@ export function CreateClient() {
       return false;
     }
     const nOutcomes =
-      marketKind === "event" || marketKind === "pons"
-        ? (marketKind === "pons"
-            ? (ponsDraft?.outcomes ?? [])
+      marketKind === "event" || marketKind === "token"
+        ? (marketKind === "token"
+            ? (tokenDraft?.outcomes ?? [])
             : outcomes.map((o) => o.trim()).filter(Boolean)
           ).length
         : 2;
@@ -1248,9 +1250,9 @@ export function CreateClient() {
 
     const cleanedThreshold = threshold.replaceAll(",", "").trim();
     const cleanOutcomes =
-      marketKind === "event" || marketKind === "pons"
-        ? marketKind === "pons"
-          ? (ponsDraft?.outcomes ?? [])
+      marketKind === "event" || marketKind === "token"
+        ? marketKind === "token"
+          ? (tokenDraft?.outcomes ?? [])
           : outcomes.map((o) => o.trim()).filter(Boolean)
         : ["YES", "NO"];
     if (cleanOutcomes.length < 2) {
@@ -1258,7 +1260,7 @@ export function CreateClient() {
       return;
     }
 
-    if (marketKind === "event" || marketKind === "pons") {
+    if (marketKind === "event" || marketKind === "token") {
       const [adminCount, threshold] = await Promise.all([
         readResolutionAdminCount(publicClient, FACTORY_ADDRESS),
         publicClient.readContract({
@@ -1448,7 +1450,7 @@ export function CreateClient() {
       let createHash: `0x${string}`;
 
       const estimateCreateGas = async (
-        fn: "createEventMarket" | "createPriceMarket" | "createNadTokenMarket" | "createPonsMarket",
+        fn: "createEventMarket" | "createPriceMarket" | "createNadTokenMarket" | "createTokenMarket",
         args: readonly unknown[],
         value?: bigint,
       ) => {
@@ -1497,25 +1499,25 @@ export function CreateClient() {
         createHash = await writeContract(
           fpmmMarketCreateParams("createEventMarket", eventArgs, address, collateral.isNative ?? false, seedUnits, eventGas),
         );
-      } else if (marketKind === "pons") {
-        const ponsFn = USE_FPMM ? "createPonsMarket" : "createNadTokenMarket";
-        const ponsArgs = USE_FPMM ? [fpmmBaseParams] : [{ ...sharedParams }] as const;
+      } else if (marketKind === "token") {
+        const tokenFn = USE_FPMM ? "createTokenMarket" : "createNadTokenMarket";
+        const tokenArgs = USE_FPMM ? [fpmmBaseParams] : [{ ...sharedParams }] as const;
 
         await publicClient.simulateContract(
-          fpmmMarketCreateParams(ponsFn, ponsArgs, address, collateral.isNative ?? false, seedUnits),
+          fpmmMarketCreateParams(tokenFn, tokenArgs, address, collateral.isNative ?? false, seedUnits),
         );
 
-        setSubmitStatus("Creating Pons market and seeding liquidity...");
-        const ponsGas = await estimateCreateGas(
-          ponsFn,
-          ponsArgs,
+        setSubmitStatus("Creating token market and seeding liquidity...");
+        const tokenGas = await estimateCreateGas(
+          tokenFn,
+          tokenArgs,
           collateral.isNative ? seedUnits : undefined,
         );
-        if (!(await assertGasAffordable(ponsGas, collateral.isNative ? seedUnits : BigInt(0)))) {
+        if (!(await assertGasAffordable(tokenGas, collateral.isNative ? seedUnits : BigInt(0)))) {
           return;
         }
         createHash = await writeContract(
-          fpmmMarketCreateParams(ponsFn, ponsArgs, address, collateral.isNative ?? false, seedUnits, ponsGas),
+          fpmmMarketCreateParams(tokenFn, tokenArgs, address, collateral.isNative ?? false, seedUnits, tokenGas),
         );
       } else {
         if (!feed?.assetKey) {
@@ -1658,30 +1660,30 @@ export function CreateClient() {
   };
 
   const uploadMetadata = async (imageUriForMetadata?: string) => {
-    const isPons = marketKind === "pons";
+    const isPons = marketKind === "token";
     const imageToUse = isPons
-      ? ponsDraft?.coverImageUrl ?? ""
+      ? tokenDraft?.coverImageUrl ?? ""
       : imageUriForMetadata || imageUri;
     if (!imageToUse && !isPons) {
       throw new Error("Upload a cover image first so metadata includes image IPFS URI.");
     }
-    const ponsTitle = isPons ? ponsDraft?.title ?? "" : effectiveTitle;
-    const ponsOutcomes = isPons ? (ponsDraft?.outcomes ?? ["Yes", "No"]) : outcomes;
+    const ponsTitle = isPons ? tokenDraft?.title ?? "" : effectiveTitle;
+    const ponsOutcomes = isPons ? (tokenDraft?.outcomes ?? ["Yes", "No"]) : outcomes;
     const metadata = {
       title: ponsTitle,
       description: isPons
-        ? (ponsDraft?.description ?? description)
+        ? (tokenDraft?.description ?? description)
         : marketKind === "price"
           ? generatedPriceDescription
           : description,
-      marketKind: isPons ? "pons" : marketKind,
-      eventMode: marketKind === "event" ? eventMode : isPons ? (ponsDraft?.ponsMarket.mode === "comparison" ? "multiple" : "binary") : null,
+      marketKind: isPons ? "token" : marketKind,
+      eventMode: marketKind === "event" ? eventMode : isPons ? (tokenDraft?.tokenMarket.mode === "comparison" ? "multiple" : "binary") : null,
       question: marketKind === "price" ? generatedPricePrompt : ponsTitle,
       categories: isPons ? ["Crypto"] : selectedCategories,
-      slug: slug || (isPons ? ponsDraft?.slug : undefined) || slugify(effectiveTitle),
+      slug: slug || (isPons ? tokenDraft?.slug : undefined) || slugify(effectiveTitle),
       outcomes: ponsOutcomes,
       image: imageToUse || null,
-      ponsMarket: isPons ? ponsDraft?.ponsMarket : undefined,
+      tokenMarket: isPons ? tokenDraft?.tokenMarket : undefined,
       priceConfig:
         marketKind === "price"
           ? {
@@ -1695,9 +1697,9 @@ export function CreateClient() {
               generatedPrompt: generatedPricePrompt,
             }
           : null,
-      resolution: marketKind === "event" ? "community-3-of-10-admins" : isPons ? "pons-bot-admin" : null,
+      resolution: marketKind === "event" ? "community-3-of-10-admins" : isPons ? "token-operator" : null,
       resolutionSources: isPons
-        ? ponsDraft?.resolutionSources ?? []
+        ? tokenDraft?.resolutionSources ?? []
         : marketKind === "event"
           ? sanitizeResolutionSourcesForMetadata(resolutionSources)
           : [],
@@ -1713,11 +1715,11 @@ export function CreateClient() {
   };
 
   const goToSeedStep = async () => {
-    const isPons = marketKind === "pons";
+    const isPons = marketKind === "token";
     const errors: string[] = [];
     if (isPons) {
-      if (!ponsDraft) errors.push("Load Pons token(s) and complete the form.");
-      if (ponsDuplicateBlocked) errors.push("Duplicate market exists for this question and resolve time.");
+      if (!tokenDraft) errors.push("Load a Dexscreener or GeckoTerminal pool link and complete the form.");
+      if (tokenDuplicateBlocked) errors.push("Duplicate market exists for this question and resolve time.");
     } else if (marketKind === "event" && !title.trim()) {
       errors.push("Title is required.");
     }
@@ -1735,7 +1737,7 @@ export function CreateClient() {
       }
     }
     const filledOutcomes = isPons
-      ? (ponsDraft?.outcomes ?? [])
+      ? (tokenDraft?.outcomes ?? [])
       : outcomes.map((o) => o.trim()).filter(Boolean);
     if (filledOutcomes.length < 2) errors.push("At least 2 outcome labels are required.");
     if (!isPons && outcomes.some((o) => !o.trim())) errors.push("All outcome labels must be filled in.");
@@ -1767,10 +1769,10 @@ export function CreateClient() {
       setTimeValidationError("Resolve after must be later than stake end.");
       return;
     }
-    if (isPons && ponsDraft?.ponsMarket) {
-      const ponsResolveErr = validatePonsResolveAfter(ponsDraft.ponsMarket.questionType, Math.floor(resolveTs / 1000));
-      if (ponsResolveErr) {
-        setTimeValidationError(ponsResolveErr);
+    if (isPons && tokenDraft?.tokenMarket) {
+      const tokenResolveErr = validateTokenResolveAfter(tokenDraft.tokenMarket.questionType, Math.floor(resolveTs / 1000));
+      if (tokenResolveErr) {
+        setTimeValidationError(tokenResolveErr);
         return;
       }
     }
@@ -1864,12 +1866,11 @@ export function CreateClient() {
                 [
                   { id: "event" as const, label: "Event (community)" },
                   { id: "price" as const, label: "Price (oracle)" },
-                  { id: "pons" as const, label: "Ponsfamily Market", logo: "/pons.png" },
+                  { id: "token" as const, label: "Token market" },
                 ] as const
               ).map((opt) => {
                 const { id, label } = opt;
                 const active = marketKind === id;
-                const logo = "logo" in opt ? opt.logo : null;
                 return (
                   <button
                     key={id}
@@ -1886,9 +1887,6 @@ export function CreateClient() {
                     >
                       {active ? <span className="h-2 w-2 rounded-full bg-emerald-500" /> : null}
                     </span>
-                    {logo ? (
-                      <img src={logo} alt="" className="h-4 w-4 shrink-0 rounded-sm object-contain" />
-                    ) : null}
                     <span
                       className={
                         active
@@ -2046,22 +2044,22 @@ export function CreateClient() {
             </>
           ) : null}
 
-          {marketKind === "pons" ? (
-            <PonsMarketCreateSection
+          {marketKind === "token" ? (
+            <TokenMarketCreateSection
               stakeEndAt={stakeEndAt}
               resolveAfterAt={resolveAfterAt}
               slug={slug}
-              questionType={ponsQuestionType}
+              questionType={tokenQuestionType}
               onQuestionTypeChange={(type) => {
-                setPonsQuestionType(type);
-                writeCreateQuery("pons", type);
+                setTokenQuestionType(type);
+                writeCreateQuery("token", type);
               }}
               onSlugChange={(s, manual) => {
                 setSlug(s);
                 if (manual) setSlugManual(true);
               }}
-              onDraftChange={setPonsDraft}
-              onDuplicateBlock={setPonsDuplicateBlocked}
+              onDraftChange={setTokenDraft}
+              onDuplicateBlock={setTokenDuplicateBlocked}
             />
           ) : marketKind === "event" ? (
             <>
@@ -2293,7 +2291,7 @@ export function CreateClient() {
             </section>
           )}
 
-          {marketKind !== "pons" && (
+          {marketKind !== "token" && (
           <section className="py-8">
             <label className={labelClass}>Categories</label>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -2340,7 +2338,7 @@ export function CreateClient() {
             </p>
           </section>
 
-          {marketKind !== "pons" && (
+          {marketKind !== "token" && (
           <section className="py-8">
             <label className={labelClass} htmlFor="image">
               Cover image
@@ -2390,17 +2388,17 @@ export function CreateClient() {
           </section>
           )}
 
-          {marketKind === "pons" && ponsDraft && (
+          {marketKind === "token" && tokenDraft && (
             <section className="py-8">
               <p className={`mb-2 text-xs uppercase tracking-wider text-[var(--muted)] ${brandSectionLabel}`}>
                 Card preview
               </p>
               <div className="max-w-sm">
                 <NadMarketListCard
-                  title={ponsDraft.title}
-                  nadMarket={ponsMarketForCardPreview(ponsDraft.ponsMarket)}
-                  outcomeLabels={ponsDraft.outcomes}
-                  previewTokenStats={ponsDraft.previewTokenStats?.map((s) => ponsStatsForCardPreview(s))}
+                  title={tokenDraft.title}
+                  nadMarket={tokenMarketForCardPreview(tokenDraft.tokenMarket)}
+                  outcomeLabels={tokenDraft.outcomes}
+                  previewTokenStats={tokenDraft.previewTokenStats?.map((s) => tokenStatsForCardPreview(s))}
                   resolveAfter={previewResolveLabel}
                   resolveAfterTooltip={previewResolveTooltip}
                   showNewBadge
@@ -2419,7 +2417,7 @@ export function CreateClient() {
                   isNextLoading ||
                   slugAvailable === false ||
                   slugCheckBusy ||
-                  (marketKind === "pons" && (!ponsDraft || ponsDuplicateBlocked))
+                  (marketKind === "token" && (!tokenDraft || tokenDuplicateBlocked))
                 }
                 className="rounded-full bg-white py-3.5 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-60 sm:px-10 w-full sm:w-auto [html[data-theme=light]_&]:border [html[data-theme=light]_&]:border-black/15"
               >
@@ -2506,7 +2504,7 @@ export function CreateClient() {
                 </p>
               )}
               <p className="mt-3 text-xs text-[var(--muted)]">
-                Creator share 0.6% (per trade){" "}
+                Creator share 0.25% (per trade){" "}
                 <Link
                   href="/how-it-works#creators"
                   className="text-[var(--foreground)] underline underline-offset-2 transition hover:opacity-80"
@@ -2583,7 +2581,7 @@ export function CreateClient() {
             ? {
                 marketAddress: createdMarketAddress || undefined,
                 txHash: createTxHash,
-                title: effectiveTitle || ponsDraft?.title,
+                title: effectiveTitle || tokenDraft?.title,
               }
             : null
         }

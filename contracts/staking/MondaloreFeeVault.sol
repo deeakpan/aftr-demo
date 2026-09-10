@@ -11,12 +11,12 @@ import "../interfaces/IMondaloreFeeReceiver.sol";
 
 /// @title MondaloreFeeVault
 /// @notice Epoch-based fee-sharing vault. Users stake the Mondalore governance token and receive
-///         sMondalore receipt tokens. A share of protocol fees (STAKER_SHARE_BPS of incoming fees)
-///         is distributed to stakers pro-rata using the reward-per-token accumulator pattern.
+///         sMondalore receipt tokens. Trade fees are no longer split to stakers.
 ///
 /// Fee flow:
-///   Market deposit → 0.4% protocol fee → feeRecipient (this vault)
-///   Vault splits: STAKER_SHARE_BPS of incoming fees → stakers; remainder → treasury
+///   Market trade → 1.0% fee split 25/25/25/25 (creator / platform dev / distribution / treasury).
+///   Address(0) recipients are paid to the market creator instead. This vault is no longer
+///   the default trade-fee sink; incoming `receiveFees` accrue 100% to treasury (no staker cut).
 ///
 /// Epoch mechanics:
 ///   - Epochs advance automatically based on EPOCH_DURATION.
@@ -39,8 +39,8 @@ contract MondaloreFeeVault is Ownable2Step, ReentrancyGuard, ERC165, IMondaloreF
     // ─── Constants ────────────────────────────────────────────────────────────
 
     uint256 public constant BPS_DENOMINATOR = 10_000;
-    /// @notice Share of incoming fees distributed to stakers (20 bps = 0.2%).
-    uint256 public constant STAKER_SHARE_BPS = 20;
+    /// @notice Staker cut of incoming vault fees. Always 0 — staking no longer shares trade fees.
+    uint256 public constant STAKER_SHARE_BPS = 0;
     /// @notice Precision multiplier for reward-per-token accumulator.
     uint256 public constant PRECISION = 1e18;
 
@@ -379,42 +379,16 @@ contract MondaloreFeeVault is Ownable2Step, ReentrancyGuard, ERC165, IMondaloreF
 
     // ─── Internal ─────────────────────────────────────────────────────────────
 
-    /// @dev Splits incoming fees between staker accumulator and treasury.
+    /// @dev Incoming vault fees accrue 100% to treasury. Stakers no longer receive a fee share.
     function _distributeFees(address token, uint256 amount) internal {
-        uint256 stakerShare = (amount * STAKER_SHARE_BPS) / BPS_DENOMINATOR;
-        uint256 treasuryShare = amount - stakerShare;
+        uint256 treasuryShare = amount;
 
-        // Accrue treasury portion.
         treasuryAccrued[token] += treasuryShare;
-
-        // Fix #2: carry forward any previously truncated dust so it is distributed
-        // as soon as the combined amount is large enough to produce a non-zero increment.
-        if (stakerShare > 0 && totalStaked > 0) {
-            uint256 effective = stakerShare + stakerDust[token];
-            uint256 increment = (effective * PRECISION) / totalStaked;
-            if (increment > 0) {
-                rewardPerTokenStored[token] += increment;
-                stakerDust[token] = 0;
-            } else {
-                // Still too small — accumulate dust for next round.
-                stakerDust[token] += stakerShare;
-                // Temporarily redirect this round's staker share to treasury so
-                // the vault balance stays consistent; it will be reclaimed when
-                // dust is eventually distributed.
-                treasuryAccrued[token] += stakerShare;
-                stakerShare = 0;
-            }
-        } else if (stakerShare > 0) {
-            // No stakers — redirect staker share to treasury.
-            treasuryAccrued[token] += stakerShare;
-            stakerDust[token] = 0;
-            stakerShare = 0;
-        }
 
         uint256 epoch = currentEpoch();
         epochFees[epoch][token] += amount;
 
-        emit FeesReceived(token, amount, stakerShare, treasuryShare, epoch);
+        emit FeesReceived(token, amount, 0, treasuryShare, epoch);
     }
 
     /// @dev Compute earned rewards for a user for a given token.

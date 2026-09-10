@@ -20,7 +20,7 @@ Limit orders may involve separate matching economics; the 1.5% pool fee applies 
 ## Why fees exist
 
 - **Creator fee** rewards people who launch markets and seed liquidity.
-- **Protocol fee** supports the platform and flows partly to **MONDO stakers** (see [Staking](../staking/README.md)).
+- **Protocol fee** supports the platform.
 
 Full breakdown: [Reference — Fees](../reference/fees.md).
 

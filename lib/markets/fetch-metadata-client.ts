@@ -2,14 +2,13 @@ import { ipfsToHttp, type IpfsMarketMetadata } from "@/lib/ipfs-metadata";
 import { launchpadMarketForDisplay, launchpadMarketFromMetadata } from "@/lib/launchpad-display";
 import type { UiMarketKind } from "@/lib/markets/market-kind";
 
-const IPFS_GATEWAYS = [
-  "https://gateway.lighthouse.storage/ipfs/",
-  "https://cloudflare-ipfs.com/ipfs/",
+const PUBLIC_IPFS_GATEWAYS = [
   "https://ipfs.io/ipfs/",
   "https://dweb.link/ipfs/",
+  "https://cloudflare-ipfs.com/ipfs/",
 ] as const;
 
-const TIMEOUT_MS = 20_000;
+const TIMEOUT_MS = 12_000;
 
 function resolveUrls(uri: string): string[] {
   const trimmed = uri.trim();
@@ -18,20 +17,37 @@ function resolveUrls(uri: string): string[] {
   if (trimmed.startsWith("ipfs://")) {
     const cid = trimmed.slice(7).trim();
     if (!cid) return [];
-    return IPFS_GATEWAYS.map((g) => `${g}${cid}`);
+    const dedicated = (process.env.NEXT_PUBLIC_IPFS_GATEWAY || "").trim();
+    const bases = dedicated
+      ? [dedicated.replace(/\/?$/, "/").replace(/\/ipfs\/?$/, "/ipfs/"), ...PUBLIC_IPFS_GATEWAYS]
+      : [...PUBLIC_IPFS_GATEWAYS];
+    return [...new Set(bases.map((g) => `${g.endsWith("/") ? g : `${g}/`}${cid}`))];
   }
   return [];
 }
 
-/** Browser-safe IPFS metadata fetch (no Next.js server cache). */
+/** Prefer server proxy (dedicated gateway + API key), then public gateways. */
 export async function fetchIpfsMetadataClient(uri: string): Promise<IpfsMarketMetadata | null> {
+  try {
+    const res = await fetch(`/api/ipfs?uri=${encodeURIComponent(uri.trim())}`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (res.ok) {
+      const json = (await res.json()) as IpfsMarketMetadata;
+      if (json && typeof json === "object") return json;
+    }
+  } catch {
+    // fall through to public gateways
+  }
+
   const urls = resolveUrls(uri);
   for (const url of urls) {
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-      const res = await fetch(url, { cache: "no-store", signal: controller.signal });
-      clearTimeout(timer);
+      const res = await fetch(url, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
       if (!res.ok) continue;
       const json = (await res.json()) as IpfsMarketMetadata;
       if (json && typeof json === "object") return json;
@@ -46,7 +62,7 @@ export function metadataTitle(md: IpfsMarketMetadata | null | undefined, kind: U
   const title = md?.title?.trim() || md?.question?.trim();
   if (title) return title;
   if (kind === "Price") return "Price market";
-  if (kind === "Nad" || kind === "Pons") return "Launchpad market";
+  if (kind === "Nad" || kind === "Pons" || kind === "Token") return "Token market";
   return "Event market";
 }
 

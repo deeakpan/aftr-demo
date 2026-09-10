@@ -5,14 +5,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useWeb3Modal } from "@web3modal/wagmi/react";
-import { useDisconnect, useReadContract, useSignMessage } from "wagmi";
 import { formatUnits, parseAbi } from "viem";
-import { openParaModal, paraLogout, resetParaAuth } from "@/app/components/para-wallet-provider";
-import { useParaSessionContext } from "@/app/components/para-session-context";
+import { useDisconnect, useReadContract, useSignMessage } from "wagmi";
+import { openParaModal, paraLogout } from "@/app/components/para-wallet-provider";
 import { signOutEverywhere } from "@/lib/auth-signout";
-import { isParaConfigured } from "@/lib/para-config";
-import { useMe } from "@/lib/useMe";
 import { useSessionAddress } from "@/lib/use-session-address";
 import { DEPLOYMENT_CHAIN_ID } from "@/lib/deployment";
 import { USDG_TOKEN_LOGO } from "@/lib/brand-assets";
@@ -30,11 +26,11 @@ import {
   List,
   MagnifyingGlass,
   PlusMinus,
+  Rocket,
   Rows,
   SignOut,
   Trophy,
 } from "@phosphor-icons/react";
-import { getParaWalletRecord } from "@/lib/para-wallet-record";
 import {
   getCachedProfileName,
   getUserProfileByAddress,
@@ -107,18 +103,7 @@ export function AppLayout({
   pageBackgroundClassName,
   viewportLocked = false,
 }: AppLayoutProps) {
-  const { open } = useWeb3Modal();
-  const me = useMe();
-  const {
-    sessionAddress,
-    isPara,
-    isConnected: sessionConnected,
-    isParaSigningIn,
-    isParaConnecting,
-    isParaStuck,
-    signInAttempt,
-  } = useSessionAddress();
-  const { bridgeError, bridgeStatus } = useParaSessionContext();
+  const { sessionAddress, isPara, isConnected: sessionConnected } = useSessionAddress();
   const cachedProfileName = useProfileName(sessionAddress);
   const router = useRouter();
   const pathname = usePathname();
@@ -126,7 +111,6 @@ export function AppLayout({
   const { disconnect } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
   const [mounted, setMounted] = useState(false);
-  const [signInTimedOut, setSignInTimedOut] = useState(false);
   const hasRunAuthRef = useRef("");
   const profileCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showNameModal, setShowNameModal] = useState(false);
@@ -175,15 +159,6 @@ export function AppLayout({
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (sessionConnected || !isParaConnecting) {
-      setSignInTimedOut(false);
-      return;
-    }
-    const timer = window.setTimeout(() => setSignInTimedOut(true), 15_000);
-    return () => window.clearTimeout(timer);
-  }, [sessionConnected, isParaConnecting, signInAttempt]);
-
   // Keep header name in sync with shared localStorage store across page remounts.
   useEffect(() => {
     if (!sessionAddress) {
@@ -205,15 +180,6 @@ export function AppLayout({
     const runPostConnectFlow = async () => {
       setProfileError(null);
       setNameModalError(null);
-
-      // Para session: wait for wallet record when available, but never block profile hydrate.
-      if (me) {
-        const record = getParaWalletRecord();
-        if (record && record.owner.toLowerCase() !== me.toLowerCase()) {
-          hasRunAuthRef.current = "";
-          return;
-        }
-      }
 
       if (!isPara) {
         const alreadySigned = window.localStorage.getItem(signedSessionKey(sessionAddress)) === "1";
@@ -270,7 +236,7 @@ export function AppLayout({
       setShowNameModal(true);
     };
     void runPostConnectFlow();
-  }, [sessionAddress, me, mounted, signMessageAsync]);
+  }, [sessionAddress, isPara, mounted, signMessageAsync]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -667,24 +633,52 @@ export function AppLayout({
                             <p className="pb-2 text-xs text-[var(--muted)]">Indexer unavailable.</p>
                           )}
                           {[
-                            { label: "Trades", Icon: PlusMinus, iconClass: "text-[#7fd0ff]" },
+                            {
+                              label: "Launches",
+                              Icon: Rocket,
+                              iconClass: "text-[#68e0a0]",
+                              href: sessionAddress
+                                ? `/launches?wallet=${encodeURIComponent(sessionAddress)}`
+                                : "/launches",
+                            },
+                            {
+                              label: "Trades",
+                              Icon: PlusMinus,
+                              iconClass: "text-[#7fd0ff]",
+                              href: "/trades",
+                            },
                             { label: "Rewards", Icon: Trophy, iconClass: "text-[#ffbf47]" },
                             { label: "Help Center", Icon: Lifebuoy, iconClass: "text-[#68e0a0]" },
                             { label: "Documentation", Icon: BookOpenText, iconClass: "text-[#d8a3ff]" },
                             { label: "Refer to Earn", Icon: Gift, iconClass: "text-[#ff8ca8]" },
-                          ].map(({ label, Icon, iconClass }) => (
-                            <button
-                              key={label}
-                              type="button"
-                              className="flex w-full items-center justify-between px-1 py-1.5 text-left text-xs text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-                            >
-                              <span className="inline-flex items-center gap-2">
-                                <Icon size={13} weight="fill" className={iconClass} />
-                                {label}
-                              </span>
-                              <span>›</span>
-                            </button>
-                          ))}
+                          ].map(({ label, Icon, iconClass, href }) =>
+                            href ? (
+                              <Link
+                                key={label}
+                                href={href}
+                                onClick={() => setIsProfileOpen(false)}
+                                className="flex w-full items-center justify-between px-1 py-1.5 text-left text-xs text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                              >
+                                <span className="inline-flex items-center gap-2">
+                                  <Icon size={13} weight="fill" className={iconClass} />
+                                  {label}
+                                </span>
+                                <span>›</span>
+                              </Link>
+                            ) : (
+                              <button
+                                key={label}
+                                type="button"
+                                className="flex w-full items-center justify-between px-1 py-1.5 text-left text-xs text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                              >
+                                <span className="inline-flex items-center gap-2">
+                                  <Icon size={13} weight="fill" className={iconClass} />
+                                  {label}
+                                </span>
+                                <span>›</span>
+                              </button>
+                            ),
+                          )}
                         </div>
                         <div className="mt-1 flex w-full items-center justify-between px-1 py-1.5 text-xs text-[var(--foreground)]">
                           <span>Dark mode</span>
@@ -725,63 +719,11 @@ export function AppLayout({
                     )}
                   </div>
                 </>
-              ) : bridgeStatus === "failed" || signInTimedOut ? (
-                <div className="flex max-w-[min(100vw-8rem,22rem)] flex-col items-end gap-1">
-                  <button
-                    type="button"
-                    onClick={() => void resetParaAuth()}
-                    className="inline-flex h-11 cursor-pointer select-none items-center rounded-full bg-[var(--foreground)] px-5 text-sm font-semibold text-[var(--background)] caret-transparent hover:opacity-90"
-                  >
-                    Reset &amp; sign in
-                  </button>
-                  <p
-                    className="max-w-full text-right text-[11px] leading-snug text-red-400"
-                    title={bridgeError ?? undefined}
-                  >
-                    {bridgeError ||
-                      (signInTimedOut
-                        ? typeof window !== "undefined"
-                          ? `Sign-in timed out. In Para Developer Portal → Allowed Origins, add ${window.location.origin}`
-                          : "Sign-in timed out. Reset and try again."
-                        : "Sign-in failed.")}
-                  </p>
-                </div>
-              ) : isParaConnecting || isParaStuck ? (
-                <div className="flex max-w-[min(100vw-8rem,22rem)] flex-col items-end gap-1">
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled
-                      className="inline-flex h-11 cursor-wait select-none items-center gap-2 rounded-full bg-[var(--foreground)]/80 px-5 text-sm font-semibold text-[var(--background)] caret-transparent"
-                    >
-                      <CircleNotch size={16} className="animate-spin" />
-                      {isParaSigningIn ? "Signing in…" : "Connecting…"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void resetParaAuth()}
-                      className="inline-flex h-11 cursor-pointer select-none items-center rounded-full border border-[var(--border)] px-4 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
-                      title="Clear Para session and sign in again"
-                    >
-                      Disconnect
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-[var(--muted)]">Usually finishes in a few seconds…</p>
-                </div>
               ) : (
                 <button
                   type="button"
-                  onClick={() => {
-                    if (isParaConfigured()) {
-                      openParaModal();
-                      return;
-                    }
-                    void open({ view: "Connect" }).catch((error) => {
-                      console.error("Failed to open wallet modal", error);
-                    });
-                  }}
+                  onClick={() => openParaModal()}
                   className="inline-flex h-11 cursor-pointer select-none items-center rounded-full bg-[var(--foreground)] px-5 text-sm font-semibold text-[var(--background)] caret-transparent hover:opacity-90"
-                  title={bridgeError ?? undefined}
                 >
                   Sign in
                 </button>

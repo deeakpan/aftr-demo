@@ -23,24 +23,11 @@ You market-buy with **1,000 USDC**:
 
 The trade panel’s share estimate uses the post-fee amount.
 
-## Protocol fee distribution
-
-Of the **1.2%** protocol fee on each trade:
-
-| Destination | Rate (of trade notional) |
-|-------------|------------------------|
-| MONDO stakers | 0.2% |
-| Treasury (vault rules) | 1.0% |
-
-Staker rewards are distributed **pro-rata** among all sMONDO holders in the vault.
-
 ## What is not charged
 
 | Action | Trading fee? |
 |--------|--------------|
 | Claiming winnings after settlement | No additional 1.5% |
-| Staking MONDO | No trading fee (vault deposit) |
-| Withdrawing MONDO from vault | No trading fee |
 | Wallet gas | Network cost only — paid to validators, not Mondalore |
 
 ## Limit orders
@@ -54,5 +41,3 @@ Creators do not need a separate claim step for the 0.3% — it is sent on each q
 ## Fee changes
 
 Fee rates are set at the protocol level for this deployment. If rates change in a future version, the in-app trade panel and these docs should be updated together.
-
-[Staking rewards →](../staking/how-staking-works.md)

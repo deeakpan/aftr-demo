@@ -187,9 +187,8 @@ function randomUsdcAmount(min = 20, max = 47) {
 }
 
 function estimateMinSharesOut(amountUnits, price, slippageBps = 500) {
-  const creatorFeeEst = (amountUnits * 30n) / 10000n;
-  const protocolFeeEst = (amountUnits * 120n) / 10000n;
-  const netAmountEst = amountUnits - creatorFeeEst - protocolFeeEst;
+  const totalFeeEst = (amountUnits * 100n) / 10000n;
+  const netAmountEst = amountUnits - totalFeeEst;
   const estSharesNet = (netAmountEst * WAD) / price;
   const slip = BigInt(Math.min(5000, Math.max(1, slippageBps)));
   return (estSharesNet * (10000n - slip)) / 10000n;

@@ -1,5 +1,5 @@
 /**
- * ZedkrFpmm.test.cjs — FPMM markets vs Zedkr resolution (PRICE / EVENT / PONS), USDG collateral.
+ * ZedkrFpmm.test.cjs — FPMM markets vs Zedkr resolution (PRICE / EVENT / TOKEN), USDG collateral.
  */
 
 const { expect } = require("chai");
@@ -7,8 +7,8 @@ const hre = require("hardhat");
 const { ethers } = hre;
 
 const BPS = 10_000n;
-const CREATOR_FEE_BPS = 60n;
-const PROTOCOL_FEE_BPS = 40n;
+const FEE_SHARE_BPS = 25n;
+const TRADE_FEE_TOTAL_BPS = 100n;
 const MIN_TRADE = 1000n;
 
 function bps(amount, fee) {
@@ -66,7 +66,7 @@ async function signEventResolution(signer, marketAddr, outcomeIndex, chainId) {
 }
 
 describe("Zedkr FPMM — USDG collateral + resolution", function () {
-  let owner, creator, trader1, trader2, feeRecipient;
+  let owner, creator, trader1, trader2, treasury, platformDev, distribution;
   let admin1, admin2, admin3;
   let usdg, factory, registry;
 
@@ -75,8 +75,8 @@ describe("Zedkr FPMM — USDG collateral + resolution", function () {
   const TRADE_AMOUNT = ethers.parseUnits("50", 6);
 
   before(async function () {
-    [owner, creator, trader1, trader2, feeRecipient, admin1, admin2, admin3] = await ethers.getSigners();
-    ({ usdg, factory, registry } = await deployFpmmStack(owner, feeRecipient));
+    [owner, creator, trader1, trader2, treasury, platformDev, distribution, admin1, admin2, admin3] = await ethers.getSigners();
+    ({ usdg, factory, registry } = await deployFpmmStack(owner, treasury));
 
     await usdg.connect(owner).mint(creator.address, ethers.parseUnits("100000", 6));
     await usdg.connect(owner).mint(trader1.address, ethers.parseUnits("100000", 6));
@@ -87,7 +87,7 @@ describe("Zedkr FPMM — USDG collateral + resolution", function () {
       admin2.address,
       admin3.address,
     ]);
-    await factory.connect(owner).setPonsResolutionAdmin(trader1.address);
+    await factory.connect(owner).setTokenResolutionAdmin(trader1.address);
   });
 
   describe("Collateral registry", function () {
@@ -297,7 +297,7 @@ describe("Zedkr FPMM — USDG collateral + resolution", function () {
     });
   });
 
-  describe("PONS market — bot admin resolve", function () {
+  describe("TOKEN market — operator resolve", function () {
     let market;
     let marketAddr;
     let outcomeTokens;
@@ -309,9 +309,9 @@ describe("Zedkr FPMM — USDG collateral + resolution", function () {
         collateralDecimals: 6,
         stakeEndTimestamp: now + 3600,
         resolveAfterTimestamp: now + 7200,
-        metadataHash: ethers.keccak256(ethers.toUtf8Bytes("fpmm-pons")),
+        metadataHash: ethers.keccak256(ethers.toUtf8Bytes("fpmm-token")),
         outcomeLabels: ["Token A wins", "Token B wins"],
-        metadataURI: "ipfs://fpmm-pons",
+        metadataURI: "ipfs://fpmm-token",
         minInitialFunding: MIN_FUNDING,
         initialFunding: INITIAL_FUNDING,
         fundingHint: [1n, 1n],
@@ -319,7 +319,7 @@ describe("Zedkr FPMM — USDG collateral + resolution", function () {
       };
 
       await usdg.connect(creator).approve(await factory.getAddress(), INITIAL_FUNDING);
-      const tx = await factory.connect(creator).createPonsMarket(params);
+      const tx = await factory.connect(creator).createTokenMarket(params);
       const receipt = await tx.wait();
       const created = receipt.logs
         .map((log) => {
@@ -338,22 +338,23 @@ describe("Zedkr FPMM — USDG collateral + resolution", function () {
       outcomeTokens = tokens.map((t) => Outcome.attach(t));
     });
 
-    it("only ponsResolutionAdmin can resolve", async function () {
+    it("only tokenResolutionAdmin can resolve", async function () {
       await ethers.provider.send("evm_increaseTime", [7201]);
       await ethers.provider.send("evm_mine", []);
 
-      await expect(market.connect(creator).resolvePonsToken(0)).to.be.revertedWithCustomError(
+      await expect(market.connect(creator).resolveToken(0)).to.be.revertedWithCustomError(
         market,
-        "NotPonsResolutionAdmin"
+        "NotTokenResolutionAdmin"
       );
-      await market.connect(trader1).resolvePonsToken(0);
+      await market.connect(trader1).resolveToken(0);
       expect(await market.state()).to.equal(2n);
       expect(await market.winningOutcomeIndex()).to.equal(0n);
     });
   });
 
   describe("FPMM vs parimutuel — fixed $1 payout per share", function () {
-    it("trade fees match Zedkr split (0.6% creator + 0.4% protocol)", async function () {
+    it("trade fees split 25/25/25/25 (creator / platform dev / distribution / treasury)", async function () {
+      await factory.connect(owner).setFeeSplit(platformDev.address, distribution.address, treasury.address);
       const now = (await ethers.provider.getBlock("latest")).timestamp;
       const feed = await deployMockFeed(owner, 50_000n * 10n ** 8n, 8);
       await factory.connect(owner).setPriceFeed(btcAssetKey(), await feed.getAddress());
@@ -398,12 +399,72 @@ describe("Zedkr FPMM — USDG collateral + resolution", function () {
       const market = await ethers.getContractAt("ZedkrFpmmMarket", marketAddr);
 
       const creatorBefore = await usdg.balanceOf(creator.address);
-      const feeBefore = await usdg.balanceOf(feeRecipient.address);
+      const platformBefore = await usdg.balanceOf(platformDev.address);
+      const distBefore = await usdg.balanceOf(distribution.address);
+      const treasuryBefore = await usdg.balanceOf(treasury.address);
       await usdg.connect(trader2).approve(marketAddr, TRADE_AMOUNT);
       await market.connect(trader2).buy(0, TRADE_AMOUNT, 0n);
 
-      expect(await usdg.balanceOf(creator.address) - creatorBefore).to.equal(bps(TRADE_AMOUNT, CREATOR_FEE_BPS));
-      expect(await usdg.balanceOf(feeRecipient.address) - feeBefore).to.equal(bps(TRADE_AMOUNT, PROTOCOL_FEE_BPS));
+      const share = bps(TRADE_AMOUNT, FEE_SHARE_BPS);
+      expect(await usdg.balanceOf(creator.address) - creatorBefore).to.equal(share);
+      expect(await usdg.balanceOf(platformDev.address) - platformBefore).to.equal(share);
+      expect(await usdg.balanceOf(distribution.address) - distBefore).to.equal(share);
+      expect(await usdg.balanceOf(treasury.address) - treasuryBefore).to.equal(share);
+    });
+
+    it("routes zero-address fee shares to the creator", async function () {
+      await factory.connect(owner).setFeeSplit(ethers.ZeroAddress, ethers.ZeroAddress, treasury.address);
+      const now = (await ethers.provider.getBlock("latest")).timestamp;
+      const feed = await deployMockFeed(owner, 50_000n * 10n ** 8n, 8);
+      await factory.connect(owner).setPriceFeed(btcAssetKey(), await feed.getAddress());
+
+      const params = {
+        base: {
+          collateralToken: await usdg.getAddress(),
+          collateralDecimals: 6,
+          stakeEndTimestamp: now + 3600,
+          resolveAfterTimestamp: now + 7200,
+          metadataHash: ethers.keccak256(ethers.toUtf8Bytes("fee-zero")),
+          outcomeLabels: ["Yes", "No"],
+          metadataURI: "ipfs://fee-zero",
+          minInitialFunding: MIN_FUNDING,
+          initialFunding: INITIAL_FUNDING,
+          fundingHint: [1n, 1n],
+          shareRecipient: creator.address,
+        },
+        priceAssetKey: btcAssetKey(),
+        priceThreshold: 100_000n * 10n ** 6n,
+        priceKind: 0,
+        priceUpperBound: 0n,
+        maxPriceStaleness: 3600n,
+        priceBinLower: [],
+        priceBinUpper: [],
+      };
+
+      await usdg.connect(creator).approve(await factory.getAddress(), INITIAL_FUNDING);
+      const tx = await factory.connect(creator).createPriceMarket(params);
+      const receipt = await tx.wait();
+      const created = receipt.logs
+        .map((log) => {
+          try {
+            return factory.interface.parseLog(log);
+          } catch {
+            return null;
+          }
+        })
+        .find((p) => p?.name === "MarketCreated");
+
+      const marketAddr = created.args.market;
+      const market = await ethers.getContractAt("ZedkrFpmmMarket", marketAddr);
+
+      const creatorBefore = await usdg.balanceOf(creator.address);
+      const treasuryBefore = await usdg.balanceOf(treasury.address);
+      await usdg.connect(trader2).approve(marketAddr, TRADE_AMOUNT);
+      await market.connect(trader2).buy(0, TRADE_AMOUNT, 0n);
+
+      const share = bps(TRADE_AMOUNT, FEE_SHARE_BPS);
+      expect(await usdg.balanceOf(creator.address) - creatorBefore).to.equal(share * 3n);
+      expect(await usdg.balanceOf(treasury.address) - treasuryBefore).to.equal(share);
     });
   });
 

@@ -91,7 +91,7 @@ contract ZedkrFpmmDeployer {
         );
     }
 
-    function deployPonsMarket(
+    function deployTokenMarket(
         address owner_,
         address feeRecipient_,
         address creator_,
@@ -105,7 +105,7 @@ contract ZedkrFpmmDeployer {
         string[] calldata outcomeLabels
     ) external onlyFactory returns (address market, address[] memory tokens) {
         return _deployResolutionMarket(
-            ZedkrFpmmMarket.MarketKind.PONS_TOKEN,
+            ZedkrFpmmMarket.MarketKind.TOKEN,
             owner_,
             feeRecipient_,
             creator_,

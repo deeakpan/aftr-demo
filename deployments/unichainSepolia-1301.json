@@ -1,0 +1,107 @@
+{
+  "chainId": 1301,
+  "network": "unichainSepolia",
+  "deployer": "0x7A981A271E12Dd22B61f9028F8CAf526ba53c3C5",
+  "feeRecipient": "0x13Df5A0CEc379346D9a498a74a7580d6e2983b45",
+  "contracts": {
+    "MondaloreToken": "0xC25e3685bF421cDe9355184301c2b06e82c691ef",
+    "MondaloreFeeVault": "0x13Df5A0CEc379346D9a498a74a7580d6e2983b45",
+    "MondaloreUSDC": "0xA5424DD5165ed2516fD5590fe229E91B2F7707E8",
+    "USDG": "0x20f4BaE7793aE79bBeA9eA680516038cB5aCB23b",
+    "MondaloreParimutuelMarketFactory": "0x43F08DdCa9De6507c69b7a5215B6B0DBa67F3369",
+    "MondalorePriceMarketDeployer": "0xcF9d67cDc10146ac0883B15831799680FCBEf253",
+    "MondaloreEventMarketDeployer": "0x8A0b139F0e8498efF1eb2B6B863cfb8Ef0912Ef0",
+    "MondaloreParimutuelDeployer": "0xCb6cb8e18b3889529c647aF7Fe56bE78DB7311B0",
+    "MondaloreOrderBook": "0xcA8f8c4909EE306F3461a6E96c99BF04c0907034",
+    "ZedkrCollateralRegistry": "0xfa4b31967af90b3Ab15f39666f1c8c44486d5a99",
+    "ZedkrFpmmMarketFactory": "0x001240bD2569526d0044069612C3ccBE869e5C97",
+    "ZedkrFpmmDeployer": "0x485528Ee44f5a2eAf28CF55459fF9b5c6e219e9c",
+    "MockWETH": "0x4C50167f92544cb4755bc8f35a4efDbE7c3c9B40",
+    "MockEthUsdFeed": "0x11D1058Fc574E30ac1c40F487Ed88a2E0ad47aA1",
+    "MockBtcUsdFeed": "0x1EFD67d695dcF08d96fB793F6EE1354Ccc2DAAB5"
+  },
+  "deploymentBlocks": {
+    "MockWETH": 61998690,
+    "MockEthUsdFeed": 61998693,
+    "MockBtcUsdFeed": 61998696,
+    "MondaloreUSDC": 61998702,
+    "USDG": 61998710,
+    "MondaloreToken": 61998727,
+    "MondaloreFeeVault": 61998735,
+    "MondaloreParimutuelMarketFactory": 61998738,
+    "MondaloreParimutuelDeployer": 61998767,
+    "MondalorePriceMarketDeployer": 61998756,
+    "MondaloreEventMarketDeployer": 61998759,
+    "MondaloreOrderBook": 61998827,
+    "ZedkrCollateralRegistry": 61998832,
+    "ZedkrFpmmMarketFactory": 61998839,
+    "ZedkrFpmmDeployer": 61998849
+  },
+  "external": {
+    "optimisticOracleV2": "0x0000000000000000000000000000000000000001",
+    "priceFeedAssets": [
+      {
+        "label": "BTC/USD",
+        "asset": "BTC",
+        "logo": "https://assets.coingecko.com/coins/images/1/large/bitcoin.png"
+      },
+      {
+        "label": "ETH/USD",
+        "asset": "ETH",
+        "logo": "https://assets.coingecko.com/coins/images/279/large/ethereum.png"
+      }
+    ],
+    "vaultCollateralOptions": [
+      {
+        "label": "WETH",
+        "address": "0x4C50167f92544cb4755bc8f35a4efDbE7c3c9B40"
+      }
+    ],
+    "umaBondCurrencyCircleUSDC": "0xA5424DD5165ed2516fD5590fe229E91B2F7707E8",
+    "chainlinkFeeds": [
+      {
+        "label": "ETH/USD",
+        "asset": "ETH",
+        "logo": "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
+        "address": "0x11D1058Fc574E30ac1c40F487Ed88a2E0ad47aA1"
+      },
+      {
+        "label": "BTC/USD",
+        "asset": "BTC",
+        "logo": "https://assets.coingecko.com/coins/images/1/large/bitcoin.png",
+        "address": "0x1EFD67d695dcF08d96fB793F6EE1354Ccc2DAAB5"
+      }
+    ]
+  },
+  "resolutionAdmins": [
+    "0x7A981A271E12Dd22B61f9028F8CAf526ba53c3C5"
+  ],
+  "notes": {
+    "tradingCollaterals": [
+      "MondaloreUSDC",
+      "WETH",
+      "USDG"
+    ],
+    "fpmmCollaterals": [
+      "0xA5424DD5165ed2516fD5590fe229E91B2F7707E8",
+      "0x4C50167f92544cb4755bc8f35a4efDbE7c3c9B40",
+      "0x20f4BaE7793aE79bBeA9eA680516038cB5aCB23b"
+    ],
+    "primaryMarketFactory": "ZedkrFpmmMarketFactory",
+    "umaRewardToken": "MondaloreUSDC when umaRewardCurrency is address(0) on factory",
+    "feeFlow": "Market deposit → 0.4% protocol fee → MondaloreFeeVault.receiveFees()"
+  },
+  "deployedAt": "2026-09-08T07:08:44.526Z",
+  "vault": {
+    "stakeToken": "0xC25e3685bF421cDe9355184301c2b06e82c691ef",
+    "epochDuration": "604800",
+    "lockDuration": "604800",
+    "rewardTokens": [
+      "0xA5424DD5165ed2516fD5590fe229E91B2F7707E8",
+      "0x4C50167f92544cb4755bc8f35a4efDbE7c3c9B40",
+      "0x20f4BaE7793aE79bBeA9eA680516038cB5aCB23b",
+      "0x0000000000000000000000000000000000000000"
+    ]
+  },
+  "suggestedUmaReward": "500000"
+}

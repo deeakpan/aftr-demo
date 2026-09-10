@@ -12,6 +12,8 @@ type DexPair = {
 
 type Props = {
   tokenAddress: string;
+  /** Prefer this Dexscreener/Gecko pair page when known (token-link markets). */
+  pairUrl?: string | null;
   className?: string;
   /** Called when DexScreener has no usable pair (parent can show market chart). */
   onAvailabilityChange?: (available: boolean) => void;
@@ -23,6 +25,7 @@ type Props = {
  */
 export function DexScreenerTokenChart({
   tokenAddress,
+  pairUrl,
   className = "",
   onAvailabilityChange,
 }: Props) {
@@ -32,6 +35,31 @@ export function DexScreenerTokenChart({
     let cancelled = false;
     setEmbedUrl(null);
     onAvailabilityChange?.(false);
+
+    const fromPair = pairUrl?.trim() ?? "";
+    if (/dexscreener\.com\//i.test(fromPair)) {
+      try {
+        const u = new URL(fromPair.startsWith("http") ? fromPair : `https://${fromPair}`);
+        u.searchParams.set("embed", "1");
+        u.searchParams.set("loadChartSettings", "0");
+        u.searchParams.set("trades", "0");
+        u.searchParams.set("tabs", "0");
+        u.searchParams.set("info", "0");
+        u.searchParams.set("chartLeftToolbar", "0");
+        u.searchParams.set("chartTheme", "dark");
+        u.searchParams.set("theme", "dark");
+        u.searchParams.set("chartStyle", "0");
+        u.searchParams.set("chartType", "usd");
+        u.searchParams.set("interval", "15");
+        if (!cancelled) {
+          setEmbedUrl(u.toString());
+          onAvailabilityChange?.(true);
+        }
+        return;
+      } catch {
+        /* fall through to token lookup */
+      }
+    }
 
     const addr = tokenAddress.trim().toLowerCase();
     if (!/^0x[a-f0-9]{40}$/.test(addr)) return;
@@ -76,7 +104,7 @@ export function DexScreenerTokenChart({
     return () => {
       cancelled = true;
     };
-  }, [tokenAddress]);
+  }, [tokenAddress, pairUrl, onAvailabilityChange]);
 
   if (!embedUrl) return null;
 

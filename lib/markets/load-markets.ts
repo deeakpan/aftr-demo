@@ -5,7 +5,7 @@ import { fpmmFactoryAddress, parimutuelFactoryAddress } from "@/lib/market-facto
 import { marketTvlBalanceCall } from "@/lib/market-abi";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
 import { fetchIpfsMetadata, ipfsToHttp, type IpfsMarketMetadata } from "@/lib/ipfs-metadata";
-import { isListableMarket } from "@/lib/market-metadata";
+import { isListableMarket, isValidMetadataUri } from "@/lib/market-metadata";
 import { launchpadMarketForDisplay, launchpadMarketFromMetadata, uiMarketKindForDisplay } from "@/lib/launchpad-display";
 import { isPriceMarketKind, type UiMarketKind } from "@/lib/markets/market-kind";
 
@@ -581,7 +581,11 @@ async function loadMarketsListUncached(): Promise<MarketListItem[]> {
 
     const md = slice.uri ? (mdByUri.get(slice.uri) ?? null) : null;
     const launchpadRaw = launchpadMarketFromMetadata(md as Record<string, unknown> | null);
-    if (!isListableMarket(slice.uri, md?.image, launchpadRaw ?? md?.nadMarket)) {
+    const listable = isListableMarket(slice.uri, md?.image, launchpadRaw ?? md?.nadMarket);
+    // Lighthouse public gateway is premium-only (402). Still list markets when IPFS is down
+    // so the grid is not empty — cards use fallback title until metadata loads.
+    const degradedListable = !listable && isValidMetadataUri(slice.uri);
+    if (!listable && !degradedListable) {
       phase2Idx += slice.outcomeCount;
       tvlIdx += 1;
       continue;
@@ -723,6 +727,18 @@ async function loadMarketRow(
   };
 
   return buildMarketListItem(marketAddress, slice, md, poolTvlRaw, priceResults, priceBinByOutcome);
+}
+
+/** Single market card row (e.g. wallet launches). Defaults to including even if IPFS cover is missing. */
+export async function loadMarketListItem(
+  marketAddress: `0x${string}`,
+  options: LoadMarketRowOptions = {},
+): Promise<MarketListItem | null> {
+  return loadMarketRow(marketAddress, {
+    requireListable: false,
+    includePriceBins: false,
+    ...options,
+  });
 }
 
 async function mapPool<T, R>(

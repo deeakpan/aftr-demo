@@ -1,1179 +1,9 @@
 {
   "_format": "hh-sol-cache-2",
   "files": {
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\access\\Ownable2Step.sol": {
-      "lastModificationDate": 1782287270460,
-      "contentHash": "4c23c95621f1bdfb8c47bcb3795c53e8",
-      "sourceName": "@openzeppelin/contracts/access/Ownable2Step.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "./Ownable.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "Ownable2Step"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\IERC20.sol": {
-      "lastModificationDate": 1782287266146,
-      "contentHash": "9261adf6457863de3e9892f51317ec89",
-      "sourceName": "@openzeppelin/contracts/token/ERC20/IERC20.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        ">=0.4.16"
-      ],
-      "artifacts": [
-        "IERC20"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\utils\\SafeERC20.sol": {
-      "lastModificationDate": 1782287270825,
-      "contentHash": "bf8e9c3398d381dc66c5302267927386",
-      "sourceName": "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "../IERC20.sol",
-        "../../../interfaces/IERC1363.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "SafeERC20"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\access\\Ownable.sol": {
-      "lastModificationDate": 1782287270446,
-      "contentHash": "d3c790edc9ccf808a17c5a6cd13614fd",
-      "sourceName": "@openzeppelin/contracts/access/Ownable.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "../utils/Context.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "Ownable"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\ERC20.sol": {
-      "lastModificationDate": 1782287263463,
-      "contentHash": "d15c4d05583536e080f1960ab282772d",
-      "sourceName": "@openzeppelin/contracts/token/ERC20/ERC20.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "./IERC20.sol",
-        "./extensions/IERC20Metadata.sol",
-        "../../utils/Context.sol",
-        "../../interfaces/draft-IERC6093.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "ERC20"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\Context.sol": {
-      "lastModificationDate": 1782287262025,
-      "contentHash": "67bfbc07588eb8683b3fd8f6f909563e",
-      "sourceName": "@openzeppelin/contracts/utils/Context.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "Context"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\extensions\\IERC20Metadata.sol": {
-      "lastModificationDate": 1782287266175,
-      "contentHash": "513778b30d2750f5d2b9b19bbcf748a5",
-      "sourceName": "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "../IERC20.sol"
-      ],
-      "versionPragmas": [
-        ">=0.6.2"
-      ],
-      "artifacts": [
-        "IERC20Metadata"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\interfaces\\draft-IERC6093.sol": {
-      "lastModificationDate": 1782287262547,
-      "contentHash": "bcc76f4747d56c28c40ae272ef3470a6",
-      "sourceName": "@openzeppelin/contracts/interfaces/draft-IERC6093.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        ">=0.8.4"
-      ],
-      "artifacts": [
-        "IERC1155Errors",
-        "IERC20Errors",
-        "IERC721Errors"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\Address.sol": {
-      "lastModificationDate": 1782287261440,
-      "contentHash": "44f61b7a5cd41aa205efaebb4686f797",
-      "sourceName": "@openzeppelin/contracts/utils/Address.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "./Errors.sol",
-        "./LowLevelCall.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "Address"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\ReentrancyGuard.sol": {
-      "lastModificationDate": 1782287270648,
-      "contentHash": "6e5efb502dd6652d12ad15eea2c5bdf4",
-      "sourceName": "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "./StorageSlot.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "ReentrancyGuard"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\Errors.sol": {
-      "lastModificationDate": 1782287264901,
-      "contentHash": "6b5eac2b85500c3012977849cfd633d8",
-      "sourceName": "@openzeppelin/contracts/utils/Errors.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "Errors"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\LowLevelCall.sol": {
-      "lastModificationDate": 1782287270045,
-      "contentHash": "0474caccabcd255a35c82fe878701271",
-      "sourceName": "@openzeppelin/contracts/utils/LowLevelCall.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "LowLevelCall"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\StorageSlot.sol": {
-      "lastModificationDate": 1782287271275,
-      "contentHash": "e656d64c4ce918f3d13030b91c935134",
-      "sourceName": "@openzeppelin/contracts/utils/StorageSlot.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "StorageSlot"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\interfaces\\IERC1363.sol": {
-      "lastModificationDate": 1782287265996,
-      "contentHash": "a7fd0f05e36b0d0a21c75340c9c639ec",
-      "sourceName": "@openzeppelin/contracts/interfaces/IERC1363.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "./IERC20.sol",
-        "./IERC165.sol"
-      ],
-      "versionPragmas": [
-        ">=0.6.2"
-      ],
-      "artifacts": [
-        "IERC1363"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\interfaces\\IERC20.sol": {
-      "lastModificationDate": 1782287266127,
-      "contentHash": "68620db2da7583d9a4919096ac77f577",
-      "sourceName": "@openzeppelin/contracts/interfaces/IERC20.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "../token/ERC20/IERC20.sol"
-      ],
-      "versionPragmas": [
-        ">=0.4.16"
-      ],
-      "artifacts": []
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\interfaces\\IERC165.sol": {
-      "lastModificationDate": 1782287266056,
-      "contentHash": "947853028399b7de34bcc3704ee06e99",
-      "sourceName": "@openzeppelin/contracts/interfaces/IERC165.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "../utils/introspection/IERC165.sol"
-      ],
-      "versionPragmas": [
-        ">=0.4.16"
-      ],
-      "artifacts": []
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\introspection\\IERC165.sol": {
-      "lastModificationDate": 1782287266077,
-      "contentHash": "7074c93b1ea0a122063f26ddd1db1032",
-      "sourceName": "@openzeppelin/contracts/utils/introspection/IERC165.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        ">=0.4.16"
-      ],
-      "artifacts": [
-        "IERC165"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\node_modules\\@openzeppelin\\contracts\\utils\\introspection\\ERC165.sol": {
-      "lastModificationDate": 1782287263279,
-      "contentHash": "0906d06dca25210d4696dcef6dad2909",
-      "sourceName": "@openzeppelin/contracts/utils/introspection/ERC165.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "./IERC165.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "ERC165"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\libraries\\OrderBookLinkedList.sol": {
-      "lastModificationDate": 1776356172320,
-      "contentHash": "19be5a635abeae8cb05f886dc7d9fd64",
-      "sourceName": "contracts/libraries/OrderBookLinkedList.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "OrderBookLinkedList"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\libraries\\OrderPriceVolumeSet.sol": {
-      "lastModificationDate": 1776356173432,
-      "contentHash": "f558d33fbef85dec757c41fcc78efbc6",
-      "sourceName": "contracts/libraries/OrderPriceVolumeSet.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "OrderPriceVolumeSet"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\drp\\DeaderalReserveProtocol.sol": {
-      "lastModificationDate": 1781038564830,
-      "contentHash": "423c896f2e59a22e8da4bebc15da707d",
-      "sourceName": "contracts/drp/DeaderalReserveProtocol.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
-        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
-        "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
-        "@openzeppelin/contracts/access/Ownable.sol",
-        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
-        "../interfaces/IMondaloreAggregatorV3.sol",
-        "../interfaces/IUSDeAD.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "DeaderalReserveProtocol",
-        "IStabilityPool",
-        "ITreasurySplitter"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\interfaces\\IUSDeAD.sol": {
-      "lastModificationDate": 1777458595513,
-      "contentHash": "62a3ebf28e180ac752162eb5aa4e56bb",
-      "sourceName": "contracts/interfaces/IUSDeAD.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/token/ERC20/IERC20.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "IUSDeAD"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\drp\\USDeAD.sol": {
-      "lastModificationDate": 1777458602340,
-      "contentHash": "a85057506c31fe215bebe763a9297b52",
-      "sourceName": "contracts/drp/USDeAD.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/token/ERC20/ERC20.sol",
-        "@openzeppelin/contracts/access/Ownable.sol",
-        "../interfaces/IUSDeAD.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "USDeAD"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\drp\\MockStabilityPool.sol": {
-      "lastModificationDate": 1777460308854,
-      "contentHash": "71e2858471dc7d104cd4d8556b269e23",
-      "sourceName": "contracts/drp/MockStabilityPool.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
-        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
-        "@openzeppelin/contracts/access/Ownable.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "MockStabilityPool"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\drp\\MockTreasurySplitter.sol": {
-      "lastModificationDate": 1777460292715,
-      "contentHash": "28b4fe976dd7102d42a2de1090fca189",
-      "sourceName": "contracts/drp/MockTreasurySplitter.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "MockTreasurySplitter"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\interfaces\\IOracleManager.sol": {
-      "lastModificationDate": 1777458598658,
-      "contentHash": "619b1180207d7c33fe5c2ec56a96bf93",
-      "sourceName": "contracts/interfaces/IOracleManager.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "IOracleManager"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\mocks\\MockChainlinkFeed.sol": {
-      "lastModificationDate": 1781124586267,
-      "contentHash": "774ee2cbe026ec88d2f4e41f1a01f39b",
-      "sourceName": "contracts/mocks/MockChainlinkFeed.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/access/Ownable.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "MockChainlinkFeed"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\mocks\\MockWETH.sol": {
-      "lastModificationDate": 1780772926738,
-      "contentHash": "30e8353e03f53bd09f201241f245f4c0",
-      "sourceName": "contracts/mocks/MockWETH.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/token/ERC20/ERC20.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "MockWETH"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\config\\MondaloreChainlinkFeeds.sol": {
-      "lastModificationDate": 1781038565013,
-      "contentHash": "24c883aeabc0203e809b354995edfb7a",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\config\\MondaloreChainlinkFeeds.sol": {
+      "lastModificationDate": 1788263568034,
+      "contentHash": "74fb9430a2b4e3c39153869bf66ad0d8",
       "sourceName": "contracts/config/MondaloreChainlinkFeeds.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1211,9 +41,9 @@
         "MondaloreChainlinkFeeds"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\config\\MondaloreUmaAddresses.sol": {
-      "lastModificationDate": 1781038565018,
-      "contentHash": "0636a78ad97ae26b52fed30323106a00",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\config\\MondaloreUmaAddresses.sol": {
+      "lastModificationDate": 1788263568035,
+      "contentHash": "3ee4e350cddf9e872b17731dceafb2b5",
       "sourceName": "contracts/config/MondaloreUmaAddresses.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1251,9 +81,9 @@
         "MondaloreUmaAddresses"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\config\\MondaloreUmaIdentifiers.sol": {
-      "lastModificationDate": 1781038565023,
-      "contentHash": "2f1d8d52ae681e64d7adc4f6a927ed59",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\config\\MondaloreUmaIdentifiers.sol": {
+      "lastModificationDate": 1788263568037,
+      "contentHash": "34584a6c93c582d56b4521f8ca77dcb8",
       "sourceName": "contracts/config/MondaloreUmaIdentifiers.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1291,9 +121,9 @@
         "MondaloreUmaIdentifiers"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\core\\MondaloreMarketDebtRouter.sol": {
-      "lastModificationDate": 1781038565031,
-      "contentHash": "b0f82096d22a16190b0a1c95f52a4992",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\core\\MondaloreMarketDebtRouter.sol": {
+      "lastModificationDate": 1788263568039,
+      "contentHash": "81f98930bf3f8895a3ea8b90918dac6e",
       "sourceName": "contracts/core/MondaloreMarketDebtRouter.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1338,8 +168,589 @@
         "MondaloreMarketDebtRouter"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\token\\MondaloreToken.sol": {
-      "lastModificationDate": 1781038565125,
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\utils\\ReentrancyGuard.sol": {
+      "lastModificationDate": 1788264202660,
+      "contentHash": "6e5efb502dd6652d12ad15eea2c5bdf4",
+      "sourceName": "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./StorageSlot.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "ReentrancyGuard"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\IERC20.sol": {
+      "lastModificationDate": 1788264202488,
+      "contentHash": "9261adf6457863de3e9892f51317ec89",
+      "sourceName": "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.4.16"
+      ],
+      "artifacts": [
+        "IERC20"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\utils\\SafeERC20.sol": {
+      "lastModificationDate": 1788264203066,
+      "contentHash": "bf8e9c3398d381dc66c5302267927386",
+      "sourceName": "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../IERC20.sol",
+        "../../../interfaces/IERC1363.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "SafeERC20"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\utils\\StorageSlot.sol": {
+      "lastModificationDate": 1788264203112,
+      "contentHash": "e656d64c4ce918f3d13030b91c935134",
+      "sourceName": "@openzeppelin/contracts/utils/StorageSlot.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "StorageSlot"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\interfaces\\IERC1363.sol": {
+      "lastModificationDate": 1788264202465,
+      "contentHash": "a7fd0f05e36b0d0a21c75340c9c639ec",
+      "sourceName": "@openzeppelin/contracts/interfaces/IERC1363.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./IERC20.sol",
+        "./IERC165.sol"
+      ],
+      "versionPragmas": [
+        ">=0.6.2"
+      ],
+      "artifacts": [
+        "IERC1363"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\interfaces\\IERC165.sol": {
+      "lastModificationDate": 1788264202472,
+      "contentHash": "947853028399b7de34bcc3704ee06e99",
+      "sourceName": "@openzeppelin/contracts/interfaces/IERC165.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../utils/introspection/IERC165.sol"
+      ],
+      "versionPragmas": [
+        ">=0.4.16"
+      ],
+      "artifacts": []
+    },
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\interfaces\\IERC20.sol": {
+      "lastModificationDate": 1788264202486,
+      "contentHash": "68620db2da7583d9a4919096ac77f577",
+      "sourceName": "@openzeppelin/contracts/interfaces/IERC20.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../token/ERC20/IERC20.sol"
+      ],
+      "versionPragmas": [
+        ">=0.4.16"
+      ],
+      "artifacts": []
+    },
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\utils\\introspection\\IERC165.sol": {
+      "lastModificationDate": 1788264202475,
+      "contentHash": "7074c93b1ea0a122063f26ddd1db1032",
+      "sourceName": "@openzeppelin/contracts/utils/introspection/IERC165.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.4.16"
+      ],
+      "artifacts": [
+        "IERC165"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\extensions\\IERC20Metadata.sol": {
+      "lastModificationDate": 1788264202494,
+      "contentHash": "513778b30d2750f5d2b9b19bbcf748a5",
+      "sourceName": "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../IERC20.sol"
+      ],
+      "versionPragmas": [
+        ">=0.6.2"
+      ],
+      "artifacts": [
+        "IERC20Metadata"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\ERC20.sol": {
+      "lastModificationDate": 1788264200352,
+      "contentHash": "d15c4d05583536e080f1960ab282772d",
+      "sourceName": "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./IERC20.sol",
+        "./extensions/IERC20Metadata.sol",
+        "../../utils/Context.sol",
+        "../../interfaces/draft-IERC6093.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "ERC20"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\utils\\Context.sol": {
+      "lastModificationDate": 1788264200165,
+      "contentHash": "67bfbc07588eb8683b3fd8f6f909563e",
+      "sourceName": "@openzeppelin/contracts/utils/Context.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "Context"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\interfaces\\draft-IERC6093.sol": {
+      "lastModificationDate": 1788264200223,
+      "contentHash": "bcc76f4747d56c28c40ae272ef3470a6",
+      "sourceName": "@openzeppelin/contracts/interfaces/draft-IERC6093.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.4"
+      ],
+      "artifacts": [
+        "IERC1155Errors",
+        "IERC20Errors",
+        "IERC721Errors"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\access\\Ownable.sol": {
+      "lastModificationDate": 1788264202634,
+      "contentHash": "d3c790edc9ccf808a17c5a6cd13614fd",
+      "sourceName": "@openzeppelin/contracts/access/Ownable.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../utils/Context.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "Ownable"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\access\\Ownable2Step.sol": {
+      "lastModificationDate": 1788264202638,
+      "contentHash": "4c23c95621f1bdfb8c47bcb3795c53e8",
+      "sourceName": "@openzeppelin/contracts/access/Ownable2Step.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./Ownable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "Ownable2Step"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\token\\MondaloreToken.sol": {
+      "lastModificationDate": 1788263568086,
       "contentHash": "ae08e2fbf7e352b08ba6076478aa2c35",
       "sourceName": "contracts/token/MondaloreToken.sol",
       "solcConfig": {
@@ -1381,9 +792,9 @@
         "MondaloreToken"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\staking\\MondaloreFeeVault.sol": {
-      "lastModificationDate": 1787176343246,
-      "contentHash": "efb60e1297dfff65a6bd60ddbd56f28d",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\staking\\MondaloreFeeVault.sol": {
+      "lastModificationDate": 1788346118117,
+      "contentHash": "4515cd927f61052d1298e4b62e0961b2",
       "sourceName": "contracts/staking/MondaloreFeeVault.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1430,8 +841,8 @@
         "sMondaloreToken"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\interfaces\\IMondaloreFeeReceiver.sol": {
-      "lastModificationDate": 1781038564865,
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\interfaces\\IMondaloreFeeReceiver.sol": {
+      "lastModificationDate": 1788263568062,
       "contentHash": "1f3d128f90fda8c387b8cd970bf5c556",
       "sourceName": "contracts/interfaces/IMondaloreFeeReceiver.sol",
       "solcConfig": {
@@ -1470,9 +881,51 @@
         "IMondaloreFeeReceiver"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\orderbook\\MondaloreOrderBook.sol": {
-      "lastModificationDate": 1781038565101,
-      "contentHash": "42838a5140fabaa51456c69771aea48b",
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\utils\\introspection\\ERC165.sol": {
+      "lastModificationDate": 1788264200340,
+      "contentHash": "0906d06dca25210d4696dcef6dad2909",
+      "sourceName": "@openzeppelin/contracts/utils/introspection/ERC165.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./IERC165.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "ERC165"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\orderbook\\MondaloreOrderBook.sol": {
+      "lastModificationDate": 1788263568076,
+      "contentHash": "ff75eb551795a475c0de77d94b4b8595",
       "sourceName": "contracts/orderbook/MondaloreOrderBook.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1521,9 +974,212 @@
         "MondaloreOrderBook"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\orderbook\\MondaloreVParimutuelOrderBook.sol": {
-      "lastModificationDate": 1781038565105,
-      "contentHash": "e4ee0994380c78a3bbe2f65ae4499782",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\libraries\\OrderBookLinkedList.sol": {
+      "lastModificationDate": 1788263568069,
+      "contentHash": "1d44ffde09f6c3054bf0dc916496bb20",
+      "sourceName": "contracts/libraries/OrderBookLinkedList.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "OrderBookLinkedList"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\libraries\\OrderPriceVolumeSet.sol": {
+      "lastModificationDate": 1788263568070,
+      "contentHash": "3fea75c72d44b446d4bb530ce256ae45",
+      "sourceName": "contracts/libraries/OrderPriceVolumeSet.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "OrderPriceVolumeSet"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\utils\\Address.sol": {
+      "lastModificationDate": 1788264200094,
+      "contentHash": "44f61b7a5cd41aa205efaebb4686f797",
+      "sourceName": "@openzeppelin/contracts/utils/Address.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./Errors.sol",
+        "./LowLevelCall.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "Address"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\utils\\LowLevelCall.sol": {
+      "lastModificationDate": 1788264202595,
+      "contentHash": "0474caccabcd255a35c82fe878701271",
+      "sourceName": "@openzeppelin/contracts/utils/LowLevelCall.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "LowLevelCall"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\node_modules\\@openzeppelin\\contracts\\utils\\Errors.sol": {
+      "lastModificationDate": 1788264200657,
+      "contentHash": "6b5eac2b85500c3012977849cfd633d8",
+      "sourceName": "@openzeppelin/contracts/utils/Errors.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "Errors"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\orderbook\\MondaloreVParimutuelOrderBook.sol": {
+      "lastModificationDate": 1788263568078,
+      "contentHash": "331d2a6519bc9b0cc53bac5710be5dbb",
       "sourceName": "contracts/orderbook/MondaloreVParimutuelOrderBook.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1571,9 +1227,9 @@
         "MondaloreVParimutuelOrderBook"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\core\\MondaloreVParimutuelMarket.sol": {
-      "lastModificationDate": 1787176188755,
-      "contentHash": "a6a2bcd1ed2d6ebfe6f7860bd93a8f2c",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\core\\MondaloreVParimutuelMarket.sol": {
+      "lastModificationDate": 1788346109995,
+      "contentHash": "9508b88b8a391fb06adb0bae6ea118e0",
       "sourceName": "contracts/core/MondaloreVParimutuelMarket.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1611,8 +1267,9 @@
         "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
         "../token/MondaloreOutcomeToken.sol",
         "../interfaces/IMondaloreAggregatorV3.sol",
-        "../interfaces/IMondaloreFeeReceiver.sol",
-        "../interfaces/IMondaloreMarketFactoryResolution.sol"
+        "../interfaces/IMondaloreMarketFactoryResolution.sol",
+        "../interfaces/IZedkrFeeSplit.sol",
+        "../libraries/ZedkrTradeFees.sol"
       ],
       "versionPragmas": [
         "^0.8.24"
@@ -1622,9 +1279,9 @@
         "MondaloreVParimutuelMarket"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\token\\MondaloreOutcomeToken.sol": {
-      "lastModificationDate": 1781038565119,
-      "contentHash": "bca6cb72f46e1ce5c5efa1f44194d8ea",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\token\\MondaloreOutcomeToken.sol": {
+      "lastModificationDate": 1788263568085,
+      "contentHash": "a4571c45c0b4db5c04031bec0c4a2cea",
       "sourceName": "contracts/token/MondaloreOutcomeToken.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1665,9 +1322,9 @@
         "MondaloreOutcomeToken"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\interfaces\\IMondaloreAggregatorV3.sol": {
-      "lastModificationDate": 1781038565072,
-      "contentHash": "5824df0ca75198a4f4b0f6d1d1e900c4",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\interfaces\\IMondaloreAggregatorV3.sol": {
+      "lastModificationDate": 1788263568061,
+      "contentHash": "6c7f3081eae5e2140518cb96d23e8cfa",
       "sourceName": "contracts/interfaces/IMondaloreAggregatorV3.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1705,9 +1362,9 @@
         "IMondaloreAggregatorV3"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\interfaces\\IMondaloreMarketFactoryResolution.sol": {
-      "lastModificationDate": 1787151656490,
-      "contentHash": "8d512350de813c6eb00a348847dd332f",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\interfaces\\IMondaloreMarketFactoryResolution.sol": {
+      "lastModificationDate": 1788775932389,
+      "contentHash": "fe3a73aff84aa852c47da1a5f52532d9",
       "sourceName": "contracts/interfaces/IMondaloreMarketFactoryResolution.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1745,9 +1402,89 @@
         "IMondaloreMarketFactoryResolution"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\factory\\MondaloreParimutuelMarketFactory.sol": {
-      "lastModificationDate": 1787162814521,
-      "contentHash": "bb8c263f05f6123a0cc1eba8779f16d1",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\interfaces\\IZedkrFeeSplit.sol": {
+      "lastModificationDate": 1788346052108,
+      "contentHash": "82bb9384fb0720a663a1de694828cddf",
+      "sourceName": "contracts/interfaces/IZedkrFeeSplit.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "IZedkrFeeSplit"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\libraries\\ZedkrTradeFees.sol": {
+      "lastModificationDate": 1788346052288,
+      "contentHash": "1836cdc389623fe6ceecae5904223c29",
+      "sourceName": "contracts/libraries/ZedkrTradeFees.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "ZedkrTradeFees"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\factory\\MondaloreParimutuelMarketFactory.sol": {
+      "lastModificationDate": 1788738764830,
+      "contentHash": "474f0446e460408a7150213494c82028",
       "sourceName": "contracts/factory/MondaloreParimutuelMarketFactory.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1793,9 +1530,9 @@
         "MondaloreParimutuelMarketFactory"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\factory\\MondaloreParimutuelDeployer.sol": {
-      "lastModificationDate": 1782201787995,
-      "contentHash": "9ab9dd9eb33e3b9f72924dceed85a04c",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\factory\\MondaloreParimutuelDeployer.sol": {
+      "lastModificationDate": 1788263568052,
+      "contentHash": "08eef15799ecf28c4de4882e65620741",
       "sourceName": "contracts/factory/MondaloreParimutuelDeployer.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1838,9 +1575,9 @@
         "MondalorePriceMarketDeployer"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\factory\\MondaloreParimutuelBatchFactory.sol": {
-      "lastModificationDate": 1781125150556,
-      "contentHash": "745a7fd72ee0dda913b8e284587f4b47",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\factory\\MondaloreParimutuelBatchFactory.sol": {
+      "lastModificationDate": 1788263568050,
+      "contentHash": "0505a44139775d2ad5fbe7174f0cc621",
       "sourceName": "contracts/factory/MondaloreParimutuelBatchFactory.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -1883,10 +1620,61 @@
         "MondaloreParimutuelBatchFactory"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\token\\MondaloreUSDC.sol": {
-      "lastModificationDate": 1781038565130,
-      "contentHash": "3d378fd23ffe26191bbc0e9505a43b73",
-      "sourceName": "contracts/token/MondaloreUSDC.sol",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\core\\ZedkrFpmmMarket.sol": {
+      "lastModificationDate": 1788738747922,
+      "contentHash": "d6db9ec6124b8271b91e0649e2140fd2",
+      "sourceName": "contracts/core/ZedkrFpmmMarket.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/access/Ownable2Step.sol",
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+        "../token/ZedkrOutcomeToken.sol",
+        "../fpmm/ZedkrFpmmMath.sol",
+        "../interfaces/IMondaloreAggregatorV3.sol",
+        "../interfaces/IMondaloreMarketFactoryResolution.sol",
+        "../interfaces/IZedkrFeeSplit.sol",
+        "../libraries/ZedkrTradeFees.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "ZedkrFpmmMarket"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\token\\ZedkrOutcomeToken.sol": {
+      "lastModificationDate": 1788263568090,
+      "contentHash": "825566c681c74af711a141dec6b44b63",
+      "sourceName": "contracts/token/ZedkrOutcomeToken.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
@@ -1923,13 +1711,13 @@
         "^0.8.24"
       ],
       "artifacts": [
-        "MondaloreUSDC"
+        "ZedkrOutcomeToken"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\interfaces\\IMondaloreOptimisticOracleV2.sol": {
-      "lastModificationDate": 1781038564880,
-      "contentHash": "6d4613cbd4b1e9af0778e8151ad2b6a4",
-      "sourceName": "contracts/interfaces/IMondaloreOptimisticOracleV2.sol",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\fpmm\\ZedkrFpmmMath.sol": {
+      "lastModificationDate": 1788263568059,
+      "contentHash": "168679b9970be7923109af67f0604f7d",
+      "sourceName": "contracts/fpmm/ZedkrFpmmMath.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
@@ -1963,54 +1751,12 @@
         "^0.8.24"
       ],
       "artifacts": [
-        "IMondaloreOptimisticOracleV2"
+        "ZedkrFpmmMath"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\registry\\ZedkrCollateralRegistry.sol": {
-      "lastModificationDate": 1787165693291,
-      "contentHash": "8990ce8420d81e55e75641022c1e41d1",
-      "sourceName": "contracts/registry/ZedkrCollateralRegistry.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@openzeppelin/contracts/access/Ownable2Step.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "ZedkrCollateralRegistry"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\factory\\ZedkrFpmmMarketFactory.sol": {
-      "lastModificationDate": 1787242550133,
-      "contentHash": "19307376e4eea3efd061e97a6b4ed133",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\factory\\ZedkrFpmmMarketFactory.sol": {
+      "lastModificationDate": 1788775817670,
+      "contentHash": "c7babe01daf162a117df0fdbf767a3d5",
       "sourceName": "contracts/factory/ZedkrFpmmMarketFactory.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -2056,10 +1802,10 @@
         "ZedkrFpmmMarketFactory"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\core\\ZedkrFpmmMarket.sol": {
-      "lastModificationDate": 1787176183824,
-      "contentHash": "c3bf0f174095bb0c0649c01b010f83af",
-      "sourceName": "contracts/core/ZedkrFpmmMarket.sol",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\registry\\ZedkrCollateralRegistry.sol": {
+      "lastModificationDate": 1788263568081,
+      "contentHash": "8c2c8a30c624a70d404bd0269ee75ddf",
+      "sourceName": "contracts/registry/ZedkrCollateralRegistry.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
@@ -2089,25 +1835,18 @@
         }
       },
       "imports": [
-        "@openzeppelin/contracts/access/Ownable2Step.sol",
-        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
-        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
-        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
-        "../token/ZedkrOutcomeToken.sol",
-        "../fpmm/ZedkrFpmmMath.sol",
-        "../interfaces/IMondaloreAggregatorV3.sol",
-        "../interfaces/IMondaloreMarketFactoryResolution.sol"
+        "@openzeppelin/contracts/access/Ownable2Step.sol"
       ],
       "versionPragmas": [
         "^0.8.24"
       ],
       "artifacts": [
-        "ZedkrFpmmMarket"
+        "ZedkrCollateralRegistry"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\factory\\ZedkrFpmmDeployer.sol": {
-      "lastModificationDate": 1787165695062,
-      "contentHash": "9285cece3c10d6f5361cb4728630750d",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\factory\\ZedkrFpmmDeployer.sol": {
+      "lastModificationDate": 1788738765337,
+      "contentHash": "8c80cef3221dc3adb9d9520c2f1a38d3",
       "sourceName": "contracts/factory/ZedkrFpmmDeployer.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -2148,10 +1887,102 @@
         "ZedkrFpmmDeployer"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\token\\ZedkrOutcomeToken.sol": {
-      "lastModificationDate": 1787165667993,
-      "contentHash": "2a540cfb80f289ecb5541d5636cafc45",
-      "sourceName": "contracts/token/ZedkrOutcomeToken.sol",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\drp\\DeaderalReserveProtocol.sol": {
+      "lastModificationDate": 1788263568044,
+      "contentHash": "247cabc7f780b3fc27e571b4a808d436",
+      "sourceName": "contracts/drp/DeaderalReserveProtocol.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+        "../interfaces/IMondaloreAggregatorV3.sol",
+        "../interfaces/IUSDeAD.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "DeaderalReserveProtocol",
+        "IStabilityPool",
+        "ITreasurySplitter"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\interfaces\\IUSDeAD.sol": {
+      "lastModificationDate": 1788263568067,
+      "contentHash": "a010f95c3676dec94f8063625c4ab8db",
+      "sourceName": "contracts/interfaces/IUSDeAD.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "IUSDeAD"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\drp\\USDeAD.sol": {
+      "lastModificationDate": 1788263568049,
+      "contentHash": "2532d504af29baaba099c13eebea107a",
+      "sourceName": "contracts/drp/USDeAD.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
@@ -2182,100 +2013,19 @@
       },
       "imports": [
         "@openzeppelin/contracts/token/ERC20/ERC20.sol",
-        "@openzeppelin/contracts/access/Ownable.sol"
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "../interfaces/IUSDeAD.sol"
       ],
       "versionPragmas": [
-        "^0.8.24"
+        "^0.8.20"
       ],
       "artifacts": [
-        "ZedkrOutcomeToken"
+        "USDeAD"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\fpmm\\ZedkrFpmmMath.sol": {
-      "lastModificationDate": 1787165667868,
-      "contentHash": "11d02669e13a1c1ba064df325e9afc7e",
-      "sourceName": "contracts/fpmm/ZedkrFpmmMath.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "ZedkrFpmmMath"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\mocks\\MockUSDG.sol": {
-      "lastModificationDate": 1787177008835,
-      "contentHash": "5cdaa27859abaca92ba4e77af2050ac0",
-      "sourceName": "contracts/mocks/MockUSDG.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "viaIR": true,
-          "metadata": {
-            "bytecodeHash": "none"
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "../token/USDG.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "MockUSDG"
-      ]
-    },
-    "C:\\Users\\USER\\aftermarket\\contracts\\token\\USDG.sol": {
-      "lastModificationDate": 1787177008839,
-      "contentHash": "3d16b9689f0b7ce7047cad17067a7162",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\token\\USDG.sol": {
+      "lastModificationDate": 1788263568089,
+      "contentHash": "241a9ce4b93378cd70c3c67d710ce8b5",
       "sourceName": "contracts/token/USDG.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -2316,9 +2066,342 @@
         "USDG"
       ]
     },
-    "C:\\Users\\USER\\aftermarket\\contracts\\orderbook\\ZedkrFpmmOrderBookFactoryAdapter.sol": {
-      "lastModificationDate": 1787242549969,
-      "contentHash": "4fd9e1f8caf24eb08acda22b61e28cbc",
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\mocks\\MockUSDG.sol": {
+      "lastModificationDate": 1788263568073,
+      "contentHash": "ae9e50c15cd3671a114a919d220b1443",
+      "sourceName": "contracts/mocks/MockUSDG.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../token/USDG.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "MockUSDG"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\token\\MondaloreUSDC.sol": {
+      "lastModificationDate": 1788263568087,
+      "contentHash": "e388375a8205b6ff7a43106dfc2f2a06",
+      "sourceName": "contracts/token/MondaloreUSDC.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        "@openzeppelin/contracts/access/Ownable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "MondaloreUSDC"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\mocks\\MockChainlinkFeed.sol": {
+      "lastModificationDate": 1788263568072,
+      "contentHash": "774ee2cbe026ec88d2f4e41f1a01f39b",
+      "sourceName": "contracts/mocks/MockChainlinkFeed.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/access/Ownable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "MockChainlinkFeed"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\drp\\MockStabilityPool.sol": {
+      "lastModificationDate": 1788263568046,
+      "contentHash": "2e6cb974f9ff33c0bdb4bdafe659427e",
+      "sourceName": "contracts/drp/MockStabilityPool.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts/access/Ownable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "MockStabilityPool"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\mocks\\MockWETH.sol": {
+      "lastModificationDate": 1788263568074,
+      "contentHash": "c1dcafe20950c57254d1b0de6a3fb097",
+      "sourceName": "contracts/mocks/MockWETH.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/ERC20.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "MockWETH"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\drp\\MockTreasurySplitter.sol": {
+      "lastModificationDate": 1788263568047,
+      "contentHash": "6dd479cbbdbf2c3ea43de77644f5cded",
+      "sourceName": "contracts/drp/MockTreasurySplitter.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "MockTreasurySplitter"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\interfaces\\IMondaloreOptimisticOracleV2.sol": {
+      "lastModificationDate": 1788263568065,
+      "contentHash": "5ac9877469f7761e78ecd7a31dfc1760",
+      "sourceName": "contracts/interfaces/IMondaloreOptimisticOracleV2.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "IMondaloreOptimisticOracleV2"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\interfaces\\IOracleManager.sol": {
+      "lastModificationDate": 1788263568066,
+      "contentHash": "73934c1685850cf4fd89cde9281079db",
+      "sourceName": "contracts/interfaces/IOracleManager.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "viaIR": true,
+          "metadata": {
+            "bytecodeHash": "none"
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "IOracleManager"
+      ]
+    },
+    "C:\\Users\\deeak\\zedkr-market\\contracts\\orderbook\\ZedkrFpmmOrderBookFactoryAdapter.sol": {
+      "lastModificationDate": 1788263568079,
+      "contentHash": "ef889fa3f47fe3a3cefcdb90ce5a2604",
       "sourceName": "contracts/orderbook/ZedkrFpmmOrderBookFactoryAdapter.sol",
       "solcConfig": {
         "version": "0.8.24",

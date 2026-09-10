@@ -6,7 +6,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Coins,
   CrosshairSimple,
   DiamondsFour,
   List,
@@ -28,7 +27,6 @@ const NAV = [
   { href: "/", label: "Markets", Icon: Rows, iconClass: "text-[#7fd0ff]", match: "markets" as const },
   { href: "/create", label: "Create Market", Icon: DiamondsFour, iconClass: "text-[#d8a3ff]", match: "prefix" as const },
   { href: "/trades", label: "Trades", Icon: PlusMinus, iconClass: "text-[#7fd0ff]", match: "prefix" as const },
-  { href: "/stake", label: "Stake", Icon: Coins, iconClass: "text-[#6dff8e]", match: "prefix" as const },
   { href: "/bounty-board", label: "Bounty Board", Icon: CrosshairSimple, iconClass: "text-[#ffbf47]", match: "prefix" as const },
 ];
 
@@ -73,18 +71,23 @@ export function SidebarDrawer({ isOpen, onClose, theme = "dark" }: SidebarDrawer
         }`}
       >
         <div className="mb-6 flex items-center justify-between gap-2">
-          <Link href="/" onClick={onClose} className="flex min-w-0 items-center gap-2">
-            <span className="relative block h-8 w-8 shrink-0">
+          <Link
+            href="/"
+            onClick={onClose}
+            aria-label="Zedkr Market"
+            className="flex min-w-0 items-center"
+          >
+            <span className="relative -mr-1.5 block h-8 w-8 shrink-0">
               <Image
                 src={logoSrc}
-                alt="Zedkr Market"
+                alt=""
                 fill
                 className="object-contain object-center"
                 sizes="32px"
               />
             </span>
-            <span className="truncate text-base font-semibold tracking-tight text-[var(--foreground)]">
-              Zedkr
+            <span className="translate-y-1 truncate text-base font-semibold tracking-tight text-[var(--foreground)]">
+              edkr Market
             </span>
           </Link>
           <button

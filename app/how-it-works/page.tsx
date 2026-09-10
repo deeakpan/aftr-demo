@@ -13,9 +13,8 @@ const sections = [
   { id: "overview", label: "Overview" },
   { id: "traders", label: "For traders" },
   { id: "creators", label: "For creators" },
-  { id: "stakers", label: "For stakers" },
   { id: "settlement", label: "Settlement" },
-  { id: "pons-markets", label: "Ponsfamily markets" },
+  { id: "token-markets", label: "Token markets" },
 ];
 
 export default function HowItWorksPage() {
@@ -78,10 +77,10 @@ export default function HowItWorksPage() {
                   {COMPANY_NAME}
                 </a>
                 , built for Robinhood Chain. Create and trade markets on oracle prices, real-world
-                events, and Ponsfamily tokens. Pools, trades, and settlement are onchain.
+                events, and token pairs from Dexscreener or GeckoTerminal. Pools, trades, and settlement are onchain.
               </p>
               <p className="text-sm text-[var(--muted)] md:text-base">
-                Fees from trading accrue to market creators and protocol stakers. Explore the rest of
+                Fees from trading accrue to market creators and the protocol. Explore the rest of
                 the {COMPANY_NAME} suite — including off-ramp and commerce — at{" "}
                 <a
                   href={COMPANY_URL}
@@ -124,34 +123,20 @@ export default function HowItWorksPage() {
             <section id="creators" className="scroll-mt-24 space-y-3">
               <h2 className="text-xl font-semibold text-[var(--foreground)]">For creators</h2>
               <p className="text-sm text-[var(--muted)] md:text-base">
-                Anyone can list a market. In this deployment, each trade takes a 1.0% fee: 0.6% to the
-                creator and 0.4% to the protocol.
+                Anyone can list a market. In this deployment, each trade takes a 1.0% fee split
+                equally: 0.25% creator, 0.25% platform, 0.25% distribution, and 0.25% treasury.
+                Any of those addresses left unset is paid to the creator instead.
               </p>
               <ol className="space-y-2 text-sm text-[var(--foreground)] md:text-base">
                 <li>1. Create a market with title, outcomes, cover, and schedule.</li>
                 <li>
-                  2. Choose a type: Price (Chainlink), Event (community resolution), or Ponsfamily
-                  (graduated Uniswap v4 token stats).
+                  2. Choose a type: Price (Chainlink), Event (community resolution), or Token
+                  (Dexscreener / GeckoTerminal pool link; operator settles).
                 </li>
                 <li>3. Set stake-close and resolve-after times.</li>
                 <li>4. Seed initial liquidity so the market can open.</li>
                 <li>5. Creator fees accrue as traders take positions.</li>
               </ol>
-            </section>
-
-            <section id="stakers" className="scroll-mt-24 space-y-3">
-              <h2 className="text-xl font-semibold text-[var(--foreground)]">For stakers</h2>
-              <p className="text-sm text-[var(--muted)] md:text-base">
-                Staking the protocol token mints a non-transferable receipt 1:1. Protocol fees flow
-                through the fee vault and are split between stakers and treasury.
-              </p>
-              <ul className="space-y-2 text-sm text-[var(--foreground)] md:text-base">
-                <li>- Market protocol fee is 0.4% per trade.</li>
-                <li>- Of incoming vault fees, 0.2% is distributed to stakers pro-rata.</li>
-                <li>- The remaining 1.0% accrues to treasury per vault rules.</li>
-                <li>- Each deposit unlocks after the minimum lock; withdraw once unlocked.</li>
-                <li>- Topping up starts a new lock and does not reset earlier deposits.</li>
-              </ul>
             </section>
 
             <section id="settlement" className="scroll-mt-24 space-y-3">
@@ -166,51 +151,47 @@ export default function HowItWorksPage() {
                   sources and confirm the winning outcome.
                 </li>
                 <li>
-                  - Ponsfamily markets settle from on-chain Uniswap v4 price and Chainlink USD
-                  conversion at resolve time (market cap or token price, per the question).
+                  - Token markets settle when the operator reads Dexscreener or GeckoTerminal at
+                  resolve time (market cap or token price, per the question).
                 </li>
                 <li>- Winners redeem outcome shares for collateral after settlement.</li>
                 <li>- Trades and pool updates are publicly verifiable on Robinhood Chain.</li>
               </ul>
             </section>
 
-            <section id="pons-markets" className="scroll-mt-24 space-y-3">
-              <h2 className="text-xl font-semibold text-[var(--foreground)]">Ponsfamily markets</h2>
+            <section id="token-markets" className="scroll-mt-24 space-y-3">
+              <h2 className="text-xl font-semibold text-[var(--foreground)]">Token markets</h2>
               <p className="text-sm text-[var(--muted)] md:text-base">
-                Ponsfamily markets are predictions on tokens that have graduated to Uniswap v4 on
-                Robinhood Chain, with more than 5 ETH of DEX liquidity. Paste a token contract
-                address from{" "}
+                Token markets are predictions on a DEX pool. Paste a{" "}
                 <a
-                  href="https://ponsfamily.com"
+                  href="https://dexscreener.com"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-medium text-[var(--foreground)] underline underline-offset-2 hover:opacity-90"
                 >
-                  Ponsfamily
-                </a>
-                . Traders take positions on USD market cap, token price, or which token leads in a
-                head-to-head.
+                  Dexscreener
+                </a>{" "}
+                or{" "}
+                <a
+                  href="https://www.geckoterminal.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-[var(--foreground)] underline underline-offset-2 hover:opacity-90"
+                >
+                  GeckoTerminal
+                </a>{" "}
+                pool link (not a bare contract address). Traders take positions on USD market cap,
+                token price, or which token leads in a head-to-head.
               </p>
               <p className="text-sm text-[var(--muted)] md:text-base">
-                Live cards show pool-implied stats while the market is open. After{" "}
-                <strong>resolve after</strong>, settlement reads the Uniswap v4 pool and finalizes
-                the winner automatically — no admin vote.
+                Live cards show pair stats while the market is open. After{" "}
+                <strong>resolve after</strong>, the operator wallet reads the same pair page and
+                calls <code className="text-[var(--foreground)]">resolveToken</code> — no admin vote.
               </p>
               <ul className="space-y-2 text-sm text-[var(--foreground)] md:text-base">
-                <li>
-                  - Copy token addresses from{" "}
-                  <a
-                    href="https://ponsfamily.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[var(--foreground)] underline underline-offset-2"
-                  >
-                    ponsfamily.com
-                  </a>
-                  .
-                </li>
+                <li>- Paste a pool URL from Dexscreener or GeckoTerminal.</li>
                 <li>- Threshold markets: Yes/No on market cap or price above a target.</li>
-                <li>- Comparison markets: two to four tokens; highest market cap at resolve wins.</li>
+                <li>- Comparison markets: two to four pairs; highest market cap at resolve wins.</li>
               </ul>
             </section>
           </main>

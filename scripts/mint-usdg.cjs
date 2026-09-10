@@ -28,6 +28,12 @@ const CHAINS = {
     rpc: process.env.RPC_URL?.trim() || "https://rpc.mainnet.chain.robinhood.com",
     deployment: "robinhoodMainnet-4663.json",
   },
+  1301: {
+    id: 1301,
+    name: "Unichain Sepolia",
+    rpc: process.env.RPC_URL?.trim() || "https://unichain-sepolia-rpc.publicnode.com",
+    deployment: "unichainSepolia-1301.json",
+  },
 };
 
 const MINT_ABI = parseAbi([
@@ -57,7 +63,7 @@ async function main() {
   const pk = normalizePrivateKey(process.env.PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY);
   if (!pk) throw new Error("Set PRIVATE_KEY or DEPLOYER_PRIVATE_KEY in .env");
 
-  const chainId = Number(process.env.CHAIN_ID?.trim() || "10143");
+  const chainId = Number(process.env.CHAIN_ID?.trim() || process.env.DEPLOYMENT_CHAIN_ID?.trim() || "1301");
   const chainMeta = CHAINS[chainId];
   if (!chainMeta) throw new Error(`Unsupported CHAIN_ID ${chainId}`);
 

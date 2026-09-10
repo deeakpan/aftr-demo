@@ -253,9 +253,10 @@ export function MarketListCard({
             <div className="grid grid-cols-2 gap-2">
               {displayLabels.map((label, idx) => {
                 const isNo = idx === 1;
-                const btnClass = `flex min-h-[2.5rem] items-center justify-center rounded-xl px-2 py-2.5 text-center text-sm font-bold transition ${binaryOutcomePillClass(true, isNo, tradingClosed)}`;
+                // When trading is closed, use muted non-CTA styling (not faded trade buttons).
+                const btnClass = `flex min-h-[2.5rem] items-center justify-center rounded-xl px-2 py-2.5 text-center text-sm font-bold transition ${binaryOutcomePillClass(!tradingClosed, isNo, tradingClosed)}`;
 
-                if (onTrade && interactive) {
+                if (onTrade && interactive && !tradingClosed) {
                   return (
                     <button
                       key={`${label}-${idx}`}
@@ -290,7 +291,7 @@ export function MarketListCard({
                 </>
               );
 
-              if (onTrade && interactive) {
+              if (onTrade && interactive && !tradingClosed) {
                 return (
                   <button
                     key={`${label}-${idx}`}

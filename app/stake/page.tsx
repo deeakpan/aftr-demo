@@ -1,5 +1,5 @@
-import { StakeClient } from "@/app/stake/stake-client";
+import { redirect } from "next/navigation";
 
 export default function StakePage() {
-  return <StakeClient />;
+  redirect("/");
 }

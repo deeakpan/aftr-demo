@@ -38,9 +38,28 @@ export const robinhoodMainnet = defineChain({
   },
 });
 
+/** Unichain Sepolia — cheap testnet for stack deploys (no Chainlink on testnet → mock feeds). */
+export const unichainSepolia = defineChain({
+  id: 1301,
+  name: "Unichain Sepolia",
+  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+  rpcUrls: {
+    default: { http: ["https://unichain-sepolia-rpc.publicnode.com", "https://sepolia.unichain.org"] },
+  },
+  blockExplorers: {
+    default: { name: "Uniscan", url: "https://sepolia.uniscan.xyz" },
+  },
+  contracts: {
+    multicall3: {
+      address: MULTICALL3_ADDRESS,
+    },
+  },
+});
+
 const CHAIN_BY_ID = {
   [monadTestnet.id]: monadTestnet,
   [robinhoodMainnet.id]: robinhoodMainnet,
+  [unichainSepolia.id]: unichainSepolia,
 } as const;
 
 function configuredChainId(): number {
@@ -59,15 +78,20 @@ export const NATIVE_CURRENCY_SYMBOL = DEPLOYMENT_CHAIN.nativeCurrency.symbol;
 export const DEPLOYMENT_RPC_URL =
   DEPLOYMENT_CHAIN_ID === monadTestnet.id
     ? "https://testnet-rpc.monad.xyz/"
-    : "https://rpc.mainnet.chain.robinhood.com";
+    : DEPLOYMENT_CHAIN_ID === unichainSepolia.id
+      ? "https://unichain-sepolia-rpc.publicnode.com"
+      : "https://rpc.mainnet.chain.robinhood.com";
 
 function envRpcMatchesDeployment(url: string): boolean {
   const lower = url.toLowerCase();
   if (DEPLOYMENT_CHAIN_ID === robinhoodMainnet.id) {
-    return lower.includes("robinhood");
+    return !lower.includes("monad") && !lower.includes("unichain");
   }
   if (DEPLOYMENT_CHAIN_ID === monadTestnet.id) {
     return lower.includes("monad");
+  }
+  if (DEPLOYMENT_CHAIN_ID === unichainSepolia.id) {
+    return lower.includes("unichain") || lower.includes("1301");
   }
   return true;
 }

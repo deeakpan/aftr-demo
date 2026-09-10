@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/tick?settle=1",
+      "schedule": "* * * * *"
+    }
+  ]
+}
