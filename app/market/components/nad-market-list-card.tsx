@@ -83,6 +83,14 @@ function uniqueTokensForCover(tokens: NadMarketConfig["tokens"], max: number) {
   return out;
 }
 
+function coverBadgeLabel(nadMarket: NadMarketConfig): string {
+  const base = nadMarket.apiBaseUrl ?? "";
+  if (/pons/i.test(base)) return "Pons";
+  if (/nad\.fun/i.test(base)) return "Nad";
+  if (/dexscreener|geckoterminal/i.test(base)) return "Token";
+  return "Token";
+}
+
 export function NadMarketCardCover({ nadMarket }: { nadMarket: NadMarketConfig }) {
   const bg = cardBackgroundFromSeed(nadMarket.cardBackgroundSeed);
   const headerTokens = uniqueTokensForCover(
@@ -97,7 +105,9 @@ export function NadMarketCardCover({ nadMarket }: { nadMarket: NadMarketConfig }
     >
       <div className="absolute inset-0 bg-black/25" />
       <div className="relative flex h-full flex-col items-center justify-center px-4 py-3">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70">Pons</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70">
+          {coverBadgeLabel(nadMarket)}
+        </p>
         <div className="mt-2 flex items-center justify-center -space-x-3">
           {headerTokens.map((tok, i) => (
             <div
@@ -204,7 +214,7 @@ export function NadMarketListCard({
               {displayLabels.map((label, idx) => {
                 const isNo = idx === 1;
                 const text = nadOutcomeDisplayLabel(nadMarket, label);
-                const btnClass = `flex min-h-[2.5rem] items-center justify-center rounded-xl px-2 py-2.5 text-center text-sm font-bold transition ${binaryOutcomePillClass(true, isNo, tradingClosed)}`;
+                const btnClass = `flex min-h-[2.5rem] items-center justify-center rounded-xl px-2 py-2.5 text-center text-sm font-bold transition ${binaryOutcomePillClass(!tradingClosed, isNo, tradingClosed)}`;
 
                 if (onTrade && interactive && !tradingClosed) {
                   return (
@@ -223,7 +233,7 @@ export function NadMarketListCard({
                 }
 
                 return (
-                  <div key={`${label}-${idx}`} className={btnClass}>
+                  <div key={`${label}-${idx}`} className={btnClass} aria-disabled={tradingClosed}>
                     {text}
                   </div>
                 );

@@ -157,14 +157,9 @@ export function BinaryProbabilityPipe({ yesPct, noPct }: { yesPct: number; noPct
 /** Shared binary outcome pill — rounded rect, matches trade panel on market detail. */
 export function binaryOutcomePillClass(active: boolean, isNo: boolean, tradingClosed = false) {
   if (tradingClosed) {
-    if (active) {
-      return isNo
-        ? "bg-[var(--outcome-no)]/50 text-white/95"
-        : "bg-[var(--outcome-yes)]/50 text-white/95";
-    }
     return isNo
-      ? "bg-[var(--outcome-no)]/12 text-[var(--outcome-no)] ring-1 ring-[var(--outcome-no)]/25"
-      : "bg-[var(--outcome-yes)]/12 text-[var(--outcome-yes)] ring-1 ring-[var(--outcome-yes)]/25";
+      ? "cursor-default bg-[var(--outcome-no)]/35 text-white/80"
+      : "cursor-default bg-[var(--outcome-yes)]/35 text-white/80";
   }
   if (active) {
     return isNo
@@ -253,7 +248,6 @@ export function MarketListCard({
             <div className="grid grid-cols-2 gap-2">
               {displayLabels.map((label, idx) => {
                 const isNo = idx === 1;
-                // When trading is closed, use muted non-CTA styling (not faded trade buttons).
                 const btnClass = `flex min-h-[2.5rem] items-center justify-center rounded-xl px-2 py-2.5 text-center text-sm font-bold transition ${binaryOutcomePillClass(!tradingClosed, isNo, tradingClosed)}`;
 
                 if (onTrade && interactive && !tradingClosed) {
@@ -273,7 +267,7 @@ export function MarketListCard({
                 }
 
                 return (
-                  <div key={`${label}-${idx}`} className={btnClass}>
+                  <div key={`${label}-${idx}`} className={btnClass} aria-disabled={tradingClosed}>
                     {label}
                   </div>
                 );

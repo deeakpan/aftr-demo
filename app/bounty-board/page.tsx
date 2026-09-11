@@ -1,5 +1,6 @@
-import { BountyBoardClient } from "./bounty-board-client";
+import { redirect } from "next/navigation";
 
-export default function BountyBoardPage() {
-  return <BountyBoardClient />;
+/** @deprecated Use /leaderboard */
+export default function BountyBoardRedirectPage() {
+  redirect("/leaderboard");
 }

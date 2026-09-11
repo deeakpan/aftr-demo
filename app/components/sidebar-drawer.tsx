@@ -27,7 +27,7 @@ const NAV = [
   { href: "/", label: "Markets", Icon: Rows, iconClass: "text-[#7fd0ff]", match: "markets" as const },
   { href: "/create", label: "Create Market", Icon: DiamondsFour, iconClass: "text-[#d8a3ff]", match: "prefix" as const },
   { href: "/trades", label: "Trades", Icon: PlusMinus, iconClass: "text-[#7fd0ff]", match: "prefix" as const },
-  { href: "/bounty-board", label: "Bounty Board", Icon: CrosshairSimple, iconClass: "text-[#ffbf47]", match: "prefix" as const },
+  { href: "/leaderboard", label: "Leaderboard", Icon: CrosshairSimple, iconClass: "text-[#ffbf47]", match: "prefix" as const },
 ];
 
 function isActive(pathname: string, href: string, match: "markets" | "prefix") {

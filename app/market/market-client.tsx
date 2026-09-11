@@ -334,7 +334,7 @@ export function MarketClient() {
     const q = (searchParams.get("q") ?? "").trim().toLowerCase();
     const filter = (searchParams.get("filter") ?? "Trending").trim();
 
-    let rows = markets.filter((m) => m.stakeEndUnix > now);
+    let rows = [...markets];
     if (q) {
       rows = searchMarkets(rows, q, { limit: 999 }).map((hit) => hit.market);
     }
@@ -356,7 +356,10 @@ export function MarketClient() {
     }
 
     if (filter === "Breaking") {
-      rows = rows.filter((m) => m.resolveAfterUnix - now <= 24 * 60 * 60);
+      rows = rows.filter((m) => {
+        const remaining = m.resolveAfterUnix - now;
+        return remaining > 0 && remaining <= 24 * 60 * 60;
+      });
     }
 
     const tvlValue = (m: UiMarket) => {
@@ -364,12 +367,19 @@ export function MarketClient() {
       return Number.isFinite(v) ? v : 0;
     };
 
-    if (filter === "Newest") {
-      rows = [...rows].sort((a, b) => b.resolveAfterUnix - a.resolveAfterUnix);
-    } else {
-      // Trending/default: highest TVL first.
-      rows = [...rows].sort((a, b) => tvlValue(b) - tvlValue(a));
-    }
+    /** 0 = trading, 1 = closed/awaiting, 2 = settled (or other terminal). */
+    const lifecycleRank = (m: UiMarket) => {
+      if (m.marketState === 2 || m.marketState === 3) return 2;
+      if (m.marketState === 0 && m.stakeEndUnix > now) return 0;
+      return 1;
+    };
+
+    rows = [...rows].sort((a, b) => {
+      const rankDiff = lifecycleRank(a) - lifecycleRank(b);
+      if (rankDiff !== 0) return rankDiff;
+      if (filter === "Newest") return b.resolveAfterUnix - a.resolveAfterUnix;
+      return tvlValue(b) - tvlValue(a);
+    });
 
     return rows;
   }, [markets, marketListClock, searchParams, tvlOverrides]);

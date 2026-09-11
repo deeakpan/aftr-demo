@@ -1585,30 +1585,30 @@ export function CreateClient() {
   };
 
   const uploadMetadata = async (imageUriForMetadata?: string) => {
-    const isPons = marketKind === "token";
-    const imageToUse = isPons
+    const isToken = marketKind === "token";
+    const imageToUse = isToken
       ? tokenDraft?.coverImageUrl ?? ""
       : imageUriForMetadata || imageUri;
-    if (!imageToUse && !isPons) {
+    if (!imageToUse && !isToken) {
       throw new Error("Upload a cover image first so metadata includes image IPFS URI.");
     }
-    const ponsTitle = isPons ? tokenDraft?.title ?? "" : effectiveTitle;
-    const ponsOutcomes = isPons ? (tokenDraft?.outcomes ?? ["Yes", "No"]) : outcomes;
+    const tokenTitle = isToken ? tokenDraft?.title ?? "" : effectiveTitle;
+    const tokenOutcomes = isToken ? (tokenDraft?.outcomes ?? ["Yes", "No"]) : outcomes;
     const metadata = {
-      title: ponsTitle,
-      description: isPons
+      title: tokenTitle,
+      description: isToken
         ? (tokenDraft?.description ?? description)
         : marketKind === "price"
           ? generatedPriceDescription
           : description,
-      marketKind: isPons ? "token" : marketKind,
-      eventMode: marketKind === "event" ? eventMode : isPons ? (tokenDraft?.tokenMarket.mode === "comparison" ? "multiple" : "binary") : null,
-      question: marketKind === "price" ? generatedPricePrompt : ponsTitle,
-      categories: isPons ? ["Crypto"] : selectedCategories,
-      slug: slug || (isPons ? tokenDraft?.slug : undefined) || slugify(effectiveTitle),
-      outcomes: ponsOutcomes,
+      marketKind: isToken ? "token" : marketKind,
+      eventMode: marketKind === "event" ? eventMode : isToken ? (tokenDraft?.tokenMarket.mode === "comparison" ? "multiple" : "binary") : null,
+      question: marketKind === "price" ? generatedPricePrompt : tokenTitle,
+      categories: isToken ? ["Crypto"] : selectedCategories,
+      slug: slug || (isToken ? tokenDraft?.slug : undefined) || slugify(effectiveTitle),
+      outcomes: tokenOutcomes,
       image: imageToUse || null,
-      tokenMarket: isPons ? tokenDraft?.tokenMarket : undefined,
+      tokenMarket: isToken ? tokenDraft?.tokenMarket : undefined,
       priceConfig:
         marketKind === "price"
           ? {
@@ -1622,8 +1622,8 @@ export function CreateClient() {
               generatedPrompt: generatedPricePrompt,
             }
           : null,
-      resolution: marketKind === "event" ? "community-3-of-10-admins" : isPons ? "token-operator" : null,
-      resolutionSources: isPons
+      resolution: marketKind === "event" ? "community-3-of-10-admins" : isToken ? "token-operator" : null,
+      resolutionSources: isToken
         ? tokenDraft?.resolutionSources ?? []
         : marketKind === "event"
           ? sanitizeResolutionSourcesForMetadata(resolutionSources)
@@ -1640,32 +1640,32 @@ export function CreateClient() {
   };
 
   const goToSeedStep = async () => {
-    const isPons = marketKind === "token";
+    const isToken = marketKind === "token";
     const errors: string[] = [];
-    if (isPons) {
+    if (isToken) {
       if (!tokenDraft) errors.push("Load a Dexscreener or GeckoTerminal pool link and complete the form.");
       if (tokenDuplicateBlocked) errors.push("Duplicate market exists for this question and resolve time.");
     } else if (marketKind === "event" && !title.trim()) {
       errors.push("Title is required.");
     }
     if (!factoryDeployed) errors.push(undeployedStackMessage());
-    if (!isPons && marketKind !== "price" && !description.trim()) {
+    if (!isToken && marketKind !== "price" && !description.trim()) {
       errors.push("Description is required.");
     }
-    if (!isPons && marketKind === "price" && !generatedPriceDescription.trim()) {
+    if (!isToken && marketKind === "price" && !generatedPriceDescription.trim()) {
       errors.push("Set asset, condition, threshold, and resolve time so the description can be generated.");
     }
-    if (!isPons && marketKind === "event") {
+    if (!isToken && marketKind === "event") {
       const validSources = sanitizeResolutionSourcesForMetadata(resolutionSources);
       if (validSources.length === 0) {
         errors.push("Add at least one resolution source URL (https://…) for event markets.");
       }
     }
-    const filledOutcomes = isPons
+    const filledOutcomes = isToken
       ? (tokenDraft?.outcomes ?? [])
       : outcomes.map((o) => o.trim()).filter(Boolean);
     if (filledOutcomes.length < 2) errors.push("At least 2 outcome labels are required.");
-    if (!isPons && outcomes.some((o) => !o.trim())) errors.push("All outcome labels must be filled in.");
+    if (!isToken && outcomes.some((o) => !o.trim())) errors.push("All outcome labels must be filled in.");
     if (!stakeEndAt) errors.push("Stake end time is required.");
     if (!resolveAfterAt) errors.push("Resolve after time is required.");
     if (!slug.trim()) errors.push("Vanity slug is required.");
@@ -1694,7 +1694,7 @@ export function CreateClient() {
       setTimeValidationError("Resolve after must be later than stake end.");
       return;
     }
-    if (isPons && tokenDraft?.tokenMarket) {
+    if (isToken && tokenDraft?.tokenMarket) {
       const tokenResolveErr = validateTokenResolveAfter(tokenDraft.tokenMarket.questionType, Math.floor(resolveTs / 1000));
       if (tokenResolveErr) {
         setTimeValidationError(tokenResolveErr);
@@ -1703,7 +1703,7 @@ export function CreateClient() {
     }
     setTimeValidationError("");
 
-    if (isPons) {
+    if (isToken) {
       setIsNextLoading(true);
       setUploadState("");
       try {

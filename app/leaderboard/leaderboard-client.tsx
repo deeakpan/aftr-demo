@@ -5,7 +5,7 @@ import { CrosshairSimple } from "@phosphor-icons/react";
 import { AppLayout } from "@/app/components/app-layout";
 import { brandPageTitle, brandWord } from "@/lib/brand-font";
 
-type HunterRow = {
+type LeaderboardRow = {
   address: string;
   username?: string | null;
   marketCount: number;
@@ -18,8 +18,8 @@ function short(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
 
-export function BountyBoardClient() {
-  const [rows, setRows] = useState<HunterRow[]>([]);
+export function LeaderboardClient() {
+  const [rows, setRows] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -29,12 +29,12 @@ export function BountyBoardClient() {
     setError("");
     void fetch("/api/leaderboard", { cache: "no-store" })
       .then(async (res) => {
-        const j = (await res.json()) as { rows?: HunterRow[]; error?: string };
-        if (!res.ok) throw new Error(j.error || "Could not load bounty board.");
+        const j = (await res.json()) as { rows?: LeaderboardRow[]; error?: string };
+        if (!res.ok) throw new Error(j.error || "Could not load leaderboard.");
         if (!cancelled) setRows(j.rows ?? []);
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Could not load bounty board.");
+        if (!cancelled) setError(e instanceof Error ? e.message : "Could not load leaderboard.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -50,7 +50,7 @@ export function BountyBoardClient() {
         <div className="mb-2 flex items-center gap-2">
           <CrosshairSimple size={22} weight="bold" className="text-[#ffbf47]" />
           <h1 className={`text-xl tracking-tight md:text-2xl ${brandPageTitle}`}>
-            <span className={brandWord}>Bounty Board</span>
+            <span className={brandWord}>Leaderboard</span>
           </h1>
         </div>
         <p className="max-w-xl text-sm text-[var(--muted)]">
@@ -62,7 +62,7 @@ export function BountyBoardClient() {
         <div className="mt-5 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--elevated-card-shadow)] backdrop-blur-sm">
           <div className="grid grid-cols-[56px_1fr_110px_120px] border-b border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
             <span>Rank</span>
-            <span>Hunter</span>
+            <span>Trader</span>
             <span className="text-right">Markets</span>
             <span className="text-right">PnL</span>
           </div>
@@ -81,7 +81,7 @@ export function BountyBoardClient() {
             ))}
 
           {!loading && !error && rows.length === 0 && (
-            <div className="px-3 py-4 text-sm text-[var(--muted)]">No hunters on the board yet.</div>
+            <div className="px-3 py-4 text-sm text-[var(--muted)]">No traders on the board yet.</div>
           )}
 
           {!loading &&

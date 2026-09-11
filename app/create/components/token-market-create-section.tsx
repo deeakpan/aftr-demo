@@ -14,8 +14,8 @@ import {
 } from "@/lib/token-market/metadata";
 import {
   defaultUsdThreshold,
-  formatPonsMcapUsd,
-  formatPonsPriceUsd,
+  formatPonsMcapUsd as formatMcapUsd,
+  formatPonsPriceUsd as formatPriceUsd,
   formatUsdThresholdValue,
   usdThresholdSliderRange,
   validateMcapParity,
@@ -378,9 +378,9 @@ export function TokenMarketCreateSection({
                 <p className="text-sm text-[var(--muted)]">
                   <span className="font-semibold text-[var(--foreground)]">${pairs[idx]!.symbol}</span>
                   {" · "}
-                  {formatPonsPriceUsd(pairStats[idx]?.priceUsd ?? null)}
+                  {formatPriceUsd(pairStats[idx]?.priceUsd ?? null)}
                   {" · "}
-                  {formatPonsMcapUsd(pairStats[idx]?.marketCapUsd ?? null)} mcap
+                  {formatMcapUsd(pairStats[idx]?.marketCapUsd ?? null)} mcap
                   {" · "}
                   {pairs[idx]!.chainSlug} / {pairs[idx]!.quoteSymbol}
                 </p>
