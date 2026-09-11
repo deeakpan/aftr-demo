@@ -344,6 +344,12 @@ export function MarketListCard({
           {resolveAfter && (
             <MarketCloseDate label={resolveAfter} tooltip={resolveAfterTooltip} iconSize={12} />
           )}
+          {tradingClosed && (
+            <span className="inline-flex items-center gap-1 text-[var(--outcome-no)]">
+              <Flag size={13} weight="fill" />
+              Closed
+            </span>
+          )}
         </div>
       </div>
     </article>
