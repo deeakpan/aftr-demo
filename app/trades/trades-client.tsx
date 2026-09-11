@@ -333,7 +333,10 @@ function OpenPositionHoldings({
 }
 
 type ClaimOverride = {
+  /** USDG paid by this claim tx only */
   payout: bigint;
+  /** indexedCollateralOut at claim time (prior sells / claims) */
+  baselineOut: bigint;
   claimedAt: number;
 };
 
@@ -403,19 +406,20 @@ function SettledMarketSummary({
   if (hasRedeemed) {
     return (
       <div className={`${MARKET_CARD_OUTCOMES_BOX} items-center justify-center text-center`}>
-        {justClaimed ? (
-          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--outcome-yes)]">
-            Claimed
-          </p>
-        ) : (
-          <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--muted)]">
-            Payout
-          </p>
-        )}
+        <p
+          className={`mb-0.5 text-[10px] uppercase tracking-wide ${
+            justClaimed
+              ? "font-semibold text-[var(--outcome-yes)]"
+              : "font-medium text-[var(--muted)]"
+          }`}
+        >
+          Total returned
+        </p>
         <p className="text-[17px] font-bold tabular-nums leading-none tracking-tight text-[var(--foreground)] md:text-[18px]">
           {fmtAmount(redeemed)}
           <span className="ml-1 text-[11px] font-semibold text-[var(--muted)]">{tick}</span>
         </p>
+        <p className="mt-1 text-[10px] text-[var(--muted)]">Sells + claims on this market</p>
         {hasInvested ? (
           <SettledResultStats
             invested={invested}
@@ -563,14 +567,14 @@ function ClaimWinningsButton({
     <div onClick={(e) => e.stopPropagation()} className="flex h-full flex-col justify-center gap-1.5">
       <div className="text-center">
         <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--muted)]">
-          Ready to claim
+          This claim
         </p>
         <p className="mt-0.5 text-[17px] font-bold tabular-nums leading-none tracking-tight text-[var(--foreground)]">
           {maxPayout}
           <span className="ml-1 text-[11px] font-semibold text-[var(--muted)]">{collateralTicker}</span>
         </p>
         <p className="mt-1 text-[10px] text-[var(--muted)]">
-          {formatShareAmount(maxShares, shareDecimals)}
+          {formatShareAmount(maxShares, shareDecimals)} winning shares
         </p>
       </div>
       {status && (
@@ -764,7 +768,7 @@ export function TradesClient() {
             const key = row.marketAddress.toLowerCase();
             const override = next[key];
             if (!override) continue;
-            if (row.indexedCollateralOut >= override.payout) {
+            if (row.indexedCollateralOut >= override.baselineOut + override.payout) {
               delete next[key];
             }
           }
@@ -831,10 +835,12 @@ export function TradesClient() {
               const winBal =
                 g.marketState === 2 && winIdx !== null ? balanceForOutcome(g.positions, winIdx) : BigInt(0);
               const claimOverride = claimOverrides[g.marketAddress.toLowerCase()];
-              const effectiveRedeemed =
-                claimOverride && claimOverride.payout > g.indexedCollateralOut
-                  ? claimOverride.payout
-                  : g.indexedCollateralOut;
+              const effectiveRedeemed = claimOverride
+                ? claimOverride.baselineOut + claimOverride.payout >
+                    g.indexedCollateralOut
+                  ? claimOverride.baselineOut + claimOverride.payout
+                  : g.indexedCollateralOut
+                : g.indexedCollateralOut;
               const canClaim =
                 winIdx !== null && winBal > BigInt(0) && !claimOverride && g.marketState === 2;
               const justClaimed = Boolean(claimOverride);
@@ -901,6 +907,7 @@ export function TradesClient() {
                                   ...prev,
                                   [g.marketAddress.toLowerCase()]: {
                                     payout,
+                                    baselineOut: g.indexedCollateralOut,
                                     claimedAt: Date.now(),
                                   },
                                 }));
