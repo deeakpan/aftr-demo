@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import * as Slider from "@radix-ui/react-slider";
 import { CaretDown, Check, CircleNotch, Plus, Trash } from "@phosphor-icons/react";
 import type { TokenLiveStats, TokenPairRef, TokenQuestionType } from "@/lib/token-market/types";
 import type { TokenMarketConfig } from "@/lib/token-market/types";
@@ -70,33 +69,45 @@ function ThresholdSlider({
   onChange: (value: number) => void;
   label: string;
 }) {
-  const readyRef = useRef(false);
   const clamped = Math.min(max, Math.max(min, value));
   const pct = ((clamped - min) / Math.max(1, max - min)) * 100;
-  useEffect(() => {
-    readyRef.current = true;
-  }, []);
+
   return (
-    <Slider.Root
-      min={min}
-      max={max}
-      step={step}
-      value={[clamped]}
-      onValueChange={(vals) => {
-        if (!readyRef.current) return;
-        const next = vals[0] ?? min;
-        if (next !== clamped) onChange(next);
-      }}
-      aria-label={label}
-      className="relative flex h-7 w-52 touch-none items-center select-none"
+    <div
+      className="relative w-full max-w-sm select-none py-2"
+      onPointerDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
     >
-      <Slider.Track className="relative h-2.5 w-full grow cursor-pointer">
-        <span className="absolute inset-0 overflow-hidden [clip-path:polygon(0%_38%,100%_4%,100%_96%,0%_62%)]" style={{ background: HEAT_GRADIENT }}>
-          <span className="absolute inset-y-0 right-0 bg-black/55" style={{ width: `${Math.max(0, 100 - pct)}%` }} />
-        </span>
-      </Slider.Track>
-      <Slider.Thumb className="block size-5 cursor-grab rounded-full border-2 border-amber-400 bg-white outline-none" />
-    </Slider.Root>
+      <div
+        className="pointer-events-none absolute inset-x-0 top-1/2 h-2.5 -translate-y-1/2 overflow-hidden"
+        style={{ clipPath: "polygon(0% 38%, 100% 4%, 100% 96%, 0% 62%)", background: HEAT_GRADIENT }}
+        aria-hidden
+      >
+        <span className="absolute inset-y-0 right-0 bg-black/55" style={{ width: `${Math.max(0, 100 - pct)}%` }} />
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={clamped}
+        aria-label={label}
+        onChange={(e) => {
+          const next = Number(e.target.value);
+          if (Number.isFinite(next) && next !== clamped) onChange(next);
+        }}
+        className={[
+          "relative z-10 h-11 w-full cursor-pointer appearance-none bg-transparent touch-manipulation",
+          // WebKit track (transparent — gradient is drawn behind)
+          "[&::-webkit-slider-runnable-track]:h-2.5 [&::-webkit-slider-runnable-track]:w-full [&::-webkit-slider-runnable-track]:appearance-none [&::-webkit-slider-runnable-track]:bg-transparent",
+          // WebKit thumb — large enough for fingers
+          "[&::-webkit-slider-thumb]:relative [&::-webkit-slider-thumb]:-mt-1.5 [&::-webkit-slider-thumb]:box-border [&::-webkit-slider-thumb]:size-7 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-amber-400 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md",
+          // Firefox
+          "[&::-moz-range-track]:h-2.5 [&::-moz-range-track]:rounded-none [&::-moz-range-track]:bg-transparent",
+          "[&::-moz-range-thumb]:box-border [&::-moz-range-thumb]:size-7 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-amber-400 [&::-moz-range-thumb]:bg-white",
+        ].join(" ")}
+      />
+    </div>
   );
 }
 
@@ -410,7 +421,7 @@ export function TokenMarketCreateSection({
           <label className={labelClass}>
             {questionType === "price_usd_above" ? "Price threshold (USD)" : "Market cap threshold (USD)"}
           </label>
-          <div className="mt-3 max-w-xs space-y-3">
+          <div className="mt-3 w-full max-w-sm space-y-3">
             <ThresholdSlider
               min={range.min}
               max={range.max}

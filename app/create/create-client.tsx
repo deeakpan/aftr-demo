@@ -1223,7 +1223,7 @@ export function CreateClient() {
       return;
     }
 
-    if (marketKind === "event" || marketKind === "token") {
+    if (marketKind === "event") {
       const [adminCount, threshold] = await Promise.all([
         readResolutionAdminCount(publicClient, FACTORY_ADDRESS),
         publicClient.readContract({
@@ -1234,7 +1234,7 @@ export function CreateClient() {
       ]);
       if (adminCount < BigInt(threshold as bigint)) {
         setSubmitStatus(
-          `Event markets are not ready on this factory yet (need ${threshold} resolution admins, have ${adminCount}). Use a price market instead.`,
+          `Event markets are not ready on this factory yet (need ${threshold} resolution admins, have ${adminCount}). Use a price or token market instead.`,
         );
         return;
       }
@@ -1782,7 +1782,7 @@ export function CreateClient() {
         </div>
 
         <div className="min-w-0 space-y-0 divide-y divide-[var(--border)] border-t border-[var(--border)]">
-          {step === "details" ? (
+          <div className={step === "details" ? "min-w-0 space-y-0 divide-y divide-[var(--border)]" : "hidden"}>
             <>
           <section className="py-8">
             <p className={labelClass}>Market type</p>
@@ -2365,7 +2365,8 @@ export function CreateClient() {
             {uploadState && <p className="mt-3 text-xs text-[var(--muted)]">{uploadState}</p>}
           </section>
             </>
-          ) : (
+          </div>
+          {step === "seed" ? (
             <section className="py-10">
               <label className={labelClass} htmlFor="seed-amount">
                 Seed liquidity
@@ -2470,7 +2471,7 @@ export function CreateClient() {
                 </p>
               )}
             </section>
-          )}
+          ) : null}
         </div>
       </div>
       {cropSourceUrl && (
