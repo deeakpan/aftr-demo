@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, CopySimple, X } from "@phosphor-icons/react";
+import { Check, CopySimple, ShareNetwork, X } from "@phosphor-icons/react";
 import { DEPLOYMENT_NETWORK_LABEL, NATIVE_CURRENCY_SYMBOL } from "@/lib/chain";
-import { copyTextToClipboard } from "@/lib/clipboard";
+import { copyFromTextField, copyTextToClipboard, shareText } from "@/lib/clipboard";
 
 type DepositModalProps = {
   address: `0x${string}`;
@@ -13,10 +13,13 @@ type DepositModalProps = {
 export function DepositModal({ address, onClose }: DepositModalProps) {
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
+  const [canShare, setCanShare] = useState(false);
+  const addressInputRef = useRef<HTMLInputElement>(null);
   const copiedTimerRef = useRef<number | null>(null);
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&bgcolor=3a3a3a&color=ffffff&qzone=2&data=${encodeURIComponent(address)}`;
 
   useEffect(() => {
+    setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -34,15 +37,33 @@ export function DepositModal({ address, onClose }: DepositModalProps) {
     copiedTimerRef.current = window.setTimeout(() => setCopied(false), 1800);
   };
 
-  const copy = () => {
-    // Fire clipboard in the same user-gesture turn (required on iOS).
+  const handleCopy = () => {
+    setCopyError(false);
+
+    // 1) Copy from the visible field (most reliable on iOS).
+    const field = addressInputRef.current;
+    if (field && copyFromTextField(field)) {
+      markCopied();
+      return;
+    }
+
+    // 2) Clipboard API + iOS-tuned execCommand fallback.
     void copyTextToClipboard(address).then((ok) => {
-      if (!ok) {
-        setCopied(false);
-        setCopyError(true);
+      if (ok) {
+        markCopied();
         return;
       }
-      markCopied();
+      setCopied(false);
+      setCopyError(true);
+    });
+  };
+
+  const handleShare = () => {
+    void shareText(address, "Deposit address").then((ok) => {
+      if (ok) {
+        // iOS share sheet often used to Copy — treat as success feedback.
+        markCopied();
+      }
     });
   };
 
@@ -87,36 +108,59 @@ export function DepositModal({ address, onClose }: DepositModalProps) {
             className="h-[180px] w-[180px] rounded-xl"
           />
         </div>
-        <button
-          type="button"
-          onPointerDown={(e) => {
-            // Start copy on pointer down so iOS still has an active gesture.
-            if (e.pointerType === "mouse" && e.button !== 0) return;
-            e.stopPropagation();
-            copy();
+
+        {/* Visible readonly field — iOS can select/copy this natively. */}
+        <input
+          ref={addressInputRef}
+          type="text"
+          readOnly
+          value={address}
+          onFocus={(e) => {
+            const el = e.currentTarget;
+            requestAnimationFrame(() => el.setSelectionRange(0, el.value.length));
           }}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          className="flex w-full items-center justify-between gap-3 rounded-2xl bg-[#3a3a3a] px-3.5 py-3.5 text-left touch-manipulation active:bg-[#444]"
-          aria-label={copied ? "Address copied" : "Copy deposit address"}
-        >
-          <span className="min-w-0 break-all font-mono text-xs leading-relaxed text-white select-all">
-            {address}
-          </span>
-          {copied ? (
-            <Check size={18} weight="bold" className="shrink-0 text-emerald-400" />
-          ) : (
-            <CopySimple size={18} weight="bold" className="shrink-0 text-neutral-400" />
-          )}
-        </button>
+          className="mb-3 w-full rounded-2xl border border-white/10 bg-[#3a3a3a] px-3.5 py-3.5 font-mono text-[12px] leading-relaxed text-white outline-none selection:bg-white/30"
+          aria-label="Deposit address"
+          inputMode="text"
+        />
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleCopy();
+            }}
+            className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-white px-3 text-sm font-bold text-black touch-manipulation active:bg-neutral-200"
+            aria-label={copied ? "Address copied" : "Copy deposit address"}
+          >
+            {copied ? <Check size={18} weight="bold" className="text-emerald-600" /> : <CopySimple size={18} weight="bold" />}
+            {copied ? "Copied" : "Copy"}
+          </button>
+          {canShare ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleShare();
+              }}
+              className="flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#3a3a3a] px-4 text-sm font-semibold text-white touch-manipulation active:bg-[#444]"
+              aria-label="Share deposit address"
+            >
+              <ShareNetwork size={18} weight="bold" />
+              Share
+            </button>
+          ) : null}
+        </div>
+
         <p className="mt-2.5 text-center text-[11px] text-neutral-500">
           {copied
-            ? "Copied"
+            ? "Address copied"
             : copyError
-              ? "Copy failed — long-press the address above"
-              : "Tap address to copy"}
+              ? "Select the address above, then Copy — or use Share"
+              : "Tap Copy, or long-press the address"}
         </p>
       </div>
     </div>
