@@ -288,6 +288,8 @@ type MarketChainSlice = {
   state: number;
   dec: number;
   collateralAddress: `0x${string}`;
+  /** Set when state === 2 (settled). */
+  winningOutcomeIndex?: number | null;
 };
 
 type MarketLoadEntry = {
@@ -319,7 +321,12 @@ function buildMarketListItem(
   let outcomeChancePcts = Array.from({ length: outcomeCount }, (_, i) =>
     i === 0 ? leftPct : Math.round((100 - leftPct) / Math.max(1, outcomeCount - 1)),
   );
-  if (priceResults.length === outcomeCount) {
+  const winIdx = slice.winningOutcomeIndex;
+  // Settled: show result (winner 100%), not stale pool odds (often still ~50/50 after even seed).
+  if (slice.state === 2 && winIdx != null && winIdx >= 0 && winIdx < outcomeCount) {
+    outcomeChancePcts = Array.from({ length: outcomeCount }, (_, i) => (i === winIdx ? 100 : 0));
+    leftPct = outcomeChancePcts[0] ?? 0;
+  } else if (priceResults.length === outcomeCount) {
     outcomeChancePcts = priceResults.map((p) => clampPct(Number(formatUnits(p, 18)) * 100));
     leftPct = outcomeChancePcts[0] ?? leftPct;
   }
@@ -548,13 +555,24 @@ async function loadMarketsListUncached(): Promise<MarketListItem[]> {
   const phase2Contracts = entries.flatMap((entry, i) => {
     const slice = slices[i];
     if (!slice || slice.outcomeCount <= 0) return [];
-    // Prices only — TVL uses collateral balanceOf(market), not sum of outcome pools.
-    return Array.from({ length: slice.outcomeCount }, (_, o) => ({
+    // Prices + optional winner — TVL uses collateral balanceOf(market), not sum of outcome pools.
+    const priceCalls = Array.from({ length: slice.outcomeCount }, (_, o) => ({
       address: entry.address,
       abi: MARKET_ABI,
       functionName: "priceOf" as const,
       args: [o] as const,
     }));
+    if (slice.state === 2) {
+      return [
+        ...priceCalls,
+        {
+          address: entry.address,
+          abi: MARKET_ABI,
+          functionName: "winningOutcomeIndex" as const,
+        },
+      ];
+    }
+    return priceCalls;
   });
 
   const tvlContracts = entries.flatMap((entry, i) => {
@@ -583,7 +601,7 @@ async function loadMarketsListUncached(): Promise<MarketListItem[]> {
     // so the grid is not empty — cards use fallback title until metadata loads.
     const degradedListable = !listable && isValidMetadataUri(slice.uri);
     if (!listable && !degradedListable) {
-      phase2Idx += slice.outcomeCount;
+      phase2Idx += slice.outcomeCount + (slice.state === 2 ? 1 : 0);
       tvlIdx += 1;
       continue;
     }
@@ -592,6 +610,12 @@ async function loadMarketsListUncached(): Promise<MarketListItem[]> {
     for (let o = 0; o < slice.outcomeCount; o += 1) {
       const price = phase2[phase2Idx++]?.result as bigint | undefined;
       if (price !== undefined) priceResults.push(price);
+    }
+    if (slice.state === 2) {
+      const winRaw = phase2[phase2Idx++]?.result as bigint | undefined;
+      if (winRaw !== undefined && winRaw < BigInt(slice.outcomeCount)) {
+        slice.winningOutcomeIndex = Number(winRaw);
+      }
     }
 
     const poolTvlRaw = (tvlReads[tvlIdx++]?.result as bigint | undefined) ?? BigInt(0);
@@ -637,6 +661,7 @@ async function loadMarketRow(
       { address: marketAddress, abi: MARKET_ABI, functionName: "state" },
       { address: marketAddress, abi: MARKET_ABI, functionName: "collateralDecimals" },
       { address: marketAddress, abi: MARKET_ABI, functionName: "collateralAddress" },
+      { address: marketAddress, abi: MARKET_ABI, functionName: "winningOutcomeIndex" },
     ],
   });
 
@@ -648,6 +673,7 @@ async function loadMarketRow(
   const state = base[5]?.result as number | undefined;
   const collateralDecimals = base[6]?.result as number | undefined;
   const collateralAddress = base[7]?.result as `0x${string}` | undefined;
+  const winningRaw = base[8]?.result as bigint | undefined;
 
   if (
     kind === undefined ||
@@ -712,15 +738,22 @@ async function loadMarketRow(
     }
   }
 
+  const stateNum = Number(state);
+  const winIdx =
+    stateNum === 2 && winningRaw !== undefined && winningRaw < BigInt(outcomeCount)
+      ? Number(winningRaw)
+      : null;
+
   const slice: MarketChainSlice = {
     kind: Number(kind),
     uri,
     stake,
     resolveAfter,
     outcomeCount,
-    state: Number(state),
+    state: stateNum,
     dec,
     collateralAddress,
+    winningOutcomeIndex: winIdx,
   };
 
   return buildMarketListItem(marketAddress, slice, md, poolTvlRaw, priceResults, priceBinByOutcome);
