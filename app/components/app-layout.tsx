@@ -14,6 +14,7 @@ import { DEPLOYMENT_CHAIN_ID } from "@/lib/deployment";
 import { USDG_TOKEN_LOGO } from "@/lib/brand-assets";
 import { tradingUsdgAddress } from "@/lib/usdg";
 import {
+  ArrowsLeftRight,
   BookOpenText,
   Check,
   CircleNotch,
@@ -42,6 +43,8 @@ import { SidebarDrawer } from "@/app/components/sidebar-drawer";
 import { SidebarOpenContext } from "@/app/components/sidebar-context";
 import { MarketSearchModal } from "@/app/components/market-search-modal";
 import { DepositModal } from "@/app/components/deposit-modal";
+import { TransferModal } from "@/app/components/transfer-modal";
+import { copyTextToClipboard } from "@/lib/clipboard";
 
 export function buildWalletGradient(input: string) {
   let hash = 0;
@@ -115,6 +118,7 @@ export function AppLayout({
   const profileCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showNameModal, setShowNameModal] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [isSavingName, setIsSavingName] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -139,7 +143,7 @@ export function AppLayout({
         winRatePct: number | null;
       }
   >(undefined);
-  const { data: usdgBalanceRaw } = useReadContract({
+  const { data: usdgBalanceRaw, refetch: refetchUsdgBalance } = useReadContract({
     address: PROFILE_USDG_ADDRESS,
     abi: ERC20_ABI,
     functionName: "balanceOf",
@@ -563,11 +567,8 @@ export function AppLayout({
                                 <button
                                   type="button"
                                   onClick={async () => {
-                                    try {
-                                      await navigator.clipboard.writeText(sessionAddress);
-                                    } catch {
-                                      setProfileError("Could not copy wallet address.");
-                                    }
+                                    const ok = await copyTextToClipboard(sessionAddress);
+                                    if (!ok) setProfileError("Could not copy wallet address.");
                                   }}
                                   className="ml-1.5 inline-flex align-middle text-[var(--muted)] hover:text-[var(--foreground)]"
                                   aria-label="Copy wallet address"
@@ -599,6 +600,20 @@ export function AppLayout({
                               {profileBalance.amount} {profileBalance.symbol}
                             </span>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsProfileOpen(false);
+                              setShowTransferModal(true);
+                            }}
+                            className="mb-1 flex w-full items-center justify-between px-1 py-1.5 text-left text-xs text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                          >
+                            <span className="inline-flex items-center gap-2">
+                              <ArrowsLeftRight size={13} weight="bold" className="text-[#7fd0ff]" />
+                              Transfer
+                            </span>
+                            <span>›</span>
+                          </button>
                           <p className="py-1 text-[10px] uppercase tracking-wide text-[var(--muted)]">Profile stats</p>
                           {walletGraphStats === undefined ? (
                             <p className="pb-2 text-xs text-[var(--muted)]">Loading…</p>
@@ -709,6 +724,7 @@ export function AppLayout({
                             setIsProfileOpen(false);
                             setProfileName("");
                             setShowDepositModal(false);
+                            setShowTransferModal(false);
                           }}
                           className="mt-1 flex w-full items-center justify-between px-1 py-1.5 text-left text-xs font-medium text-red-400 transition hover:bg-red-900/20 hover:text-red-300"
                         >
@@ -803,6 +819,19 @@ export function AppLayout({
 
       {showDepositModal && sessionAddress ? (
         <DepositModal address={sessionAddress} onClose={() => setShowDepositModal(false)} />
+      ) : null}
+
+      {showTransferModal && sessionAddress && PROFILE_USDG_ADDRESS ? (
+        <TransferModal
+          tokenAddress={PROFILE_USDG_ADDRESS}
+          balanceWei={typeof usdgBalanceRaw === "bigint" ? usdgBalanceRaw : BigInt(0)}
+          decimals={typeof usdgDecimalsRaw === "number" ? usdgDecimalsRaw : 6}
+          ticker={profileBalance.symbol}
+          onClose={() => setShowTransferModal(false)}
+          onSuccess={() => {
+            void refetchUsdgBalance();
+          }}
+        />
       ) : null}
 
       {showNameModal && (
