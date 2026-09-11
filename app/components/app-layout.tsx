@@ -122,6 +122,7 @@ export function AppLayout({
   const [nameInput, setNameInput] = useState("");
   const [isSavingName, setIsSavingName] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileAddressCopied, setProfileAddressCopied] = useState(false);
   const [nameModalError, setNameModalError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -562,19 +563,42 @@ export function AppLayout({
                               </button>
                             </div>
                             <p className="mt-0.5 text-[10px] text-[var(--muted)]">
-                              <span>{sessionAddress ? shortenAddress(sessionAddress) : "-"}</span>
-                              {sessionAddress && (
+                              {sessionAddress ? (
                                 <button
                                   type="button"
-                                  onClick={async () => {
-                                    const ok = await copyTextToClipboard(sessionAddress);
-                                    if (!ok) setProfileError("Could not copy wallet address.");
+                                  onPointerDown={(e) => {
+                                    // Keep the gesture alive on iOS; don't let parent blur/close steal it.
+                                    e.stopPropagation();
                                   }}
-                                  className="ml-1.5 inline-flex align-middle text-[var(--muted)] hover:text-[var(--foreground)]"
-                                  aria-label="Copy wallet address"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setProfileError(null);
+                                    void (async () => {
+                                      const ok = await copyTextToClipboard(sessionAddress);
+                                      if (!ok) {
+                                        setProfileAddressCopied(false);
+                                        setProfileError("Could not copy — long-press the address.");
+                                        return;
+                                      }
+                                      setProfileAddressCopied(true);
+                                      window.setTimeout(() => setProfileAddressCopied(false), 1600);
+                                    })();
+                                  }}
+                                  className="inline-flex max-w-full items-center gap-1.5 rounded-md px-0.5 py-0.5 text-left text-[var(--muted)] active:bg-[var(--surface-hover)] active:text-[var(--foreground)]"
+                                  aria-label={profileAddressCopied ? "Address copied" : "Copy wallet address"}
                                 >
-                                  <CopySimple size={11} weight="bold" />
+                                  <span className="truncate font-mono">
+                                    {profileAddressCopied ? "Copied" : shortenAddress(sessionAddress)}
+                                  </span>
+                                  {profileAddressCopied ? (
+                                    <Check size={11} weight="bold" className="shrink-0 text-[var(--outcome-yes)]" />
+                                  ) : (
+                                    <CopySimple size={11} weight="bold" className="shrink-0" />
+                                  )}
                                 </button>
+                              ) : (
+                                <span>-</span>
                               )}
                             </p>
                             {profileError && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, CopySimple, X } from "@phosphor-icons/react";
 import { DEPLOYMENT_NETWORK_LABEL, NATIVE_CURRENCY_SYMBOL } from "@/lib/chain";
 import { copyTextToClipboard } from "@/lib/clipboard";
@@ -13,6 +13,7 @@ type DepositModalProps = {
 export function DepositModal({ address, onClose }: DepositModalProps) {
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&bgcolor=3a3a3a&color=ffffff&qzone=2&data=${encodeURIComponent(address)}`;
 
   useEffect(() => {
@@ -20,18 +21,29 @@ export function DepositModal({ address, onClose }: DepositModalProps) {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
+    };
   }, [onClose]);
 
-  const copy = async () => {
+  const markCopied = () => {
     setCopyError(false);
-    const ok = await copyTextToClipboard(address);
-    if (!ok) {
-      setCopyError(true);
-      return;
-    }
     setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+    if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = window.setTimeout(() => setCopied(false), 1800);
+  };
+
+  const copy = () => {
+    // Fire clipboard in the same user-gesture turn (required on iOS).
+    void copyTextToClipboard(address).then((ok) => {
+      if (!ok) {
+        setCopied(false);
+        setCopyError(true);
+        return;
+      }
+      markCopied();
+    });
   };
 
   return (
@@ -77,18 +89,34 @@ export function DepositModal({ address, onClose }: DepositModalProps) {
         </div>
         <button
           type="button"
-          onClick={() => void copy()}
-          className="flex w-full items-center justify-between gap-3 rounded-2xl bg-[#3a3a3a] px-3.5 py-3 text-left active:bg-[#444]"
+          onPointerDown={(e) => {
+            // Start copy on pointer down so iOS still has an active gesture.
+            if (e.button !== 0 && e.pointerType === "mouse") return;
+            e.stopPropagation();
+            copy();
+          }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          className="flex w-full items-center justify-between gap-3 rounded-2xl bg-[#3a3a3a] px-3.5 py-3.5 text-left touch-manipulation active:bg-[#444]"
+          aria-label={copied ? "Address copied" : "Copy deposit address"}
         >
-          <span className="min-w-0 break-all font-mono text-xs text-white select-all">{address}</span>
+          <span className="min-w-0 break-all font-mono text-xs leading-relaxed text-white select-all">
+            {address}
+          </span>
           {copied ? (
-            <Check size={16} weight="bold" className="shrink-0 text-emerald-400" />
+            <Check size={18} weight="bold" className="shrink-0 text-emerald-400" />
           ) : (
-            <CopySimple size={16} weight="bold" className="shrink-0 text-neutral-400" />
+            <CopySimple size={18} weight="bold" className="shrink-0 text-neutral-400" />
           )}
         </button>
         <p className="mt-2.5 text-center text-[11px] text-neutral-500">
-          {copied ? "Copied" : copyError ? "Copy failed — long-press the address to copy" : "Tap to copy"}
+          {copied
+            ? "Copied"
+            : copyError
+              ? "Copy failed — long-press the address above"
+              : "Tap address to copy"}
         </p>
       </div>
     </div>
