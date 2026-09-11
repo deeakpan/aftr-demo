@@ -48,7 +48,12 @@ export function useNadComparisonStats(
     return () => {
       cancelled = true;
     };
-  }, [enabled, externalStats, preferPons, tokens.map((t) => t.address.toLowerCase()).join(",")]);
+  }, [
+    enabled,
+    externalStats,
+    preferPons,
+    tokens.map((t) => `${t.address.toLowerCase()}:${t.sourceUrl ?? ""}`).join(","),
+  ]);
 
   return { stats, loading };
 }

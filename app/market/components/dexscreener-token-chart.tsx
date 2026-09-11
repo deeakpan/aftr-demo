@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DEPLOYMENT_CHAIN_ID } from "@/lib/deployment";
+import { parseTokenPairLink } from "@/lib/token-market/parse-link";
 
 type DexPair = {
   chainId?: string | number;
@@ -19,9 +20,17 @@ type Props = {
   onAvailabilityChange?: (available: boolean) => void;
 };
 
+function dexscreenerEmbed(chainSlug: string, pairAddress: string): string {
+  return `https://dexscreener.com/${chainSlug}/${pairAddress}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=15`;
+}
+
+function geckoEmbed(chainSlug: string, pairAddress: string): string {
+  return `https://www.geckoterminal.com/${chainSlug}/pools/${pairAddress}?embed=1&info=0&swaps=0&light_chart=0&chart_type=price&resolution=15m`;
+}
+
 /**
- * Embeds a DexScreener chart when a pair exists for the token.
- * Returns null when DexScreener has nothing — caller should show market activity instead.
+ * Embeds a DexScreener or GeckoTerminal chart when a pair exists for the token.
+ * Returns null when neither has a usable pair — caller should show market activity instead.
  */
 export function DexScreenerTokenChart({
   tokenAddress,
@@ -37,32 +46,27 @@ export function DexScreenerTokenChart({
     onAvailabilityChange?.(false);
 
     const fromPair = pairUrl?.trim() ?? "";
-    if (/dexscreener\.com\//i.test(fromPair)) {
-      try {
-        const u = new URL(fromPair.startsWith("http") ? fromPair : `https://${fromPair}`);
-        u.searchParams.set("embed", "1");
-        u.searchParams.set("loadChartSettings", "0");
-        u.searchParams.set("trades", "0");
-        u.searchParams.set("tabs", "0");
-        u.searchParams.set("info", "0");
-        u.searchParams.set("chartLeftToolbar", "0");
-        u.searchParams.set("chartTheme", "dark");
-        u.searchParams.set("theme", "dark");
-        u.searchParams.set("chartStyle", "0");
-        u.searchParams.set("chartType", "usd");
-        u.searchParams.set("interval", "15");
-        if (!cancelled) {
-          setEmbedUrl(u.toString());
-          onAvailabilityChange?.(true);
-        }
-        return;
-      } catch {
-        /* fall through to token lookup */
+    const parsed = fromPair ? parseTokenPairLink(fromPair) : null;
+    if (parsed) {
+      const url =
+        parsed.source === "geckoterminal"
+          ? geckoEmbed(parsed.chainSlug, parsed.pairAddress)
+          : dexscreenerEmbed(parsed.chainSlug, parsed.pairAddress);
+      if (!cancelled) {
+        setEmbedUrl(url);
+        onAvailabilityChange?.(true);
       }
+      return () => {
+        cancelled = true;
+      };
     }
 
     const addr = tokenAddress.trim().toLowerCase();
-    if (!/^0x[a-f0-9]{40}$/.test(addr)) return;
+    if (!/^0x[a-f0-9]{40}$/.test(addr)) {
+      return () => {
+        cancelled = true;
+      };
+    }
 
     void (async () => {
       try {
@@ -87,7 +91,7 @@ export function DexScreenerTokenChart({
 
         const chainSlug = String(preferred.chainId ?? chainKey);
         const pair = preferred.pairAddress!;
-        const url = `https://dexscreener.com/${chainSlug}/${pair}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=15`;
+        const url = dexscreenerEmbed(chainSlug, pair);
 
         if (!cancelled) {
           setEmbedUrl(url);
@@ -111,7 +115,8 @@ export function DexScreenerTokenChart({
   return (
     <div className={`overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] ${className}`}>
       <iframe
-        title="DexScreener chart"
+        key={embedUrl}
+        title="Token chart"
         src={embedUrl}
         className="h-[360px] w-full border-0"
         allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture"

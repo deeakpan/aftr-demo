@@ -19,6 +19,7 @@ import { MarketChartPanel } from "@/app/market/components/market-chart-panel";
 import { MarketShareButton } from "@/app/market/components/market-share-button";
 import { MarketTradeList } from "@/app/market/components/market-trade-list";
 import { LaunchpadTokenSection } from "@/app/market/components/launchpad-token-section";
+import { NadMarketCardCover } from "@/app/market/components/nad-market-list-card";
 import { MultiOutcomeMarketSection } from "@/app/market/components/multi-outcome-market-section";
 import { OutcomeOrderBook } from "@/app/market/components/outcome-order-book";
 import { LimitOrderParams, TradeModal, type TradeSuccessResult } from "@/app/market/components/trade-modal";
@@ -1085,7 +1086,30 @@ export function MarketDetailClient({
                     >
                       <ArrowLeft size={16} weight="bold" />
                     </Link>
-                    {market.imageUrl ? (
+                    {market.nadMarket ? (
+                      <div className="flex shrink-0 items-center -space-x-2">
+                        {market.nadMarket.tokens
+                          .slice(0, market.nadMarket.mode === "comparison" ? 2 : 1)
+                          .map((tok, i) => (
+                            <div
+                              key={`${tok.address.toLowerCase()}-${i}`}
+                              className="relative h-9 w-9 overflow-hidden rounded-full border-2 border-[var(--background)] bg-[var(--surface)]"
+                            >
+                              {tok.imageUri ? (
+                                <img
+                                  src={tok.imageUri}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <span className="flex h-full w-full items-center justify-center text-[10px] font-bold text-[var(--muted)]">
+                                  {tok.symbol.slice(0, 2)}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                      </div>
+                    ) : market.imageUrl ? (
                       <div className="relative isolate h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-[var(--surface)]">
                         <img
                           src={market.imageUrl}
@@ -1147,7 +1171,11 @@ export function MarketDetailClient({
                 />
               </div>
 
-              {market.imageUrl ? (
+              {market.nadMarket ? (
+                <div className="mt-3 w-full max-w-2xl overflow-hidden rounded-2xl">
+                  <NadMarketCardCover nadMarket={market.nadMarket} />
+                </div>
+              ) : market.imageUrl ? (
                 <div className="relative isolate mt-3 h-[132px] w-full max-w-2xl overflow-hidden rounded-2xl bg-[var(--surface)] sm:h-[148px]">
                   <img
                     src={market.imageUrl}
@@ -1167,19 +1195,36 @@ export function MarketDetailClient({
                 market.marketState === 2 ? "mx-auto w-full max-w-3xl" : ""
               }`}
             >
-            {/* Outcome hero — binary only */}
-            {market.outcomes === 2 && (
+            {/* Outcome hero — binary only (not token comparison; those use multi-outcome rows) */}
+            {market.outcomes === 2 && market.nadMarket?.mode !== "comparison" && (
               <>
                 <div className="mb-1 flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-[var(--outcome-yes)]">
-                    {market.outcomeLabels[0] ?? "Yes"}
+                  <span
+                    className={`text-3xl font-bold ${
+                      selectedOutcome === 0 ? "text-[var(--outcome-yes)]" : "text-[var(--outcome-no)]"
+                    }`}
+                  >
+                    {market.outcomeLabels[selectedOutcome] ?? (selectedOutcome === 0 ? "Yes" : "No")}
                   </span>
-                  <span className="text-sm font-semibold text-[var(--outcome-yes)]">
-                    ↑ {market.chancePct.toFixed(1)}%
+                  <span
+                    className={`text-sm font-semibold ${
+                      selectedOutcome === 0 ? "text-[var(--outcome-yes)]" : "text-[var(--outcome-no)]"
+                    }`}
+                  >
+                    ↑{" "}
+                    {(
+                      market.outcomeChancePcts?.[selectedOutcome] ??
+                      (selectedOutcome === 0 ? market.chancePct : 100 - market.chancePct)
+                    ).toFixed(1)}
+                    %
                   </span>
                 </div>
                 <p className="mb-5 text-sm text-[var(--muted)]">
-                  {market.chancePct.toFixed(1)}% chance
+                  {(
+                    market.outcomeChancePcts?.[selectedOutcome] ??
+                    (selectedOutcome === 0 ? market.chancePct : 100 - market.chancePct)
+                  ).toFixed(1)}
+                  % chance
                 </p>
               </>
             )}
@@ -1216,6 +1261,11 @@ export function MarketDetailClient({
                       outcomeLabels={market.outcomeLabels}
                       chartThemeKey={chartThemeKey}
                       hideMarketChartFallback
+                      activeTokenIndex={Math.min(
+                        selectedOutcome,
+                        Math.max(market.nadMarket.tokens.length - 1, 0),
+                      )}
+                      onActiveTokenIndexChange={setSelectedOutcome}
                     />
                   </div>
                 ) : null}

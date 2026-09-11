@@ -18,6 +18,8 @@ export type TokenLiveStats = {
   priceUsd: number | null;
   marketCapUsd: number | null;
   liquidityUsd: number | null;
+  /** 24h volume in USD when the source provides it. */
+  volumeUsd24h?: number | null;
 };
 
 export type TokenMarketConfig = {

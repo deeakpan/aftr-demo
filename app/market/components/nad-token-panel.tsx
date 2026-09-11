@@ -14,10 +14,15 @@ import {
 import {
   fetchLaunchpadTokenDisplay,
   isPonsDisplayMarket,
+  isTokenLinkDisplayMarket,
+  isTokenLinkUrl,
 } from "@/lib/launchpad/fetch-token-display";
 
 type Props = {
   nadMarket: NadMarketConfig;
+  /** Controlled tab index (e.g. synced with selected outcome on comparison markets). */
+  activeIndex?: number;
+  onActiveIndexChange?: (index: number) => void;
   /** Notify parent which token tab is active (for DexScreener / chart fallback). */
   onActiveTokenChange?: (token: NadTokenRef) => void;
 };
@@ -132,10 +137,16 @@ function TokenStatsBody({
   );
 }
 
-export function NadTokenPanel({ nadMarket, onActiveTokenChange }: Props) {
+export function NadTokenPanel({
+  nadMarket,
+  activeIndex,
+  onActiveIndexChange,
+  onActiveTokenChange,
+}: Props) {
   const tokens = nadMarket.tokens;
   const preferPons = isPonsDisplayMarket(nadMarket);
   const [tab, setTab] = useState(0);
+  const controlled = typeof activeIndex === "number";
   const [rows, setRows] = useState<
     { token: NadTokenRef; stats: NadLiveStats | null; volumeLabel: string }[]
   >([]);
@@ -165,10 +176,14 @@ export function NadTokenPanel({ nadMarket, onActiveTokenChange }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [preferPons, tokens.map((t) => t.address.toLowerCase()).join(",")]);
+  }, [
+    preferPons,
+    tokens.map((t) => `${t.address.toLowerCase()}:${t.sourceUrl ?? ""}`).join(","),
+  ]);
 
   const isComparison = nadMarket.mode === "comparison" && tokens.length > 1;
-  const active = Math.min(tab, Math.max(tokens.length - 1, 0));
+  const maxIdx = Math.max(tokens.length - 1, 0);
+  const active = Math.min(controlled ? activeIndex! : tab, maxIdx);
   const activeRow = rows[active] ?? {
     token: tokens[active]!,
     stats: null,
@@ -180,11 +195,20 @@ export function NadTokenPanel({ nadMarket, onActiveTokenChange }: Props) {
     onActiveTokenChange?.(rows[active]?.token ?? tokens[active]!);
   }, [active, rows, tokens, onActiveTokenChange]);
 
+  function selectTab(i: number) {
+    if (!controlled) setTab(i);
+    onActiveIndexChange?.(i);
+  }
+
   if (tokens.length === 0) return null;
 
-  const externalLink = preferPons
-    ? ponsTokenPageUrl(activeRow.token.address)
-    : `https://testnet.nad.fun/tokens/${activeRow.token.address}`;
+  const tokenLinkMarket = isTokenLinkDisplayMarket(nadMarket);
+  const externalLinkFor = (token: NadTokenRef) => {
+    if (token.sourceUrl && isTokenLinkUrl(token.sourceUrl)) return token.sourceUrl;
+    if (tokenLinkMarket && isTokenLinkUrl(nadMarket.apiBaseUrl)) return nadMarket.apiBaseUrl;
+    if (preferPons) return ponsTokenPageUrl(token.address);
+    return `https://testnet.nad.fun/tokens/${token.address}`;
+  };
 
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4">
@@ -195,7 +219,7 @@ export function NadTokenPanel({ nadMarket, onActiveTokenChange }: Props) {
               <button
                 key={`${t.address.toLowerCase()}-${i}`}
                 type="button"
-                onClick={() => setTab(i)}
+                onClick={() => selectTab(i)}
                 className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
                   i === active
                     ? "bg-[var(--surface-hover)] text-[var(--foreground)]"
@@ -212,7 +236,7 @@ export function NadTokenPanel({ nadMarket, onActiveTokenChange }: Props) {
               stats={activeRow.stats}
               volumeLabel={activeRow.volumeLabel}
               loading={loading}
-              externalLink={externalLink}
+              externalLink={externalLinkFor(activeRow.token)}
             />
           </div>
         </>
@@ -222,11 +246,7 @@ export function NadTokenPanel({ nadMarket, onActiveTokenChange }: Props) {
           stats={rows[0]?.stats ?? null}
           volumeLabel={rows[0]?.volumeLabel ?? "—"}
           loading={loading}
-          externalLink={
-            preferPons
-              ? ponsTokenPageUrl((rows[0]?.token ?? tokens[0]!).address)
-              : `https://testnet.nad.fun/tokens/${(rows[0]?.token ?? tokens[0]!).address}`
-          }
+          externalLink={externalLinkFor(rows[0]?.token ?? tokens[0]!)}
         />
       )}
     </div>

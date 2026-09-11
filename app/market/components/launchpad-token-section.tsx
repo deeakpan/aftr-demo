@@ -17,6 +17,9 @@ type Props = {
   chartThemeKey: string;
   /** When true, skip market volume chart (e.g. multi-outcome already has activity panels). */
   hideMarketChartFallback?: boolean;
+  /** Synced with selected outcome on comparison markets. */
+  activeTokenIndex?: number;
+  onActiveTokenIndexChange?: (index: number) => void;
 };
 
 export function LaunchpadTokenSection({
@@ -28,6 +31,8 @@ export function LaunchpadTokenSection({
   outcomeLabels,
   chartThemeKey,
   hideMarketChartFallback = false,
+  activeTokenIndex,
+  onActiveTokenIndexChange,
 }: Props) {
   const [activeToken, setActiveToken] = useState<NadTokenRef | null>(
     nadMarket.tokens[0] ?? null,
@@ -45,11 +50,17 @@ export function LaunchpadTokenSection({
 
   return (
     <div className="space-y-4">
-      <NadTokenPanel nadMarket={nadMarket} onActiveTokenChange={onActiveTokenChange} />
+      <NadTokenPanel
+        nadMarket={nadMarket}
+        activeIndex={activeTokenIndex}
+        onActiveIndexChange={onActiveTokenIndexChange}
+        onActiveTokenChange={onActiveTokenChange}
+      />
       {activeToken ? (
         <DexScreenerTokenChart
+          key={`${activeToken.address.toLowerCase()}:${activeToken.sourceUrl ?? ""}`}
           tokenAddress={activeToken.address}
-          pairUrl={nadMarket.apiBaseUrl || null}
+          pairUrl={activeToken.sourceUrl || nadMarket.apiBaseUrl || null}
           onAvailabilityChange={onDexAvailability}
         />
       ) : null}

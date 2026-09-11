@@ -13,6 +13,8 @@ export function tokenMarketForCardPreview(cfg: TokenMarketConfig): NadMarketConf
       name: t.name,
       imageUri: t.imageUri,
       isGraduated: true,
+      sourceUrl: t.sourceUrl,
+      source: t.source,
     })),
     params: cfg.params,
     apiBaseUrl: cfg.pairs[0]?.sourceUrl ?? "",

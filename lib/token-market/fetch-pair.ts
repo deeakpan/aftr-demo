@@ -13,6 +13,11 @@ export type TokenPairPreview = {
   stats: TokenLiveStats;
 };
 
+export type FetchTokenPairOpts = {
+  /** When false, skip the create-time liquidity floor (use for live display). Default true. */
+  requireMinLiquidity?: boolean;
+};
+
 const MIN_LIQUIDITY_USD = 1_000;
 
 function num(v: unknown): number | null {
@@ -20,7 +25,22 @@ function num(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-async function fetchDexscreener(chainSlug: string, pairAddress: string, sourceUrl: string): Promise<TokenPairPreview> {
+function assertLiquidity(liq: number | null, requireMin: boolean) {
+  if (!requireMin) return;
+  if (liq != null && liq < MIN_LIQUIDITY_USD) {
+    throw new TokenPairNotFoundError(
+      `Pair liquidity is $${liq.toFixed(0)}. Need at least $${MIN_LIQUIDITY_USD}.`,
+    );
+  }
+}
+
+async function fetchDexscreener(
+  chainSlug: string,
+  pairAddress: string,
+  sourceUrl: string,
+  opts?: FetchTokenPairOpts,
+): Promise<TokenPairPreview> {
+  const requireMin = opts?.requireMinLiquidity !== false;
   const res = await fetch(
     `https://api.dexscreener.com/latest/dex/pairs/${encodeURIComponent(chainSlug)}/${encodeURIComponent(pairAddress)}`,
     { cache: "no-store" },
@@ -37,6 +57,7 @@ async function fetchDexscreener(chainSlug: string, pairAddress: string, sourceUr
       marketCap?: number;
       fdv?: number;
       liquidity?: { usd?: number };
+      volume?: { h24?: number };
       info?: { imageUrl?: string };
     }>;
   };
@@ -44,9 +65,7 @@ async function fetchDexscreener(chainSlug: string, pairAddress: string, sourceUr
   const token = row?.baseToken?.address;
   if (!row || !token) throw new TokenPairNotFoundError("Dexscreener returned no base token for that link.");
   const liq = num(row.liquidity?.usd);
-  if (liq != null && liq < MIN_LIQUIDITY_USD) {
-    throw new TokenPairNotFoundError(`Pair liquidity is $${liq.toFixed(0)}. Need at least $${MIN_LIQUIDITY_USD}.`);
-  }
+  assertLiquidity(liq, requireMin);
   return {
     pair: {
       source: "dexscreener",
@@ -64,11 +83,18 @@ async function fetchDexscreener(chainSlug: string, pairAddress: string, sourceUr
       priceUsd: num(row.priceUsd),
       marketCapUsd: num(row.marketCap) ?? num(row.fdv),
       liquidityUsd: liq,
+      volumeUsd24h: num(row.volume?.h24),
     },
   };
 }
 
-async function fetchGecko(chainSlug: string, pairAddress: string, sourceUrl: string): Promise<TokenPairPreview> {
+async function fetchGecko(
+  chainSlug: string,
+  pairAddress: string,
+  sourceUrl: string,
+  opts?: FetchTokenPairOpts,
+): Promise<TokenPairPreview> {
+  const requireMin = opts?.requireMinLiquidity !== false;
   const res = await fetch(
     `https://api.geckoterminal.com/api/v2/networks/${encodeURIComponent(chainSlug)}/pools/${encodeURIComponent(pairAddress)}?include=base_token,quote_token`,
     { cache: "no-store", headers: { accept: "application/json" } },
@@ -83,13 +109,17 @@ async function fetchGecko(chainSlug: string, pairAddress: string, sourceUrl: str
         fdv_usd?: string;
         market_cap_usd?: string;
         reserve_in_usd?: string;
+        volume_usd?: { h24?: string };
       };
       relationships?: {
         base_token?: { data?: { id?: string } };
         quote_token?: { data?: { id?: string } };
       };
     };
-    included?: Array<{ id?: string; attributes?: { address?: string; symbol?: string; name?: string; image_url?: string } }>;
+    included?: Array<{
+      id?: string;
+      attributes?: { address?: string; symbol?: string; name?: string; image_url?: string };
+    }>;
   };
   const data = json.data;
   const attrs = data?.attributes;
@@ -102,9 +132,7 @@ async function fetchGecko(chainSlug: string, pairAddress: string, sourceUrl: str
   const token = base?.attributes?.address;
   if (!token) throw new TokenPairNotFoundError("GeckoTerminal pool is missing a base token. Try include=base_token.");
   const liq = num(attrs.reserve_in_usd);
-  if (liq != null && liq < MIN_LIQUIDITY_USD) {
-    throw new TokenPairNotFoundError(`Pool liquidity is $${liq.toFixed(0)}. Need at least $${MIN_LIQUIDITY_USD}.`);
-  }
+  assertLiquidity(liq, requireMin);
   return {
     pair: {
       source: "geckoterminal",
@@ -122,24 +150,31 @@ async function fetchGecko(chainSlug: string, pairAddress: string, sourceUrl: str
       priceUsd: num(attrs.base_token_price_usd),
       marketCapUsd: num(attrs.market_cap_usd) ?? num(attrs.fdv_usd),
       liquidityUsd: liq,
+      volumeUsd24h: num(attrs.volume_usd?.h24),
     },
   };
 }
 
-export async function fetchTokenPairFromLink(rawUrl: string): Promise<TokenPairPreview> {
+export async function fetchTokenPairFromLink(
+  rawUrl: string,
+  opts?: FetchTokenPairOpts,
+): Promise<TokenPairPreview> {
   const parsed = parseTokenPairLink(rawUrl);
   if (!parsed) {
     throw new TokenPairNotFoundError("Paste a Dexscreener or GeckoTerminal pool link.");
   }
   if (parsed.source === "dexscreener") {
-    return fetchDexscreener(parsed.chainSlug, parsed.pairAddress, parsed.sourceUrl);
+    return fetchDexscreener(parsed.chainSlug, parsed.pairAddress, parsed.sourceUrl, opts);
   }
-  return fetchGecko(parsed.chainSlug, parsed.pairAddress, parsed.sourceUrl);
+  return fetchGecko(parsed.chainSlug, parsed.pairAddress, parsed.sourceUrl, opts);
 }
 
-export async function fetchTokenPairSnapshot(ref: TokenPairRef): Promise<TokenPairPreview> {
+export async function fetchTokenPairSnapshot(
+  ref: TokenPairRef,
+  opts?: FetchTokenPairOpts,
+): Promise<TokenPairPreview> {
   if (ref.source === "dexscreener") {
-    return fetchDexscreener(ref.chainSlug, ref.pairAddress, ref.sourceUrl);
+    return fetchDexscreener(ref.chainSlug, ref.pairAddress, ref.sourceUrl, opts);
   }
-  return fetchGecko(ref.chainSlug, ref.pairAddress, ref.sourceUrl);
+  return fetchGecko(ref.chainSlug, ref.pairAddress, ref.sourceUrl, opts);
 }
