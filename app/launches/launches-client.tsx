@@ -2,16 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CircleNotch, Rocket } from "@phosphor-icons/react";
+import { ChartBar, CircleNotch, Clock, Rocket } from "@phosphor-icons/react";
 import { isAddress } from "viem";
 import { AppLayout } from "@/app/components/app-layout";
 import {
-  MarketListCard,
+  BinaryProbabilityPipe,
   MarketListCardSkeleton,
   MARKET_CARD_GRID_CLASS,
+  MARKET_CARD_HOVER_CLASS,
+  MARKET_CARD_SHELL_CLASS,
+  MARKET_CARD_TITLE_CLASS,
 } from "@/app/market/components/market-list-card";
-import { NadMarketListCard } from "@/app/market/components/nad-market-list-card";
-import { formatMarketCardDate, formatMarketClosesTooltip } from "@/lib/market-cover";
+import { MarketShareButton } from "@/app/market/components/market-share-button";
+import { formatMarketCardDate, formatMarketClosesTooltip, MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
 import { cacheMarketCardForDetail } from "@/lib/markets/market-card-cache";
 import { marketPath } from "@/lib/markets/market-url";
 import { useSessionWallet } from "@/lib/session-wallet";
@@ -33,10 +36,123 @@ type LaunchMarket = {
   marketState: number;
   categories?: string[];
   nadMarket?: NadMarketConfig | null;
+  stateLabel?: string;
 };
 
 function shorten(addr: string) {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+}
+
+function statusForLaunch(m: LaunchMarket, nowUnix: number): { label: string; tone: string } {
+  if (m.marketState === 2) return { label: "Settled", tone: "text-[var(--outcome-yes)]" };
+  if (m.marketState === 3) return { label: "Cancelled", tone: "text-[var(--muted)]" };
+  if (m.marketState === 1 || nowUnix >= m.resolveAfterUnix) {
+    return { label: "Awaiting resolution", tone: "text-amber-400" };
+  }
+  if (nowUnix >= m.stakeEndUnix) return { label: "Trading closed", tone: "text-amber-400" };
+  return { label: "Open", tone: "text-[var(--foreground)]" };
+}
+
+/** Browse-only card: never renders Yes/No trade buttons. */
+function LaunchBrowseCard({
+  market,
+  nowUnix,
+  onOpen,
+}: {
+  market: LaunchMarket;
+  nowUnix: number;
+  onOpen: () => void;
+}) {
+  const status = statusForLaunch(market, nowUnix);
+  const labels =
+    market.outcomeLabels?.filter((l) => l.trim()).length >= 2
+      ? market.outcomeLabels.filter((l) => l.trim()).slice(0, 8)
+      : ["Yes", "No"];
+  const pcts = labels.map((_, i) => {
+    const raw = market.outcomeChancePcts?.[i];
+    return Number.isFinite(raw) ? Math.max(0, Math.min(100, raw as number)) : Math.round(100 / labels.length);
+  });
+  const isBinary = labels.length === 2;
+  const resolveLabel = formatMarketCardDate(market.resolveAfterUnix * 1000) ?? "—";
+  const resolveTip = formatMarketClosesTooltip(market.resolveAfterUnix * 1000);
+  const cover =
+    market.imageUrl ||
+    market.nadMarket?.tokens?.[0]?.imageUri?.trim() ||
+    "";
+
+  return (
+    <article
+      className={`${MARKET_CARD_SHELL_CLASS} ${MARKET_CARD_HOVER_CLASS} cursor-pointer`}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      role="link"
+      tabIndex={0}
+    >
+      <div className={`${MARKET_COVER_ASPECT_CLASS} w-full shrink-0 overflow-hidden bg-[var(--surface)]`}>
+        {cover ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={cover} alt="" className="h-full w-full object-cover object-center" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-[11px] text-[var(--muted)]">
+            No cover image
+          </div>
+        )}
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
+        <div className="flex items-start justify-between gap-2">
+          <p className={`${MARKET_CARD_TITLE_CLASS} line-clamp-2`}>{market.title || "Untitled market"}</p>
+          <span className={`shrink-0 text-[10px] font-semibold uppercase tracking-wide ${status.tone}`}>
+            {status.label}
+          </span>
+        </div>
+
+        {isBinary ? (
+          <div className="space-y-1.5">
+            <BinaryProbabilityPipe yesPct={pcts[0] ?? 50} noPct={pcts[1] ?? 50} />
+            <div className="flex justify-between gap-2 text-xs text-[var(--muted)]">
+              <span>
+                {labels[0]} · {Math.round(pcts[0] ?? 50)}%
+              </span>
+              <span>
+                {labels[1]} · {Math.round(pcts[1] ?? 50)}%
+              </span>
+            </div>
+          </div>
+        ) : (
+          <ul className="space-y-1 text-xs text-[var(--muted)]">
+            {labels.map((label, i) => (
+              <li key={`${label}-${i}`} className="flex justify-between gap-2">
+                <span className="truncate text-[var(--foreground)]">{label}</span>
+                <span className="tabular-nums">{Math.round(pcts[i] ?? 0)}%</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div
+        className="flex shrink-0 items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] text-[var(--muted)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className="inline-flex items-center gap-1.5 font-semibold text-[var(--foreground)]">
+          <ChartBar size={14} weight="bold" className="text-[var(--muted)]" />${market.poolTvl || "0"}
+        </span>
+        <div className="flex items-center gap-2">
+          <MarketShareButton address={market.address} slug={market.slug} title={market.title} iconSize={13} />
+          <span className="inline-flex items-center gap-1" title={resolveTip}>
+            <Clock size={12} />
+            {resolveLabel}
+          </span>
+        </div>
+      </div>
+    </article>
+  );
 }
 
 export function LaunchesClient() {
@@ -54,16 +170,12 @@ export function LaunchesClient() {
   const [markets, setMarkets] = useState<LaunchMarket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  /** Bumps so stake-end / settled cards flip off trade CTAs without refresh. */
   const [nowUnix, setNowUnix] = useState(() => Math.floor(Date.now() / 1000));
 
   useEffect(() => {
     const id = window.setInterval(() => setNowUnix(Math.floor(Date.now() / 1000)), 15_000);
     return () => window.clearInterval(id);
   }, []);
-
-  const isTradingClosed = (m: LaunchMarket) =>
-    m.marketState !== 0 || nowUnix >= m.stakeEndUnix;
 
   useEffect(() => {
     if (!wallet) {
@@ -93,6 +205,7 @@ export function LaunchesClient() {
           setMarkets([]);
           return;
         }
+        // Keep open + ended + settled — never filter by stake end.
         setMarkets(json.markets ?? []);
       } catch (e) {
         if (!cancelled) {
@@ -128,7 +241,9 @@ export function LaunchesClient() {
           <div className="min-w-0">
             <h1 className="text-lg font-semibold text-[var(--foreground)]">Launches</h1>
             <p className="text-xs text-[var(--muted)]">
-              {wallet ? `Markets created by ${shorten(wallet)}` : "Your created markets"}
+              {wallet
+                ? `All markets created by ${shorten(wallet)} — open and ended`
+                : "Your created markets"}
             </p>
           </div>
         </div>
@@ -162,42 +277,9 @@ export function LaunchesClient() {
 
         {!loading && markets.length > 0 && (
           <div className={MARKET_CARD_GRID_CLASS}>
-            {markets.map((m) => {
-              const closed = isTradingClosed(m);
-              return m.nadMarket ? (
-                <NadMarketListCard
-                  key={m.address}
-                  title={m.title}
-                  nadMarket={m.nadMarket}
-                  outcomeLabels={m.outcomeLabels ?? []}
-                  outcomeChancePcts={m.outcomeChancePcts}
-                  poolTvl={m.poolTvl}
-                  resolveAfter={formatMarketCardDate(m.resolveAfterUnix * 1000) ?? "—"}
-                  resolveAfterTooltip={formatMarketClosesTooltip(m.resolveAfterUnix * 1000)}
-                  marketAddress={m.address}
-                  slug={m.slug}
-                  showNewBadge={false}
-                  onTitleClick={() => openMarket(m)}
-                  tradingClosed={closed}
-                />
-              ) : (
-                <MarketListCard
-                  key={m.address}
-                  title={m.title}
-                  imageUrl={m.imageUrl}
-                  outcomeLabels={m.outcomeLabels ?? []}
-                  outcomeChancePcts={m.outcomeChancePcts}
-                  poolTvl={m.poolTvl}
-                  resolveAfter={formatMarketCardDate(m.resolveAfterUnix * 1000) ?? "—"}
-                  resolveAfterTooltip={formatMarketClosesTooltip(m.resolveAfterUnix * 1000)}
-                  marketAddress={m.address}
-                  slug={m.slug}
-                  showNewBadge={false}
-                  onTitleClick={() => openMarket(m)}
-                  tradingClosed={closed}
-                />
-              );
-            })}
+            {markets.map((m) => (
+              <LaunchBrowseCard key={m.address} market={m} nowUnix={nowUnix} onOpen={() => openMarket(m)} />
+            ))}
           </div>
         )}
 

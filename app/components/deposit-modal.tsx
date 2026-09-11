@@ -48,7 +48,7 @@ export function DepositModal({ address, onClose }: DepositModalProps) {
           </button>
         </div>
         <p className="mb-5 text-sm leading-relaxed text-neutral-400">
-          Send USDC or ETH to this address. This is the wallet you trade from.
+          Send USDG or ETH on Robinhood to this address. This is the wallet you trade from.
         </p>
         <div className="mb-4 flex justify-center rounded-2xl bg-[#3a3a3a] p-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
