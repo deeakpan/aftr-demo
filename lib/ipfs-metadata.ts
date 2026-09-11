@@ -84,7 +84,7 @@ function resolveMetadataFetchUrls(uri: string): string[] {
 }
 
 function lighthouseHeaders(url: string): Record<string, string> | undefined {
-  if (!/lighthouse\.storage/i.test(url)) return undefined;
+  if (!/lighthouse\.(storage|web3\.xyz)|lighthouseweb3\.xyz/i.test(url)) return undefined;
   const lighthouseKey = process.env.LIGHTHOUSE_API_KEY?.trim();
   if (!lighthouseKey) return undefined;
   return { Authorization: `Bearer ${lighthouseKey}` };
