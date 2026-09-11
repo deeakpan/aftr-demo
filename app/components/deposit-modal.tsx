@@ -91,7 +91,7 @@ export function DepositModal({ address, onClose }: DepositModalProps) {
           type="button"
           onPointerDown={(e) => {
             // Start copy on pointer down so iOS still has an active gesture.
-            if (e.button !== 0 && e.pointerType === "mouse") return;
+            if (e.pointerType === "mouse" && e.button !== 0) return;
             e.stopPropagation();
             copy();
           }}
