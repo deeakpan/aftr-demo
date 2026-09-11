@@ -11,7 +11,6 @@ require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
 const FACTORY_ABI = [
   "function setResolutionAdmins(address[] admins)",
-  "function resolutionAdminsLength() view returns (uint256)",
 ];
 
 function loadAdmins(deployer) {
@@ -30,8 +29,8 @@ function loadAdmins(deployer) {
 async function main() {
   const [signer] = await hre.ethers.getSigners();
   const deployment = readDeployment();
-  const factoryAddress = deployment.contracts.MondaloreParimutuelMarketFactory;
-  if (!factoryAddress) throw new Error("Factory missing in deployment JSON");
+  const factoryAddress = deployment.contracts.ZedkrFpmmMarketFactory;
+  if (!factoryAddress) throw new Error("ZedkrFpmmMarketFactory missing in deployment JSON");
 
   const admins = loadAdmins(signer.address);
   if (admins.length < 3) {
@@ -45,8 +44,7 @@ async function main() {
   const tx = await factory.setResolutionAdmins(admins);
   await tx.wait();
 
-  const len = await factory.resolutionAdminsLength();
-  console.log("Done. resolutionAdminsLength =", len.toString());
+  console.log("Done. setResolutionAdmins submitted.");
 }
 
 main().catch((e) => {

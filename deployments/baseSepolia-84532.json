@@ -8,10 +8,6 @@
     "MondaloreUSDC": "0xA78a61Eeb01bFBc7Df2914492cE5B825F3c7FD04",
     "USDeAD": "0x101C143832902795f6E5317D95271E563AaC3d30",
     "DRP": "0xAa962c886028B3F134ac17E5B8971f22374eb15a",
-    "MondaloreParimutuelMarketFactory": "0x43E92A90b47d1316Dd27709A8990806B4E19f074",
-    "MondalorePriceMarketDeployer": "0xD3c9CCc3cFC510511E487dDca6BEAa50c313CBA4",
-    "MondaloreEventMarketDeployer": "0x5D536a78F1a6772dCdDa359068D808f0ba0E9e4F",
-    "MondaloreParimutuelDeployer": "0xDCc1707D00043d2156ce543Ce404a5be73497C1a",
     "MondaloreOrderBook": "0xbC0A5B9e1c4aE3A8B40AD54272a51F4BD5E191B1",
     "MondaloreMarketDebtRouter": "0xF71A379666670Bb50Ce0060c66F74C6F6111Eb71"
   },
@@ -96,10 +92,6 @@
     "MockStabilityPool": 41365616,
     "DRP": 41365617,
     "MondaloreUSDC": 41365620,
-    "MondaloreParimutuelMarketFactory": 41365623,
-    "MondaloreParimutuelDeployer": 41365627,
-    "MondalorePriceMarketDeployer": 41365624,
-    "MondaloreEventMarketDeployer": 41365625,
     "MondaloreOrderBook": 41365635,
     "MondaloreMarketDebtRouter": 41365636
   },

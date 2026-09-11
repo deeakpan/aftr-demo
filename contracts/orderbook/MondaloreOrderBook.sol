@@ -21,7 +21,7 @@ interface IMondaloreMarketCollateral {
 }
 
 /// @title MondaloreOrderBook
-/// @notice On-chain CLOB for trading any outcome token registered on MondaloreParimutuelMarketFactory.
+/// @notice On-chain CLOB for trading any outcome token registered via the market factory adapter (FPMM).
 /// @dev No minting — only transfers existing tokens between users.
 ///      Matching crosses price levels (CLOB-style): incoming sell hits bids at >= limit;
 ///      incoming buy hits asks at <= limit. Per-fill fees apply to buyer and seller (same bps).

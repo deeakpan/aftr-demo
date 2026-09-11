@@ -1,6 +1,6 @@
 import { parseAbi, type Abi, type Address, type PublicClient } from "viem";
 
-/** Shared on-chain reads for parimutuel + FPMM markets. */
+/** Shared on-chain reads for FPMM markets. */
 export const MARKET_READ_ABI = parseAbi([
   "function marketKind() view returns (uint8)",
   "function metadataURI() view returns (string)",
@@ -10,7 +10,6 @@ export const MARKET_READ_ABI = parseAbi([
   "function state() view returns (uint8)",
   "function collateralDecimals() view returns (uint8)",
   "function collateralAddress() view returns (address)",
-  "function realPool(uint256 outcomeIndex) view returns (uint256)",
   "function poolBalances(uint256 outcomeIndex) view returns (uint256)",
   "function priceOf(uint8 outcomeIndex) view returns (uint256)",
   "function priceBinLower(uint256) view returns (uint256)",
@@ -27,24 +26,19 @@ export const MARKET_READ_ABI = parseAbi([
   "function redeem(uint8 outcomeIndex, uint256 shareAmount)",
 ]);
 
-export const PARIMUTUEL_TRADE_ABI = parseAbi([
-  "function deposit(uint8 outcomeIndex, uint256 amount, address recipient, uint256 minSharesOut) payable",
-]);
-
 export const FPMM_TRADE_ABI = parseAbi([
   "function buy(uint8 outcomeIndex, uint256 investmentAmount, uint256 minOutcomeTokens)",
   "function sell(uint8 outcomeIndex, uint256 returnAmount, uint256 maxOutcomeTokens)",
 ]);
 
-export const PARIMUTUEL_MARKET_ABI = [...MARKET_READ_ABI, ...PARIMUTUEL_TRADE_ABI] as Abi;
 export const FPMM_MARKET_ABI = [...MARKET_READ_ABI, ...FPMM_TRADE_ABI] as Abi;
 
-export function marketTradeAbi(isFpmm: boolean): Abi {
-  return isFpmm ? FPMM_MARKET_ABI : PARIMUTUEL_MARKET_ABI;
+export function marketTradeAbi(_isFpmm = true): Abi {
+  return FPMM_MARKET_ABI;
 }
 
-export function marketPoolFunction(isFpmm: boolean): "poolBalances" | "realPool" {
-  return isFpmm ? "poolBalances" : "realPool";
+export function marketPoolFunction(_isFpmm = true): "poolBalances" {
+  return "poolBalances";
 }
 
 export type MarketBuyParams = {
@@ -54,18 +48,11 @@ export type MarketBuyParams = {
   minSharesOut: bigint;
 };
 
-export function marketBuyCall(isFpmm: boolean, p: MarketBuyParams) {
-  if (isFpmm) {
-    return {
-      abi: FPMM_MARKET_ABI,
-      functionName: "buy" as const,
-      args: [p.outcomeIndex, p.amountUnits, p.minSharesOut] as const,
-    };
-  }
+export function marketBuyCall(_isFpmm: boolean, p: MarketBuyParams) {
   return {
-    abi: PARIMUTUEL_MARKET_ABI,
-    functionName: "deposit" as const,
-    args: [p.outcomeIndex, p.amountUnits, p.recipient, p.minSharesOut] as const,
+    abi: FPMM_MARKET_ABI,
+    functionName: "buy" as const,
+    args: [p.outcomeIndex, p.amountUnits, p.minSharesOut] as const,
   };
 }
 
@@ -98,9 +85,8 @@ const ERC20_BALANCE_ABI = parseAbi(["function balanceOf(address account) view re
 
 /**
  * Market TVL in collateral units.
- * FPMM `poolBalances` are outcome-token amounts (seeding 100 → ~100 per outcome); summing them
- * double-counts. Use the market's collateral token balance instead.
- * Parimutuel `realPool` sums to the same collateral locked, but balanceOf is the source of truth.
+ * FPMM `poolBalances` are outcome-token amounts; summing them double-counts.
+ * Use the market's collateral token balance instead.
  */
 export async function readMarketPoolTotal(
   client: PublicClient,

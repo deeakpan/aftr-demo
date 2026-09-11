@@ -28,9 +28,9 @@ async function main() {
 
   const depPath = path.join(__dirname, "..", "deployments", fileName);
   const dep = JSON.parse(fs.readFileSync(depPath, "utf8"));
-  const factoryAddr = dep.contracts?.MondaloreParimutuelMarketFactory;
+  const factoryAddr = dep.contracts?.ZedkrFpmmMarketFactory;
   if (!factoryAddr || factoryAddr === "0x0000000000000000000000000000000000000000") {
-    throw new Error(`MondaloreParimutuelMarketFactory not deployed in ${fileName}`);
+    throw new Error(`ZedkrFpmmMarketFactory not deployed in ${fileName}`);
   }
 
   const feeds = dep.external?.chainlinkFeeds ?? [];
@@ -39,7 +39,7 @@ async function main() {
   }
 
   const [signer] = await hre.ethers.getSigners();
-  const factory = await hre.ethers.getContractAt("MondaloreParimutuelMarketFactory", factoryAddr);
+  const factory = await hre.ethers.getContractAt("ZedkrFpmmMarketFactory", factoryAddr);
 
   console.log("Factory:", factoryAddr);
   console.log("Signer:", signer.address);

@@ -35,7 +35,6 @@ import deployment, {
   deploymentExternal,
   isDeployedAddress,
   undeployedStackMessage,
-  usesFpmmMechanism,
   wrongNetworkMessage,
 } from "@/lib/deployment";
 import { activeMarketFactoryAddress } from "@/lib/market-factory";
@@ -201,27 +200,6 @@ const ERC20_ABI = parseAbi([
   "function allowance(address owner, address spender) view returns (uint256)",
   "function approve(address spender, uint256 amount) returns (bool)",
 ]);
-const FACTORY_ABI = parseAbi([
-  "function priceFeeds(bytes32 assetKey) view returns (address)",
-  "function isSupportedCollateral(address token) view returns (bool)",
-  "function resolutionAdminsLength() view returns (uint256)",
-  "function resolutionThreshold() view returns (uint256)",
-  "function createEventMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,uint256 minBootstrapTotal,uint256 bootstrapAmount,address shareRecipient) p) payable returns (address market)",
-  "function createNadTokenMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,uint256 minBootstrapTotal,uint256 bootstrapAmount,address shareRecipient) p) payable returns (address market)",
-  "function createPriceMarket((address collateralToken,uint8 collateralDecimals,uint256 virtualReserve,uint256 stakeEndTimestamp,uint256 resolveAfterTimestamp,bytes32 metadataHash,string[] outcomeLabels,string metadataURI,bytes32 priceAssetKey,uint256 priceThreshold,uint8 priceKind,uint256 priceUpperBound,uint256 maxPriceStaleness,uint256[] priceBinLower,uint256[] priceBinUpper,uint256 minBootstrapTotal,uint256 bootstrapAmount,address shareRecipient) p) payable returns (address market)",
-  "event MarketCreated(address indexed market, uint8 indexed kind, address indexed collateralToken, address[] outcomeTokens, string[] outcomeLabels, uint256 stakeEndTimestamp, uint256 resolveAfterTimestamp, bytes32 metadataHash, address creator)",
-  "error InvalidAddress()",
-  "error InvalidCollateral()",
-  "error InvalidConfig()",
-  "error InvalidOutcomes()",
-  "error InvalidFeed()",
-  "error InvalidTime()",
-  "error InvalidMeta()",
-  "error InvalidBins()",
-  "error InvalidDeployer()",
-  "error InvalidBootstrap()",
-  "error InvalidFunding()",
-]);
 const FPMM_FACTORY_ABI = parseAbi([
   "function priceFeeds(bytes32 assetKey) view returns (address)",
   "function isSupportedCollateral(address token) view returns (bool)",
@@ -238,21 +216,11 @@ const FPMM_FACTORY_ABI = parseAbi([
   "error InvalidMeta()",
   "error InvalidFunding()",
 ]);
-const USE_FPMM = usesFpmmMechanism();
-const ACTIVE_FACTORY_ABI = USE_FPMM ? FPMM_FACTORY_ABI : FACTORY_ABI;
 
 /** FPMM factory has no resolutionAdminsLength(); scan public array (max 10). */
 const MAX_RESOLUTION_ADMINS = 10;
 
 async function readResolutionAdminCount(client: PublicClient, factory: Address): Promise<bigint> {
-  if (!USE_FPMM) {
-    return (await client.readContract({
-      address: factory,
-      abi: FACTORY_ABI,
-      functionName: "resolutionAdminsLength",
-    })) as bigint;
-  }
-
   const rows = await Promise.all(
     Array.from({ length: MAX_RESOLUTION_ADMINS }, (_, i) =>
       client
@@ -413,15 +381,10 @@ async function waitForErc20Allowance(
   throw new Error("Token approval not detected yet. Wait a few seconds and try again.");
 }
 
-const FACTORY_ADDRESS = (activeMarketFactoryAddress() ??
-  deployment.contracts.MondaloreParimutuelMarketFactory) as `0x${string}`;
+const FACTORY_ADDRESS = activeMarketFactoryAddress() as `0x${string}`;
 const factoryDeployed = isDeployedAddress(FACTORY_ADDRESS);
 
-type CreateMarketFn =
-  | "createEventMarket"
-  | "createPriceMarket"
-  | "createNadTokenMarket"
-  | "createTokenMarket";
+type CreateMarketFn = "createEventMarket" | "createPriceMarket" | "createTokenMarket";
 
 function fpmmMarketCreateParams(
   functionName: CreateMarketFn,
@@ -433,7 +396,7 @@ function fpmmMarketCreateParams(
 ) {
   return {
     address: FACTORY_ADDRESS,
-    abi: ACTIVE_FACTORY_ABI,
+    abi: FPMM_FACTORY_ABI,
     functionName,
     args: args as never,
     account,
@@ -709,7 +672,7 @@ export function CreateClient() {
         const opt = COLLATERAL_OPTIONS[0]!;
         const ok = (await publicClient.readContract({
           address: FACTORY_ADDRESS,
-          abi: ACTIVE_FACTORY_ABI,
+          abi: FPMM_FACTORY_ABI,
           functionName: "isSupportedCollateral",
           args: [opt.address],
         })) as boolean;
@@ -933,7 +896,7 @@ export function CreateClient() {
         const key = priceAssetKey(meta.asset);
         const addr = (await publicClient.readContract({
           address: FACTORY_ADDRESS,
-          abi: FACTORY_ABI,
+          abi: FPMM_FACTORY_ABI,
           functionName: "priceFeeds",
           args: [key],
         })) as `0x${string}`;
@@ -1265,7 +1228,7 @@ export function CreateClient() {
         readResolutionAdminCount(publicClient, FACTORY_ADDRESS),
         publicClient.readContract({
           address: FACTORY_ADDRESS,
-          abi: ACTIVE_FACTORY_ABI,
+          abi: FPMM_FACTORY_ABI,
           functionName: "resolutionThreshold",
         }),
       ]);
@@ -1313,14 +1276,14 @@ export function CreateClient() {
         return;
       }
 
-      if (USE_FPMM && collateral.isNative) {
+      if (collateral.isNative) {
         setSubmitStatus(`FPMM markets require an ERC20 collateral (e.g. USDG or USDC), not native ${NATIVE_CURRENCY_SYMBOL}.`);
         return;
       }
 
       const collateralSupported = (await publicClient.readContract({
         address: FACTORY_ADDRESS,
-        abi: ACTIVE_FACTORY_ABI,
+        abi: FPMM_FACTORY_ABI,
         functionName: "isSupportedCollateral",
         args: [collateral.address],
       })) as boolean;
@@ -1340,15 +1303,6 @@ export function CreateClient() {
       }
 
       const nOutcomes = cleanOutcomes.length;
-      if (!USE_FPMM && nOutcomes > 0 && seedUnits % BigInt(nOutcomes) !== BigInt(0)) {
-        const fix = nextDivisibleTotal(seedUnits, nOutcomes);
-        const fixLabel = formatUnits(fix, collateral.decimals);
-        setSubmitStatus(
-          `Seed must divide evenly by ${nOutcomes} outcomes. Try ${fixLabel} ${collateral.symbol}.`,
-        );
-        return;
-      }
-
       const fundingHint = Array.from({ length: nOutcomes }, () => BigInt(1));
       const fpmmBaseParams = {
         collateralToken: collateral.address,
@@ -1363,21 +1317,6 @@ export function CreateClient() {
         fundingHint,
         shareRecipient: address,
       };
-      const sharedParams = USE_FPMM
-        ? fpmmBaseParams
-        : {
-            collateralToken: collateral.address,
-            collateralDecimals: collateral.decimals,
-            virtualReserve: seedUnits,
-            stakeEndTimestamp: stakeTs,
-            resolveAfterTimestamp: resolveTs,
-            metadataHash,
-            outcomeLabels: cleanOutcomes,
-            metadataURI: metadataUri,
-            minBootstrapTotal: minSeed,
-            bootstrapAmount: seedUnits,
-            shareRecipient: address,
-          };
 
       if (!collateral.isNative) {
         const factoryAllowance = (await publicClient.readContract({
@@ -1450,13 +1389,13 @@ export function CreateClient() {
       let createHash: `0x${string}`;
 
       const estimateCreateGas = async (
-        fn: "createEventMarket" | "createPriceMarket" | "createNadTokenMarket" | "createTokenMarket",
+        fn: CreateMarketFn,
         args: readonly unknown[],
         value?: bigint,
       ) => {
         const estimated = await publicClient.estimateContractGas({
           address: FACTORY_ADDRESS,
-          abi: ACTIVE_FACTORY_ABI,
+          abi: FPMM_FACTORY_ABI,
           functionName: fn,
           args: args as never,
           account: address,
@@ -1481,7 +1420,7 @@ export function CreateClient() {
       };
 
       if (marketKind === "event") {
-        const eventArgs = USE_FPMM ? [fpmmBaseParams] : [{ ...sharedParams }] as const;
+        const eventArgs = [fpmmBaseParams] as const;
 
         await publicClient.simulateContract(
           fpmmMarketCreateParams("createEventMarket", eventArgs, address, collateral.isNative ?? false, seedUnits),
@@ -1500,16 +1439,15 @@ export function CreateClient() {
           fpmmMarketCreateParams("createEventMarket", eventArgs, address, collateral.isNative ?? false, seedUnits, eventGas),
         );
       } else if (marketKind === "token") {
-        const tokenFn = USE_FPMM ? "createTokenMarket" : "createNadTokenMarket";
-        const tokenArgs = USE_FPMM ? [fpmmBaseParams] : [{ ...sharedParams }] as const;
+        const tokenArgs = [fpmmBaseParams] as const;
 
         await publicClient.simulateContract(
-          fpmmMarketCreateParams(tokenFn, tokenArgs, address, collateral.isNative ?? false, seedUnits),
+          fpmmMarketCreateParams("createTokenMarket", tokenArgs, address, collateral.isNative ?? false, seedUnits),
         );
 
         setSubmitStatus("Creating token market and seeding liquidity...");
         const tokenGas = await estimateCreateGas(
-          tokenFn,
+          "createTokenMarket",
           tokenArgs,
           collateral.isNative ? seedUnits : undefined,
         );
@@ -1517,38 +1455,25 @@ export function CreateClient() {
           return;
         }
         createHash = await writeContract(
-          fpmmMarketCreateParams(tokenFn, tokenArgs, address, collateral.isNative ?? false, seedUnits, tokenGas),
+          fpmmMarketCreateParams("createTokenMarket", tokenArgs, address, collateral.isNative ?? false, seedUnits, tokenGas),
         );
       } else {
         if (!feed?.assetKey) {
           setSubmitStatus("No registered price feed for this asset on the factory.");
           return;
         }
-        const priceArgs = USE_FPMM
-          ? ([
-              {
-                base: fpmmBaseParams,
-                priceAssetKey: feed.assetKey,
-                priceThreshold: parseUnits(cleanedThreshold || "0", 8),
-                priceKind: (comparison === "ABOVE" ? 0 : 1) as 0 | 1,
-                priceUpperBound: BigInt(0),
-                maxPriceStaleness: maxPriceStalenessForAsset(feed.asset),
-                priceBinLower: [] as readonly bigint[],
-                priceBinUpper: [] as readonly bigint[],
-              },
-            ] as const)
-          : ([
-              {
-                ...sharedParams,
-                priceAssetKey: feed.assetKey,
-                priceThreshold: parseUnits(cleanedThreshold || "0", 8),
-                priceKind: (comparison === "ABOVE" ? 0 : 1) as 0 | 1,
-                priceUpperBound: BigInt(0),
-                maxPriceStaleness: maxPriceStalenessForAsset(feed.asset),
-                priceBinLower: [] as readonly bigint[],
-                priceBinUpper: [] as readonly bigint[],
-              },
-            ] as const);
+        const priceArgs = [
+          {
+            base: fpmmBaseParams,
+            priceAssetKey: feed.assetKey,
+            priceThreshold: parseUnits(cleanedThreshold || "0", 8),
+            priceKind: (comparison === "ABOVE" ? 0 : 1) as 0 | 1,
+            priceUpperBound: BigInt(0),
+            maxPriceStaleness: maxPriceStalenessForAsset(feed.asset),
+            priceBinLower: [] as readonly bigint[],
+            priceBinUpper: [] as readonly bigint[],
+          },
+        ] as const;
 
         await publicClient.simulateContract(
           fpmmMarketCreateParams("createPriceMarket", priceArgs, address, collateral.isNative ?? false, seedUnits),
@@ -1579,7 +1504,7 @@ export function CreateClient() {
         if (log.address.toLowerCase() !== FACTORY_ADDRESS.toLowerCase()) continue;
         try {
           const parsed = decodeEventLog({
-            abi: ACTIVE_FACTORY_ABI,
+            abi: FPMM_FACTORY_ABI,
             data: log.data,
             topics: log.topics,
             strict: false,

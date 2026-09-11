@@ -8,17 +8,14 @@
     "MondaloreFeeVault": "0x13Df5A0CEc379346D9a498a74a7580d6e2983b45",
     "MondaloreUSDC": "0xA5424DD5165ed2516fD5590fe229E91B2F7707E8",
     "USDG": "0x20f4BaE7793aE79bBeA9eA680516038cB5aCB23b",
-    "MondaloreParimutuelMarketFactory": "0x43F08DdCa9De6507c69b7a5215B6B0DBa67F3369",
-    "MondalorePriceMarketDeployer": "0xcF9d67cDc10146ac0883B15831799680FCBEf253",
-    "MondaloreEventMarketDeployer": "0x8A0b139F0e8498efF1eb2B6B863cfb8Ef0912Ef0",
-    "MondaloreParimutuelDeployer": "0xCb6cb8e18b3889529c647aF7Fe56bE78DB7311B0",
-    "MondaloreOrderBook": "0xcA8f8c4909EE306F3461a6E96c99BF04c0907034",
+    "MondaloreOrderBook": "0xFd5109fA917203947E350218928e3e39f5936813",
     "ZedkrCollateralRegistry": "0xfa4b31967af90b3Ab15f39666f1c8c44486d5a99",
     "ZedkrFpmmMarketFactory": "0x001240bD2569526d0044069612C3ccBE869e5C97",
     "ZedkrFpmmDeployer": "0x485528Ee44f5a2eAf28CF55459fF9b5c6e219e9c",
     "MockWETH": "0x4C50167f92544cb4755bc8f35a4efDbE7c3c9B40",
     "MockEthUsdFeed": "0x11D1058Fc574E30ac1c40F487Ed88a2E0ad47aA1",
-    "MockBtcUsdFeed": "0x1EFD67d695dcF08d96fB793F6EE1354Ccc2DAAB5"
+    "MockBtcUsdFeed": "0x1EFD67d695dcF08d96fB793F6EE1354Ccc2DAAB5",
+    "ZedkrFpmmOrderBookFactoryAdapter": "0x3870Fd628e43FbEE7f2a1a922ACa13b3f1B53329"
   },
   "deploymentBlocks": {
     "MockWETH": 61998690,
@@ -28,14 +25,11 @@
     "USDG": 61998710,
     "MondaloreToken": 61998727,
     "MondaloreFeeVault": 61998735,
-    "MondaloreParimutuelMarketFactory": 61998738,
-    "MondaloreParimutuelDeployer": 61998767,
-    "MondalorePriceMarketDeployer": 61998756,
-    "MondaloreEventMarketDeployer": 61998759,
-    "MondaloreOrderBook": 61998827,
+    "MondaloreOrderBook": 62263796,
     "ZedkrCollateralRegistry": 61998832,
     "ZedkrFpmmMarketFactory": 61998839,
-    "ZedkrFpmmDeployer": 61998849
+    "ZedkrFpmmDeployer": 61998849,
+    "ZedkrFpmmOrderBookFactoryAdapter": 62263793
   },
   "external": {
     "optimisticOracleV2": "0x0000000000000000000000000000000000000001",
@@ -89,7 +83,8 @@
     ],
     "primaryMarketFactory": "ZedkrFpmmMarketFactory",
     "umaRewardToken": "MondaloreUSDC when umaRewardCurrency is address(0) on factory",
-    "feeFlow": "Market deposit → 0.4% protocol fee → MondaloreFeeVault.receiveFees()"
+    "feeFlow": "Market deposit → 0.4% protocol fee → MondaloreFeeVault.receiveFees()",
+    "orderBook": "MondaloreOrderBook is the FPMM CLOB via ZedkrFpmmOrderBookFactoryAdapter."
   },
   "deployedAt": "2026-09-08T07:08:44.526Z",
   "vault": {

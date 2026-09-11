@@ -6,7 +6,7 @@ import { findDuplicatePonsMarkets } from "@/lib/pons/duplicates";
 
 export const dynamic = "force-dynamic";
 
-const FACTORY = deployment.contracts.MondaloreParimutuelMarketFactory as `0x${string}`;
+const FACTORY = deployment.contracts.ZedkrFpmmMarketFactory as `0x${string}`;
 const FACTORY_ABI = parseAbi([
   "function marketsLength() view returns (uint256)",
   "function markets(uint256) view returns (address)",

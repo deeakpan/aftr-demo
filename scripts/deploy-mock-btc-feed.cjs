@@ -57,10 +57,10 @@ async function main() {
   fs.writeFileSync(DEPLOYMENT_FILE, `${JSON.stringify(dep, null, 2)}\n`, "utf8");
   console.log("Updated", DEPLOYMENT_FILE);
 
-  const factoryAddr = dep.contracts?.MondaloreParimutuelMarketFactory;
+  const factoryAddr = dep.contracts?.ZedkrFpmmMarketFactory;
   if (factoryAddr) {
     const factoryContract = await hre.ethers.getContractAt(
-      "MondaloreParimutuelMarketFactory",
+      "ZedkrFpmmMarketFactory",
       factoryAddr,
     );
     const btcKey = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("BTC"));

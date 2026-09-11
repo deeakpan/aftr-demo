@@ -83,9 +83,9 @@ function readDeployment(hre, networkName, chainId) {
   const file = path.join(__dirname, "..", "deployments", `${networkName}-${chainId}.json`);
   if (!fs.existsSync(file)) throw new Error(`Deployment file not found: ${file}`);
   const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
-  const factoryAddress = parsed?.contracts?.MondaloreParimutuelMarketFactory;
+  const factoryAddress = parsed?.contracts?.ZedkrFpmmMarketFactory;
   if (!factoryAddress || !hre.ethers.isAddress(factoryAddress)) {
-    throw new Error("MondaloreParimutuelMarketFactory missing in deployment file.");
+    throw new Error("ZedkrFpmmMarketFactory missing in deployment file.");
   }
   return { parsed, factoryAddress, file };
 }

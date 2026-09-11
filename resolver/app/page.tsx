@@ -41,7 +41,7 @@ type Status = {
   chainId: number;
   subgraphUrl: string;
   factory?: string | null;
-  factories: { fpmm: string | null; parimutuel?: string | null };
+  factories: { fpmm: string | null };
   ponsResolutionAdmin: string | null;
   tokenResolutionAdmin?: string | null;
   botWallet: string | null;

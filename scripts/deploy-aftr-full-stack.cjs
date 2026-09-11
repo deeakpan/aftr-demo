@@ -1,8 +1,8 @@
 /* eslint-disable no-console */
 /**
- * Deploy full Mondalore stack (markets + staking — no USDeAD / DRP / debt router):
+ * Deploy full Zedkr stack (markets + staking — no USDeAD / DRP / debt router):
  *   MondaloreUSDC, MondaloreToken, MondaloreFeeVault (feeRecipient),
- *   MondaloreParimutuelMarketFactory + deployers, MondaloreOrderBook.
+ *   Zedkr FPMM factory + MondaloreOrderBook (via FPMM adapter).
  *
  * Usage:
  *   npx hardhat run scripts/deploy-aftr-full-stack.cjs --network unichainSepolia
@@ -23,11 +23,9 @@ const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
 const hre = require("hardhat");
-const { deployParimutuelFacade } = require("./lib/deploy-parimutuel-facade.cjs");
 const { deployFpmmStack } = require("./lib/deploy-fpmm-stack.cjs");
 const { WALLETS_PATH } = require("./lib/aftr-scripts-lib.cjs");
 const { robinhoodNetworkExternals } = require("./lib/robinhood-chainlink-feeds.cjs");
-const { registerPriceFeedsOnFactory } = require("./lib/register-price-feeds.cjs");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
 /** Circle test USDC on Base Sepolia (UMA-whitelisted). */
@@ -482,64 +480,18 @@ async function main() {
   console.log(`  MondaloreFeeVault: ${vaultAddr} (block ${vaultBlock})`);
   console.log(`  Epoch: ${epochDuration}s  Lock: ${lockDuration}s`);
 
-  // ── 4. Factory ─────────────────────────────────────────────────────────────
-  // feeRecipient = vault so protocol fees flow into the staking accumulator.
-  console.log("\n[4/7] Deploying MondaloreParimutuelMarketFactory...");
-  const FactoryF = await hre.ethers.getContractFactory("MondaloreParimutuelMarketFactory", deployer);
-  const { instance: factory, address: factoryAddress, blockNumber: factoryBlock } =
-    await deployAndTrack(
-      FactoryF,
-      deployer.address,
-      vaultAddr,
-      hre.ethers.ZeroAddress,
-      hre.ethers.ZeroAddress,
-    );
-  deploymentBlocks.MondaloreParimutuelMarketFactory = factoryBlock;
-  console.log(`  Factory: ${factoryAddress} (block ${factoryBlock})`);
-  console.log(`  feeRecipient = vault (${vaultAddr})`);
-
+  // ── 4. Vault rewards + FPMM stack ──────────────────────────────────────────
   const resolutionAdmins = loadResolutionAdmins(deployer.address);
   if (resolutionAdmins.length < 3) {
     console.warn(
       "  WARNING: fewer than 3 RESOLUTION_ADMINS — event markets cannot be created until setResolutionAdmins is called.",
     );
-    if (resolutionAdmins.length > 0) {
-      await (await factory.setResolutionAdmins(resolutionAdmins)).wait();
-      console.log("  Resolution admins (incomplete):", resolutionAdmins.join(", "));
-    }
-  } else {
-    await (await factory.setResolutionAdmins(resolutionAdmins)).wait();
-    console.log("  Resolution admins (3-of-10):", resolutionAdmins.join(", "));
   }
 
   const chainlinkFeedsToRegister =
     (unichainExternals?.chainlinkFeeds?.length ? unichainExternals.chainlinkFeeds : null) ||
     netExt.chainlinkFeeds ||
     [];
-  if (chainlinkFeedsToRegister.length > 0) {
-    console.log(`  Registering ${chainlinkFeedsToRegister.length} Chainlink price feed(s) on factory…`);
-    await registerPriceFeedsOnFactory(factory, chainlinkFeedsToRegister, hre.ethers);
-  }
-
-  // ── 5. Deployer lib (3 txs — avoids EIP-3860 initcode limit) ───────────────
-  console.log("\n[5/7] Deploying MondaloreParimutuelDeployer + sub-deployers...");
-  const {
-    marketDeployerAddress,
-    facadeBlock,
-    priceDep,
-    eventDep,
-    priceBlock,
-    eventBlock,
-  } = await deployParimutuelFacade(hre, deployer, factoryAddress, deployAndTrack);
-  deploymentBlocks.MondaloreParimutuelDeployer = facadeBlock;
-  deploymentBlocks.MondalorePriceMarketDeployer = priceBlock;
-  deploymentBlocks.MondaloreEventMarketDeployer = eventBlock;
-  console.log(`  MondalorePriceMarketDeployer:  ${priceDep} (block ${priceBlock})`);
-  console.log(`  MondaloreEventMarketDeployer:  ${eventDep} (block ${eventBlock})`);
-  console.log(`  MondaloreParimutuelDeployer:   ${marketDeployerAddress} (block ${facadeBlock})`);
-
-  await (await factory.setMarketDeployer(marketDeployerAddress)).wait();
-  console.log("  Linked factory.marketDeployer");
 
   const registerWeth =
     (chainId === 10143 && weth.toLowerCase() !== BASE_SEPOLIA_WETH.toLowerCase()) ||
@@ -550,21 +502,7 @@ async function main() {
   if (registerWeth) collateralLabels.push("WETH");
   if (usdgAddr) collateralLabels.push("USDG");
 
-  console.log(`  Registering collaterals: ${collateralLabels.join(", ")}`);
-  await (await factory.addSupportedCollateral(aftrUsdcAddr)).wait();
-  if (netExt.registerCircleUsdc && netExt.circleUsdc) {
-    await (await factory.addSupportedCollateral(netExt.circleUsdc)).wait();
-  }
-  if (registerWeth) {
-    await (await factory.addSupportedCollateral(weth)).wait();
-    await (await factory.setWrappedNativeToken(weth)).wait();
-    await (await factory.addSupportedCollateral(hre.ethers.ZeroAddress)).wait();
-  }
-  if (usdgAddr) {
-    await (await factory.addSupportedCollateral(usdgAddr)).wait();
-  }
-
-  console.log("  Registering vault reward tokens...");
+  console.log("\n[4/6] Registering vault reward tokens...");
   await (await vault.addRewardToken(aftrUsdcAddr)).wait();
   if (netExt.registerCircleUsdc && netExt.circleUsdc) {
     await (await vault.addRewardToken(netExt.circleUsdc)).wait();
@@ -576,18 +514,10 @@ async function main() {
     await (await vault.addRewardToken(usdgAddr)).wait();
   }
   await (await vault.addRewardToken("0x0000000000000000000000000000000000000000")).wait();
-  console.log(`  Vault reward tokens: ${collateralLabels.join(", ")}, native MON`);
+  console.log(`  Vault reward tokens: ${collateralLabels.join(", ")}, native`);
 
-  // ── 6. OrderBook ───────────────────────────────────────────────────────────
-  console.log("\n[6/7] Deploying MondaloreOrderBook...");
-  const OrderBookF = await hre.ethers.getContractFactory("MondaloreOrderBook", deployer);
-  const { address: orderBookAddress, blockNumber: orderBookBlock } =
-    await deployAndTrack(OrderBookF, factoryAddress, deployer.address, deployer.address);
-  deploymentBlocks.MondaloreOrderBook = orderBookBlock;
-  console.log(`  OrderBook: ${orderBookAddress} (block ${orderBookBlock})`);
-
-  // ── 7. Zedkr FPMM stack (Gnosis-style AMM markets) ─────────────────────────
-  console.log("\n[7/7] Deploying Zedkr FPMM stack (registry + factory + deployer)...");
+  // ── 5. Zedkr FPMM stack ────────────────────────────────────────────────────
+  console.log("\n[5/6] Deploying Zedkr FPMM stack (registry + factory + deployer)...");
   const fpmmCollaterals = [aftrUsdcAddr];
   if (netExt.registerCircleUsdc && netExt.circleUsdc) fpmmCollaterals.push(netExt.circleUsdc);
   if (registerWeth) fpmmCollaterals.push(weth);
@@ -603,6 +533,20 @@ async function main() {
     ponsResolutionAdmin: fpmmBotAdmin,
   });
 
+  // ── 6. OrderBook (FPMM via adapter) ─────────────────────────────────────────
+  console.log("\n[6/6] Deploying FPMM orderbook adapter + MondaloreOrderBook...");
+  const AdapterF = await hre.ethers.getContractFactory("ZedkrFpmmOrderBookFactoryAdapter", deployer);
+  const { address: adapterAddress, blockNumber: adapterBlock } =
+    await deployAndTrack(AdapterF, fpmmResult.fpmmFactory);
+  deploymentBlocks.ZedkrFpmmOrderBookFactoryAdapter = adapterBlock;
+  console.log(`  Adapter: ${adapterAddress} (block ${adapterBlock})`);
+
+  const OrderBookF = await hre.ethers.getContractFactory("MondaloreOrderBook", deployer);
+  const { address: orderBookAddress, blockNumber: orderBookBlock } =
+    await deployAndTrack(OrderBookF, adapterAddress, deployer.address, vaultAddr);
+  deploymentBlocks.MondaloreOrderBook = orderBookBlock;
+  console.log(`  OrderBook: ${orderBookAddress} (block ${orderBookBlock})`);
+
   // ── Write deployment JSON ──────────────────────────────────────────────────
   writeDeploymentJson(hre, {
     chainId,
@@ -613,11 +557,8 @@ async function main() {
       MondaloreFeeVault:                 vaultAddr,
       MondaloreUSDC:                     aftrUsdcAddr,
       ...(usdgAddr ? { USDG: usdgAddr } : {}),
-      MondaloreParimutuelMarketFactory:  factoryAddress,
-      MondalorePriceMarketDeployer:      priceDep,
-      MondaloreEventMarketDeployer:      eventDep,
-      MondaloreParimutuelDeployer:       marketDeployerAddress,
       MondaloreOrderBook:                orderBookAddress,
+      ZedkrFpmmOrderBookFactoryAdapter:  adapterAddress,
       ZedkrCollateralRegistry:           fpmmResult.registry,
       ZedkrFpmmMarketFactory:            fpmmResult.fpmmFactory,
       ZedkrFpmmDeployer:                 fpmmResult.fpmmDeployer,
@@ -666,10 +607,11 @@ async function main() {
       tradingCollaterals: collateralLabels,
       fpmmCollaterals: fpmmCollaterals,
       primaryMarketFactory: "ZedkrFpmmMarketFactory",
+      orderBook: "MondaloreOrderBook is the FPMM CLOB via ZedkrFpmmOrderBookFactoryAdapter.",
       umaRewardToken: netExt.circleUsdc
         ? "Circle USDC when umaRewardCurrency is address(0) on factory"
         : "MondaloreUSDC when umaRewardCurrency is address(0) on factory",
-      feeFlow: "Market deposit → 0.4% protocol fee → MondaloreFeeVault.receiveFees()",
+      feeFlow: "Market buy → protocol fee → MondaloreFeeVault.receiveFees()",
     },
   });
 
@@ -677,7 +619,7 @@ async function main() {
   try {
     const root = path.join(__dirname, "..");
     execSync("node scripts/subgraph-update-config.cjs", { cwd: root, stdio: "inherit" });
-    console.log("  Patched subgraph/subgraph.yaml (Factory, Vault).");
+    console.log("  Patched subgraph/subgraph.yaml (Factory, Vault, OrderBook).");
   } catch (e) {
     console.warn("  subgraph-update-config failed — run: npm run subgraph:update-config", e?.message ?? e);
   }
@@ -687,13 +629,13 @@ async function main() {
   console.log("Deployment complete. Key addresses:");
   console.log(`  MondaloreToken:                   ${aftrTokenAddr}`);
   console.log(`  MondaloreFeeVault:                ${vaultAddr}  ← feeRecipient`);
-  console.log(`  MondaloreParimutuelMarketFactory: ${factoryAddress}`);
   console.log(`  ZedkrFpmmMarketFactory:           ${fpmmResult.fpmmFactory}`);
   console.log(`  ZedkrCollateralRegistry:          ${fpmmResult.registry}`);
   console.log(`  MondaloreOrderBook:               ${orderBookAddress}`);
+  console.log(`  OrderBook adapter:                ${adapterAddress}`);
   console.log("\nNext steps:");
   console.log("  1. subgraph/subgraph.yaml was updated — run: npm run subgraph:codegen && npm run subgraph:build");
-  console.log("  2. Deploy to Studio: SUBGRAPH_VERSION_LABEL=v0.07 npm run subgraph:deploy-studio");
+  console.log("  2. Deploy subgraph to Goldsky / Studio");
   console.log("  3. Distribute Mondalore tokens to stakers / liquidity programs.");
   console.log("  4. Create markets from the UI — each market auto-seeds on creation.");
   console.log("═══════════════════════════════════════════════════════\n");

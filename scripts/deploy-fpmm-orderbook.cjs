@@ -56,7 +56,7 @@ async function main() {
   console.log(`Deployer: ${deployer.address}`);
   console.log(`FPMM factory: ${fpmmFactory}`);
   console.log(`Fee vault (treasury): ${feeVault}`);
-  console.log(`Prior (pari) OrderBook: ${oldBook}`);
+  console.log(`Prior OrderBook: ${oldBook}`);
 
   console.log("\n[1/2] ZedkrFpmmOrderBookFactoryAdapter...");
   const Adapter = await hre.ethers.getContractFactory("ZedkrFpmmOrderBookFactoryAdapter");
@@ -76,32 +76,24 @@ async function main() {
   );
   console.log(`  OrderBook: ${bookAddr} (block ${bookBlock})`);
 
-  // Preserve pari book; app + subgraph use MondaloreOrderBook → FPMM.
-  if (oldBook && oldBook.toLowerCase() !== bookAddr.toLowerCase()) {
-    contracts.MondaloreOrderBookParimutuel = oldBook;
-    if (blocks.MondaloreOrderBook != null && blocks.MondaloreOrderBookParimutuel == null) {
-      blocks.MondaloreOrderBookParimutuel = blocks.MondaloreOrderBook;
-    }
-  }
   contracts.ZedkrFpmmOrderBookFactoryAdapter = adapterAddr;
   contracts.MondaloreOrderBook = bookAddr;
   blocks.ZedkrFpmmOrderBookFactoryAdapter = adapterBlock;
   blocks.MondaloreOrderBook = bookBlock;
+  delete contracts.MondaloreOrderBookParimutuel;
+  delete blocks.MondaloreOrderBookParimutuel;
 
   dep.contracts = contracts;
   dep.deploymentBlocks = blocks;
   dep.notes = {
     ...(dep.notes ?? {}),
-    orderBook: "MondaloreOrderBook is the FPMM CLOB (exact MondaloreOrderBook bytecode) via ZedkrFpmmOrderBookFactoryAdapter. MondaloreOrderBookParimutuel is the earlier pari-wired instance.",
+    orderBook: "MondaloreOrderBook is the FPMM CLOB via ZedkrFpmmOrderBookFactoryAdapter.",
   };
 
   fs.writeFileSync(DEPLOYMENT_FILE, JSON.stringify(dep, null, 2) + "\n", "utf8");
   console.log(`\nUpdated ${DEPLOYMENT_FILE}`);
   console.log(`  MondaloreOrderBook (FPMM): ${bookAddr}`);
   console.log(`  Adapter:                  ${adapterAddr}`);
-  if (contracts.MondaloreOrderBookParimutuel) {
-    console.log(`  Pari OrderBook (kept):    ${contracts.MondaloreOrderBookParimutuel}`);
-  }
 }
 
 main().catch((e) => {

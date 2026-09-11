@@ -43,7 +43,7 @@ export function undeployedStackMessage(): string {
       : DEPLOYMENT_CHAIN_ID === 10143
         ? "monadTestnet"
         : "robinhoodMainnet";
-  return `Zedkr Market is not deployed on ${DEPLOYMENT_NETWORK_LABEL} yet. Run: npx hardhat run scripts/deploy-aftr-full-stack.cjs --network ${network}`;
+  return `Zedkr Market is not deployed on ${DEPLOYMENT_NETWORK_LABEL} yet. Run: npx hardhat run scripts/deploy-fpmm-sequential.cjs --network ${network}`;
 }
 
 export type DeploymentExternal = {

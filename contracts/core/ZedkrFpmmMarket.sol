@@ -221,7 +221,7 @@ contract ZedkrFpmmMarket is Ownable2Step, ReentrancyGuard {
         return address(_outcomeTokens[index]);
     }
 
-    /// @dev Parimutuel / UI compatibility alias.
+    /// @dev UI compatibility alias.
     function collateralAddress() external view returns (address) {
         return collateralToken;
     }

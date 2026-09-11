@@ -10,7 +10,7 @@ type PriceFeed @entity(immutable: false) {
 type Market @entity(immutable: false) {
   id: ID!
   kind: Int!
-  """parimutuel | fpmm"""
+  """fpmm"""
   mechanism: String!
   """0=OPEN, 1=AWAITING_UMA, 2=SETTLED, 3=CANCELLED"""
   state: Int!
@@ -94,7 +94,7 @@ type EpochFees @entity(immutable: false) {
 """Resting limit order on MondaloreOrderBook (emitted only for unfilled remainder)."""
 type LimitOrder @entity(immutable: false) {
   id: ID!                 # orderId (bytes32 hex)
-  """Set when the market was indexed via FpmmFactory; null for unknown/parimutuel markets."""
+  """Set when the market was indexed via FpmmFactory."""
   market: Market
   marketAddress: String!
   token: String!          # outcome ERC20

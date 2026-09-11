@@ -43,8 +43,8 @@ async function main() {
     throw new Error("Deployment file not found — run deploy-aftr-full-stack.cjs first.");
   }
   const dep = JSON.parse(fs.readFileSync(DEPLOYMENT_FILE, "utf8"));
-  const factoryAddress = dep.contracts?.MondaloreParimutuelMarketFactory;
-  if (!factoryAddress) throw new Error("MondaloreParimutuelMarketFactory not found in deployment JSON.");
+  const factoryAddress = dep.contracts?.ZedkrFpmmMarketFactory;
+  if (!factoryAddress) throw new Error("ZedkrFpmmMarketFactory not found in deployment JSON.");
 
   const aftrUsdcAddr         = dep.contracts?.MondaloreUSDC;
   const usdeadAddr           = dep.contracts?.USDeAD;

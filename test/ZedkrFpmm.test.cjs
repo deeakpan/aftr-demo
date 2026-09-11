@@ -352,7 +352,7 @@ describe("Zedkr FPMM — USDG collateral + resolution", function () {
     });
   });
 
-  describe("FPMM vs parimutuel — fixed $1 payout per share", function () {
+  describe("FPMM — fixed $1 payout per share", function () {
     it("trade fees split 25/25/25/25 (creator / platform dev / distribution / treasury)", async function () {
       await factory.connect(owner).setFeeSplit(platformDev.address, distribution.address, treasury.address);
       const now = (await ethers.provider.getBlock("latest")).timestamp;

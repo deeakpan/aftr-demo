@@ -355,7 +355,7 @@ contract ZedkrFpmmMarketFactory is Ownable2Step {
         if (!collateralRegistry.isWhitelisted(token)) revert InvalidCollateral();
     }
 
-    /// @notice UI / script compatibility — mirrors parimutuel factory naming.
+    /// @notice UI / script compatibility — mirrors prior factory naming.
     function isSupportedCollateral(address token) external view returns (bool) {
         return collateralRegistry.isWhitelisted(token);
     }

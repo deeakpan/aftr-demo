@@ -16,7 +16,7 @@ A token representing your position on one outcome. If that outcome wins at settl
 
 The percentage shown for each outcome based on current pool weights. Reflects crowd pricing, not a guaranteed forecast.
 
-## Parimutuel pool
+## FPMM pool
 
 A shared pool of collateral split across outcomes. New buys mint shares based on current weights; winners redeem from the settled pool.
 

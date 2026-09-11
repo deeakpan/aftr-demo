@@ -1,7 +1,7 @@
 import { formatUnits, parseAbi, type Abi } from "viem";
 import { unstable_cache } from "next/cache";
 import { fetchMarketsFromSubgraph, type SubgraphMarketIndex } from "@/lib/subgraph/market-index";
-import { fpmmFactoryAddress, parimutuelFactoryAddress } from "@/lib/market-factory";
+import { fpmmFactoryAddress } from "@/lib/market-factory";
 import { marketTvlBalanceCall } from "@/lib/market-abi";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
 import { fetchIpfsMetadata, ipfsToHttp, type IpfsMarketMetadata } from "@/lib/ipfs-metadata";
@@ -435,9 +435,6 @@ async function resolveMarketEntries(): Promise<MarketLoadEntry[]> {
   try {
     if (fpmm) {
       entries.push(...(await listFactoryMarkets(fpmm, true)));
-    } else {
-      const pari = parimutuelFactoryAddress();
-      if (pari) entries.push(...(await listFactoryMarkets(pari, false)));
     }
   } catch (error) {
     console.warn("[load-markets] factory scan failed:", error instanceof Error ? error.message : error);

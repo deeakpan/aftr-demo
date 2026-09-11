@@ -32,7 +32,7 @@ The trade panel’s share estimate uses the post-fee amount.
 
 ## Limit orders
 
-Limit order matching may involve escrow and fills at agreed prices. The **1.5% pool fee** applies specifically when collateral enters the parimutuel pool via market buy. Limit order economics follow the order book rules shown in the app.
+Limit order matching may involve escrow and fills at agreed prices. The **1.5% pool fee** applies specifically when collateral enters the FPMM pool via market buy. Limit order economics follow the order book rules shown in the app.
 
 ## Creator earnings
 

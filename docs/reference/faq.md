@@ -29,7 +29,7 @@ Common reasons: past **stake end**, insufficient balance, slippage too tight, wr
 
 ### Does 70% probability mean I will win 70% of my money back?
 
-No. Probability is crowd-implied odds, not a payout guarantee. If you lose, you lose your stake on that outcome. If you win, payout depends on parimutuel share math.
+No. Probability is crowd-implied odds, not a payout guarantee. If you lose, you lose your stake on that outcome. If you win, payout depends on FPMM share math.
 
 ### What is the minimum trade size?
 

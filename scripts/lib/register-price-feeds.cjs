@@ -1,5 +1,5 @@
 /**
- * Register deployment JSON chainlinkFeeds on MondaloreParimutuelMarketFactory (owner-only setPriceFeed).
+ * Register deployment JSON chainlinkFeeds on ZedkrFpmmMarketFactory (owner-only setPriceFeed).
  */
 function assetKey(ethers, symbol) {
   return ethers.keccak256(ethers.toUtf8Bytes(symbol.trim().toUpperCase()));
