@@ -63,10 +63,10 @@ type TraderMarketPosition @entity(immutable: false) {
 """One row per staker — tracks their current staked balance and lifetime rewards."""
 type Staker @entity(immutable: false) {
   id: ID!                        # staker address
-  stakedBalance: BigInt!         # current sMondalore balance (active stake)
+  stakedBalance: BigInt!         # current sZedkr balance (active stake)
   pendingUnstake: BigInt!        # amount in initiateUnstake queue
-  totalStaked: BigInt!           # lifetime Mondalore staked
-  totalUnstaked: BigInt!         # lifetime Mondalore unstaked
+  totalStaked: BigInt!           # lifetime Zedkr staked
+  totalUnstaked: BigInt!         # lifetime Zedkr unstaked
   totalRewardsClaimed: BigInt!   # lifetime rewards claimed (all tokens combined in USD not tracked here)
   rewardsClaimed: [RewardClaim!]! @derivedFrom(field: "staker")
 }
@@ -91,7 +91,7 @@ type EpochFees @entity(immutable: false) {
   treasuryShare: BigInt!
 }
 
-"""Resting limit order on MondaloreOrderBook (emitted only for unfilled remainder)."""
+"""Resting limit order on ZedkrOrderBook (emitted only for unfilled remainder)."""
 type LimitOrder @entity(immutable: false) {
   id: ID!                 # orderId (bytes32 hex)
   """Set when the market was indexed via FpmmFactory."""

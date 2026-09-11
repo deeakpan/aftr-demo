@@ -1,7 +1,7 @@
 /**
  * deploy-vault.cjs
  *
- * Deploys MondaloreToken + MondaloreFeeVault on top of an existing deployment,
+ * Deploys ZedkrToken + ZedkrFeeVault on top of an existing deployment,
  * wires the vault as feeRecipient on the factory, registers reward tokens,
  * then updates deployments/monadTestnet-10143.json and subgraph/subgraph.yaml.
  *
@@ -18,7 +18,7 @@ const SUBGRAPH_YAML   = path.join(__dirname, "..", "subgraph", "subgraph.yaml");
 
 const EPOCH_DURATION = BigInt(process.env.VAULT_EPOCH_DURATION || "604800"); // 7 days
 const LOCK_DURATION  = BigInt(process.env.VAULT_LOCK_DURATION  || "604800"); // 7 days
-const INITIAL_MINT   = BigInt(process.env.Mondalore_INITIAL_MINT    || String(100_000_000n * 10n ** 18n));
+const INITIAL_MINT   = BigInt(process.env.Zedkr_INITIAL_MINT    || String(100_000_000n * 10n ** 18n));
 
 async function deployAndTrack(factory, ...args) {
   const instance = await factory.deploy(...args);
@@ -46,27 +46,27 @@ async function main() {
   const factoryAddress = dep.contracts?.ZedkrFpmmMarketFactory;
   if (!factoryAddress) throw new Error("ZedkrFpmmMarketFactory not found in deployment JSON.");
 
-  const aftrUsdcAddr         = dep.contracts?.MondaloreUSDC;
+  const aftrUsdcAddr         = dep.contracts?.ZedkrUSDC;
   const usdeadAddr           = dep.contracts?.USDeAD;
   const circleUsdcAddr       = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
   const deploymentBlocks     = dep.deploymentBlocks ?? {};
 
-  // ── 1. MondaloreToken ────────────────────────────────────────────────────────────
-  console.log("\n[1/3] Deploying MondaloreToken...");
-  const MondaloreTokenF = await hre.ethers.getContractFactory("MondaloreToken");
+  // ── 1. ZedkrToken ────────────────────────────────────────────────────────────
+  console.log("\n[1/3] Deploying ZedkrToken...");
+  const ZedkrTokenF = await hre.ethers.getContractFactory("ZedkrToken");
   const { address: aftrTokenAddr, blockNumber: aftrTokenBlock } =
-    await deployAndTrack(MondaloreTokenF, deployer.address, INITIAL_MINT);
-  deploymentBlocks.MondaloreToken = aftrTokenBlock;
-  console.log(`  MondaloreToken: ${aftrTokenAddr}  (block ${aftrTokenBlock})`);
-  console.log(`  Minted ${(INITIAL_MINT / 10n ** 18n).toLocaleString()} Mondalore to deployer`);
+    await deployAndTrack(ZedkrTokenF, deployer.address, INITIAL_MINT);
+  deploymentBlocks.ZedkrToken = aftrTokenBlock;
+  console.log(`  ZedkrToken: ${aftrTokenAddr}  (block ${aftrTokenBlock})`);
+  console.log(`  Minted ${(INITIAL_MINT / 10n ** 18n).toLocaleString()} Zedkr to deployer`);
 
-  // ── 2. MondaloreFeeVault ─────────────────────────────────────────────────────────
-  console.log("\n[2/3] Deploying MondaloreFeeVault...");
-  const VaultF = await hre.ethers.getContractFactory("MondaloreFeeVault");
+  // ── 2. ZedkrFeeVault ─────────────────────────────────────────────────────────
+  console.log("\n[2/3] Deploying ZedkrFeeVault...");
+  const VaultF = await hre.ethers.getContractFactory("ZedkrFeeVault");
   const { instance: vault, address: vaultAddr, blockNumber: vaultBlock } =
     await deployAndTrack(VaultF, deployer.address, aftrTokenAddr, EPOCH_DURATION, LOCK_DURATION);
-  deploymentBlocks.MondaloreFeeVault = vaultBlock;
-  console.log(`  MondaloreFeeVault: ${vaultAddr}  (block ${vaultBlock})`);
+  deploymentBlocks.ZedkrFeeVault = vaultBlock;
+  console.log(`  ZedkrFeeVault: ${vaultAddr}  (block ${vaultBlock})`);
 
   // ── 3. Wire vault into existing factory ─────────────────────────────────────
   console.log("\n[3/3] Wiring vault into factory...");
@@ -82,7 +82,7 @@ async function main() {
 
   // Register reward tokens on vault
   const rewardTokens = [
-    { addr: aftrUsdcAddr,   label: "MondaloreUSDC"     },
+    { addr: aftrUsdcAddr,   label: "ZedkrUSDC"     },
     { addr: usdeadAddr,     label: "USDeAD"        },
     { addr: circleUsdcAddr, label: "Circle USDC"   },
     { addr: hre.ethers.ZeroAddress, label: "ETH"   },
@@ -94,8 +94,8 @@ async function main() {
   }
 
   // ── Update deployment JSON ───────────────────────────────────────────────────
-  dep.contracts.MondaloreToken    = aftrTokenAddr;
-  dep.contracts.MondaloreFeeVault = vaultAddr;
+  dep.contracts.ZedkrToken    = aftrTokenAddr;
+  dep.contracts.ZedkrFeeVault = vaultAddr;
   dep.feeRecipient           = vaultAddr;
   dep.deploymentBlocks       = deploymentBlocks;
   dep.vault = {
@@ -118,8 +118,8 @@ async function main() {
 
   console.log("\n═══════════════════════════════════════════════════════");
   console.log("Vault deployment complete:");
-  console.log(`  MondaloreToken:    ${aftrTokenAddr}`);
-  console.log(`  MondaloreFeeVault: ${vaultAddr}`);
+  console.log(`  ZedkrToken:    ${aftrTokenAddr}`);
+  console.log(`  ZedkrFeeVault: ${vaultAddr}`);
   console.log(`  feeRecipient on factory updated to vault`);
   console.log("\nNext: run subgraph codegen + build + deploy");
   console.log("  npm run subgraph:codegen");

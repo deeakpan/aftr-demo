@@ -638,7 +638,7 @@
     "name": "receiptToken",
     "outputs": [
       {
-        "internalType": "contract sMondaloreToken",
+        "internalType": "contract sZedkrToken",
         "name": "",
         "type": "address"
       }

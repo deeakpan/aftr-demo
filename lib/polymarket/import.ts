@@ -18,7 +18,7 @@ export type PolymarketImportDraft = {
   /** Polymarket end / resolution deadline (ISO). */
   endDate: string | null;
   /**
-   * Suggested Mondalore schedule derived from Poly endDate.
+   * Suggested Zedkr schedule derived from Poly endDate.
    * Polymarket has no stake-end — we set stake ≈ 24h before resolve (floored to ~6m from now).
    */
   suggestedStakeEndAt: string | null;

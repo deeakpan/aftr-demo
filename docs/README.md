@@ -1,10 +1,10 @@
-# Mondalore Docs
+# Zedkr Docs
 
-Welcome to the Mondalore user guide. These docs explain how prediction markets on Mondalore work, how to trade, manage positions, and create markets — in plain language, without assuming any technical background.
+Welcome to the Zedkr user guide. These docs explain how prediction markets on Zedkr work, how to trade, manage positions, and create markets — in plain language, without assuming any technical background.
 
-## What is Mondalore?
+## What is Zedkr?
 
-Mondalore is a prediction market platform. You use it to take positions on real-world questions: who wins an election, whether a price crosses a level, which team advances, and similar outcomes.
+Zedkr is a prediction market platform. You use it to take positions on real-world questions: who wins an election, whether a price crosses a level, which team advances, and similar outcomes.
 
 When you trade, you receive **outcome shares** tied to a specific result. If that result wins when the market settles, your shares can be redeemed for payout. Shares can also be sold to other traders before settlement, so you are not locked in until the market closes.
 

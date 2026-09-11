@@ -1,6 +1,6 @@
 # Deployments
 
-Mondalore runs on **Monad Testnet** and **Monad Mainnet**. Confirm the network in your wallet before trading or creating.
+Zedkr runs on **Monad Testnet** and **Monad Mainnet**. Confirm the network in your wallet before trading or creating.
 
 Each market also has its own contract address (created by the factory). You will see that address on the market detail page.
 
@@ -41,7 +41,7 @@ Each market also has its own contract address (created by the factory). You will
 | | Testnet | Mainnet |
 |---|---------|---------|
 | **Native token** | MON | MON |
-| **Mondalore app** | Live | Coming soon |
+| **Zedkr app** | Live | Coming soon |
 
 ---
 
@@ -79,7 +79,7 @@ The live app currently uses **Monad Testnet**.
 <td data-label="Address"><span class="ca">0x9AbbC7e9c23CCC5C359732b9b05Ef4f510CAAd53</span></td>
 </tr>
 <tr>
-<td data-label="Contract">Mondalore USDC</td>
+<td data-label="Contract">Zedkr USDC</td>
 <td data-label="Address"><span class="ca">0x9adECb575C30eB841ad2fDd153FE859DF861c338</span></td>
 </tr>
 <tr>
@@ -97,7 +97,7 @@ The live app currently uses **Monad Testnet**.
 
 <span class="network-badge">Chain ID 143</span>
 
-**Mondalore mainnet deployments: TBA.** Addresses below will be updated when production goes live. Follow [@mondalorecommunity](https://t.me/mondalorecommunity) for announcements.
+**Zedkr mainnet deployments: TBA.** Addresses below will be updated when production goes live. Follow [@zedkrcommunity](https://t.me/zedkrcommunity) for announcements.
 
 <div class="table-scroll">
 
@@ -127,7 +127,7 @@ The live app currently uses **Monad Testnet**.
 <td data-label="Address"><span class="tba">TBA</span></td>
 </tr>
 <tr>
-<td data-label="Contract">Mondalore USDC</td>
+<td data-label="Contract">Zedkr USDC</td>
 <td data-label="Address"><span class="tba">TBA</span></td>
 </tr>
 <tr>
@@ -149,4 +149,4 @@ The live app currently uses **Monad Testnet**.
 
 ## Need help?
 
-Wrong network, missing contract, or questions before mainnet launch — message [@mondalorecommunity](https://t.me/mondalorecommunity) on Telegram.
+Wrong network, missing contract, or questions before mainnet launch — message [@zedkrcommunity](https://t.me/zedkrcommunity) on Telegram.

@@ -1,6 +1,6 @@
 # Creating markets
 
-Anyone can launch a market on Mondalore. Creators define the question, outcomes, schedule, and initial liquidity. As traders participate, creators earn a share of trading fees.
+Anyone can launch a market on Zedkr. Creators define the question, outcomes, schedule, and initial liquidity. As traders participate, creators earn a share of trading fees.
 
 ## Why create a market?
 
@@ -61,7 +61,7 @@ If resolution admins cannot confirm a result from the links you provide, settlem
 
 ## Get in touch on Telegram
 
-Use the Mondalore Telegram community — [@mondalorecommunity](https://t.me/mondalorecommunity) — when you want help before or after creating a market. Useful situations include:
+Use the Zedkr Telegram community — [@zedkrcommunity](https://t.me/zedkrcommunity) — when you want help before or after creating a market. Useful situations include:
 
 - Checking whether your event idea has strong enough public data for settlement
 - Reviewing wording, outcomes, or resolution sources for edge cases

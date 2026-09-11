@@ -4,11 +4,11 @@
   "deployer": "0x7A981A271E12Dd22B61f9028F8CAf526ba53c3C5",
   "feeRecipient": "0x13Df5A0CEc379346D9a498a74a7580d6e2983b45",
   "contracts": {
-    "MondaloreToken": "0xC25e3685bF421cDe9355184301c2b06e82c691ef",
-    "MondaloreFeeVault": "0x13Df5A0CEc379346D9a498a74a7580d6e2983b45",
-    "MondaloreUSDC": "0xA5424DD5165ed2516fD5590fe229E91B2F7707E8",
+    "ZedkrToken": "0xC25e3685bF421cDe9355184301c2b06e82c691ef",
+    "ZedkrFeeVault": "0x13Df5A0CEc379346D9a498a74a7580d6e2983b45",
+    "ZedkrUSDC": "0xA5424DD5165ed2516fD5590fe229E91B2F7707E8",
     "USDG": "0x20f4BaE7793aE79bBeA9eA680516038cB5aCB23b",
-    "MondaloreOrderBook": "0xFd5109fA917203947E350218928e3e39f5936813",
+    "ZedkrOrderBook": "0xFd5109fA917203947E350218928e3e39f5936813",
     "ZedkrCollateralRegistry": "0xfa4b31967af90b3Ab15f39666f1c8c44486d5a99",
     "ZedkrFpmmMarketFactory": "0x001240bD2569526d0044069612C3ccBE869e5C97",
     "ZedkrFpmmDeployer": "0x485528Ee44f5a2eAf28CF55459fF9b5c6e219e9c",
@@ -21,11 +21,11 @@
     "MockWETH": 61998690,
     "MockEthUsdFeed": 61998693,
     "MockBtcUsdFeed": 61998696,
-    "MondaloreUSDC": 61998702,
+    "ZedkrUSDC": 61998702,
     "USDG": 61998710,
-    "MondaloreToken": 61998727,
-    "MondaloreFeeVault": 61998735,
-    "MondaloreOrderBook": 62263796,
+    "ZedkrToken": 61998727,
+    "ZedkrFeeVault": 61998735,
+    "ZedkrOrderBook": 62263796,
     "ZedkrCollateralRegistry": 61998832,
     "ZedkrFpmmMarketFactory": 61998839,
     "ZedkrFpmmDeployer": 61998849,
@@ -72,7 +72,7 @@
   ],
   "notes": {
     "tradingCollaterals": [
-      "MondaloreUSDC",
+      "ZedkrUSDC",
       "WETH",
       "USDG"
     ],
@@ -82,9 +82,9 @@
       "0x20f4BaE7793aE79bBeA9eA680516038cB5aCB23b"
     ],
     "primaryMarketFactory": "ZedkrFpmmMarketFactory",
-    "umaRewardToken": "MondaloreUSDC when umaRewardCurrency is address(0) on factory",
-    "feeFlow": "Market deposit → 0.4% protocol fee → MondaloreFeeVault.receiveFees()",
-    "orderBook": "MondaloreOrderBook is the FPMM CLOB via ZedkrFpmmOrderBookFactoryAdapter."
+    "umaRewardToken": "ZedkrUSDC when umaRewardCurrency is address(0) on factory",
+    "feeFlow": "Market deposit → 0.4% protocol fee → ZedkrFeeVault.receiveFees()",
+    "orderBook": "ZedkrOrderBook is the FPMM CLOB via ZedkrFpmmOrderBookFactoryAdapter."
   },
   "deployedAt": "2026-09-08T07:08:44.526Z",
   "vault": {

@@ -5,7 +5,7 @@
 require("dotenv").config({ path: require("path").join(__dirname, "..", "..", ".env") });
 
 const DEFAULT_SUBGRAPH_URL =
-  "https://api.studio.thegraph.com/query/1749057/mondalore-testnet/v0.07";
+  "https://api.studio.thegraph.com/query/1749057/zedkr-testnet/v0.07";
 
 const SETTLEMENT_CANDIDATES_QUERY = `
   query SettlementCandidates($now: BigInt!, $first: Int!) {

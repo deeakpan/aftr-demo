@@ -1,6 +1,6 @@
 # Your account & display name
 
-On Mondalore, your **wallet address** is your account. The app also lets you set a **display name** so others see a readable label instead of a long hex string.
+On Zedkr, your **wallet address** is your account. The app also lets you set a **display name** so others see a readable label instead of a long hex string.
 
 ## Display name
 
@@ -19,7 +19,7 @@ These are separate. Trading moves collateral into outcome shares; claiming moves
 
 ## Approvals
 
-For USDC-denominated markets, your wallet may ask you to **approve** Mondalore to spend a token before the first trade. This is a one-time permission per token (or per spending limit). Native MON markets skip this step for the collateral itself.
+For USDC-denominated markets, your wallet may ask you to **approve** Zedkr to spend a token before the first trade. This is a one-time permission per token (or per spending limit). Native MON markets skip this step for the collateral itself.
 
 Approvals are normal in decentralized apps. You are always shown the approval transaction in your wallet before it goes through.
 

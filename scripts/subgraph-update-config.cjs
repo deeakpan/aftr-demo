@@ -29,15 +29,15 @@ function main() {
   const contracts = dep.contracts ?? {};
   const blocks = dep.deploymentBlocks ?? {};
 
-  const vault = contracts.MondaloreFeeVault;
+  const vault = contracts.ZedkrFeeVault;
   const fpmmFactory = contracts.ZedkrFpmmMarketFactory;
-  const orderBook = contracts.MondaloreOrderBook;
-  const vaultBlock = blocks.MondaloreFeeVault ?? 1;
+  const orderBook = contracts.ZedkrOrderBook;
+  const vaultBlock = blocks.ZedkrFeeVault ?? 1;
   const fpmmFactoryBlock = blocks.ZedkrFpmmMarketFactory ?? 1;
-  const orderBookBlock = blocks.MondaloreOrderBook ?? 1;
+  const orderBookBlock = blocks.ZedkrOrderBook ?? 1;
 
   if (!isDeployed(vault) || !isDeployed(fpmmFactory)) {
-    console.error("Missing ZedkrFpmmMarketFactory or MondaloreFeeVault in deployment JSON.");
+    console.error("Missing ZedkrFpmmMarketFactory or ZedkrFeeVault in deployment JSON.");
     process.exit(1);
   }
 

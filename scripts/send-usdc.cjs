@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 /**
- * Send MondaloreUSDC (test USDC) on Monad Testnet.
+ * Send ZedkrUSDC (test USDC) on Monad Testnet.
  *
  * Env:
  *   PRIVATE_KEY — sender
@@ -45,9 +45,9 @@ function normalizePrivateKey(raw) {
 function readUsdcAddress() {
   const deploymentPath = path.join(__dirname, "..", "deployments", "monadTestnet-10143.json");
   const j = JSON.parse(fs.readFileSync(deploymentPath, "utf8"));
-  const addr = j?.contracts?.MondaloreUSDC;
+  const addr = j?.contracts?.ZedkrUSDC;
   if (!addr || typeof addr !== "string") {
-    throw new Error("MondaloreUSDC missing in deployments/monadTestnet-10143.json");
+    throw new Error("ZedkrUSDC missing in deployments/monadTestnet-10143.json");
   }
   return addr;
 }

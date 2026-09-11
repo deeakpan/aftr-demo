@@ -52,9 +52,9 @@ async function main() {
 
   const depPath = path.join(ROOT, "deployments", `${hre.network.name}-${chainId}.json`);
   const prev = JSON.parse(fs.readFileSync(depPath, "utf8"));
-  const vault = prev.feeRecipient || prev.contracts.MondaloreFeeVault;
+  const vault = prev.feeRecipient || prev.contracts.ZedkrFeeVault;
   const usdg = prev.contracts.USDG;
-  const usdc = prev.contracts.MondaloreUSDC;
+  const usdc = prev.contracts.ZedkrUSDC;
   const weth = prev.contracts.WETH;
   const collaterals = [usdc, weth, usdg].filter(Boolean);
   const feeds = prev.external?.chainlinkFeeds ?? [];
@@ -65,7 +65,7 @@ async function main() {
     ? JSON.parse(fs.readFileSync(PROGRESS_FILE, "utf8"))
     : {
         startedAt: new Date().toISOString(),
-        reused: { USDG: usdg, MondaloreUSDC: usdc, WETH: weth, treasury: vault },
+        reused: { USDG: usdg, ZedkrUSDC: usdc, WETH: weth, treasury: vault },
         contracts: {},
         blocks: {},
         steps: [],
@@ -79,7 +79,7 @@ async function main() {
   console.log("  5. setResolutionAdmins + setTokenResolutionAdmin");
   console.log("  6. register Chainlink feeds");
   console.log("  7. whitelist USDC / WETH / mock USDG");
-  console.log("  8. orderbook adapter + MondaloreOrderBook");
+  console.log("  8. orderbook adapter + ZedkrOrderBook");
   console.log("Deployer:", signer.address);
   console.log("Mock USDG:", usdg);
   console.log("Treasury (vault):", vault);
@@ -210,22 +210,22 @@ async function main() {
       console.log(`\n[8a/8] skip adapter (already ${progress.contracts.ZedkrFpmmOrderBookFactoryAdapter})`);
     }
 
-    if (!progress.contracts.MondaloreOrderBook) {
+    if (!progress.contracts.ZedkrOrderBook) {
       await logWallet("8b/8 orderbook", signer);
-      const F = await hre.ethers.getContractFactory("MondaloreOrderBook");
+      const F = await hre.ethers.getContractFactory("ZedkrOrderBook");
       const { address, blockNumber } = await deployAndTrack(
         F,
         progress.contracts.ZedkrFpmmOrderBookFactoryAdapter,
         signer.address,
         vault,
       );
-      progress.contracts.MondaloreOrderBook = address;
-      progress.blocks.MondaloreOrderBook = blockNumber;
+      progress.contracts.ZedkrOrderBook = address;
+      progress.blocks.ZedkrOrderBook = blockNumber;
       progress.steps.push("orderbook");
       writeProgress(progress);
       console.log(`  orderbook ${address} block ${blockNumber}`);
     } else {
-      console.log(`\n[8b/8] skip orderbook (already ${progress.contracts.MondaloreOrderBook})`);
+      console.log(`\n[8b/8] skip orderbook (already ${progress.contracts.ZedkrOrderBook})`);
     }
 
     progress.finishedAt = new Date().toISOString();

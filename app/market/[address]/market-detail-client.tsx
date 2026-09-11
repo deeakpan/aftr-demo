@@ -64,7 +64,7 @@ import {
 const WAD = BigInt("1000000000000000000");
 
 const ORDERBOOK_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts
-  .MondaloreOrderBook as `0x${string}`;
+  .ZedkrOrderBook as `0x${string}`;
 
 const ORDERBOOK_ABI = parseAbi([
   "function placeSellOrder(address market, address token, uint256 price, uint256 amount) returns (bytes32)",

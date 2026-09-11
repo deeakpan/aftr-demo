@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import { isAddress, parseAbi } from "viem";
-import deployment from "@/lib/deployment";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
+import { fpmmFactoryAddress } from "@/lib/market-factory";
 import { findDuplicatePonsMarkets } from "@/lib/pons/duplicates";
 
 export const dynamic = "force-dynamic";
 
-const FACTORY = deployment.contracts.ZedkrFpmmMarketFactory as `0x${string}`;
 const FACTORY_ABI = parseAbi([
   "function marketsLength() view returns (uint256)",
   "function markets(uint256) view returns (address)",
@@ -43,7 +42,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "resolveAfterUnix required." }, { status: 400 });
   }
 
-  if (!FACTORY || FACTORY === "0x0000000000000000000000000000000000000000") {
+  const FACTORY = fpmmFactoryAddress();
+  if (!FACTORY) {
     return NextResponse.json({ duplicates: [], checked: 0, unavailable: true });
   }
 

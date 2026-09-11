@@ -7,7 +7,7 @@ interface IZedkrFpmmMarketFactoryView {
 }
 
 /// @title ZedkrFpmmOrderBookFactoryAdapter
-/// @notice Exposes MondaloreOrderBook's factory interface against an already-deployed
+/// @notice Exposes ZedkrOrderBook's factory interface against an already-deployed
 ///         ZedkrFpmmMarketFactory that may lack `isOutcomeTokenForMarket` on-chain.
 contract ZedkrFpmmOrderBookFactoryAdapter {
     IZedkrFpmmMarketFactoryView public immutable fpmmFactory;

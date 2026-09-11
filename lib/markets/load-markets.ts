@@ -604,7 +604,7 @@ async function loadMarketsListUncached(): Promise<MarketListItem[]> {
 
 const loadMarketsListCached = unstable_cache(
   loadMarketsListUncached,
-  ["mondalore-markets-list"],
+  ["zedkr-markets-list"],
   { revalidate: 20 },
 );
 

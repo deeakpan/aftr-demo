@@ -1,8 +1,8 @@
 /* eslint-disable no-console */
 /**
  * Deploy full Zedkr stack (markets + staking — no USDeAD / DRP / debt router):
- *   MondaloreUSDC, MondaloreToken, MondaloreFeeVault (feeRecipient),
- *   Zedkr FPMM factory + MondaloreOrderBook (via FPMM adapter).
+ *   ZedkrUSDC, ZedkrToken, ZedkrFeeVault (feeRecipient),
+ *   Zedkr FPMM factory + ZedkrOrderBook (via FPMM adapter).
  *
  * Usage:
  *   npx hardhat run scripts/deploy-aftr-full-stack.cjs --network unichainSepolia
@@ -11,7 +11,7 @@
  * Env (optional):
  *   VAULT_EPOCH_DURATION     — epoch length in seconds (default: 604800 = 7 days)
  *   VAULT_LOCK_DURATION      — min lock per stake lot in seconds (default: 604800 = 7 days)
- *   Mondalore_INITIAL_MINT   — initial MONDO mint to deployer (default: 100_000_000e18)
+ *   Zedkr_INITIAL_MINT   — initial MONDO mint to deployer (default: 100_000_000e18)
  *   RESOLUTION_ADMINS        — comma-separated admin addresses (default: first 4 from wallets.json)
  *   MONAD_WETH               — existing WETH on Monad (if set, skips MockWETH deploy)
  *   MONAD_WRAP_MON           — MON to wrap into MockWETH for deployer (default: 1)
@@ -418,23 +418,23 @@ async function main() {
 
   const epochDuration = BigInt(process.env.VAULT_EPOCH_DURATION?.trim() || "604800");  // 7 days
   const lockDuration  = BigInt(process.env.VAULT_LOCK_DURATION?.trim()  || "604800");  // 7 days
-  const aftrInitialMint = BigInt(process.env.Mondalore_INITIAL_MINT?.trim()  || String(100_000_000n * 10n ** 18n));
+  const aftrInitialMint = BigInt(process.env.Zedkr_INITIAL_MINT?.trim()  || String(100_000_000n * 10n ** 18n));
 
-  // ── 1. MondaloreUSDC test token ─────────────────────────────────────────────
-  console.log("\n[1/7] Deploying MondaloreUSDC (test collateral)...");
-  const MondaloreUF = await hre.ethers.getContractFactory("MondaloreUSDC", deployer);
+  // ── 1. ZedkrUSDC test token ─────────────────────────────────────────────
+  console.log("\n[1/7] Deploying ZedkrUSDC (test collateral)...");
+  const ZedkrUF = await hre.ethers.getContractFactory("ZedkrUSDC", deployer);
   const { instance: aftrUsdc, address: aftrUsdcAddr, blockNumber: aftrUsdcBlock } =
-    await deployAndTrack(MondaloreUF, deployer.address);
-  deploymentBlocks.MondaloreUSDC = aftrUsdcBlock;
-  console.log(`  MondaloreUSDC: ${aftrUsdcAddr} (block ${aftrUsdcBlock})`);
+    await deployAndTrack(ZedkrUF, deployer.address);
+  deploymentBlocks.ZedkrUSDC = aftrUsdcBlock;
+  console.log(`  ZedkrUSDC: ${aftrUsdcAddr} (block ${aftrUsdcBlock})`);
 
-  const extraUsdcMint = process.env.MondaloreUSDC_EXTRA_MINT?.trim() || "1000000";
+  const extraUsdcMint = process.env.ZedkrUSDC_EXTRA_MINT?.trim() || "1000000";
   try {
     const extra = BigInt(extraUsdcMint) * 10n ** 6n;
     await (await aftrUsdc.mint(deployer.address, extra)).wait();
-    console.log(`  Minted ${extraUsdcMint} extra MondaloreUSDC to deployer`);
+    console.log(`  Minted ${extraUsdcMint} extra ZedkrUSDC to deployer`);
   } catch (e) {
-    console.warn("  Extra MondaloreUSDC mint skipped:", e.shortMessage ?? e.message);
+    console.warn("  Extra ZedkrUSDC mint skipped:", e.shortMessage ?? e.message);
   }
 
   if (!usdgAddr) {
@@ -462,22 +462,22 @@ async function main() {
     console.log(`\n[1b/7] Using existing USDG (USE_REAL_USDG / USDG_ADDRESS): ${usdgAddr}`);
   }
 
-  // ── 2. Mondalore governance token ───────────────────────────────────────────
-  console.log("\n[2/7] Deploying MONDO token (MondaloreToken)...");
-  const MondaloreTokenF = await hre.ethers.getContractFactory("MondaloreToken", deployer);
+  // ── 2. Zedkr governance token ───────────────────────────────────────────
+  console.log("\n[2/7] Deploying MONDO token (ZedkrToken)...");
+  const ZedkrTokenF = await hre.ethers.getContractFactory("ZedkrToken", deployer);
   const { address: aftrTokenAddr, blockNumber: aftrTokenBlock } =
-    await deployAndTrack(MondaloreTokenF, deployer.address, aftrInitialMint);
-  deploymentBlocks.MondaloreToken = aftrTokenBlock;
+    await deployAndTrack(ZedkrTokenF, deployer.address, aftrInitialMint);
+  deploymentBlocks.ZedkrToken = aftrTokenBlock;
   console.log(`  MONDO: ${aftrTokenAddr} (block ${aftrTokenBlock})`);
   console.log(`  Initial mint: ${(aftrInitialMint / 10n ** 18n).toLocaleString()} MONDO to deployer`);
 
-  // ── 3. MondaloreFeeVault ────────────────────────────────────────────────────
-  console.log("\n[3/7] Deploying MondaloreFeeVault...");
-  const VaultF = await hre.ethers.getContractFactory("MondaloreFeeVault", deployer);
+  // ── 3. ZedkrFeeVault ────────────────────────────────────────────────────
+  console.log("\n[3/7] Deploying ZedkrFeeVault...");
+  const VaultF = await hre.ethers.getContractFactory("ZedkrFeeVault", deployer);
   const { instance: vault, address: vaultAddr, blockNumber: vaultBlock } =
     await deployAndTrack(VaultF, deployer.address, aftrTokenAddr, epochDuration, lockDuration);
-  deploymentBlocks.MondaloreFeeVault = vaultBlock;
-  console.log(`  MondaloreFeeVault: ${vaultAddr} (block ${vaultBlock})`);
+  deploymentBlocks.ZedkrFeeVault = vaultBlock;
+  console.log(`  ZedkrFeeVault: ${vaultAddr} (block ${vaultBlock})`);
   console.log(`  Epoch: ${epochDuration}s  Lock: ${lockDuration}s`);
 
   // ── 4. Vault rewards + FPMM stack ──────────────────────────────────────────
@@ -497,7 +497,7 @@ async function main() {
     (chainId === 10143 && weth.toLowerCase() !== BASE_SEPOLIA_WETH.toLowerCase()) ||
     chainId === 1301 ||
     chainId === 4663;
-  const collateralLabels = ["MondaloreUSDC"];
+  const collateralLabels = ["ZedkrUSDC"];
   if (netExt.registerCircleUsdc && netExt.circleUsdc) collateralLabels.push("Circle USDC");
   if (registerWeth) collateralLabels.push("WETH");
   if (usdgAddr) collateralLabels.push("USDG");
@@ -534,17 +534,17 @@ async function main() {
   });
 
   // ── 6. OrderBook (FPMM via adapter) ─────────────────────────────────────────
-  console.log("\n[6/6] Deploying FPMM orderbook adapter + MondaloreOrderBook...");
+  console.log("\n[6/6] Deploying FPMM orderbook adapter + ZedkrOrderBook...");
   const AdapterF = await hre.ethers.getContractFactory("ZedkrFpmmOrderBookFactoryAdapter", deployer);
   const { address: adapterAddress, blockNumber: adapterBlock } =
     await deployAndTrack(AdapterF, fpmmResult.fpmmFactory);
   deploymentBlocks.ZedkrFpmmOrderBookFactoryAdapter = adapterBlock;
   console.log(`  Adapter: ${adapterAddress} (block ${adapterBlock})`);
 
-  const OrderBookF = await hre.ethers.getContractFactory("MondaloreOrderBook", deployer);
+  const OrderBookF = await hre.ethers.getContractFactory("ZedkrOrderBook", deployer);
   const { address: orderBookAddress, blockNumber: orderBookBlock } =
     await deployAndTrack(OrderBookF, adapterAddress, deployer.address, vaultAddr);
-  deploymentBlocks.MondaloreOrderBook = orderBookBlock;
+  deploymentBlocks.ZedkrOrderBook = orderBookBlock;
   console.log(`  OrderBook: ${orderBookAddress} (block ${orderBookBlock})`);
 
   // ── Write deployment JSON ──────────────────────────────────────────────────
@@ -553,11 +553,11 @@ async function main() {
     deployer: deployer.address,
     feeRecipient: vaultAddr,
     contracts: {
-      MondaloreToken:                    aftrTokenAddr,
-      MondaloreFeeVault:                 vaultAddr,
-      MondaloreUSDC:                     aftrUsdcAddr,
+      ZedkrToken:                    aftrTokenAddr,
+      ZedkrFeeVault:                 vaultAddr,
+      ZedkrUSDC:                     aftrUsdcAddr,
       ...(usdgAddr ? { USDG: usdgAddr } : {}),
-      MondaloreOrderBook:                orderBookAddress,
+      ZedkrOrderBook:                orderBookAddress,
       ZedkrFpmmOrderBookFactoryAdapter:  adapterAddress,
       ZedkrCollateralRegistry:           fpmmResult.registry,
       ZedkrFpmmMarketFactory:            fpmmResult.fpmmFactory,
@@ -607,11 +607,11 @@ async function main() {
       tradingCollaterals: collateralLabels,
       fpmmCollaterals: fpmmCollaterals,
       primaryMarketFactory: "ZedkrFpmmMarketFactory",
-      orderBook: "MondaloreOrderBook is the FPMM CLOB via ZedkrFpmmOrderBookFactoryAdapter.",
+      orderBook: "ZedkrOrderBook is the FPMM CLOB via ZedkrFpmmOrderBookFactoryAdapter.",
       umaRewardToken: netExt.circleUsdc
         ? "Circle USDC when umaRewardCurrency is address(0) on factory"
-        : "MondaloreUSDC when umaRewardCurrency is address(0) on factory",
-      feeFlow: "Market buy → protocol fee → MondaloreFeeVault.receiveFees()",
+        : "ZedkrUSDC when umaRewardCurrency is address(0) on factory",
+      feeFlow: "Market buy → protocol fee → ZedkrFeeVault.receiveFees()",
     },
   });
 
@@ -627,16 +627,16 @@ async function main() {
   // ── Summary ────────────────────────────────────────────────────────────────
   console.log("\n═══════════════════════════════════════════════════════");
   console.log("Deployment complete. Key addresses:");
-  console.log(`  MondaloreToken:                   ${aftrTokenAddr}`);
-  console.log(`  MondaloreFeeVault:                ${vaultAddr}  ← feeRecipient`);
+  console.log(`  ZedkrToken:                   ${aftrTokenAddr}`);
+  console.log(`  ZedkrFeeVault:                ${vaultAddr}  ← feeRecipient`);
   console.log(`  ZedkrFpmmMarketFactory:           ${fpmmResult.fpmmFactory}`);
   console.log(`  ZedkrCollateralRegistry:          ${fpmmResult.registry}`);
-  console.log(`  MondaloreOrderBook:               ${orderBookAddress}`);
+  console.log(`  ZedkrOrderBook:               ${orderBookAddress}`);
   console.log(`  OrderBook adapter:                ${adapterAddress}`);
   console.log("\nNext steps:");
   console.log("  1. subgraph/subgraph.yaml was updated — run: npm run subgraph:codegen && npm run subgraph:build");
   console.log("  2. Deploy subgraph to Goldsky / Studio");
-  console.log("  3. Distribute Mondalore tokens to stakers / liquidity programs.");
+  console.log("  3. Distribute Zedkr tokens to stakers / liquidity programs.");
   console.log("  4. Create markets from the UI — each market auto-seeds on creation.");
   console.log("═══════════════════════════════════════════════════════\n");
 }

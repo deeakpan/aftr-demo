@@ -1,6 +1,6 @@
 # Market vs limit orders
 
-Mondalore supports two order styles. They serve different goals.
+Zedkr supports two order styles. They serve different goals.
 
 ## Market trade (buy)
 

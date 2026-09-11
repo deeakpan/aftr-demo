@@ -63,7 +63,7 @@ async function main() {
         (chainId === 4663 ? robinhoodNetworkExternals().usdg : null)
       : null);
 
-  const collaterals = [prev.contracts?.MondaloreUSDC, prev.contracts?.WETH].filter(Boolean);
+  const collaterals = [prev.contracts?.ZedkrUSDC, prev.contracts?.WETH].filter(Boolean);
   if (usdg) collaterals.push(usdg);
   else if (!prev.contracts?.USDG) {
     console.warn(

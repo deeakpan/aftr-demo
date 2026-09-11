@@ -128,8 +128,8 @@ function ParaControls() {
       return client.waitAndExportSession();
     };
     try {
-      window.localStorage.removeItem("mondalore-para-me");
-      window.localStorage.removeItem("mondalore-para-wallet");
+      window.localStorage.removeItem("zedkr-para-me");
+      window.localStorage.removeItem("zedkr-para-wallet");
     } catch {
       // ignore
     }

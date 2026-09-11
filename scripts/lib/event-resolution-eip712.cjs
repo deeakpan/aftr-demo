@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 const { TypedDataEncoder } = require("ethers");
 
-const DOMAIN_NAME = "Mondalore Market";
+const DOMAIN_NAME = "Zedkr Market";
 const DOMAIN_VERSION = "1";
 
 function resolutionTypedData(marketAddress, outcomeIndex, chainId) {

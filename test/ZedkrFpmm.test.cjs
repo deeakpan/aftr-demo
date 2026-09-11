@@ -92,7 +92,7 @@ describe("Zedkr FPMM — USDG collateral + resolution", function () {
 
   describe("Collateral registry", function () {
     it("rejects unwhitelisted collateral", async function () {
-      const USDC = await ethers.getContractFactory("MondaloreUSDC");
+      const USDC = await ethers.getContractFactory("ZedkrUSDC");
       const usdc = await USDC.deploy(owner.address);
       const now = (await ethers.provider.getBlock("latest")).timestamp;
 

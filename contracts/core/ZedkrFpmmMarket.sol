@@ -7,8 +7,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "../token/ZedkrOutcomeToken.sol";
 import "../fpmm/ZedkrFpmmMath.sol";
-import "../interfaces/IMondaloreAggregatorV3.sol";
-import "../interfaces/IMondaloreMarketFactoryResolution.sol";
+import "../interfaces/IZedkrAggregatorV3.sol";
+import "../interfaces/IZedkrMarketFactoryResolution.sol";
 import "../interfaces/IZedkrFeeSplit.sol";
 import "../libraries/ZedkrTradeFees.sol";
 
@@ -366,12 +366,12 @@ contract ZedkrFpmmMarket is Ownable2Step, ReentrancyGuard {
         if (block.timestamp < resolveAfterTimestamp) revert TooEarlyToResolve();
 
         (uint80 roundId, int256 answer, , uint256 updatedAt, uint80 answeredInRound) =
-            IMondaloreAggregatorV3(chainlinkFeed).latestRoundData();
+            IZedkrAggregatorV3(chainlinkFeed).latestRoundData();
         require(answer > 0, "Answer");
         require(block.timestamp - updatedAt <= maxPriceStaleness, "Stale");
         require(answeredInRound >= roundId, "Stale round");
 
-        uint8 dec = IMondaloreAggregatorV3(chainlinkFeed).decimals();
+        uint8 dec = IZedkrAggregatorV3(chainlinkFeed).decimals();
         uint256 normalized;
         if (dec >= 6) {
             normalized = uint256(answer) / (10 ** (dec - 6));
@@ -394,7 +394,7 @@ contract ZedkrFpmmMarket is Ownable2Step, ReentrancyGuard {
         if (outcomeIndex >= numOutcomes) revert InvalidOutcome();
         if (signers.length != signatures.length || signers.length == 0) revert InvalidResolutionSignatures();
 
-        IMondaloreMarketFactoryResolution fac = IMondaloreMarketFactoryResolution(factory);
+        IZedkrMarketFactoryResolution fac = IZedkrMarketFactoryResolution(factory);
         uint256 threshold = fac.resolutionThreshold();
         if (signers.length < threshold) revert InvalidResolutionSignatures();
 
@@ -421,7 +421,7 @@ contract ZedkrFpmmMarket is Ownable2Step, ReentrancyGuard {
         if (state != MarketState.OPEN) revert InvalidState();
         if (block.timestamp < resolveAfterTimestamp) revert TooEarlyToResolve();
         if (outcomeIndex >= numOutcomes) revert InvalidOutcome();
-        if (msg.sender != IMondaloreMarketFactoryResolution(factory).tokenResolutionAdmin()) {
+        if (msg.sender != IZedkrMarketFactoryResolution(factory).tokenResolutionAdmin()) {
             revert NotTokenResolutionAdmin();
         }
 

@@ -6,7 +6,7 @@ Event markets resolve from **real-world outcomes** verified against public sourc
 
 On Create → **Event**, you can tap **Import from Polymarket** and paste a Polymarket event or market URL (for example `https://polymarket.com/event/…`).
 
-Mondalore pulls what it can from Polymarket’s public catalog and prefills your form:
+Zedkr pulls what it can from Polymarket’s public catalog and prefills your form:
 
 | Field | What we import |
 |-------|----------------|
@@ -18,11 +18,11 @@ Mondalore pulls what it can from Polymarket’s public catalog and prefills your
 | **Stake ends** | Derived (~24h before resolve) — Polymarket has no stake-end field |
 | **Slug** | Suggested from the Polymarket slug |
 
-After import, review everything. Adjust wording, outcomes, sources, and times before you seed and submit. Import is a **template only** — the Mondalore market is separate and is **resolved through protocol admins**, not Polymarket’s own resolution.
+After import, review everything. Adjust wording, outcomes, sources, and times before you seed and submit. Import is a **template only** — the Zedkr market is separate and is **resolved through protocol admins**, not Polymarket’s own resolution.
 
 Tips:
 
-- Multi-child Polymarket events (e.g. “next team” with many options) become a **multi-outcome** Mondalore market using those option labels as listed
+- Multi-child Polymarket events (e.g. “next team” with many options) become a **multi-outcome** Zedkr market using those option labels as listed
 - We do **not** invent an “Other” option — only keep a catch-all if Polymarket already has one
 - Always confirm stake end / resolve after still make sense for when official results will publish
 
@@ -43,7 +43,7 @@ Poor fits:
 - Questions that rely on paywalled or disappearing pages as the only source
 - Scenarios where the event may not produce any official record
 
-Markets without verifiable public data are slow to settle, frustrate traders, and hurt creator reputation. If you are not sure your event clears this bar, message [@mondalorecommunity](https://t.me/mondalorecommunity) on Telegram before submitting.
+Markets without verifiable public data are slow to settle, frustrate traders, and hurt creator reputation. If you are not sure your event clears this bar, message [@zedkrcommunity](https://t.me/zedkrcommunity) on Telegram before submitting.
 
 ## What to prepare
 
@@ -102,6 +102,6 @@ Tag your market (Crypto, Politics, Finance, Tech, Economy, Sports, Gaming, Enter
 - Share the market link
 - Monitor trading and clarify description if questions arise in community channels
 - Creator fees accrue automatically on each trade
-- If results are unclear or settlement is taking longer than expected, reach out on [@mondalorecommunity](https://t.me/mondalorecommunity) with the market link and your resolution sources
+- If results are unclear or settlement is taking longer than expected, reach out on [@zedkrcommunity](https://t.me/zedkrcommunity) with the market link and your resolution sources
 
 [Seed liquidity →](seed-liquidity.md) · [How settlement works](../markets/how-settlement-works.md) · [Deployments](../reference/deployments.md)

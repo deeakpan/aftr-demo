@@ -42,7 +42,7 @@ Use the slippage control in the trade panel to cycle through presets (e.g. tight
 
 ## Gas
 
-Network **gas** is paid to validators for processing your transaction. Gas is separate from Mondalore fees and varies with network congestion. You pay gas in the network’s native token.
+Network **gas** is paid to validators for processing your transaction. Gas is separate from Zedkr fees and varies with network congestion. You pay gas in the network’s native token.
 
 ## No hidden pool fee at settlement
 

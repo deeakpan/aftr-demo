@@ -1,6 +1,6 @@
 # Understanding prices & probability
 
-Mondalore markets use a **parimutuel pool** model. There is no traditional order-book mid price for pool trades — instead, everyone’s collateral sits in shared pools per outcome, and shares are minted based on the pool’s current weights.
+Zedkr markets use a **parimutuel pool** model. There is no traditional order-book mid price for pool trades — instead, everyone’s collateral sits in shared pools per outcome, and shares are minted based on the pool’s current weights.
 
 ## Probability percentage
 
@@ -37,7 +37,7 @@ Limit orders use a **price you specify** in collateral per share (or equivalent 
 
 ## What probability is not
 
-- Not a forecast from Mondalore — it is crowd-priced.
+- Not a forecast from Zedkr — it is crowd-priced.
 - Not fixed — it updates with every pool trade.
 - Not what you will necessarily receive at settlement — losers receive nothing; winners split the redeemable pool per share mechanics.
 

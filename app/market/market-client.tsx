@@ -36,7 +36,7 @@ import {
   readDefaultSlippageBps,
   writeDefaultSlippageBps,
 } from "@/lib/trade-slippage";
-const ORDERBOOK_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts.MondaloreOrderBook as `0x${string}`;
+const ORDERBOOK_ADDRESS = (deployment as unknown as { contracts: Record<string, string> }).contracts.ZedkrOrderBook as `0x${string}`;
 const ORDERBOOK_ABI = parseAbi([
   "function placeSellOrder(address market, address token, uint256 price, uint256 amount) returns (bytes32)",
   "function placeBuyOrder(address market, address token, uint256 price, uint256 amount) payable returns (bytes32)",

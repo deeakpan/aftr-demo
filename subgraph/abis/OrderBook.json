@@ -586,7 +586,7 @@
     "name": "marketFactory",
     "outputs": [
       {
-        "internalType": "contract IMondaloreOrderBookFactory",
+        "internalType": "contract IZedkrOrderBookFactory",
         "name": "",
         "type": "address"
       }

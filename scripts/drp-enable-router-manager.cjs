@@ -38,10 +38,10 @@ function readDeployment(networkName, chainId) {
   if (!fs.existsSync(file)) throw new Error(`Deployment file not found: ${file}`);
   const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
   const drp = parsed?.contracts?.DRP;
-  const router = parsed?.contracts?.MondaloreMarketDebtRouter;
+  const router = parsed?.contracts?.ZedkrMarketDebtRouter;
   if (!drp || !hre.ethers.isAddress(drp)) throw new Error("DRP missing in deployment file.");
   if (!router || !hre.ethers.isAddress(router)) {
-    throw new Error("MondaloreMarketDebtRouter missing in deployment file.");
+    throw new Error("ZedkrMarketDebtRouter missing in deployment file.");
   }
   return { drp, router, file };
 }

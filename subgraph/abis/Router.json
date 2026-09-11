@@ -261,7 +261,7 @@
     "name": "factory",
     "outputs": [
       {
-        "internalType": "contract IMondaloreFactoryLike",
+        "internalType": "contract IZedkrFactoryLike",
         "name": "",
         "type": "address"
       }

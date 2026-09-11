@@ -2,7 +2,7 @@ import { formatUnits } from "viem";
 
 /**
  * Subgraph trader totals (`totalDeposited` / `totalRedeemed`) are raw collateral
- * units. Mondalore USDC is 6 decimals — formatting as 18 makes every PnL look like $0.00.
+ * units. Zedkr USDC is 6 decimals — formatting as 18 makes every PnL look like $0.00.
  * Native MON (18) markets are rare; primary display collateral is USDC.
  */
 export const SUBGRAPH_COLLATERAL_DECIMALS = 6;

@@ -1,4 +1,4 @@
-# Mondalore subgraph (The Graph)
+# Zedkr subgraph (The Graph)
 
 Indexes on **Monad testnet** (chainId 10143):
 
@@ -15,7 +15,7 @@ Router trades are included because the router calls `market.deposit` / redeem, w
 
 1. Deploy stack → `deployments/monadTestnet-10143.json` must be current.
 2. Run **`npm run subgraph:update-config`** — patches `subgraph.yaml` addresses + `startBlock` from that JSON.
-3. Refresh ABIs after contract changes (from `artifacts/…/Mondalore*.json` → `subgraph/abis/`).
+3. Refresh ABIs after contract changes (from `artifacts/…/Zedkr*.json` → `subgraph/abis/`).
 
 ## Commands (repo root)
 
@@ -23,12 +23,12 @@ Router trades are included because the router calls `market.deposit` / redeem, w
 npm run subgraph:update-config
 npm run subgraph:codegen
 npm run subgraph:build
-STUDIO_SUBGRAPH_SLUG=mondalore-testnet SUBGRAPH_VERSION_LABEL=v0.01 npm run subgraph:deploy-studio
+STUDIO_SUBGRAPH_SLUG=zedkr-testnet SUBGRAPH_VERSION_LABEL=v0.01 npm run subgraph:deploy-studio
 ```
 
 Set `SUBGRAPH_DEPLOY_KEY` in `.env`. After sync, point the app at:
 
-`https://api.studio.thegraph.com/query/1749057/mondalore-testnet/v0.01`
+`https://api.studio.thegraph.com/query/1749057/zedkr-testnet/v0.01`
 
 ## Trade activity chart query
 

@@ -4,15 +4,15 @@ import { tradingUsdgAddress } from "@/lib/usdg";
 
 const contracts = deployment.contracts as Record<string, string | undefined>;
 
-/** Match USDC-like UI (dollar-ish labels) — Circle USDC + minted MondaloreUSDC.sol. */
+/** Match USDC-like UI (dollar-ish labels) — Circle USDC + minted ZedkrUSDC.sol. */
 export function isUsdStyledCollateralTicker(ticker: string): boolean {
-  return ticker === "USDC" || ticker === "Mondalore USDC" || ticker === "USDG";
+  return ticker === "USDC" || ticker === "Zedkr USDC" || ticker === "USDG";
 }
 
 export function collateralTickerFromDeployment(address: Address): string {
   const lower = address.toLowerCase();
   if (lower === zeroAddress.toLowerCase()) return "ETH";
-  const aftrUsdc = contracts.MondaloreUSDC?.toLowerCase();
+  const aftrUsdc = contracts.ZedkrUSDC?.toLowerCase();
   const tradingUsdg = tradingUsdgAddress()?.toLowerCase();
   const usdg = contracts.USDG?.toLowerCase();
   const circle = (

@@ -4,10 +4,10 @@
   "deployer": "0x7A981A271E12Dd22B61f9028F8CAf526ba53c3C5",
   "feeRecipient": "0x23D0f9A287ff1cfd92b63d2AaEF6118fbb3A321C",
   "contracts": {
-    "MondaloreToken": "0x43Df432c9C3E7A05e2b485f6E3ea9e3d10942f35",
-    "MondaloreFeeVault": "0x23D0f9A287ff1cfd92b63d2AaEF6118fbb3A321C",
-    "MondaloreUSDC": "0x43b322f8dc4D6cE4dE56054cDf5E7b1e3Fb06FB7",
-    "MondaloreOrderBook": "0x24B358f040D8c7f840bB9Ee51ff7bf1B2Cc06Fa7",
+    "ZedkrToken": "0x43Df432c9C3E7A05e2b485f6E3ea9e3d10942f35",
+    "ZedkrFeeVault": "0x23D0f9A287ff1cfd92b63d2AaEF6118fbb3A321C",
+    "ZedkrUSDC": "0x43b322f8dc4D6cE4dE56054cDf5E7b1e3Fb06FB7",
+    "ZedkrOrderBook": "0x24B358f040D8c7f840bB9Ee51ff7bf1B2Cc06Fa7",
     "ZedkrCollateralRegistry": "0xe54B482D19323Cf365eeF5cdA35cCC7887b932c1",
     "ZedkrFpmmMarketFactory": "0x92685D2Ca3025EE1c34A18e5c3aC1153F3797F04",
     "ZedkrFpmmDeployer": "0xE452116A0C6eC4fdf791d6235D0118C36B39b6EF",
@@ -16,11 +16,11 @@
     "ZedkrFpmmOrderBookFactoryAdapter": "0xc5664FA37435E70e5112F221ab4f71AEF6D08fBa"
   },
   "deploymentBlocks": {
-    "MondaloreUSDC": 41323004,
+    "ZedkrUSDC": 41323004,
     "USDG": 41323205,
-    "MondaloreToken": 41323318,
-    "MondaloreFeeVault": 41329573,
-    "MondaloreOrderBook": 41559181,
+    "ZedkrToken": 41323318,
+    "ZedkrFeeVault": 41329573,
+    "ZedkrOrderBook": 41559181,
     "ZedkrCollateralRegistry": 41331059,
     "ZedkrFpmmMarketFactory": 41331096,
     "ZedkrFpmmDeployer": 41331138,
@@ -274,7 +274,7 @@
   "nadResolutionAdmin": "0x7A981A271E12Dd22B61f9028F8CAf526ba53c3C5",
   "notes": {
     "tradingCollaterals": [
-      "MondaloreUSDC",
+      "ZedkrUSDC",
       "USDG (mock mintable)",
       "WETH",
       "ETH"
@@ -285,10 +285,10 @@
       "0x472028E12b4Ab5F873b712E348d32950cd6D26a7"
     ],
     "primaryMarketFactory": "ZedkrFpmmMarketFactory",
-    "feeFlow": "Market deposit → 0.4% protocol fee → MondaloreFeeVault.receiveFees()",
+    "feeFlow": "Market deposit → 0.4% protocol fee → ZedkrFeeVault.receiveFees()",
     "chainlinkSource": "https://docs.chain.link/data-feeds/price-feeds/addresses?network=robinhood",
     "ponsDocs": "https://docs.ponsfamily.com/v2",
-    "orderBook": "MondaloreOrderBook is the FPMM CLOB via ZedkrFpmmOrderBookFactoryAdapter."
+    "orderBook": "ZedkrOrderBook is the FPMM CLOB via ZedkrFpmmOrderBookFactoryAdapter."
   },
   "deployedAt": "2026-08-20T10:00:57.649Z"
 }

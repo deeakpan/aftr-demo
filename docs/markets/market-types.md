@@ -1,6 +1,6 @@
 # Market types
 
-Mondalore supports three kinds of markets. The trading experience is the same; settlement differs.
+Zedkr supports three kinds of markets. The trading experience is the same; settlement differs.
 
 ## Event markets
 
@@ -46,7 +46,7 @@ Once **resolve after** passes, settlement reads the price feed and determines th
 
 ## Nad markets (Nad.fun tokens)
 
-**Nad markets** resolve from live stats on tokens launched on **[Nad.fun](https://nad.fun)** — Monad’s meme-token launchpad. You pick one or more Nad.fun token contract addresses; Mondalore pulls market cap, price, and holder data from the Nad.fun API at resolve time.
+**Nad markets** resolve from live stats on tokens launched on **[Nad.fun](https://nad.fun)** — Monad’s meme-token launchpad. You pick one or more Nad.fun token contract addresses; Zedkr pulls market cap, price, and holder data from the Nad.fun API at resolve time.
 
 Examples:
 

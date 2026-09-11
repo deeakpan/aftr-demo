@@ -13,7 +13,7 @@ No. You connect a crypto wallet. Your wallet address is your account.
 
 ### Why is the app asking me to switch networks?
 
-Mondalore only runs on its deployed network. Switch in your wallet when prompted.
+Zedkr only runs on its deployed network. Switch in your wallet when prompted.
 
 ---
 
@@ -97,21 +97,21 @@ Choose events where the winner can be verified from **public, official records**
 
 ### Can I import a Polymarket market?
 
-Yes, on Create → **Event**, use **Import from Polymarket** and paste a Polymarket URL. Title, description, cover, outcomes, and schedule are prefilled. Review and edit before submitting. The Mondalore market still settles through protocol admins — it is not linked to Polymarket settlement. Details: [Event markets](../creating-markets/event-markets.md#import-from-polymarket-optional).
+Yes, on Create → **Event**, use **Import from Polymarket** and paste a Polymarket URL. Title, description, cover, outcomes, and schedule are prefilled. Review and edit before submitting. The Zedkr market still settles through protocol admins — it is not linked to Polymarket settlement. Details: [Event markets](../creating-markets/event-markets.md#import-from-polymarket-optional).
 
 ### Can I get help before creating a market?
 
-Yes. Reach out on Telegram — [@mondalorecommunity](https://t.me/mondalorecommunity) — to sanity-check your question, resolution sources, timing, or an unusual situation before you publish.
+Yes. Reach out on Telegram — [@zedkrcommunity](https://t.me/zedkrcommunity) — to sanity-check your question, resolution sources, timing, or an unusual situation before you publish.
 
 ### Where are the contract addresses?
 
-See [Deployments](deployments.md) for Monad Testnet and Monad Mainnet chain IDs and contract addresses. Mainnet Mondalore deployments are **TBA**.
+See [Deployments](deployments.md) for Monad Testnet and Monad Mainnet chain IDs and contract addresses. Mainnet Zedkr deployments are **TBA**.
 
 ---
 
 ## Safety
 
-### Does Mondalore hold my funds?
+### Does Zedkr hold my funds?
 
 No. Funds stay in your wallet until you approve a transaction. Smart contracts hold pool collateral according to market rules.
 

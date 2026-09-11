@@ -102,11 +102,11 @@ Market with three or more named outcomes.
 
 ## Gas
 
-Network fee paid to process any transaction. Separate from Mondalore trading fees.
+Network fee paid to process any transaction. Separate from Zedkr trading fees.
 
 ## Wallet
 
-Your crypto account (address) used to connect, trade, and claim on Mondalore.
+Your crypto account (address) used to connect, trade, and claim on Zedkr.
 
 ## Display name
 

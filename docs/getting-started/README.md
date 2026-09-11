@@ -1,16 +1,16 @@
 # Getting started
 
-Mondalore runs entirely through your crypto wallet. There is no traditional email-and-password account. Your wallet is your identity, your funds, and how you sign every trade.
+Zedkr runs entirely through your crypto wallet. There is no traditional email-and-password account. Your wallet is your identity, your funds, and how you sign every trade.
 
 ## What you need
 
-1. **A supported wallet** — any standard Web3 wallet that works with the network Mondalore is deployed on.
+1. **A supported wallet** — any standard Web3 wallet that works with the network Zedkr is deployed on.
 2. **Collateral** — USDC or MON in that wallet, depending on which market you want to trade.
 3. **A small amount of network gas** — to approve transactions (trades, claims).
 
 ## The basic flow
 
-1. Open Mondalore and connect your wallet.
+1. Open Zedkr and connect your wallet.
 2. Set a **display name** so your activity is recognizable in the app.
 3. Browse markets, pick an outcome, and trade.
 4. Track open positions on the **Trades** page.

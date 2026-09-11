@@ -3,19 +3,19 @@
   "deployer": "0x7A981A271E12Dd22B61f9028F8CAf526ba53c3C5",
   "feeRecipient": "0x3870Fd628e43FbEE7f2a1a922ACa13b3f1B53329",
   "contracts": {
-    "MondaloreToken": "0x9AbbC7e9c23CCC5C359732b9b05Ef4f510CAAd53",
-    "MondaloreFeeVault": "0x3870Fd628e43FbEE7f2a1a922ACa13b3f1B53329",
-    "MondaloreUSDC": "0x9adECb575C30eB841ad2fDd153FE859DF861c338",
-    "MondaloreOrderBook": "0x1FE984E5291e9134B14e1a7016709375ac2Bd971",
+    "ZedkrToken": "0x9AbbC7e9c23CCC5C359732b9b05Ef4f510CAAd53",
+    "ZedkrFeeVault": "0x3870Fd628e43FbEE7f2a1a922ACa13b3f1B53329",
+    "ZedkrUSDC": "0x9adECb575C30eB841ad2fDd153FE859DF861c338",
+    "ZedkrOrderBook": "0x1FE984E5291e9134B14e1a7016709375ac2Bd971",
     "MockWETH": "0xF2760b7Fd5887f40F526200e3e435a63B7e5CAf8",
     "MockBtcUsdFeed": "0xEF6BEC7127D1Ca73c1Db9a39FB0093E0894ac9FB"
   },
   "deploymentBlocks": {
     "MockWETH": 37395453,
-    "MondaloreUSDC": 37395466,
-    "MondaloreToken": 37395478,
-    "MondaloreFeeVault": 37440162,
-    "MondaloreOrderBook": 40040089,
+    "ZedkrUSDC": 37395466,
+    "ZedkrToken": 37395478,
+    "ZedkrFeeVault": 37440162,
+    "ZedkrOrderBook": 40040089,
     "MockBtcUsdFeed": 37438008
   },
   "external": {
@@ -59,11 +59,11 @@
   "suggestedUmaReward": "500000",
   "notes": {
     "tradingCollaterals": [
-      "MondaloreUSDC",
+      "ZedkrUSDC",
       "WETH",
       "MON (wraps to WETH)"
     ],
-    "feeFlow": "Market deposit → 1.2% → MondaloreFeeVault.receiveFees() → 0.2% stakers / 1.0% treasury"
+    "feeFlow": "Market deposit → 1.2% → ZedkrFeeVault.receiveFees() → 0.2% stakers / 1.0% treasury"
   },
   "network": "monadTestnet",
   "deployedAt": "2026-06-23T08:13:32.235Z",

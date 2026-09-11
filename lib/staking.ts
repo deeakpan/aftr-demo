@@ -3,19 +3,19 @@ import { MON_COINGECKO_LOGO, USDC_COINGECKO_LOGO } from "@/lib/brand-assets";
 import { parseAbi, zeroAddress, type Address } from "viem";
 
 type DeploymentContracts = {
-  MondaloreFeeVault?: string;
-  MondaloreToken?: string;
-  MondaloreUSDC?: string;
+  ZedkrFeeVault?: string;
+  ZedkrToken?: string;
+  ZedkrUSDC?: string;
   MockWETH?: string;
 };
 
 const contracts = (deployment as { contracts?: DeploymentContracts }).contracts ?? {};
 const vaultMeta = (deployment as { vault?: { stakeToken?: string; lockDuration?: string; epochDuration?: string; rewardTokens?: string[] } }).vault ?? {};
 
-export const VAULT_ADDRESS = isDeployedAddress(contracts.MondaloreFeeVault)
-  ? (contracts.MondaloreFeeVault as Address)
+export const VAULT_ADDRESS = isDeployedAddress(contracts.ZedkrFeeVault)
+  ? (contracts.ZedkrFeeVault as Address)
   : undefined;
-const stakeTokenCandidate = vaultMeta.stakeToken ?? contracts.MondaloreToken;
+const stakeTokenCandidate = vaultMeta.stakeToken ?? contracts.ZedkrToken;
 export const STAKE_TOKEN_ADDRESS = isDeployedAddress(stakeTokenCandidate)
   ? (stakeTokenCandidate as Address)
   : undefined;
@@ -50,13 +50,13 @@ export const ERC20_ABI = parseAbi([
 export function rewardTokenLabel(token: Address): { symbol: string; logo?: string; decimals: number } {
   const lower = token.toLowerCase();
   if (lower === zeroAddress) return { symbol: "ETH", logo: MON_COINGECKO_LOGO, decimals: 18 };
-  if (contracts.MondaloreUSDC && lower === contracts.MondaloreUSDC.toLowerCase()) {
+  if (contracts.ZedkrUSDC && lower === contracts.ZedkrUSDC.toLowerCase()) {
     return { symbol: "USDC", logo: USDC_COINGECKO_LOGO, decimals: 6 };
   }
   if (contracts.MockWETH && lower === contracts.MockWETH.toLowerCase()) {
     return { symbol: "WETH", logo: "https://assets.coingecko.com/coins/images/279/large/ethereum.png", decimals: 18 };
   }
-  if (contracts.MondaloreToken && lower === contracts.MondaloreToken.toLowerCase()) {
+  if (contracts.ZedkrToken && lower === contracts.ZedkrToken.toLowerCase()) {
     return { symbol: "ZDKR", logo: "/logo.png", decimals: 18 };
   }
   return { symbol: `${token.slice(0, 6)}…`, decimals: 18 };

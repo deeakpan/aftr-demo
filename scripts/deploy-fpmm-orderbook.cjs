@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 /**
- * Deploy FPMM-wired MondaloreOrderBook on Robinhood (exact same CLOB contract).
+ * Deploy FPMM-wired ZedkrOrderBook on Robinhood (exact same CLOB contract).
  * Uses ZedkrFpmmOrderBookFactoryAdapter so the live FPMM factory (which may lack
  * isOutcomeTokenForMarket) still works with the book.
  *
@@ -45,11 +45,11 @@ async function main() {
   const blocks = dep.deploymentBlocks ?? {};
 
   const fpmmFactory = contracts.ZedkrFpmmMarketFactory;
-  const feeVault = contracts.MondaloreFeeVault;
-  const oldBook = contracts.MondaloreOrderBook;
+  const feeVault = contracts.ZedkrFeeVault;
+  const oldBook = contracts.ZedkrOrderBook;
 
   if (!fpmmFactory || !feeVault) {
-    throw new Error("Need ZedkrFpmmMarketFactory and MondaloreFeeVault in deployment JSON");
+    throw new Error("Need ZedkrFpmmMarketFactory and ZedkrFeeVault in deployment JSON");
   }
 
   const [deployer] = await hre.ethers.getSigners();
@@ -66,8 +66,8 @@ async function main() {
   );
   console.log(`  Adapter: ${adapterAddr} (block ${adapterBlock})`);
 
-  console.log("\n[2/2] MondaloreOrderBook (FPMM)...");
-  const OrderBook = await hre.ethers.getContractFactory("MondaloreOrderBook");
+  console.log("\n[2/2] ZedkrOrderBook (FPMM)...");
+  const OrderBook = await hre.ethers.getContractFactory("ZedkrOrderBook");
   const { address: bookAddr, blockNumber: bookBlock } = await deployAndTrack(
     OrderBook,
     adapterAddr,
@@ -77,22 +77,22 @@ async function main() {
   console.log(`  OrderBook: ${bookAddr} (block ${bookBlock})`);
 
   contracts.ZedkrFpmmOrderBookFactoryAdapter = adapterAddr;
-  contracts.MondaloreOrderBook = bookAddr;
+  contracts.ZedkrOrderBook = bookAddr;
   blocks.ZedkrFpmmOrderBookFactoryAdapter = adapterBlock;
-  blocks.MondaloreOrderBook = bookBlock;
-  delete contracts.MondaloreOrderBookParimutuel;
-  delete blocks.MondaloreOrderBookParimutuel;
+  blocks.ZedkrOrderBook = bookBlock;
+  delete contracts.ZedkrOrderBookParimutuel;
+  delete blocks.ZedkrOrderBookParimutuel;
 
   dep.contracts = contracts;
   dep.deploymentBlocks = blocks;
   dep.notes = {
     ...(dep.notes ?? {}),
-    orderBook: "MondaloreOrderBook is the FPMM CLOB via ZedkrFpmmOrderBookFactoryAdapter.",
+    orderBook: "ZedkrOrderBook is the FPMM CLOB via ZedkrFpmmOrderBookFactoryAdapter.",
   };
 
   fs.writeFileSync(DEPLOYMENT_FILE, JSON.stringify(dep, null, 2) + "\n", "utf8");
   console.log(`\nUpdated ${DEPLOYMENT_FILE}`);
-  console.log(`  MondaloreOrderBook (FPMM): ${bookAddr}`);
+  console.log(`  ZedkrOrderBook (FPMM): ${bookAddr}`);
   console.log(`  Adapter:                  ${adapterAddr}`);
 }
 

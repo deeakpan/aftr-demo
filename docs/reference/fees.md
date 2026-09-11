@@ -28,7 +28,7 @@ The trade panel’s share estimate uses the post-fee amount.
 | Action | Trading fee? |
 |--------|--------------|
 | Claiming winnings after settlement | No additional 1.5% |
-| Wallet gas | Network cost only — paid to validators, not Mondalore |
+| Wallet gas | Network cost only — paid to validators, not Zedkr |
 
 ## Limit orders
 

@@ -83,7 +83,7 @@ type TradeModalProps = {
 };
 
 const QUICK_INCREMENTS = [1, 5, 10, 100] as const;
-const ORDERBOOK_FEE_BPS = 50; // 0.5% per side, matches MondaloreOrderBook default.
+const ORDERBOOK_FEE_BPS = 50; // 0.5% per side, matches ZedkrOrderBook default.
 const AMOUNT_INPUT_MAX_CHARS = 11;
 
 function sanitizeDecimalInput(raw: string) {

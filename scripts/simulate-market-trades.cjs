@@ -104,7 +104,7 @@ async function tradeOnce({ marketAddress, usdcAddress, wallet, publicClient, min
 
 async function main() {
   const deployment = readDeployment();
-  const usdcAddress = deployment.contracts.MondaloreUSDC;
+  const usdcAddress = deployment.contracts.ZedkrUSDC;
   const last = loadLastMarket();
   const marketAddress = process.env.MARKET_ADDRESS || last.marketAddress;
   if (!marketAddress) throw new Error("No market address");
