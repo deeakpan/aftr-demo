@@ -46,10 +46,8 @@ export const TOKEN_VS_QUESTIONS: TokenQuestionDef[] = [
     mode: "comparison",
     minTokens: 2,
     maxTokens: 4,
-    minResolveDays: 4,
     requiresMcapParity: true,
-    description:
-      "Token with the highest USD market cap at resolve wins (head-to-head). Resolve at least 4 days out.",
+    description: "Token with the highest USD market cap at resolve wins (head-to-head).",
   },
 ];
 
