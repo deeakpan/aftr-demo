@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import deployment, { marketFactoryAddress, undeployedStackMessage } from "@/lib/deployment";
 import { loadMarketsList } from "@/lib/markets/load-markets";
 
-export const revalidate = 20;
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
@@ -12,14 +12,11 @@ export async function GET() {
         { headers: { "Cache-Control": "no-store" } },
       );
     }
-    const markets = await loadMarketsList();
-    const cacheControl =
-      markets.length === 0
-        ? "no-store"
-        : "public, s-maxage=20, stale-while-revalidate=60";
+    // Always fetch fresh — stale cached lists omit newly created / still-active markets.
+    const markets = await loadMarketsList({ force: true });
     return NextResponse.json(
       { markets, chainId: deployment.chainId },
-      { headers: { "Cache-Control": cacheControl } },
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
     const raw = error instanceof Error ? error.message : "Could not load markets.";

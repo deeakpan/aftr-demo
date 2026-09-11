@@ -273,7 +273,8 @@ export function AppLayout({
   }, [showFilterStrip, searchParams]);
 
   const updateMarketQuery = (updates: Record<string, string | null>) => {
-    if (!showFilterStrip || pathname !== "/market") return;
+    // Markets list lives on "/" (primary) and "/market".
+    if (!showFilterStrip || (pathname !== "/" && pathname !== "/market")) return;
     const next = new URLSearchParams(searchParams.toString());
     Object.entries(updates).forEach(([k, v]) => {
       if (!v) next.delete(k);

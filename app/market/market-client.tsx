@@ -160,24 +160,33 @@ export function MarketClient() {
   const [marketListClock, setMarketListClock] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     const run = async () => {
       setIsLoading(true);
       setLoadError("");
       try {
-        const res = await fetch("/api/markets", { cache: "no-store" });
+        const res = await fetch(`/api/markets?ts=${Date.now()}`, {
+          cache: "no-store",
+          headers: { Pragma: "no-cache", "Cache-Control": "no-cache" },
+        });
         const json = (await res.json()) as { markets?: UiMarket[]; error?: string; notice?: string };
         if (!res.ok) {
           throw new Error(json.error ?? "Could not load markets.");
         }
+        if (cancelled) return;
         setMarkets(json.markets ?? []);
         if (json.notice) setLoadError(json.notice);
       } catch (error) {
+        if (cancelled) return;
         setLoadError(error instanceof Error ? error.message : "Could not load markets.");
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
     void run();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
