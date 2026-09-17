@@ -31,6 +31,7 @@ type LaunchMarket = {
   outcomeLabels: string[];
   outcomeChancePcts: number[];
   poolTvl: string;
+  tradeVolume?: string;
   resolveAfterUnix: number;
   stakeEndUnix: number;
   marketState: number;
@@ -140,8 +141,25 @@ function LaunchBrowseCard({
         className="flex shrink-0 items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] text-[var(--muted)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <span className="inline-flex items-center gap-1.5 font-semibold text-[var(--foreground)]">
-          <ChartBar size={14} weight="bold" className="text-[var(--muted)]" />${market.poolTvl || "0"}
+        <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-0.5 font-semibold text-[var(--foreground)]">
+          {market.tradeVolume &&
+          market.tradeVolume !== "—" &&
+          market.tradeVolume !== "0" &&
+          market.tradeVolume !== "0.00" ? (
+            <span className="inline-flex items-center gap-1">
+              <ChartBar size={14} weight="bold" className="text-[var(--muted)]" />
+              <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
+                Vol
+              </span>
+              ${market.tradeVolume}
+            </span>
+          ) : null}
+          <span className="inline-flex items-center gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
+              TVL
+            </span>
+            ${market.poolTvl || "0"}
+          </span>
         </span>
         <div className="flex items-center gap-2">
           <MarketShareButton address={market.address} slug={market.slug} title={market.title} iconSize={13} />

@@ -1,6 +1,7 @@
 import { formatUnits, parseAbi, type Abi } from "viem";
 import { unstable_cache } from "next/cache";
 import { fetchMarketsFromSubgraph, type SubgraphMarketIndex } from "@/lib/subgraph/market-index";
+import { fetchMarketVolumesFromSubgraph } from "@/lib/subgraph/market-volume";
 import { fpmmFactoryAddress } from "@/lib/market-factory";
 import { marketTvlBalanceCall } from "@/lib/market-abi";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
@@ -55,7 +56,10 @@ export type MarketListItem = {
   resolveAfterUnix: number;
   marketState: number;
   stateLabel: string;
+  /** Sum of `realPool` / collateral held — liquidity in the market (TVL). */
   poolTvl: string;
+  /** Cumulative buy+sell notional from subgraph trades. */
+  tradeVolume: string;
   chancePct: number;
   collateralAddress: `0x${string}`;
   collateralDecimals: number;
@@ -166,6 +170,7 @@ export function mergeListItemIntoDetail(
     outcomeChancePcts: listItem.outcomeChancePcts,
     chancePct: listItem.chancePct,
     poolTvl: listItem.poolTvl,
+    tradeVolume: listItem.tradeVolume,
     stakeEnds: listItem.stakeEnds,
     resolveAfter: listItem.resolveAfter,
     stakeEndUnix: listItem.stakeEndUnix,
@@ -309,6 +314,7 @@ function buildMarketListItem(
   poolTvlRaw: bigint,
   priceResults: bigint[],
   priceBinByOutcome?: string[],
+  tradeVolumeRaw: bigint = 0n,
 ): MarketListItem {
   const isPrice = isPriceMarketKind(slice.kind);
   const uiKind = uiMarketKindForDisplay(slice.kind, md as Record<string, unknown> | null);
@@ -361,6 +367,9 @@ function buildMarketListItem(
     marketState: slice.state,
     stateLabel: stateLabel(slice.state),
     poolTvl: Number(formatUnits(poolTvlRaw, slice.dec)).toLocaleString(undefined, {
+      maximumFractionDigits: 2,
+    }),
+    tradeVolume: Number(formatUnits(tradeVolumeRaw, slice.dec)).toLocaleString(undefined, {
       maximumFractionDigits: 2,
     }),
     chancePct: leftPct,
@@ -590,9 +599,12 @@ async function loadMarketsListUncached(): Promise<MarketListItem[]> {
     return [marketTvlBalanceCall(entry.address, slice.collateralAddress)];
   });
 
-  const [phase2, tvlReads] = await Promise.all([
+  const volumePromise = fetchMarketVolumesFromSubgraph(entries.map((e) => e.address));
+
+  const [phase2, tvlReads, volumeByMarket] = await Promise.all([
     phase2Contracts.length ? multicallChunked(phase2Contracts) : Promise.resolve([]),
     tvlContracts.length ? multicallChunked(tvlContracts) : Promise.resolve([]),
+    volumePromise,
   ]);
 
   const rows: MarketListItem[] = [];
@@ -628,8 +640,11 @@ async function loadMarketsListUncached(): Promise<MarketListItem[]> {
     }
 
     const poolTvlRaw = (tvlReads[tvlIdx++]?.result as bigint | undefined) ?? BigInt(0);
+    const tradeVolumeRaw = volumeByMarket.get(entry.address.toLowerCase()) ?? 0n;
 
-    rows.push(buildMarketListItem(entry.address, slice, md, poolTvlRaw, priceResults));
+    rows.push(
+      buildMarketListItem(entry.address, slice, md, poolTvlRaw, priceResults, undefined, tradeVolumeRaw),
+    );
   }
 
   return rows;
@@ -707,7 +722,7 @@ async function loadMarketRow(
     args: [i] as const,
   }));
 
-  const [md, outcomeReads, tvlRead] = await Promise.all([
+  const [md, outcomeReads, tvlRead, volumeByMarket] = await Promise.all([
     fetchIpfsMetadata(uri),
     outcomeContracts.length
       ? publicClient.multicall({ contracts: outcomeContracts })
@@ -715,6 +730,7 @@ async function loadMarketRow(
     publicClient.multicall({
       contracts: [marketTvlBalanceCall(marketAddress, collateralAddress)],
     }),
+    fetchMarketVolumesFromSubgraph([marketAddress]),
   ]);
 
   if (requireListable && !isListableMarket(uri, md?.image, launchpadMarketFromMetadata(md as Record<string, unknown> | null) ?? md?.nadMarket)) {
@@ -768,7 +784,15 @@ async function loadMarketRow(
     winningOutcomeIndex: winIdx,
   };
 
-  return buildMarketListItem(marketAddress, slice, md, poolTvlRaw, priceResults, priceBinByOutcome);
+  return buildMarketListItem(
+    marketAddress,
+    slice,
+    md,
+    poolTvlRaw,
+    priceResults,
+    priceBinByOutcome,
+    volumeByMarket.get(marketAddress.toLowerCase()) ?? 0n,
+  );
 }
 
 /** Single market card row (e.g. wallet launches). Defaults to including even if IPFS cover is missing. */

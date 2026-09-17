@@ -219,8 +219,82 @@ async function replyPrivate(chatId, text) {
   await tg("sendMessage", { chat_id: chatId, text, disable_web_page_preview: false });
 }
 
+async function replyPrivatePhoto(chatId, photoUrl, caption) {
+  await tg("sendPhoto", {
+    chat_id: chatId,
+    photo: photoUrl,
+    caption: caption.slice(0, 1024),
+  });
+}
+
 function resolveLink(address) {
   return `${adminBase}/markets/${address}`;
+}
+
+const IPFS_GATEWAY = (
+  process.env.LIGHTHOUSE_GATEWAY_URL ||
+  process.env.NEXT_PUBLIC_IPFS_GATEWAY ||
+  "https://shaggy-bandicoot-lucyq.lighthouseweb3.xyz/ipfs/"
+)
+  .trim()
+  .replace(/\/?$/, "/");
+
+function ipfsToHttp(uri) {
+  const trimmed = String(uri || "").trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("ipfs://")) {
+    return `${IPFS_GATEWAY}${trimmed.slice(7).trim()}`;
+  }
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+  return "";
+}
+
+async function fetchMarketPreview(metadataURI) {
+  const uri = String(metadataURI || "").trim();
+  if (!uri) return { title: "", imageUrl: "" };
+  const httpUrl = ipfsToHttp(uri) || uri;
+  try {
+    const res = await undiciFetch(httpUrl, {
+      dispatcher: sbAgent,
+      headers: process.env.LIGHTHOUSE_API_KEY
+        ? { Authorization: `Bearer ${process.env.LIGHTHOUSE_API_KEY.trim()}` }
+        : undefined,
+    });
+    if (!res.ok) return { title: "", imageUrl: "" };
+    const json = await res.json();
+    const title = String(json?.title || json?.question || "").trim();
+    const imageUrl = ipfsToHttp(json?.image || "");
+    return { title, imageUrl };
+  } catch (err) {
+    console.warn("[telegram-bot] metadata preview failed", errDetail(err));
+    return { title: "", imageUrl: "" };
+  }
+}
+
+async function notifyMarketReady(chatId, market, preview) {
+  const when = market.resolveAfter
+    ? new Date(Number(market.resolveAfter) * 1000).toLocaleString()
+    : "—";
+  const title = preview.title || "Event market";
+  const caption = [
+    "Event market ready to resolve",
+    "",
+    title,
+    `Resolve after: ${when}`,
+    "",
+    "Open admin resolve page:",
+    resolveLink(market.address),
+  ].join("\n");
+
+  if (preview.imageUrl) {
+    try {
+      await replyPrivatePhoto(chatId, preview.imageUrl, caption);
+      return;
+    } catch (err) {
+      console.warn("[telegram-bot] sendPhoto failed, falling back to text", errDetail(err));
+    }
+  }
+  await replyPrivate(chatId, caption);
 }
 
 async function pollUpdates(offset) {
@@ -313,22 +387,12 @@ async function checkDueEvents() {
       console.warn("[telegram-bot] notified check failed", addr, err.message || err);
       continue;
     }
-    const when = market.resolveAfter
-      ? new Date(Number(market.resolveAfter) * 1000).toLocaleString()
-      : "—";
-    const text = [
-      "Event market ready to resolve",
-      "",
-      `Market: ${market.address}`,
-      `Resolve after: ${when}`,
-      "",
-      "Open admin resolve page:",
-      resolveLink(market.address),
-    ].join("\n");
+
+    const preview = await fetchMarketPreview(market.metadataURI);
 
     for (const chatId of chatIds) {
       try {
-        await replyPrivate(chatId, text);
+        await notifyMarketReady(chatId, market, preview);
       } catch (err) {
         console.warn("[telegram-bot] notify failed", chatId, addr, err.message || err);
       }
@@ -338,7 +402,10 @@ async function checkDueEvents() {
     } catch (err) {
       console.warn("[telegram-bot] mark notified failed", addr, err.message || err);
     }
-    console.log(`[telegram-bot] notified ${chatIds.length} subscriber(s) for ${market.address}`);
+    console.log(
+      `[telegram-bot] notified ${chatIds.length} subscriber(s) for ${market.address}` +
+        (preview.title ? ` "${preview.title}"` : ""),
+    );
   }
 }
 

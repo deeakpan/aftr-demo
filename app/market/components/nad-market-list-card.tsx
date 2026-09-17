@@ -31,6 +31,8 @@ export type NadMarketListCardProps = {
   outcomeLabels: string[];
   outcomeChancePcts?: number[];
   poolTvl?: string;
+  /** Cumulative trade volume from subgraph (buy+sell notional). */
+  tradeVolume?: string;
   resolveAfter?: string;
   resolveAfterTooltip?: string;
   showNewBadge?: boolean;
@@ -136,6 +138,7 @@ export function NadMarketListCard({
   outcomeLabels,
   outcomeChancePcts,
   poolTvl,
+  tradeVolume,
   resolveAfter,
   resolveAfterTooltip,
   showNewBadge = false,
@@ -178,8 +181,15 @@ export function NadMarketListCard({
 
   const isBinary = nadMarket.mode === "binary";
 
-  const showVolume =
+  const showTvl =
     !showNewBadge && poolTvl !== undefined && poolTvl !== "" && poolTvl !== "0" && poolTvl !== "0.00";
+  const showVol =
+    !showNewBadge &&
+    tradeVolume !== undefined &&
+    tradeVolume !== "" &&
+    tradeVolume !== "0" &&
+    tradeVolume !== "0.00";
+  const showStats = showTvl || showVol;
 
   return (
     <article
@@ -318,10 +328,25 @@ export function NadMarketListCard({
       </div>
 
       <div className="flex shrink-0 items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] text-[var(--muted)]">
-        {showVolume ? (
-          <span className="inline-flex items-center gap-1.5 font-semibold text-[var(--foreground)]">
-            <ChartBar size={14} weight="bold" className="text-[var(--muted)]" />
-            ${poolTvl}
+        {showStats ? (
+          <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-0.5 font-semibold text-[var(--foreground)]">
+            {showVol ? (
+              <span className="inline-flex items-center gap-1">
+                <ChartBar size={14} weight="bold" className="text-[var(--muted)]" />
+                <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
+                  Vol
+                </span>
+                ${tradeVolume}
+              </span>
+            ) : null}
+            {showTvl ? (
+              <span className="inline-flex items-center gap-1">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
+                  TVL
+                </span>
+                ${poolTvl}
+              </span>
+            ) : null}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 font-bold uppercase tracking-wide text-amber-400 [html[data-theme=light]_&]:text-amber-600">

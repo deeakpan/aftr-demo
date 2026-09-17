@@ -58,6 +58,7 @@ function stubFromSubgraph(m: SubgraphCreatorMarket): MarketListItem {
     marketState: Number(m.state ?? 0),
     stateLabel: Number(m.state) === 2 ? "Settled" : Number(m.state) === 0 ? "Open" : "—",
     poolTvl: "—",
+    tradeVolume: "—",
     chancePct: 50,
     collateralAddress: (m.collateralToken ||
       "0x0000000000000000000000000000000000000000") as `0x${string}`,

@@ -67,6 +67,8 @@ type UiMarket = {
   stateLabel: string;
   /** Sum of `realPool` across outcomes — actual collateral in the market (TVL). */
   poolTvl: string;
+  /** Cumulative buy+sell notional from subgraph. */
+  tradeVolume?: string;
   chancePct: number;
   collateralAddress: `0x${string}`;
   collateralDecimals: number;
@@ -760,6 +762,7 @@ export function MarketClient() {
                   outcomeLabels={m.outcomeLabels ?? []}
                   outcomeChancePcts={m.outcomeChancePcts}
                   poolTvl={tvlOverrides[m.address] ?? m.poolTvl}
+                  tradeVolume={m.tradeVolume}
                   resolveAfter={formatMarketCardDate(m.resolveAfterUnix * 1000) ?? "—"}
                   resolveAfterTooltip={formatMarketClosesTooltip(m.resolveAfterUnix * 1000)}
                   marketAddress={m.address}
@@ -797,6 +800,7 @@ export function MarketClient() {
                 outcomeLabels={m.outcomeLabels ?? []}
                 outcomeChancePcts={m.outcomeChancePcts}
                 poolTvl={tvlOverrides[m.address] ?? m.poolTvl}
+                tradeVolume={m.tradeVolume}
                 resolveAfter={formatMarketCardDate(m.resolveAfterUnix * 1000) ?? "—"}
                 resolveAfterTooltip={formatMarketClosesTooltip(m.resolveAfterUnix * 1000)}
                 marketAddress={m.address}
