@@ -1,14 +1,13 @@
 import { withRetries } from "@/lib/fetch-retry";
 
-const DEFAULT_SUBGRAPH_URL =
-  "https://api.studio.thegraph.com/query/1749057/zedkr-testnet/v0.07";
+/** Unichain Sepolia FPMM — hardcoded so production works without env. */
+export const SUBGRAPH_QUERY_URL =
+  "https://api.goldsky.com/api/public/project_cmtkn0qngihdc01v34ktn7mop/subgraphs/zedkr-unichain/1.0.2/gn";
 
 const SUBGRAPH_TIMEOUT_MS = 30_000;
 
-/** Read at request time so `.env` changes apply without a stale module binding. */
 export function getSubgraphUrl(): string {
-  const fromEnv = process.env.SUBGRAPH_QUERY_URL?.trim();
-  return fromEnv || DEFAULT_SUBGRAPH_URL;
+  return SUBGRAPH_QUERY_URL;
 }
 
 export type SubgraphQueryResult<T> =
