@@ -24,6 +24,9 @@ export const MARKET_READ_ABI = parseAbi([
   "function redemptionRate() view returns (uint256)",
   "function outcomeToken(uint256) view returns (address)",
   "function redeem(uint8 outcomeIndex, uint256 shareAmount)",
+  "function surplusCollateral() view returns (uint256)",
+  "function surplusRecipient() view returns (address)",
+  "function pullSurplus() returns (uint256)",
 ]);
 
 export const FPMM_TRADE_ABI = parseAbi([

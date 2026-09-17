@@ -153,6 +153,7 @@ export function NadMarketListCard({
   const displayLabels = labels.length >= 2 ? labels : ["Yes", "No"];
 
   const showMcapButtons = nadMarket.mode === "comparison";
+  const comparisonValueKind = nadMarket.questionType === "price_highest" ? "price" : "mcap";
 
   const { stats: liveStats, loading: statsLoading } = useNadComparisonStats(
     nadMarket.tokens,
@@ -244,17 +245,22 @@ export function NadMarketListCard({
           <div className={`${MARKET_CARD_OUTCOMES_BOX} no-scrollbar gap-0.5 overflow-y-auto`}>
             {displayLabels.map((label, idx) => {
               const tok = nadTokenForOutcome(nadMarket, label, idx);
-              const mcap =
+              const stats =
                 label.toUpperCase() === "NEITHER" || !tok
                   ? null
-                  : (mcapByAddress.get(tok.address.toLowerCase())?.marketCapUsd ?? null);
+                  : (mcapByAddress.get(tok.address.toLowerCase()) ?? null);
+              const usdValue =
+                comparisonValueKind === "price"
+                  ? (stats?.priceUsd ?? null)
+                  : (stats?.marketCapUsd ?? null);
 
               return (
                 <NadComparisonOutcomeRow
                   key={`${label}-${idx}`}
                   symbol={tok?.symbol ?? label}
                   imageUri={tok?.imageUri}
-                  mcapUsd={mcap}
+                  usdValue={usdValue}
+                  valueKind={comparisonValueKind}
                   chancePct={pcts[idx] ?? 0}
                   loading={statsLoading && label.toUpperCase() !== "NEITHER"}
                   interactive={interactive}

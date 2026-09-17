@@ -185,11 +185,21 @@ export async function fetchIpfsMetadata(uri: string): Promise<IpfsMarketMetadata
   const trimmed = uri.trim();
   if (!trimmed) return null;
 
-  const cached = unstable_cache(
-    () => fetchIpfsMetadataUncached(trimmed, { attempts: 2, timeoutMs: METADATA_FETCH_TIMEOUT_MS }),
-    ["ipfs-market-metadata", trimmed, dedicatedGatewayBase() ?? "public"],
-    { revalidate: 300 },
-  );
-
-  return cached();
+  // Only cache successful payloads — caching `null` poisoned the markets/trades UI for 5 minutes.
+  try {
+    return await unstable_cache(
+      async () => {
+        const data = await fetchIpfsMetadataUncached(trimmed, {
+          attempts: 3,
+          timeoutMs: Math.max(METADATA_FETCH_TIMEOUT_MS, 10_000),
+        });
+        if (!data) throw new Error("IPFS_UNAVAILABLE");
+        return data;
+      },
+      ["ipfs-market-metadata-v2", trimmed, dedicatedGatewayBase() ?? "public"],
+      { revalidate: 300 },
+    )();
+  } catch {
+    return null;
+  }
 }

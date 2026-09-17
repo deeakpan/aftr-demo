@@ -4,6 +4,7 @@ export type NadQuestionType =
   | "price_usd_above"
   | "holder_count_above"
   | "mcap_highest"
+  | "price_highest"
   | "mcap_threshold_first";
 
 export type NadTokenRef = {

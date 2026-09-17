@@ -327,12 +327,18 @@ export function AppLayout({
     setWalletGraphStats(undefined);
     void fetch(`/api/wallet/subgraph-summary?wallet=${encodeURIComponent(sessionAddress)}`, { cache: "no-store" })
       .then(async (res) => {
-        const j = (await res.json()) as {
+        const raw = await res.text();
+        let j: {
           marketCount?: number;
           pnlUsd?: string;
           winRatePct?: number | null;
           error?: string;
-        };
+        } = {};
+        try {
+          j = raw ? (JSON.parse(raw) as typeof j) : {};
+        } catch {
+          throw new Error(res.ok ? "Invalid summary response" : `Summary unavailable (${res.status})`);
+        }
         if (!res.ok) throw new Error(j.error || "Subgraph summary failed");
         if (cancelled) return;
         setWalletGraphStats({
@@ -680,12 +686,6 @@ export function AppLayout({
                               href: sessionAddress
                                 ? `/launches?wallet=${encodeURIComponent(sessionAddress)}`
                                 : "/launches",
-                            },
-                            {
-                              label: "Trades",
-                              Icon: PlusMinus,
-                              iconClass: "text-[#7fd0ff]",
-                              href: "/trades",
                             },
                             { label: "Rewards", Icon: Trophy, iconClass: "text-[#ffbf47]" },
                             { label: "Help Center", Icon: Lifebuoy, iconClass: "text-[#68e0a0]" },

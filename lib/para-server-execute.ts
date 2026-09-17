@@ -148,16 +148,29 @@ export async function sendViaParaSession(
     throw new Error(formatUserTxError(e, "Transaction would revert. Check seed, times, and approval."));
   }
 
-  const hash = await walletClient.sendTransaction({
-    account,
-    chain: DEPLOYMENT_CHAIN,
-    to: tx.to,
-    data: tx.data ?? "0x",
-    value: tx.value ?? BigInt(0),
-    gas,
-    maxFeePerGas,
-    maxPriorityFeePerGas,
-  });
+  const sendOnce = () =>
+    walletClient.sendTransaction({
+      account,
+      chain: DEPLOYMENT_CHAIN,
+      to: tx.to,
+      data: tx.data ?? "0x",
+      value: tx.value ?? BigInt(0),
+      gas,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+    });
+
+  let hash: Hex;
+  try {
+    hash = await sendOnce();
+  } catch (first) {
+    const msg = first instanceof Error ? first.message : String(first);
+    if (!/fetch failed|EAI_AGAIN|ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT|network/i.test(msg)) {
+      throw first;
+    }
+    await new Promise((r) => setTimeout(r, 600));
+    hash = await sendOnce();
+  }
   const receipt = await withRpcRetry(() => publicClient.waitForTransactionReceipt({ hash }));
   return { hash, receipt };
 }

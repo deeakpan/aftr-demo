@@ -74,6 +74,7 @@ export function MultiOutcomeMarketSection({
   const tradingOpen = marketState === 0;
 
   const showMcapRows = nadMarket != null && nadMarket.mode === "comparison";
+  const comparisonValueKind = nadMarket?.questionType === "price_highest" ? "price" : "mcap";
 
   const comparisonTokens = nadMarket?.tokens ?? [];
 
@@ -84,9 +85,13 @@ export function MultiOutcomeMarketSection({
     nadMarket,
   );
 
-  const mcapByAddress = new Map<string, number | null>();
+  const statsByAddress = new Map<string, number | null>();
   comparisonTokens.forEach((t, i) => {
-    mcapByAddress.set(t.address.toLowerCase(), liveStats[i]?.marketCapUsd ?? null);
+    const row = liveStats[i];
+    statsByAddress.set(
+      t.address.toLowerCase(),
+      comparisonValueKind === "price" ? (row?.priceUsd ?? null) : (row?.marketCapUsd ?? null),
+    );
   });
 
   const pcts = labels.map((_, i) =>
@@ -108,9 +113,9 @@ export function MultiOutcomeMarketSection({
         {labels.map((label, i) => {
           const expanded = expandedIndex === i;
           const tok = showMcapRows && nadMarket ? nadTokenForOutcome(nadMarket, label, i) : undefined;
-          const mcap =
+          const usdValue =
             showMcapRows && tok
-              ? (mcapByAddress.get(tok.address.toLowerCase()) ?? null)
+              ? (statsByAddress.get(tok.address.toLowerCase()) ?? null)
               : null;
 
           return (
@@ -119,7 +124,8 @@ export function MultiOutcomeMarketSection({
                 <NadComparisonOutcomeRow
                   symbol={tok?.symbol ?? label}
                   imageUri={tok?.imageUri}
-                  mcapUsd={mcap}
+                  usdValue={usdValue}
+                  valueKind={comparisonValueKind}
                   chancePct={pcts[i]!}
                   loading={statsLoading && label.toUpperCase() !== "NEITHER"}
                   interactive={tradingOpen}

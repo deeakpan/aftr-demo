@@ -426,8 +426,7 @@ async function listFactoryMarkets(
 
 async function resolveMarketEntries(): Promise<MarketLoadEntry[]> {
   const fromSubgraph = await fetchMarketsFromSubgraph(500);
-  // Subgraph answered (even with zero markets) — trust it; skip flaky RPC factory scan.
-  if (fromSubgraph.ok) {
+  if (fromSubgraph.ok && fromSubgraph.markets.length > 0) {
     return fromSubgraph.markets
       .map((m) => ({
         address: m.id.trim() as `0x${string}`,
@@ -435,6 +434,11 @@ async function resolveMarketEntries(): Promise<MarketLoadEntry[]> {
         isFpmm: m.mechanism === "fpmm",
       }))
       .filter((e) => /^0x[a-fA-F0-9]{40}$/i.test(e.address));
+  }
+
+  // Empty or failed subgraph — fall back to factory so new markets still appear.
+  if (fromSubgraph.ok && fromSubgraph.markets.length === 0) {
+    console.warn("[load-markets] subgraph returned 0 markets; scanning factory");
   }
 
   const entries: MarketLoadEntry[] = [];
@@ -709,7 +713,10 @@ async function loadMarketRow(
   ]);
 
   if (requireListable && !isListableMarket(uri, md?.image, launchpadMarketFromMetadata(md as Record<string, unknown> | null) ?? md?.nadMarket)) {
-    return null;
+    // Allow degraded listing when URI is valid but IPFS cover failed (same as markets grid).
+    if (!isValidMetadataUri(uri)) {
+      return null;
+    }
   }
 
   const poolTvlRaw = (tvlRead[0]?.result as bigint | undefined) ?? BigInt(0);

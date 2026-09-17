@@ -59,6 +59,8 @@ export function buildTokenTitle(
       return `Will ${sym} price exceed $${params.thresholdUsd} by ${resolveLabel}?`;
     case "mcap_highest":
       return `Which token has the highest mcap at ${resolveLabel}? (${pairs.map((t) => t.symbol.toUpperCase()).join(" vs ")})`;
+    case "price_highest":
+      return `Which token has the highest price at ${resolveLabel}? (${pairs.map((t) => t.symbol.toUpperCase()).join(" vs ")})`;
     default:
       return `${sym} — ${resolveLabel}`;
   }

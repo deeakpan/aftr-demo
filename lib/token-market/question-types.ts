@@ -49,6 +49,15 @@ export const TOKEN_VS_QUESTIONS: TokenQuestionDef[] = [
     requiresMcapParity: true,
     description: "Token with the highest USD market cap at resolve wins (head-to-head).",
   },
+  {
+    id: "price_highest",
+    label: "Highest token price",
+    category: "vs",
+    mode: "comparison",
+    minTokens: 2,
+    maxTokens: 4,
+    description: "Token with the highest USD price from the pool page at resolve wins (head-to-head).",
+  },
 ];
 
 export const TOKEN_QUESTION_GROUPS: {

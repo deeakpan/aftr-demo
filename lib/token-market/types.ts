@@ -1,4 +1,4 @@
-export type TokenQuestionType = "mcap_usd_above" | "price_usd_above" | "mcap_highest";
+export type TokenQuestionType = "mcap_usd_above" | "price_usd_above" | "mcap_highest" | "price_highest";
 export type TokenPairSource = "dexscreener" | "geckoterminal";
 
 export type TokenPairRef = {

@@ -114,9 +114,21 @@ async function main() {
   }
 
   try {
+    const depName = `${hre.network.name}-${chainId}.json`;
+    const networkMap = {
+      unichainSepolia: "unichain-sepolia",
+      robinhoodMainnet: "robinhood-mainnet",
+      monadTestnet: "monad-testnet",
+    };
+    const sgNet = networkMap[hre.network.name] || hre.network.name;
     execSync("node scripts/subgraph-update-config.cjs", {
       cwd: path.join(__dirname, ".."),
       stdio: "inherit",
+      env: {
+        ...process.env,
+        DEPLOYMENT_FILE: path.join("deployments", depName),
+        SUBGRAPH_NETWORK: sgNet,
+      },
     });
   } catch (e) {
     console.warn("subgraph-update-config failed:", e?.message ?? e);

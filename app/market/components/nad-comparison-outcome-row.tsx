@@ -1,6 +1,6 @@
 "use client";
 
-import { formatNadMcapUsd } from "@/lib/nad/market-stats";
+import { formatNadMcapUsd, formatNadPriceUsd } from "@/lib/nad/market-stats";
 import {
   MARKET_CARD_MULTI_PCT_CLASS,
   MARKET_CARD_MULTI_ROW_CLASS,
@@ -9,7 +9,9 @@ import {
 type Props = {
   symbol: string;
   imageUri?: string;
-  mcapUsd: number | null;
+  /** Market cap or price in USD, depending on valueKind. */
+  usdValue: number | null;
+  valueKind?: "mcap" | "price";
   chancePct: number;
   loading?: boolean;
   onClick?: () => void;
@@ -21,7 +23,8 @@ type Props = {
 export function NadComparisonOutcomeRow({
   symbol,
   imageUri,
-  mcapUsd,
+  usdValue,
+  valueKind = "mcap",
   chancePct,
   loading = false,
   onClick,
@@ -29,6 +32,9 @@ export function NadComparisonOutcomeRow({
   tradingClosed = false,
   active = false,
 }: Props) {
+  const formatted =
+    valueKind === "price" ? formatNadPriceUsd(usdValue) : formatNadMcapUsd(usdValue);
+
   const row = (
     <>
       {imageUri ? (
@@ -46,7 +52,7 @@ export function NadComparisonOutcomeRow({
         ${symbol}
       </span>
       <span className="min-w-0 flex-1 truncate text-right text-[11px] tabular-nums text-[var(--muted)]">
-        {loading ? "…" : formatNadMcapUsd(mcapUsd)}
+        {loading ? "…" : formatted}
       </span>
       <span className={MARKET_CARD_MULTI_PCT_CLASS}>{Math.round(chancePct)}%</span>
     </>

@@ -1,7 +1,9 @@
+import { withRetries } from "@/lib/fetch-retry";
+
 const DEFAULT_SUBGRAPH_URL =
   "https://api.studio.thegraph.com/query/1749057/zedkr-testnet/v0.07";
 
-const SUBGRAPH_TIMEOUT_MS = 20_000;
+const SUBGRAPH_TIMEOUT_MS = 30_000;
 
 /** Read at request time so `.env` changes apply without a stale module binding. */
 export function getSubgraphUrl(): string {
@@ -13,8 +15,7 @@ export type SubgraphQueryResult<T> =
   | { ok: true; data: T }
   | { ok: false; reason: string };
 
-/** POST a GraphQL query; never throws (DNS/offline/timeouts return ok: false). */
-export async function querySubgraph<TData>(
+async function querySubgraphOnce<TData>(
   query: string,
   variables?: Record<string, unknown>,
 ): Promise<SubgraphQueryResult<TData>> {
@@ -51,5 +52,29 @@ export async function querySubgraph<TData>(
           ? err.message
           : "Subgraph fetch failed";
     return { ok: false, reason };
+  }
+}
+
+/** POST a GraphQL query with retries; never throws (DNS/offline/timeouts return ok: false). */
+export async function querySubgraph<TData>(
+  query: string,
+  variables?: Record<string, unknown>,
+): Promise<SubgraphQueryResult<TData>> {
+  try {
+    return await withRetries(
+      async () => {
+        const result = await querySubgraphOnce<TData>(query, variables);
+        if (!result.ok) {
+          throw new Error(result.reason);
+        }
+        return result;
+      },
+      { attempts: 3, delayMs: 400 },
+    );
+  } catch (err) {
+    return {
+      ok: false,
+      reason: err instanceof Error ? err.message : "Subgraph fetch failed",
+    };
   }
 }

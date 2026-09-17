@@ -60,8 +60,16 @@ export function formatUserTxError(error: unknown, fallback = "Transaction failed
       return "Robinhood public RPC is behind a Cloudflare challenge. Set NEXT_PUBLIC_RPC_URL to an Alchemy or QuickNode endpoint.";
     }
   }
-  if (/EAI_AGAIN|ENOTFOUND|getaddrinfo|Para network error|api\.getpara\.com|api\.beta\.getpara\.com|fetch failed/i.test(blob)) {
+  // Viem RPC broadcast failures include "Request Arguments" + Details: fetch failed.
+  // Don't blame Para for those — the chain RPC dropped the send.
+  if (/Request Arguments:[\s\S]*Details:\s*fetch failed/i.test(blob)) {
+    return "Network RPC dropped the transaction. Wait a few seconds and try again.";
+  }
+  if (/Para network error|api\.getpara\.com|api\.beta\.getpara\.com/i.test(blob)) {
     return "Wallet signing is temporarily unreachable. Wait a few seconds and try again.";
+  }
+  if (/EAI_AGAIN|ENOTFOUND|getaddrinfo|fetch failed/i.test(blob)) {
+    return "Network request failed. Wait a few seconds and try again.";
   }
   if (
     /ParaApiError|AxiosError|timeout of \d+ms exceeded|ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT|AbortError|The operation was aborted/i.test(
@@ -78,6 +86,9 @@ export function formatUserTxError(error: unknown, fallback = "Transaction failed
   }
   if (/execution reverted|reverted with the following signature/i.test(blob)) {
     return "Transaction reverted. Check balances, approval, and market settings.";
+  }
+  if (/^unknown error$/i.test(blob.trim()) || /\bunknown error\b/i.test(blob)) {
+    return "Transaction failed. Wait a moment and try again.";
   }
 
   const cleaned = stripRpcDump(blob);

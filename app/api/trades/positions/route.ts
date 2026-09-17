@@ -4,9 +4,10 @@ import deployment from "@/lib/deployment";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
 import { fetchIpfsMetadata, ipfsToHttp } from "@/lib/ipfs-metadata";
 import { launchpadMarketForDisplay, launchpadMarketFromMetadata, uiMarketKindForDisplay } from "@/lib/launchpad-display";
-import { isListableMarket } from "@/lib/market-metadata";
 import { querySubgraph } from "@/lib/subgraph/client";
 import { MARKET_READ_ABI, marketTvlBalanceCall } from "@/lib/market-abi";
+
+export const dynamic = "force-dynamic";
 
 const TOKENS_REDEEMED_EVENT = parseAbiItem(
   "event TokensRedeemed(address indexed user, uint8 indexed outcomeIndex, uint256 shares, uint256 payout)",
@@ -40,6 +41,20 @@ function clampPct(v: number) {
   return Math.max(0, Math.min(100, v));
 }
 
+async function mapPool<T, R>(items: T[], concurrency: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  if (items.length === 0) return [];
+  const out = new Array<R>(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]!);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
+  return out;
+}
+
 async function marketRedemptionTotal(
   wallet: `0x${string}`,
   market: `0x${string}`,
@@ -65,6 +80,43 @@ async function marketRedemptionTotal(
   } catch {
     return BigInt(0);
   }
+}
+
+function stubRowsFromIndexer(
+  marketAddress: string,
+  pos: TraderMarketPositionRow,
+): Array<Record<string, unknown>> {
+  const participated =
+    BigInt(pos.collateralIn || "0") > BigInt(0) || BigInt(pos.sharesIn || "0") > BigInt(0);
+  if (!participated) return [];
+  return [
+    {
+      marketAddress: marketAddress as `0x${string}`,
+      marketTitle: "Market",
+      marketKind: "token",
+      marketState: 0,
+      stakeEndUnix: 0,
+      collateralAddress: "0x0000000000000000000000000000000000000000",
+      winningOutcomeIndex: null,
+      redemptionRate: "0",
+      outcomeIndex: 0,
+      outcomeLabel: "Position",
+      outcomeLabels: ["Position"],
+      balance: "0",
+      collateralDecimals: 6,
+      chancePct: 50,
+      outcomeChancePcts: [50],
+      poolTvlDisplay: "—",
+      stakeEndsLabel: "—",
+      imageUrl: "",
+      nadMarket: null,
+      indexedCollateralIn: pos.collateralIn,
+      indexedCollateralOut: pos.collateralOut,
+      indexedSharesIn: pos.sharesIn,
+      indexedSharesOut: pos.sharesOut,
+      settlementDisplay: undefined,
+    },
+  ];
 }
 
 async function buildRowsForMarket(
@@ -109,17 +161,15 @@ async function buildRowsForMarket(
     winningRaw === undefined ||
     redemptionRate === undefined
   ) {
-    return [];
+    return stubRowsFromIndexer(marketAddress, pos);
   }
 
   const numOutcomes = Number(outcomesRaw);
   const collateralDecimals = Number(collateralDecimalsRaw);
   const state = Number(stateRaw);
   const metadataUriStr = String(metadataUri || "");
-  const metadata = await fetchIpfsMetadata(metadataUriStr);
-  if (!isListableMarket(metadataUriStr, metadata?.image, launchpadMarketFromMetadata(metadata as Record<string, unknown> | null) ?? metadata?.nadMarket)) {
-    return [];
-  }
+  const metadata = metadataUriStr ? await fetchIpfsMetadata(metadataUriStr) : null;
+  // Never drop indexed activity because IPFS cover failed — degraded title is fine.
   const kind = uiMarketKindForDisplay(Number(kindRaw), metadata as Record<string, unknown> | null);
   const marketTitle = metadata?.title?.trim() || `${kind} market`;
   const marketSlug = metadata?.slug?.trim() || undefined;
@@ -193,7 +243,8 @@ async function buildRowsForMarket(
   let collateralOut = BigInt(pos.collateralOut || "0");
   const sharesIn = BigInt(pos.sharesIn || "0");
   const sharesOut = BigInt(pos.sharesOut || "0");
-  if (state === 2) {
+  // Only hit getLogs when indexer has no redeem amount — full-range scans are slow/flaky.
+  if (state === 2 && collateralOut === BigInt(0)) {
     const marketOut = await marketRedemptionTotal(wallet, market);
     if (marketOut > collateralOut) collateralOut = marketOut;
   }
@@ -251,12 +302,16 @@ async function buildRowsForMarket(
     });
   }
 
-  if (state === 2 && !emittedPositiveBalance && winningOutcomeIndex !== null && participated) {
-    const winIdx = winningOutcomeIndex as number;
+  // Keep indexed activity visible even after selling / claiming to zero.
+  if (outRows.length === 0 && participated) {
+    const idx =
+      winningOutcomeIndex !== null && winningOutcomeIndex >= 0
+        ? winningOutcomeIndex
+        : 0;
     outRows.push({
       ...rowBase,
-      outcomeIndex: winIdx,
-      outcomeLabel: outcomeLabels[winIdx] ?? `Outcome ${winIdx + 1}`,
+      outcomeIndex: idx,
+      outcomeLabel: outcomeLabels[idx] ?? `Outcome ${idx + 1}`,
       balance: "0",
     });
   }
@@ -285,17 +340,23 @@ export async function GET(req: NextRequest) {
     );
 
     if (!graph.ok) {
-      return NextResponse.json({
-        rows: [],
-        chainId: deployment.chainId,
-        unavailable: true,
-        reason: graph.reason,
-      });
+      return NextResponse.json(
+        {
+          rows: [],
+          chainId: deployment.chainId,
+          unavailable: true,
+          reason: graph.reason,
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     const positionRows = graph.data.traderMarketPositions ?? [];
     if (positionRows.length === 0) {
-      return NextResponse.json({ rows: [], chainId: deployment.chainId });
+      return NextResponse.json(
+        { rows: [], chainId: deployment.chainId },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     const byMarket = new Map<string, (typeof positionRows)[number]>();
@@ -303,19 +364,35 @@ export async function GET(req: NextRequest) {
       byMarket.set(p.market.id.toLowerCase(), p);
     }
 
-    const outRows: Array<Record<string, unknown>> = [];
-    for (const [marketAddress, pos] of byMarket.entries()) {
+    const marketEntries = [...byMarket.entries()];
+    const built = await mapPool(marketEntries, 4, async ([marketAddress, pos]) => {
       try {
-        const rows = await buildRowsForMarket(wallet as `0x${string}`, marketAddress, pos);
-        outRows.push(...rows);
-      } catch {
-        // Skip markets that fail to load (stale address, RPC hiccup, etc.)
+        return await buildRowsForMarket(wallet as `0x${string}`, marketAddress, pos);
+      } catch (err) {
+        console.warn(
+          "[trades/positions] market load failed",
+          marketAddress,
+          err instanceof Error ? err.message : err,
+        );
+        return stubRowsFromIndexer(marketAddress, pos);
       }
-    }
+    });
 
-    return NextResponse.json({ rows: outRows, chainId: deployment.chainId });
+    const outRows = built.flat();
+    return NextResponse.json(
+      {
+        rows: outRows,
+        chainId: deployment.chainId,
+        indexedCount: byMarket.size,
+        loadedCount: outRows.length,
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not load trades.";
-    return NextResponse.json({ error: message, rows: [], chainId: deployment.chainId }, { status: 500 });
+    return NextResponse.json(
+      { error: message, rows: [], chainId: deployment.chainId },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }

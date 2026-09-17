@@ -3,6 +3,8 @@ import { isAddress } from "viem";
 import { querySubgraph } from "@/lib/subgraph/client";
 import { formatSubgraphPnlUsd, formatSubgraphUsd } from "@/lib/subgraph/format-collateral-usd";
 
+export const dynamic = "force-dynamic";
+
 type GraphResponse = {
   data?: {
     trader?: {

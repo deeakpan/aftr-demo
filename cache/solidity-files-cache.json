@@ -908,8 +908,8 @@
       ]
     },
     "C:\\Users\\deeak\\zedkr-market\\contracts\\core\\ZedkrFpmmMarket.sol": {
-      "lastModificationDate": 1789117278779,
-      "contentHash": "a16e16f02d06f968e6c657d58f0e4984",
+      "lastModificationDate": 1789554700776,
+      "contentHash": "5d9dbb6254dd4732fe29347c467af57e",
       "sourceName": "contracts/core/ZedkrFpmmMarket.sol",
       "solcConfig": {
         "version": "0.8.24",

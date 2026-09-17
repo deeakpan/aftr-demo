@@ -4,8 +4,8 @@ import {
   createParaViemClient,
 } from "@getpara/viem-v2-integration";
 import { DEPLOYMENT_CHAIN, deploymentRpcUrl } from "@/lib/chain";
+import { deploymentHttpTransport } from "@/lib/rpc-transport";
 import type { Address } from "viem";
-import { http } from "viem";
 
 /**
  * ParaServer must use the public API key (prod_… / beta_…), not sk_prod_….
@@ -30,8 +30,12 @@ function createParaServer() {
   return new ParaServer(paraPublicApiKey());
 }
 
+function rpcUrl() {
+  return process.env.MARKET_RPC_URL?.trim() || deploymentRpcUrl();
+}
+
 /**
- * Import a client-exported Para session and return a Robinhood-chain wallet client.
+ * Import a client-exported Para session and return a deployment-chain wallet client.
  */
 export async function paraWalletFromSession(session: string) {
   const para = createParaServer();
@@ -43,10 +47,11 @@ export async function paraWalletFromSession(session: string) {
 
   const paraCore = para as unknown as Parameters<typeof createParaViemClient>[0];
   const account = createParaViemAccount({ para: paraCore });
+  // Same resilient RPC transport as estimate/broadcast — bare http() was flaky on publicnode.
   const walletClient = createParaViemClient(paraCore, {
     account,
     chain: DEPLOYMENT_CHAIN,
-    transport: http(deploymentRpcUrl()),
+    transport: deploymentHttpTransport(rpcUrl()),
   });
 
   return { para, account, walletClient, address: account.address as Address };

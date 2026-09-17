@@ -6,7 +6,8 @@
     "dev": "next dev --port 3002 --webpack",
     "build": "next build --webpack",
     "start": "next start --port 3002",
-    "bot": "next dev --port 3002 --webpack",
+    "bot": "node scripts/start-resolver.cjs",
+    "bot:telegram": "node scripts/telegram-bot.cjs",
     "lint": "eslint"
   },
   "dependencies": {

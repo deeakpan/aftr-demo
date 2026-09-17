@@ -9,9 +9,9 @@
     "ZedkrUSDC": "0xA5424DD5165ed2516fD5590fe229E91B2F7707E8",
     "USDG": "0x20f4BaE7793aE79bBeA9eA680516038cB5aCB23b",
     "ZedkrOrderBook": "0xFd5109fA917203947E350218928e3e39f5936813",
-    "ZedkrCollateralRegistry": "0xfa4b31967af90b3Ab15f39666f1c8c44486d5a99",
-    "ZedkrFpmmMarketFactory": "0x001240bD2569526d0044069612C3ccBE869e5C97",
-    "ZedkrFpmmDeployer": "0x485528Ee44f5a2eAf28CF55459fF9b5c6e219e9c",
+    "ZedkrCollateralRegistry": "0xD9A1F6b06E016AFe9b2C277410F69Eec2Ed0B050",
+    "ZedkrFpmmMarketFactory": "0x72B641a21Dc4e929ce5057016fA9aCFeB927624b",
+    "ZedkrFpmmDeployer": "0xEdc96952670E31C35AB78f83DF74Ab907C771c11",
     "MockWETH": "0x4C50167f92544cb4755bc8f35a4efDbE7c3c9B40",
     "MockEthUsdFeed": "0x11D1058Fc574E30ac1c40F487Ed88a2E0ad47aA1",
     "MockBtcUsdFeed": "0x1EFD67d695dcF08d96fB793F6EE1354Ccc2DAAB5",
@@ -26,9 +26,9 @@
     "ZedkrToken": 61998727,
     "ZedkrFeeVault": 61998735,
     "ZedkrOrderBook": 62263796,
-    "ZedkrCollateralRegistry": 61998832,
-    "ZedkrFpmmMarketFactory": 61998839,
-    "ZedkrFpmmDeployer": 61998849,
+    "ZedkrCollateralRegistry": 62730618,
+    "ZedkrFpmmMarketFactory": 62730624,
+    "ZedkrFpmmDeployer": 62730628,
     "ZedkrFpmmOrderBookFactoryAdapter": 62263793
   },
   "external": {
@@ -78,15 +78,14 @@
     ],
     "fpmmCollaterals": [
       "0xA5424DD5165ed2516fD5590fe229E91B2F7707E8",
-      "0x4C50167f92544cb4755bc8f35a4efDbE7c3c9B40",
       "0x20f4BaE7793aE79bBeA9eA680516038cB5aCB23b"
     ],
     "primaryMarketFactory": "ZedkrFpmmMarketFactory",
     "umaRewardToken": "ZedkrUSDC when umaRewardCurrency is address(0) on factory",
-    "feeFlow": "Market deposit → 0.4% protocol fee → ZedkrFeeVault.receiveFees()",
+    "feeFlow": "1% trade fee split 25/25/25/25 creator / platformDev / distribution / treasury; address(0) share pays the market creator",
     "orderBook": "ZedkrOrderBook is the FPMM CLOB via ZedkrFpmmOrderBookFactoryAdapter."
   },
-  "deployedAt": "2026-09-08T07:08:44.526Z",
+  "deployedAt": "2026-09-16T18:24:58.201Z",
   "vault": {
     "stakeToken": "0xC25e3685bF421cDe9355184301c2b06e82c691ef",
     "epochDuration": "604800",

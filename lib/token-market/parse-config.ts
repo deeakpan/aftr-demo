@@ -9,7 +9,7 @@ export function parseTokenMarketFromMetadata(
   if (cfg.version !== 1 || cfg.kind !== "token-link" || !cfg.questionType || !Array.isArray(cfg.pairs)) {
     return null;
   }
-  if (!["mcap_usd_above", "price_usd_above", "mcap_highest"].includes(cfg.questionType)) {
+  if (!["mcap_usd_above", "price_usd_above", "mcap_highest", "price_highest"].includes(cfg.questionType)) {
     return null;
   }
   return cfg;

@@ -58,6 +58,23 @@ export function evaluateTokenOutcome(
         reasoning: `${winner.pair.symbol} highest mcap $${best.toLocaleString()} (at ${evaluatedAtUnix})`,
       };
     }
+    case "price_highest": {
+      let bestIdx = 0;
+      let best = requireStat(snapshots[0]!.stats.priceUsd, "price USD", snapshots[0]!.pair.symbol);
+      for (let i = 1; i < snapshots.length; i += 1) {
+        const price = requireStat(snapshots[i]!.stats.priceUsd, "price USD", snapshots[i]!.pair.symbol);
+        if (price > best) {
+          best = price;
+          bestIdx = i;
+        }
+      }
+      const winner = snapshots[bestIdx]!;
+      return {
+        outcomeIndex: bestIdx,
+        outcomeLabel: winner.pair.symbol.toUpperCase(),
+        reasoning: `${winner.pair.symbol} highest price $${best} (at ${evaluatedAtUnix})`,
+      };
+    }
     default:
       throw new Error(`Unknown token question ${cfg.questionType}`);
   }

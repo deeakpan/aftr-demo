@@ -104,6 +104,7 @@ contract ZedkrFpmmMarket is Ownable2Step, ReentrancyGuard {
     event TokensRedeemed(address indexed user, uint8 indexed outcomeIndex, uint256 shares, uint256 payout);
     event EventResolved(uint8 indexed outcomeIndex, address indexed caller, uint256 adminSignatures);
     event TokenResolved(uint8 indexed outcomeIndex, address indexed resolver);
+    event SurplusPulled(address indexed caller, address indexed recipient, uint256 amount);
 
     error OnlyFactory();
     error AlreadyInitialized();
@@ -120,6 +121,8 @@ contract ZedkrFpmmMarket is Ownable2Step, ReentrancyGuard {
     error InvalidShareRecipient();
     error InvalidResolutionSignatures();
     error NotTokenResolutionAdmin();
+    error NothingToPull();
+    error NoSurplusRecipient();
 
     modifier onlyFactory() {
         if (msg.sender != factory) revert OnlyFactory();
@@ -444,6 +447,69 @@ contract ZedkrFpmmMarket is Ownable2Step, ReentrancyGuard {
         _outcomeTokens[outcomeIndex].burnFrom(msg.sender, shareAmount);
         IERC20(collateralToken).safeTransfer(msg.sender, payout);
         emit TokensRedeemed(msg.sender, outcomeIndex, shareAmount, payout);
+    }
+
+    /// @notice Platform sink for leftover collateral: `platformDev`, else `treasury`, else `feeRecipient`.
+    function surplusRecipient() public view returns (address) {
+        IZedkrFeeSplit splitCfg = IZedkrFeeSplit(factory);
+        address platformDev_ = splitCfg.platformDev();
+        if (platformDev_ != address(0)) return platformDev_;
+        address treasury_ = splitCfg.treasury();
+        if (treasury_ != address(0)) return treasury_;
+        if (feeRecipient != address(0)) return feeRecipient;
+        return address(0);
+    }
+
+    /**
+     * @notice Collateral that can be pulled without touching unclaimed winners.
+     * @dev Excludes market-held winning inventory (dead AMM shares nobody can redeem).
+     *      Reserved = external winning `totalSupply` at the fixed 1:1 redemption rate.
+     */
+    function surplusCollateral() public view returns (uint256) {
+        if (!initialized || state != MarketState.SETTLED || redemptionRate == 0) return 0;
+        uint256 win = winningOutcomeIndex;
+        if (win >= uint256(numOutcomes)) return 0;
+
+        ZedkrOutcomeToken winTok = _outcomeTokens[win];
+        uint256 supply = winTok.totalSupply();
+        uint256 marketHeld = winTok.balanceOf(address(this));
+        uint256 externalWinning = supply > marketHeld ? supply - marketHeld : 0;
+        uint256 reserved = (externalWinning * redemptionRate) / FIXED_REDEMPTION_RATE;
+        uint256 bal = IERC20(collateralToken).balanceOf(address(this));
+        return bal > reserved ? bal - reserved : 0;
+    }
+
+    /**
+     * @notice Anyone may pull leftover collateral after settle. Sends to platform (see `surplusRecipient`).
+     * @dev Burns market-held outcome inventory first, then transfers only `balance - winning totalSupply`.
+     *      Unclaimed winners stay fully reserved — a lost wallet cannot brick this pull, and this pull
+     *      cannot steal their redeemable balance.
+     */
+    function pullSurplus() external nonReentrant returns (uint256 amount) {
+        if (!initialized) revert NotInitialized();
+        if (state != MarketState.SETTLED) revert InvalidState();
+        if (redemptionRate == 0) revert InvalidState();
+
+        uint256 win = winningOutcomeIndex;
+        if (win >= uint256(numOutcomes)) revert InvalidState();
+
+        for (uint256 i = 0; i < uint256(numOutcomes); i++) {
+            uint256 held = _outcomeTokens[i].balanceOf(address(this));
+            if (held > 0) {
+                _outcomeTokens[i].burnFrom(address(this), held);
+            }
+        }
+
+        uint256 reserved = (_outcomeTokens[win].totalSupply() * redemptionRate) / FIXED_REDEMPTION_RATE;
+        uint256 bal = IERC20(collateralToken).balanceOf(address(this));
+        if (bal <= reserved) revert NothingToPull();
+        amount = bal - reserved;
+
+        address recipient = surplusRecipient();
+        if (recipient == address(0)) revert NoSurplusRecipient();
+
+        IERC20(collateralToken).safeTransfer(recipient, amount);
+        emit SurplusPulled(msg.sender, recipient, amount);
     }
 
     function _applyBuy(uint8 outcomeIndex, uint256 netAmount, uint256 tokensOut) internal {

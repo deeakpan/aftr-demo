@@ -501,7 +501,7 @@ function ClaimWinningsButton({
     try {
       setBusy(true);
       setStatusIsError(false);
-      setStatus("Preparing…");
+      setStatus("");
       const token = (await publicClient.readContract({
         address: marketAddress,
         abi: MARKET_READ_ABI,
@@ -515,7 +515,6 @@ function ClaimWinningsButton({
         args: [address, marketAddress],
       })) as bigint;
       if (allowance < maxShares) {
-        setStatus("Approving…");
         const h = await writeContract({
           address: token,
           abi: ERC20_ABI,
@@ -525,7 +524,6 @@ function ClaimWinningsButton({
         });
         await publicClient.waitForTransactionReceipt({ hash: h });
       }
-      setStatus("Claiming…");
       const tx = await writeContract({
         address: marketAddress,
         abi: MARKET_READ_ABI,
@@ -552,12 +550,17 @@ function ClaimWinningsButton({
         payout = (maxShares * redemptionRate) / BigInt(10 ** 18);
       }
       setStatusIsError(false);
-      setStatus("Successfully claimed!");
+      setStatus("Claimed");
       onClaimed({ payout });
       window.setTimeout(() => onDone(), 2800);
     } catch (e) {
       setStatusIsError(true);
-      setStatus(friendlyWalletError(e));
+      const msg = friendlyWalletError(e);
+      setStatus(
+        /transaction failed|unknown error|didn.?t go through/i.test(msg)
+          ? "Claim failed. Try again."
+          : msg,
+      );
     } finally {
       setBusy(false);
     }
@@ -577,16 +580,26 @@ function ClaimWinningsButton({
           {formatShareAmount(maxShares, shareDecimals)} winning shares
         </p>
       </div>
-      {status && (
-        <p className={`text-center text-[11px] ${statusIsError ? "text-[var(--outcome-no)]" : "text-[var(--outcome-yes)]"}`}>{status}</p>
+      {status && !busy && (
+        <p
+          className={`text-center text-[11px] ${
+            statusIsError ? "text-[var(--outcome-no)]" : "text-[var(--outcome-yes)]"
+          }`}
+        >
+          {status}
+        </p>
       )}
       <button
         type="button"
         disabled={busy}
         onClick={() => void redeem()}
-        className="w-full rounded-xl bg-[var(--outcome-yes)] py-2 text-sm font-bold text-white transition hover:bg-[var(--outcome-yes-hover)] active:scale-[0.98] disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--outcome-yes)] py-2 text-sm font-bold text-white transition hover:bg-[var(--outcome-yes-hover)] active:scale-[0.98] disabled:opacity-60"
       >
-        {busy ? "Claiming…" : "Claim Winnings"}
+        {busy ? (
+          <CircleNotch size={18} weight="bold" className="animate-spin" aria-label="Claiming" />
+        ) : (
+          "Claim Winnings"
+        )}
       </button>
     </div>
   );
@@ -726,6 +739,11 @@ export function TradesClient() {
               continue;
             }
             throw new Error(json.error || "Could not load trades.");
+          }
+          // Indexer blips — retry before showing empty.
+          if (json.unavailable && attempt < maxAttempts) {
+            await new Promise((r) => setTimeout(r, 500 * attempt));
+            continue;
           }
           break;
         }

@@ -189,17 +189,32 @@ export function LaunchesClient() {
     setError("");
     void (async () => {
       try {
-        const res = await fetch(`/api/wallet/launches?wallet=${encodeURIComponent(wallet)}`, {
-          cache: "no-store",
-        });
-        const json = (await res.json()) as {
+        let json: {
           markets?: LaunchMarket[];
           error?: string;
           unavailable?: boolean;
           reason?: string;
-        };
-        if (cancelled) return;
-        if (!res.ok) throw new Error(json.error ?? "Could not load launches.");
+        } = {};
+        const maxAttempts = 3;
+        for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+          const res = await fetch(`/api/wallet/launches?wallet=${encodeURIComponent(wallet)}`, {
+            cache: "no-store",
+          });
+          json = (await res.json()) as typeof json;
+          if (cancelled) return;
+          if (!res.ok) {
+            if (attempt < maxAttempts && res.status >= 500) {
+              await new Promise((r) => setTimeout(r, 400 * attempt));
+              continue;
+            }
+            throw new Error(json.error ?? "Could not load launches.");
+          }
+          if (json.unavailable && attempt < maxAttempts) {
+            await new Promise((r) => setTimeout(r, 500 * attempt));
+            continue;
+          }
+          break;
+        }
         if (json.unavailable) {
           setError(json.reason ?? "Indexer unavailable.");
           setMarkets([]);

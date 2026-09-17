@@ -600,4 +600,80 @@ describe("Zedkr FPMM — USDG collateral + resolution", function () {
       expect(await market.metadataHash()).to.equal(params.base.metadataHash);
     });
   });
+
+  describe("surplus pull after settle", function () {
+    it("anyone can pull leftover to platform without bricking unclaimed winners", async function () {
+      await factory.connect(owner).setFeeSplit(platformDev.address, distribution.address, treasury.address);
+
+      const now = (await ethers.provider.getBlock("latest")).timestamp;
+      const seed = ethers.parseUnits("100", 6);
+      const buyAmt = ethers.parseUnits("200", 6);
+      const params = {
+        collateralToken: await usdg.getAddress(),
+        collateralDecimals: 6,
+        stakeEndTimestamp: now + 3600,
+        resolveAfterTimestamp: now + 7200,
+        metadataHash: ethers.keccak256(ethers.toUtf8Bytes("fpmm-surplus")),
+        outcomeLabels: ["Yes", "No"],
+        metadataURI: "ipfs://fpmm-surplus",
+        minInitialFunding: MIN_FUNDING,
+        initialFunding: seed,
+        fundingHint: [1n, 1n],
+        shareRecipient: creator.address,
+      };
+
+      await usdg.connect(creator).approve(await factory.getAddress(), seed);
+      const tx = await factory.connect(creator).createTokenMarket(params);
+      const receipt = await tx.wait();
+      const created = receipt.logs
+        .map((log) => {
+          try {
+            return factory.interface.parseLog(log);
+          } catch {
+            return null;
+          }
+        })
+        .find((p) => p?.name === "MarketCreated");
+
+      const marketAddr = created.args.market;
+      const market = await ethers.getContractAt("ZedkrFpmmMarket", marketAddr);
+      const tokens = await factory.getMarketOutcomeTokens(marketAddr);
+      const Outcome = await ethers.getContractFactory("ZedkrOutcomeToken");
+      const yes = Outcome.attach(tokens[0]);
+
+      await usdg.connect(trader1).approve(marketAddr, buyAmt);
+      await market.connect(trader1).buy(0, buyAmt, 0n);
+
+      await ethers.provider.send("evm_increaseTime", [7201]);
+      await ethers.provider.send("evm_mine", []);
+      await market.connect(trader1).resolveToken(0);
+
+      const shares = await yes.balanceOf(trader1.address);
+      expect(shares).to.be.gt(0n);
+
+      const surplusBefore = await market.surplusCollateral();
+      expect(surplusBefore).to.be.gt(0n);
+      expect(await market.surplusRecipient()).to.equal(platformDev.address);
+
+      // Pull half of the story: leave winner unclaimed, pull surplus, winner still redeems 1:1.
+      const platformBefore = await usdg.balanceOf(platformDev.address);
+      await expect(market.connect(trader2).pullSurplus())
+        .to.emit(market, "SurplusPulled")
+        .withArgs(trader2.address, platformDev.address, surplusBefore);
+      expect(await usdg.balanceOf(platformDev.address) - platformBefore).to.equal(surplusBefore);
+      expect(await market.surplusCollateral()).to.equal(0n);
+      await expect(market.connect(owner).pullSurplus()).to.be.revertedWithCustomError(market, "NothingToPull");
+
+      const half = shares / 2n;
+      await yes.connect(trader1).approve(marketAddr, shares);
+      const balBefore = await usdg.balanceOf(trader1.address);
+      await market.connect(trader1).redeem(0, half);
+      expect(await usdg.balanceOf(trader1.address) - balBefore).to.equal(half);
+
+      // After partial redeem, new leftover must stay 0 (exact reserve), then finish redeem.
+      expect(await market.surplusCollateral()).to.equal(0n);
+      await market.connect(trader1).redeem(0, shares - half);
+      expect(await yes.balanceOf(trader1.address)).to.equal(0n);
+    });
+  });
 });
