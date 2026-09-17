@@ -2,6 +2,7 @@
 
 import { ArrowsClockwise, ChartBar, Clock, Flag } from "@phosphor-icons/react";
 import { MarketShareButton } from "@/app/market/components/market-share-button";
+import { formatChancePct } from "@/lib/format-chance-pct";
 import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
 
 export type MarketListCardProps = {
@@ -281,7 +282,7 @@ export function MarketListCard({
               const rowContent = (
                 <>
                   <span className={MARKET_CARD_MULTI_LABEL_CLASS}>{label}</span>
-                  <span className={MARKET_CARD_MULTI_PCT_CLASS}>{pct.toFixed(0)}%</span>
+                  <span className={MARKET_CARD_MULTI_PCT_CLASS}>{formatChancePct(pct)}</span>
                 </>
               );
 

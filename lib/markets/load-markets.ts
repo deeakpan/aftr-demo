@@ -5,6 +5,7 @@ import { fpmmFactoryAddress } from "@/lib/market-factory";
 import { marketTvlBalanceCall } from "@/lib/market-abi";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
 import { fetchIpfsMetadata, ipfsToHttp, type IpfsMarketMetadata } from "@/lib/ipfs-metadata";
+import { normalizeResolutionSources, type ResolutionSource } from "@/lib/market-resolution-sources";
 import { isListableMarket, isValidMetadataUri } from "@/lib/market-metadata";
 import { launchpadMarketForDisplay, launchpadMarketFromMetadata, uiMarketKindForDisplay } from "@/lib/launchpad-display";
 import { isPriceMarketKind, type UiMarketKind } from "@/lib/markets/market-kind";
@@ -63,6 +64,8 @@ export type MarketListItem = {
   slug?: string;
   categories?: string[];
   nadMarket?: import("@/lib/nad/types").NadMarketConfig;
+  /** Public resolution reference links from market metadata (event markets). */
+  resolutionSources?: ResolutionSource[];
 };
 
 function fmtTs(value: bigint) {
@@ -169,6 +172,7 @@ export function mergeListItemIntoDetail(
     resolveAfterUnix: listItem.resolveAfterUnix,
     priceBinByOutcome: listItem.priceBinByOutcome ?? detail.priceBinByOutcome,
     nadMarket: listItem.nadMarket ?? detail.nadMarket,
+    resolutionSources: listItem.resolutionSources ?? detail.resolutionSources,
   };
 }
 
@@ -370,6 +374,7 @@ function buildMarketListItem(
     collateralAddress: slice.collateralAddress,
     collateralDecimals: slice.dec,
     priceBinByOutcome,
+    resolutionSources: normalizeResolutionSources(md?.resolutionSources),
   };
 }
 

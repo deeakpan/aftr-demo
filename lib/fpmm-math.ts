@@ -8,6 +8,58 @@ function ceildiv(x: bigint, y: bigint): bigint {
   return x / y;
 }
 
+/** Apply a buy to pool balances (matches ZedkrFpmmMarket._applyBuy). */
+export function applyBuy(
+  pools: readonly bigint[],
+  outcomeIndex: number,
+  netAmount: bigint,
+  tokensOut: bigint,
+): bigint[] {
+  const next = pools.map((p) => p);
+  next[outcomeIndex] = (next[outcomeIndex] ?? 0n) + netAmount - tokensOut;
+  for (let j = 0; j < next.length; j += 1) {
+    if (j !== outcomeIndex) next[j] = (next[j] ?? 0n) + netAmount;
+  }
+  return next;
+}
+
+/** Apply a sell to pool balances (matches ZedkrFpmmMarket._applySell). */
+export function applySell(
+  pools: readonly bigint[],
+  outcomeIndex: number,
+  returnAmount: bigint,
+  tokensIn: bigint,
+): bigint[] {
+  const next = pools.map((p) => p);
+  next[outcomeIndex] = (next[outcomeIndex] ?? 0n) + tokensIn - returnAmount;
+  for (let j = 0; j < next.length; j += 1) {
+    if (j !== outcomeIndex) next[j] = (next[j] ?? 0n) - returnAmount;
+  }
+  return next;
+}
+
+/**
+ * Implied chance % for each outcome (0–100), matching on-chain `priceOf` / `marginalPrice`.
+ * Binary: other / sum. Multi: inverse-pool weights.
+ */
+export function marginalPricePcts(poolBalances: readonly bigint[]): number[] {
+  const n = poolBalances.length;
+  if (n === 0) return [];
+  if (poolBalances.some((p) => p <= 0n)) {
+    return Array.from({ length: n }, () => 0);
+  }
+  if (n === 2) {
+    const sum = poolBalances[0]! + poolBalances[1]!;
+    if (sum === 0n) return [0, 0];
+    const p0 = Number((poolBalances[1]! * 10_000n) / sum) / 100;
+    return [p0, 100 - p0];
+  }
+  const inv = poolBalances.map((p) => (ONE * ONE) / p);
+  const invSum = inv.reduce((a, b) => a + b, 0n);
+  if (invSum === 0n) return Array.from({ length: n }, () => 0);
+  return inv.map((w) => Number((w * 10_000n) / invSum) / 100);
+}
+
 /**
  * Outcome tokens received when spending `investmentAmount` (already net of protocol fees
  * when calling the market's `buy`, which passes feeBps=0 into this helper).

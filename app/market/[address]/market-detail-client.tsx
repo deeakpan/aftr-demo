@@ -17,7 +17,6 @@ import { AppLayout } from "@/app/components/app-layout";
 import { useSidebarOpen } from "@/app/components/sidebar-context";
 import { MarketChartPanel } from "@/app/market/components/market-chart-panel";
 import { MarketShareButton } from "@/app/market/components/market-share-button";
-import { MarketTradeList } from "@/app/market/components/market-trade-list";
 import { LaunchpadTokenSection } from "@/app/market/components/launchpad-token-section";
 import { NadMarketCardCover } from "@/app/market/components/nad-market-list-card";
 import { MultiOutcomeMarketSection } from "@/app/market/components/multi-outcome-market-section";
@@ -1161,6 +1160,30 @@ export function MarketDetailClient({
                     <p className="mt-1 font-mono text-[11px] text-[var(--muted)]">/{market.slug}</p>
                   ) : null}
                   <MarketDescription text={market.description} />
+                  {(market.resolutionSources?.length ?? 0) > 0 ? (
+                    <div className="mt-3 max-w-2xl">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted)]">
+                        Resolution sources
+                      </p>
+                      <ul className="mt-1.5 space-y-1">
+                        {market.resolutionSources!.map((source) => (
+                          <li key={source.url}>
+                            <a
+                              href={source.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-sm font-medium text-[var(--accent)] hover:underline"
+                            >
+                              {source.label}
+                              <span aria-hidden className="text-[10px] opacity-70">
+                                ↗
+                              </span>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                 </div>
                 <MarketShareButton
                   address={market.address}
@@ -1269,13 +1292,18 @@ export function MarketDetailClient({
                     />
                   </div>
                 ) : null}
-                <MarketTradeList
-                  marketAddress={market.address}
-                  collateralDecimals={market.collateralDecimals}
-                  collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
-                  outcomeLabels={market.outcomeLabels}
-                  className="mt-6"
-                />
+                <div className="mt-6">
+                  <MarketChartPanel
+                    marketKind={market.kind}
+                    marketAddress={market.address}
+                    collateralDecimals={market.collateralDecimals}
+                    collateralTicker={collateralTickerFromDeployment(market.collateralAddress)}
+                    outcomeLabels={market.outcomeLabels}
+                    tvSymbol={null}
+                    chartThemeKey={chartThemeKey}
+                    liveChancePcts={market.outcomeChancePcts}
+                  />
+                </div>
               </>
             ) : market.nadMarket ? (
               <LaunchpadTokenSection
@@ -1296,6 +1324,7 @@ export function MarketDetailClient({
                 outcomeLabels={market.outcomeLabels}
                 tvSymbol={tvSymbol}
                 chartThemeKey={chartThemeKey}
+                liveChancePcts={market.outcomeChancePcts}
               />
             )}
 

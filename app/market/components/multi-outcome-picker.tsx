@@ -1,6 +1,7 @@
 "use client";
 
 import { outcomeColor } from "@/app/market/lib/outcome-colors";
+import { formatChancePct } from "@/lib/format-chance-pct";
 
 type MultiOutcomePickerProps = {
   labels: string[];
@@ -54,7 +55,7 @@ export function MultiOutcomePicker({
                 {label}
               </span>
               <span className="shrink-0 text-lg font-bold tabular-nums tracking-tight text-[var(--foreground)]">
-                {pcts[i]!.toFixed(0)}%
+                {formatChancePct(pcts[i]!)}
               </span>
             </button>
           );

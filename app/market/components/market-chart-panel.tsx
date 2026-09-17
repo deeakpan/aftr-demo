@@ -14,6 +14,8 @@ type Props = {
   outcomeLabels: string[];
   tvSymbol: string | null;
   chartThemeKey: string;
+  /** Live on-chain chance % to pin the chart end-state. */
+  liveChancePcts?: number[];
 };
 
 export function MarketChartPanel({
@@ -24,6 +26,7 @@ export function MarketChartPanel({
   outcomeLabels,
   tvSymbol,
   chartThemeKey,
+  liveChancePcts,
 }: Props) {
   const isPrice = marketKind === "Price";
   const [view, setView] = useState<"activity" | "price">("activity");
@@ -38,15 +41,20 @@ export function MarketChartPanel({
     />
   );
 
+  const chart = (
+    <MarketTradeVolumeChart
+      marketAddress={marketAddress}
+      collateralDecimals={collateralDecimals}
+      collateralTicker={collateralTicker}
+      outcomeLabels={outcomeLabels}
+      liveChancePcts={liveChancePcts}
+    />
+  );
+
   if (!isPrice) {
     return (
       <div>
-        <MarketTradeVolumeChart
-          marketAddress={marketAddress}
-          collateralDecimals={collateralDecimals}
-          collateralTicker={collateralTicker}
-          outcomeLabels={outcomeLabels}
-        />
+        {chart}
         {tradeList}
       </div>
     );
@@ -82,12 +90,7 @@ export function MarketChartPanel({
 
       {view === "activity" ? (
         <>
-          <MarketTradeVolumeChart
-            marketAddress={marketAddress}
-            collateralDecimals={collateralDecimals}
-            collateralTicker={collateralTicker}
-            outcomeLabels={outcomeLabels}
-          />
+          {chart}
           {tradeList}
         </>
       ) : tvSymbol ? (

@@ -21,6 +21,24 @@ const tgAgent = new Agent({
   keepAliveTimeout: 60_000,
 });
 
+/** Separate agent for Supabase so TG long-poll settings don't stall REST. */
+const sbAgent = new Agent({
+  connectTimeout: 30_000,
+  headersTimeout: 30_000,
+  bodyTimeout: 30_000,
+  keepAliveTimeout: 30_000,
+});
+
+function errDetail(err) {
+  if (!(err instanceof Error)) return String(err);
+  const cause = err.cause;
+  if (cause instanceof Error) {
+    const code = /** @type {Error & { code?: string }} */ (cause).code;
+    return [err.message, code, cause.message].filter(Boolean).join(": ");
+  }
+  return err.message;
+}
+
 function loadEnvFile(file) {
   if (!fs.existsSync(file)) return;
   const text = fs.readFileSync(file, "utf8");
@@ -86,7 +104,7 @@ async function withRetries(label, fn, attempts = 3) {
       return await fn(i);
     } catch (err) {
       last = err;
-      console.warn(`[telegram-bot] ${label} attempt ${i}/${attempts} failed`, err.message || err);
+      console.warn(`[telegram-bot] ${label} attempt ${i}/${attempts} failed`, errDetail(err));
       if (i < attempts) await new Promise((r) => setTimeout(r, 800 * i));
     }
   }
@@ -108,12 +126,17 @@ async function sb(method, table, opts = {}) {
     };
     if (opts.prefer) headers.Prefer = opts.prefer;
 
-    const res = await undiciFetch(url, {
-      method,
-      headers,
-      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-      dispatcher: tgAgent,
-    });
+    let res;
+    try {
+      res = await undiciFetch(url, {
+        method,
+        headers,
+        body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+        dispatcher: sbAgent,
+      });
+    } catch (err) {
+      throw new Error(`Supabase fetch failed: ${errDetail(err)}`);
+    }
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       throw new Error(`Supabase ${method} ${table} ${res.status}: ${text.slice(0, 200)}`);
@@ -256,7 +279,8 @@ async function pollUpdates(offset) {
 async function checkDueEvents() {
   let json;
   try {
-    const res = await fetch(`${resolverBase}/api/status`, { cache: "no-store" });
+    // Run a dry cycle so we get a fresh due list (status alone may have cycle=null).
+    const res = await fetch(`${resolverBase}/api/tick?dry=1`, { cache: "no-store" });
     if (!res.ok) return;
     json = await res.json();
   } catch {

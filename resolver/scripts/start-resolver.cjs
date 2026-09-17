@@ -1,12 +1,44 @@
 /**
  * Starts Next resolver + Telegram subscriber bot together.
  */
-const { spawn } = require("child_process");
+const { spawn, execSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 
 const root = path.join(__dirname, "..");
 const repoRoot = path.join(root, "..");
+const RESOLVER_PORT = Number(process.env.PORT || 3002) || 3002;
+
+/** Free the resolver port so relaunch does not hit EADDRINUSE. */
+function freePort(port) {
+  try {
+    if (process.platform === "win32") {
+      const out = execSync(`netstat -ano | findstr :${port}`, {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+      const pids = new Set();
+      for (const line of out.split(/\r?\n/)) {
+        if (!/LISTENING/i.test(line)) continue;
+        const parts = line.trim().split(/\s+/);
+        const pid = Number(parts[parts.length - 1]);
+        if (Number.isFinite(pid) && pid > 0) pids.add(pid);
+      }
+      for (const pid of pids) {
+        try {
+          execSync(`taskkill /PID ${pid} /F`, { stdio: "ignore" });
+          console.log(`[start-resolver] freed port ${port} (killed pid ${pid})`);
+        } catch {
+          /* ignore */
+        }
+      }
+    } else {
+      execSync(`lsof -ti tcp:${port} | xargs -r kill -9`, { stdio: "ignore" });
+    }
+  } catch {
+    /* nothing listening */
+  }
+}
 
 function loadEnvFile(file) {
   if (!fs.existsSync(file)) return;
@@ -32,6 +64,8 @@ function loadEnvFile(file) {
 
 loadEnvFile(path.join(repoRoot, ".env"));
 loadEnvFile(path.join(root, ".env"));
+
+freePort(RESOLVER_PORT);
 
 const kids = [];
 
@@ -66,4 +100,4 @@ if (token) {
   console.warn("[start-resolver] TELEGRAM_BOT_TOKEN not set — Telegram alerts off");
 }
 
-run("npx", ["next", "dev", "--port", "3002", "--webpack"], "resolver", { shell: true });
+run("npx", ["next", "dev", "--port", String(RESOLVER_PORT), "--webpack"], "resolver", { shell: true });

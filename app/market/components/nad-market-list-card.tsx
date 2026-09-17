@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import type { NadMarketConfig } from "@/lib/nad/types";
 import type { NadLiveStats } from "@/lib/nad/market-stats";
 import { cardBackgroundFromSeed } from "@/lib/nad/metadata";
+import { formatChancePct } from "@/lib/format-chance-pct";
 import { NadComparisonOutcomeRow } from "@/app/market/components/nad-comparison-outcome-row";
 import { MarketShareButton } from "@/app/market/components/market-share-button";
 import { useNadComparisonStats } from "@/app/market/hooks/use-nad-comparison-stats";
@@ -286,7 +287,7 @@ export function NadMarketListCard({
                     />
                   ) : null}
                   <span className={MARKET_CARD_MULTI_LABEL_CLASS}>{nadOutcomeDisplayLabel(nadMarket, label)}</span>
-                  <span className={MARKET_CARD_MULTI_PCT_CLASS}>{Math.round(pcts[idx] ?? 0)}%</span>
+                  <span className={MARKET_CARD_MULTI_PCT_CLASS}>{formatChancePct(pcts[idx] ?? 0)}</span>
                 </>
               );
 

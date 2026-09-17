@@ -68,7 +68,10 @@
     ]
   },
   "resolutionAdmins": [
-    "0x7A981A271E12Dd22B61f9028F8CAf526ba53c3C5"
+    "0xF4CEeC3aCb78483ce706578A9b7038874bBE23B3",
+    "0x7A981A271E12Dd22B61f9028F8CAf526ba53c3C5",
+    "0x7FCeC3cfc606B6460676826F0bbA4Acf195be8f1",
+    "0xfcf0d6A07ad10012E2d627a31A013726b2E4e28a"
   ],
   "notes": {
     "tradingCollaterals": [

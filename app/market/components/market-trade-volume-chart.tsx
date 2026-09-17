@@ -1,8 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { formatUnits } from "viem";
+import { type Address } from "viem";
 import { OUTCOME_COLORS } from "@/app/market/lib/outcome-colors";
+import { formatChancePct } from "@/lib/format-chance-pct";
+import {
+  applyBuy,
+  applySell,
+  calcBuyAmount,
+  calcSellAmount,
+  marginalPricePcts,
+} from "@/lib/fpmm-math";
+import { MARKET_READ_ABI } from "@/lib/market-abi";
+import { deploymentPublicClient } from "@/lib/deployment-public-client";
+import { TRADE_FEE_TOTAL_BPS, tradeFeesFromAmount } from "@/lib/trade-fees";
 
 export type MarketTradePoint = {
   id: string;
@@ -18,10 +29,8 @@ type Props = {
   collateralTicker?: string;
   outcomeLabels: string[];
   height?: number;
-  /** Emphasize one outcome line when viewing multi-outcome detail. */
-  highlightOutcomeIndex?: number;
-  /** Hide the multi-outcome legend (e.g. inline accordion already shows the label). */
-  hideLegend?: boolean;
+  /** Optional live odds to pin the final chart point (from on-chain priceOf). */
+  liveChancePcts?: number[];
 };
 
 type SeriesPoint = { t: number; pct: number };
@@ -34,59 +43,163 @@ type OutcomeSeries = {
   currentPct: number;
 };
 
-/** Polymarket-adjacent palette on dark backgrounds. */
 const OUTCOME_COLORS_CHART = OUTCOME_COLORS;
 
 const VB = { w: 1000, h: 300 };
 const PAD = { top: 12, right: 56, bottom: 36, left: 12 };
 
-function amountHuman(t: MarketTradePoint, decimals: number): number {
-  return Number(formatUnits(BigInt(t.collateralAmount || "0"), decimals));
+/** Forward-simulate FPMM pools from equal seed through buy/sell trades. */
+function simulatePools(
+  seedPerOutcome: bigint,
+  n: number,
+  trades: MarketTradePoint[],
+): { pools: bigint[]; snapshots: { ts: number; pcts: number[] }[] } {
+  let pools = Array.from({ length: n }, () => seedPerOutcome);
+  const snapshots: { ts: number; pcts: number[] }[] = [];
+  const push = (ts: number) => {
+    snapshots.push({ ts, pcts: marginalPricePcts(pools) });
+  };
+
+  if (trades.length === 0) {
+    push(Math.floor(Date.now() / 1000));
+    return { pools, snapshots };
+  }
+
+  push(trades[0]!.timestamp - 60);
+
+  for (const trade of trades) {
+    const idx = trade.outcomeIndex;
+    if (idx < 0 || idx >= n) {
+      push(trade.timestamp);
+      continue;
+    }
+    let amount = 0n;
+    try {
+      amount = BigInt(trade.collateralAmount || "0");
+    } catch {
+      push(trade.timestamp);
+      continue;
+    }
+    if (amount <= 0n) {
+      push(trade.timestamp);
+      continue;
+    }
+
+    try {
+      if (trade.kind === "sell") {
+        const tokensIn = calcSellAmount(amount, idx, pools, BigInt(TRADE_FEE_TOTAL_BPS));
+        pools = applySell(pools, idx, amount, tokensIn);
+      } else if (trade.kind === "buy" || trade.kind === "deposit") {
+        const { netAmount } = tradeFeesFromAmount(amount);
+        if (netAmount > 0n) {
+          const tokensOut = calcBuyAmount(netAmount, idx, pools, 0n);
+          pools = applyBuy(pools, idx, netAmount, tokensOut);
+        }
+      }
+      // redeem: ignore for pool odds (settlement path)
+    } catch {
+      // skip malformed / impossible trade vs current pools
+    }
+    // Clamp empty pools so marginalPrice still works
+    pools = pools.map((p) => (p > 0n ? p : 1n));
+    push(trade.timestamp);
+  }
+
+  return { pools, snapshots };
 }
 
-/** Replay pool collateral per outcome → implied share % after each event. */
+function poolDistance(a: readonly bigint[], b: readonly bigint[]): bigint {
+  let d = 0n;
+  for (let i = 0; i < a.length; i += 1) {
+    const diff = (a[i] ?? 0n) - (b[i] ?? 0n);
+    d += diff < 0n ? -diff : diff;
+  }
+  return d;
+}
+
+/**
+ * Find equal initial seed that best matches live on-chain pools after replaying trades.
+ * Falls back to a size derived from trade notionals when live pools are missing.
+ */
+function resolveSeedPerOutcome(
+  n: number,
+  trades: MarketTradePoint[],
+  livePools: bigint[] | null,
+  collateralDecimals: number,
+): bigint {
+  const maxTrade = trades.reduce((m, t) => {
+    try {
+      const v = BigInt(t.collateralAmount || "0");
+      return v > m ? v : m;
+    } catch {
+      return m;
+    }
+  }, 0n);
+
+  const fallback =
+    maxTrade > 0n
+      ? maxTrade
+      : 10n ** BigInt(Math.max(0, collateralDecimals)); // 1 unit
+
+  if (!livePools || livePools.length !== n || livePools.every((p) => p === 0n)) {
+    return fallback;
+  }
+
+  let lo = 1n;
+  let hi = livePools.reduce((a, b) => (a > b ? a : b), 0n) + maxTrade * 2n + fallback;
+  if (hi <= lo) hi = fallback * 10n;
+
+  let best = fallback;
+  let bestDist = poolDistance(
+    simulatePools(fallback, n, trades).pools,
+    livePools,
+  );
+
+  // Binary search equal seed against live pools
+  for (let i = 0; i < 48; i += 1) {
+    const mid = (lo + hi) / 2n;
+    if (mid <= 0n) break;
+    const { pools } = simulatePools(mid, n, trades);
+    const dist = poolDistance(pools, livePools);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = mid;
+    }
+    // If simulated pools are generally larger than live, seed too high
+    const simSum = pools.reduce((a, b) => a + b, 0n);
+    const liveSum = livePools.reduce((a, b) => a + b, 0n);
+    if (simSum > liveSum) hi = mid;
+    else lo = mid + 1n;
+    if (hi <= lo) break;
+  }
+
+  return best > 0n ? best : fallback;
+}
+
 function buildOutcomeSeries(
   trades: MarketTradePoint[],
   outcomeLabels: string[],
   collateralDecimals: number,
+  livePools: bigint[] | null,
+  liveChancePcts?: number[],
 ): OutcomeSeries[] {
   const n = Math.max(outcomeLabels.length, 1);
-  const pools = Array.from({ length: n }, () => 0);
-  const sorted = [...trades].sort((a, b) => a.timestamp - b.timestamp);
-  const snapshots: { ts: number; pcts: number[] }[] = [];
+  const sorted = [...trades]
+    .filter((t) => t.kind === "buy" || t.kind === "deposit" || t.kind === "sell")
+    .sort((a, b) => a.timestamp - b.timestamp);
 
-  const snapshot = (ts: number) => {
-    const total = pools.reduce((a, b) => a + b, 0);
-    const pcts =
-      total > 0
-        ? pools.map((p) => (p / total) * 100)
-        : Array.from({ length: n }, () => 100 / n);
-    snapshots.push({ ts, pcts });
-  };
+  const seed = resolveSeedPerOutcome(n, sorted, livePools, collateralDecimals);
+  const { snapshots } = simulatePools(seed, n, sorted);
 
-  if (sorted.length === 0) {
-    return Array.from({ length: n }, (_, i) => ({
-      index: i,
-      label: outcomeLabels[i] ?? `Outcome ${i + 1}`,
-      color: OUTCOME_COLORS_CHART[i % OUTCOME_COLORS_CHART.length]!,
-      points: [],
-      currentPct: 100 / n,
-    }));
-  }
-
-  snapshot(sorted[0]!.timestamp - 60);
-
-  for (const trade of sorted) {
-    const idx = trade.outcomeIndex;
-    if (idx >= 0 && idx < n) {
-      const amt = amountHuman(trade, collateralDecimals);
-      if (trade.kind === "redeem") {
-        pools[idx] = Math.max(0, pools[idx]! - amt);
-      } else {
-        pools[idx]! += amt;
-      }
-    }
-    snapshot(trade.timestamp);
+  // Pin final point to live on-chain odds when available
+  if (liveChancePcts && liveChancePcts.length === n && snapshots.length > 0) {
+    const last = snapshots[snapshots.length - 1]!;
+    snapshots[snapshots.length - 1] = {
+      ts: last.ts,
+      pcts: liveChancePcts.map((p) =>
+        Number.isFinite(p) ? Math.max(0, Math.min(100, p)) : 0,
+      ),
+    };
   }
 
   return Array.from({ length: n }, (_, i) => {
@@ -135,10 +248,10 @@ export function MarketTradeVolumeChart({
   collateralDecimals,
   outcomeLabels,
   height = 340,
-  highlightOutcomeIndex,
-  hideLegend = false,
+  liveChancePcts,
 }: Props) {
   const [trades, setTrades] = useState<MarketTradePoint[]>([]);
+  const [livePools, setLivePools] = useState<bigint[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
   const [fetchError, setFetchError] = useState("");
@@ -151,9 +264,7 @@ export function MarketTradeVolumeChart({
     setFetchError("");
     void fetch(
       `/api/market/trades?market=${encodeURIComponent(marketAddress)}&first=1000&order=asc`,
-      {
-      cache: "no-store",
-    },
+      { cache: "no-store" },
     )
       .then(async (res) => {
         const j = (await res.json()) as {
@@ -190,9 +301,46 @@ export function MarketTradeVolumeChart({
 
   useEffect(() => loadTrades(), [loadTrades, reloadKey]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const n = outcomeLabels.length;
+    if (n < 2) {
+      setLivePools(null);
+      return;
+    }
+    void (async () => {
+      try {
+        const client = deploymentPublicClient;
+        const pools = await Promise.all(
+          Array.from({ length: n }, (_, i) =>
+            client.readContract({
+              address: marketAddress as Address,
+              abi: MARKET_READ_ABI,
+              functionName: "poolBalances",
+              args: [BigInt(i)],
+            }),
+          ),
+        );
+        if (!cancelled) setLivePools(pools.map((p) => p as bigint));
+      } catch {
+        if (!cancelled) setLivePools(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [marketAddress, outcomeLabels.length, reloadKey]);
+
   const series = useMemo(
-    () => buildOutcomeSeries(trades, outcomeLabels, collateralDecimals),
-    [trades, outcomeLabels, collateralDecimals],
+    () =>
+      buildOutcomeSeries(
+        trades,
+        outcomeLabels,
+        collateralDecimals,
+        livePools,
+        liveChancePcts,
+      ),
+    [trades, outcomeLabels, collateralDecimals, livePools, liveChancePcts],
   );
 
   const chart = useMemo(() => {
@@ -235,37 +383,24 @@ export function MarketTradeVolumeChart({
 
   const innerH = VB.h - PAD.top - PAD.bottom;
   const innerW = VB.w - PAD.left - PAD.right;
-  const emphasizeOne =
-    highlightOutcomeIndex !== undefined &&
-    highlightOutcomeIndex >= 0 &&
-    highlightOutcomeIndex < series.length;
-
-  const chartAreaHeight = hideLegend ? height : height - 40;
+  const chartAreaHeight = height - 48;
 
   return (
     <div className="relative z-0 w-full select-none" style={{ minHeight: height }}>
-      {!hideLegend && (
-        <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1.5">
-          {series.map((s) => {
-            const dimmed = emphasizeOne && s.index !== highlightOutcomeIndex;
-            return (
-              <div
-                key={s.index}
-                className={`flex items-center gap-2 text-sm transition-opacity ${dimmed ? "opacity-40" : ""}`}
-              >
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: s.color }}
-                />
-                <span className="text-[var(--foreground)]/90">{s.label}</span>
-                <span className="tabular-nums text-[var(--muted)]">
-                  {s.currentPct.toFixed(0)}%
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1.5">
+        {series.map((s) => (
+          <div key={s.index} className="flex items-center gap-2 text-sm">
+            <span
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ backgroundColor: s.color }}
+            />
+            <span className="text-[var(--foreground)]/90">{s.label}</span>
+            <span className="tabular-nums text-[var(--muted)]">
+              {formatChancePct(s.currentPct)}
+            </span>
+          </div>
+        ))}
+      </div>
 
       <div className="relative w-full" style={{ height: chartAreaHeight }}>
         {loading && (
@@ -301,7 +436,6 @@ export function MarketTradeVolumeChart({
               setHoverMs(ms);
             }}
           >
-            {/* Horizontal grid */}
             {[0, 25, 50, 75, 100].map((pct) => {
               const y = PAD.top + innerH * (1 - pct / 100);
               return (
@@ -327,7 +461,6 @@ export function MarketTradeVolumeChart({
               );
             })}
 
-            {/* X-axis dates */}
             {chart.xTicks.map((ms) => {
               const x = PAD.left + ((ms - chart.minT) / chart.span) * innerW;
               return (
@@ -344,44 +477,28 @@ export function MarketTradeVolumeChart({
               );
             })}
 
-            {/* Outcome lines */}
-            {series.map((s) => {
-              const highlighted = !emphasizeOne || s.index === highlightOutcomeIndex;
-              return (
+            {series.map((s) => (
               <polyline
                 key={s.index}
                 fill="none"
                 stroke={s.color}
-                strokeWidth={highlighted ? 2.25 : 1.25}
-                strokeOpacity={highlighted ? 1 : 0.28}
+                strokeWidth={2.25}
+                strokeOpacity={1}
                 strokeLinejoin="round"
                 strokeLinecap="round"
                 vectorEffect="non-scaling-stroke"
                 points={polylinePoints(s.points, chart.minT, chart.maxT, innerW, innerH)}
               />
-              );
-            })}
+            ))}
 
-            {/* End markers + labels */}
             {series.map((s) => {
               const last = s.points[s.points.length - 1];
               if (!last) return null;
-              const highlighted = !emphasizeOne || s.index === highlightOutcomeIndex;
               const x = PAD.left + ((last.t - chart.minT) / chart.span) * innerW;
               const y = PAD.top + innerH * (1 - last.pct / 100);
               return (
-                <g key={`end-${s.index}`} opacity={highlighted ? 1 : 0.35}>
-                  <circle cx={x} cy={y} r={highlighted ? 4 : 2.5} fill={s.color} />
-                  {highlighted && (
-                  <text
-                    x={PAD.left + innerW + 8}
-                    y={y + 4}
-                    className="tabular-nums"
-                    style={{ fontSize: 12, fill: s.color }}
-                  >
-                    {last.pct.toFixed(0)}%
-                  </text>
-                  )}
+                <g key={`end-${s.index}`}>
+                  <circle cx={x} cy={y} r={3.5} fill={s.color} />
                 </g>
               );
             })}
@@ -405,7 +522,7 @@ export function MarketTradeVolumeChart({
             <span>{formatAxisDate(hoverMs!)}</span>
             {hoverSnap.map((h) => (
               <span key={h.label} style={{ color: h.color }}>
-                {h.label} {h.pct.toFixed(1)}%
+                {h.label} {formatChancePct(h.pct)}
               </span>
             ))}
           </div>

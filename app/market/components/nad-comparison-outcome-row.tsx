@@ -1,6 +1,7 @@
 "use client";
 
 import { formatNadMcapUsd, formatNadPriceUsd } from "@/lib/nad/market-stats";
+import { formatChancePct } from "@/lib/format-chance-pct";
 import {
   MARKET_CARD_MULTI_PCT_CLASS,
   MARKET_CARD_MULTI_ROW_CLASS,
@@ -54,7 +55,7 @@ export function NadComparisonOutcomeRow({
       <span className="min-w-0 flex-1 truncate text-right text-[11px] tabular-nums text-[var(--muted)]">
         {loading ? "…" : formatted}
       </span>
-      <span className={MARKET_CARD_MULTI_PCT_CLASS}>{Math.round(chancePct)}%</span>
+      <span className={MARKET_CARD_MULTI_PCT_CLASS}>{formatChancePct(chancePct)}</span>
     </>
   );
 
