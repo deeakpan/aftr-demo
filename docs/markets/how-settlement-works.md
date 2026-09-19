@@ -18,14 +18,23 @@ Settlement is the moment a market picks a single winning outcome and enables red
 
 Price markets do not rely on human judgment for the outcome — the rule and the price at resolve time decide.
 
-## Nad market settlement
+## Token market settlement
 
 1. **Resolve after** time passes.
-2. The resolver fetches a **snapshot from the Nad.fun API** for each token in the market (market cap, USD price, or holder count — depending on the question type).
-3. The outcome that matches the rule (threshold met, highest mcap, first to target, etc.) wins.
+2. The resolver fetches **DEX pair stats** (USD price / market cap) for each pool link stored in market metadata.
+3. The outcome that matches the rule (threshold met, highest price/mcap, etc.) wins.
 4. Settlement finalizes on-chain automatically — no admin signatures.
 
-Token contract addresses and question rules are stored in market metadata. Traders can verify tokens on [nad.fun](https://nad.fun) before entering a position.
+Traders can open the Dexscreener / GeckoTerminal links on the market page before entering a position.
+
+## RWA (Prism) settlement
+
+1. **Resolve after** time passes.
+2. The resolver fetches a **Prism catalogue snapshot** for each asset slug (price, market cap, or APY — depending on the question).
+3. The outcome that matches the rule wins.
+4. Settlement finalizes on-chain automatically — no admin signatures.
+
+Asset pages on [Prism](https://prismassets.shop) are linked from the market for verification.
 
 ## Event market settlement
 
@@ -58,7 +67,7 @@ Parimutuel math means:
 
 ## Can settlement be wrong?
 
-- **Price markets:** Outcome follows the configured rule and price feed at resolve time. If the feed is delayed or the rule ambiguous, edge cases are possible — read the market text.
+- **Price / token / RWA markets:** Outcome follows the configured rule and data source at resolve time. If the feed or API is delayed or the rule ambiguous, edge cases are possible — read the market text.
 - **Event markets:** Admins aim to match resolution sources. Contested real-world events carry inherent risk. Trade size accordingly.
 
 ## What if nobody settles?
@@ -69,4 +78,6 @@ Settlement can be triggered by any participant once conditions are met. Markets 
 
 - [Claiming winnings](../positions/claiming-winnings.md)
 - [Event markets](../creating-markets/event-markets.md)
+- [Token markets](../creating-markets/token-markets.md)
+- [RWA (Prism) markets](../creating-markets/rwa-prism-markets.md)
 - [FAQ](../reference/faq.md)

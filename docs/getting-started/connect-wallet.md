@@ -1,39 +1,40 @@
-# Connect your wallet
+# Connect / sign in
 
-Connecting a wallet links Zedkr to the address that holds your funds and signs transactions.
+Zedkr uses **Para** for sign-in. Your account is a Para wallet (email, phone, or social) that holds funds and signs trades — not a MetaMask / WalletConnect “connect every visit” flow.
 
-## How to connect
+## How to sign in
 
-1. Click **Connect wallet** (or **Sign up to trade** on a market).
-2. Choose your wallet provider from the list.
-3. Approve the connection request in your wallet extension or mobile app.
-4. If prompted, switch to the correct network — Zedkr only works on its deployed network. The app will tell you if you are on the wrong network.
+1. Click **Sign in** in the header (or when a trade requires it).
+2. Complete Para login — email, phone, or supported social (Google, Apple, X, etc.).
+3. Para creates or unlocks an **embedded wallet** for this app.
 
-## What connecting does — and does not do
+You do **not** need MetaMask installed. Injected wallets are not used for session identity on Zedkr.
 
-**Connecting does:**
+## What signing in does — and does not do
 
-- Let the app read your wallet address and balances.
-- Allow you to sign trades, claims, and other actions.
+**Signing in does:**
 
-**Connecting does not:**
+- Give you a wallet address the app uses for balances, trades, and claims.
+- Let Para sign transactions for markets on the deployed network.
 
-- Give Zedkr custody of your funds. Tokens stay in your wallet until you approve a specific transaction.
-- Require sharing a password with Zedkr. Your wallet handles authentication.
+**Signing in does not:**
 
-## Signing in
+- Give Zedkr custody of your funds outside normal on-chain approvals/transactions.
+- Automatically prompt MetaMask or other browser extensions on page load.
 
-After connecting, you may be asked to **sign a message**. This proves you control the address without spending gas. It is a standard way Web3 apps confirm identity.
+## Display name
+
+After you are signed in, you may be prompted to choose a **display name** (nickname). That is separate from Para auth — see [Your account & display name](your-account.md).
 
 ## Wrong network
 
-If you see a message about the wrong network, open your wallet and switch to the network Zedkr expects. Trades and claims will fail until you are on the correct chain.
+Trades run on Zedkr’s deployed chain. If a transaction fails with a network error, confirm Para / the app is set to the network listed in [Deployments](../reference/deployments.md).
 
 ## Security tips
 
-- Only connect on the official Zedkr site.
-- Read every transaction in your wallet before approving — check the amount and action.
-- Never share your wallet’s secret recovery phrase with anyone, including support impersonators.
+- Only sign in on the official Zedkr site.
+- Review every transaction Para presents before approving.
+- Never share recovery secrets or seed phrases with anyone claiming to be support.
 
 ## Next
 

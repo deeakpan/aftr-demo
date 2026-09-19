@@ -1,6 +1,6 @@
 # Market types
 
-Zedkr supports three kinds of markets. The trading experience is the same; settlement differs.
+Zedkr supports four kinds of markets in Create. The trading experience is the same; settlement differs.
 
 ## Event markets
 
@@ -30,7 +30,7 @@ If you trade event markets, read the description and resolution sources before e
 Examples:
 
 - “Will ETH be above $4,000 at resolve?”
-- “Will gold close below $2,100 in the window?”
+- “Will BTC close below $100k in the window?”
 
 ### Configuration
 
@@ -44,33 +44,51 @@ The creator selects:
 
 Once **resolve after** passes, settlement reads the price feed and determines the winning outcome automatically. No manual admin vote is required for the outcome selection.
 
-## Nad markets (Nad.fun tokens)
+## Token markets
 
-**Nad markets** resolve from live stats on tokens launched on **[Nad.fun](https://nad.fun)** — Monad’s meme-token launchpad. You pick one or more Nad.fun token contract addresses; Zedkr pulls market cap, price, and holder data from the Nad.fun API at resolve time.
+**Token markets** resolve from live **DEX pair stats** for tokens you pick via a **Dexscreener** or **GeckoTerminal** pool link. Zedkr reads USD price and market cap at resolve time.
 
 Examples:
 
-- “Will `$TICKER` be above $500k market cap at resolve?”
+- “Will `$TICKER` be above $0.10 at resolve?”
 - “Which of these two tokens has the highest market cap on Friday?”
-
-### How it relates to Nad.fun
-
-- Tokens must exist on Nad.fun — use [nad.fun](https://nad.fun) (or [testnet.nad.fun](https://testnet.nad.fun) on Monad testnet) to browse tokens and copy contract addresses.
-- Market cards show live token stats (market cap, etc.) while trading is open.
-- Outcome labels use token tickers and icons from Nad.fun metadata.
 
 ### Question shapes
 
 | Style | What you’re betting on |
-|-------|----------------------|
-| **Threshold** | Yes/No on a single token — mcap, price, or holder count above a target |
-| **Comparison** | Two to four tokens head-to-head — e.g. highest market cap at resolve |
-
-Comparison markets can include a **Neither** outcome when a target mcap might not be hit by any token.
+|-------|------------------------|
+| **Threshold** | Yes/No on one token — price or mcap above a USD target |
+| **Comparison** | Two to four tokens — highest price or highest mcap at resolve |
 
 ### Settlement
 
-After **resolve after**, settlement reads a snapshot from the Nad.fun API (market cap, price, or holders depending on the question type) and picks the winning outcome automatically — similar to price markets, but using Nad.fun data instead of Chainlink.
+After **resolve after**, a resolver bot fetches pair stats and settles on-chain automatically — no admin signatures.
+
+See [Token markets](../creating-markets/token-markets.md).
+
+## RWA (Prism) markets
+
+**RWA (Prism)** markets resolve from verified tokenized assets on **[Prism](https://prismassets.shop)** — gold, treasuries, yield products, and similar catalogue assets.
+
+Examples:
+
+- “Will PAXG be above $X at resolve?”
+- “Which RWA has the highest APY by Friday?”
+
+### Question shapes
+
+| Style | What you’re betting on |
+|-------|------------------------|
+| **Linear** | Yes/No on one asset — price, mcap, or APY above a target |
+| **Vs** | Two to four assets — highest price, mcap, or yield at resolve |
+
+Market cards show a **Prism RWA** badge. Detail pages use Prism API stats and the trades/chance chart (no Dex embed).
+
+### Settlement
+
+After **resolve after**, settlement reads a Prism snapshot and settles on-chain automatically.
+
+See [RWA (Prism) markets](../creating-markets/rwa-prism-markets.md).
 
 ## Binary vs multi-outcome
 
@@ -83,10 +101,11 @@ Price markets can use multiple buckets (e.g. price ranges). Event markets can li
 
 ## Which type should I trade?
 
-| Prefer event markets when… | Prefer price markets when… | Prefer Nad markets when… |
-|----------------------------|----------------------------|--------------------------|
-| The question is about news, sports, politics | The question is purely about an asset price | The question is about Nad.fun token stats (mcap, price, holders) |
-| You trust published resolution sources | You want fast automated settlement | You follow tokens on [Nad.fun](https://nad.fun) |
-| You accept human review delay | You want rule-based outcomes | You want automated settlement from Nad.fun data |
+| Prefer… | When… |
+|---------|--------|
+| **Event** | News, sports, politics — you trust published resolution sources |
+| **Price** | Pure oracle price (ETH, BTC, etc.) — automated settlement |
+| **Token** | DEX token price or mcap from a pool link — automated |
+| **RWA (Prism)** | Prism catalogue assets (price, mcap, APY) — automated |
 
 [Market lifecycle →](market-lifecycle.md)

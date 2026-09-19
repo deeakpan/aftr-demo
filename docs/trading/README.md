@@ -18,7 +18,7 @@ You spend collateral → receive outcome shares for your chosen result → if th
 ## Before you trade, check
 
 1. **Which outcome** you believe will win.
-2. **Which collateral** the market uses (USDC or MON).
+2. **Which collateral** the market uses (USDC or another listed token).
 3. **Whether trading is still open** — markets close new positions at **stake end**, not at final settlement.
 4. **The estimated shares and fees** shown in the trade panel.
 
@@ -26,7 +26,7 @@ You spend collateral → receive outcome shares for your chosen result → if th
 
 - **Probability** — shown as a percentage per outcome; reflects how much collateral is on each side of the pool.
 - **Shares** — your position size; more shares mean a larger payout if you win (relative to the pool).
-- **Fees** — each market trade charges 1.5% of the amount you put in. See [Fees & slippage](fees-and-slippage.md).
+- **Fees** — each market trade charges **1%** of the amount you put in. See [Fees & slippage](fees-and-slippage.md).
 
 ## Guides in this section
 

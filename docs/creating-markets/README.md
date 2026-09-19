@@ -6,32 +6,33 @@ Anyone can launch a market on Zedkr. Creators define the question, outcomes, sch
 
 - Surface questions your community cares about
 - Bootstrap liquidity around an event or price level
-- Earn **0.3%** of every pool trade on your market
+- Earn **0.25%** of every pool trade on your market (one quarter of the **1%** trade fee)
 
 ## Creation flow (overview)
 
 1. **Details** — title, description, image, category, market type  
    (Event markets: optional **Import from Polymarket** to prefill from a Polymarket URL)
-2. **Outcomes** — Yes/No, custom binary labels, or multiple options
+2. **Outcomes** — Yes/No, custom binary labels, multiple options, or type-specific asset pickers (Token / RWA)
 3. **Schedule** — stake end and resolve after (local time converted to UTC)
 4. **Seed liquidity** — optional but recommended initial collateral
-5. **Submit** — confirm in wallet; market goes live
+5. **Submit** — confirm with Para; market goes live
 
 ## Market type choice
 
 | Type | Choose when… |
 |------|----------------|
 | **Event** | Result comes from the real world (elections, sports, announcements) |
-| **Price** | Result comes from an asset price at resolve time |
-| **Nad** | Result comes from [Nad.fun](https://nad.fun) token stats (mcap, price, holders, head-to-head) |
+| **Price** | Result comes from an oracle asset price at resolve time |
+| **Token market** | Result comes from DEX pool stats (Dexscreener / GeckoTerminal links) |
+| **RWA (Prism)** | Result comes from [Prism](https://prismassets.shop) catalogue assets (price, mcap, APY) |
 
-See [Event markets](event-markets.md), [Price markets](price-markets.md), and [Nad markets](nad-markets.md).
+See [Event markets](event-markets.md), [Price markets](price-markets.md), [Token markets](token-markets.md), and [RWA (Prism) markets](rwa-prism-markets.md).
 
 ## Permissions
 
 Market creation is **permissionless** — no allowlist application. You need:
 
-- Connected wallet on the correct network
+- Signed in with **Para** on the correct network
 - Enough collateral for seed liquidity (if seeding)
 - Gas for the creation transaction
 
@@ -42,6 +43,7 @@ The **minimum seed** (and creation gas) is intentional: it makes spamming duplic
 - Write a **clear, unambiguous** question
 - Set realistic **stake end** and **resolve after** times
 - For event markets, provide **valid resolution source URLs**
+- For token / RWA markets, pick the correct pools or Prism assets
 - Seed enough liquidity for reasonable opening odds
 
 Poorly written markets are harder to settle and attract fewer traders.
@@ -79,11 +81,12 @@ Confirm you are on the correct chain before creating. See [Deployments](../refer
 
 - [Event markets](event-markets.md)
 - [Price markets](price-markets.md)
-- [Nad markets](nad-markets.md)
+- [Token markets](token-markets.md)
+- [RWA (Prism) markets](rwa-prism-markets.md)
 - [Seed liquidity](seed-liquidity.md)
 
 ## Fees you earn
 
-Each pool trade on your market pays you **0.3%** of the traded amount automatically. You do not need to claim creator fees separately in most cases — they are sent to your wallet address on each trade.
+Each pool trade on your market pays you **0.25%** of the traded amount automatically (creator share of the **1%** fee). You do not need to claim creator fees separately in most cases — they are sent to your address on each trade.
 
 Full fee table: [Reference — Fees](../reference/fees.md).

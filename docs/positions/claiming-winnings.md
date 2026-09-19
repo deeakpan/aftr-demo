@@ -6,7 +6,7 @@ After a market **settles**, holders of the **winning outcome shares** can redeem
 
 1. The market must be **settled** — the winning outcome has been finalized.
 2. You must hold **winning outcome shares** with a balance greater than zero.
-3. Your wallet must be connected on the correct network.
+3. You must be signed in with Para on the correct network.
 
 You cannot claim before settlement, even if the real-world result seems obvious.
 
@@ -17,9 +17,9 @@ You cannot claim before settlement, even if the real-world result seems obvious.
 3. Review the estimated payout.
 4. Click **Claim Winnings**.
 5. Approve any token permission if prompted (outcome shares must be allowed to redeem).
-6. Confirm the claim transaction in your wallet.
+6. Confirm the claim transaction in Para.
 
-After confirmation, collateral arrives in your wallet and your winning share balance drops to zero.
+After confirmation, collateral arrives in your Para wallet and your winning share balance drops to zero.
 
 ## Payout amount
 
@@ -42,16 +42,16 @@ If you sold all your shares via limit orders before settlement, you have nothing
 
 Winning shares do not expire immediately after settlement, but you should claim when convenient. Collateral remains in the market contract until redeemed.
 
-## Price markets vs event markets
+## All market types
 
-Claiming works the same for both types. Only the path **to** settlement differs — see [How settlement works](../markets/how-settlement-works.md).
+Claiming works the same for Event, Price, Token, and RWA markets. Only the path **to** settlement differs — see [How settlement works](../markets/how-settlement-works.md).
 
 ## Troubleshooting
 
 | Issue | What to try |
 |-------|-------------|
 | No claim button | Confirm market is settled and you hold the winning outcome |
-| Transaction fails | Check network, gas, and wallet connection |
+| Transaction fails | Check network, gas, and that you are signed in |
 | Lower payout than expected | You may have bought late at a high implied price; fees were charged on entry |
 
 [Market lifecycle →](../markets/market-lifecycle.md)

@@ -2,18 +2,18 @@
 
 ## Getting started
 
-### Do I need an email account?
+### Do I need MetaMask?
 
-No. You connect a crypto wallet. Your wallet address is your account.
+No. Sign in with **Para** (email, phone, or social). Para provides the wallet used for balances and signing. See [Sign in (Para)](../getting-started/connect-wallet.md).
 
 ### Which tokens do I need?
 
-- **USDC or MON** to trade markets (match the market’s collateral)
-- A small amount of **native gas token** for transaction fees
+- **USDC** (or the market’s listed collateral, e.g. USDG) to trade
+- A small amount of **native gas** (ETH on Unichain Sepolia) for transaction fees
 
-### Why is the app asking me to switch networks?
+### Why is a transaction failing with a network error?
 
-Zedkr only runs on its deployed network. Switch in your wallet when prompted.
+Zedkr only runs on its deployed network (currently **Unichain Sepolia**, chain ID `1301`). Confirm Para / the app is on that network. See [Deployments](deployments.md).
 
 ---
 
@@ -25,7 +25,7 @@ Yes, via **limit sell orders** on the order book. You cannot sell back into the 
 
 ### Why did my trade fail?
 
-Common reasons: past **stake end**, insufficient balance, slippage too tight, wrong network, or not approving USDC first.
+Common reasons: past **stake end**, insufficient balance, slippage too tight, wrong network, or not approving the collateral token first.
 
 ### Does 70% probability mean I will win 70% of my money back?
 
@@ -53,15 +53,22 @@ No. Losing shares are worthless after settlement.
 
 ### I won but do not see a claim button.
 
-Confirm settlement finished, you hold the winning outcome (not a losing one), and your wallet is connected. Refresh after a minute if settlement just occurred.
+Confirm settlement finished, you hold the winning outcome (not a losing one), and you are signed in. Refresh after a minute if settlement just occurred.
 
 ---
 
 ## Markets & settlement
 
-### What is the difference between event, price, and Nad markets?
+### What is the difference between Event, Price, Token, and RWA markets?
 
-**Event** markets use real-world results verified via resolution sources and admin signatures. **Price** markets use an official asset price at resolve time automatically. **Nad** markets use [Nad.fun](https://nad.fun) token stats (market cap, price, or holders) at resolve — also automatic. See [Nad markets](../creating-markets/nad-markets.md).
+| Type | Settles from |
+|------|----------------|
+| **Event** | Real-world results via resolution sources + admin signatures |
+| **Price** | Oracle asset price at resolve (automated) |
+| **Token** | DEX pair stats from pool links (automated) |
+| **RWA (Prism)** | [Prism](https://prismassets.shop) catalogue stats (automated) |
+
+See [Market types](../markets/market-types.md).
 
 ### Who decides event market outcomes?
 
@@ -89,7 +96,7 @@ Strongly recommended for credible opening odds, but check the create flow for mi
 
 ### How do I earn as a creator?
 
-You receive **0.3%** of every pool trade on your market automatically.
+You receive **0.25%** of every pool trade on your market automatically (creator share of the **1%** fee).
 
 ### What kinds of events should I create?
 
@@ -105,7 +112,7 @@ Yes. Reach out on Telegram — [@zedkrcommunity](https://t.me/zedkrcommunity) �
 
 ### Where are the contract addresses?
 
-See [Deployments](deployments.md) for Monad Testnet and Monad Mainnet chain IDs and contract addresses. Mainnet Zedkr deployments are **TBA**.
+See [Deployments](deployments.md) for Unichain Sepolia chain ID and contract addresses. Production deployments are announced separately.
 
 ---
 
@@ -113,7 +120,7 @@ See [Deployments](deployments.md) for Monad Testnet and Monad Mainnet chain IDs 
 
 ### Does Zedkr hold my funds?
 
-No. Funds stay in your wallet until you approve a transaction. Smart contracts hold pool collateral according to market rules.
+No. Funds stay in your Para wallet until you approve a transaction. Smart contracts hold pool collateral according to market rules.
 
 ### Is on-chain activity private?
 

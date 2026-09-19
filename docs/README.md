@@ -15,7 +15,7 @@ When you trade, you receive **outcome shares** tied to a specific result. If tha
 
 ## How to read this guide
 
-Start with [Getting started](getting-started/README.md) if you are new. Jump to [Trading](trading/README.md) if you already have a wallet connected and want to place your first trade.
+Start with [Getting started](getting-started/README.md) if you are new. Jump to [Trading](trading/README.md) if you already signed in with Para and want to place your first trade.
 
 The [Reference](reference/README.md) section collects definitions, fee tables, timelines, and common questions in one place.
 
@@ -23,7 +23,7 @@ The [Reference](reference/README.md) section collects definitions, fee tables, t
 
 | I want to… | Go to |
 |------------|--------|
-| Connect and set up | [Getting started](getting-started/README.md) |
+| Connect and set up | [Getting started](getting-started/README.md) / [Sign in (Para)](getting-started/connect-wallet.md) |
 | Buy or sell a position | [Placing a trade](trading/placing-a-trade.md) |
 | See what I own | [Tracking positions](positions/tracking-positions.md) |
 | Claim after a market ends | [Claiming winnings](positions/claiming-winnings.md) |

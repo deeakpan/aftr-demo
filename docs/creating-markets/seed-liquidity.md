@@ -17,13 +17,13 @@ Permissionless creation stays open to everyone; seed requirements are the main e
 ## How it works
 
 1. After filling market details, you proceed to the **seed** step.
-2. Enter an amount in the market’s collateral (USDC or MON).
+2. Enter an amount in the market’s collateral (usually USDC).
 3. The creation flow splits seed across outcomes according to protocol rules (including virtual reserve and outcome count).
 4. You receive **outcome shares** for your seeded sides — you are the first trader.
 
 ## Minimum seed
 
-The app enforces a **minimum seed amount** (higher for MON-denominated markets on test deployments). Below the minimum, creation is blocked.
+The app enforces a **minimum seed amount**. Below the minimum, creation is blocked.
 
 ## Choosing seed size
 
@@ -37,13 +37,13 @@ There is no single right answer — match your conviction and audience size.
 
 ## What you receive
 
-Seed collateral mints shares like any trade, including the **1.5% trade fee** on the seeded amount. You become a position holder on the outcome(s) your seed allocation favors.
+Seed collateral mints shares like any trade, including the **1% trade fee** on the seeded amount. You become a position holder on the outcome(s) your seed allocation favors.
 
 If that outcome wins, you redeem like any other winner. If it loses, seeded collateral is part of the pool losers forfeit.
 
 ## Share recipient
 
-By default shares go to your connected wallet. Advanced flows may designate another recipient — only change this if you intend to.
+By default shares go to your Para wallet. Advanced flows may designate another recipient — only change this if you intend to.
 
 ## One-time bootstrap
 

@@ -2,7 +2,7 @@
 
 ## Collateral
 
-The token used in a market — **USDC** or **MON**. All trades and payouts in that market use this token.
+The token used in a market — typically **USDC** (or another supported token such as **USDG**). All trades and payouts in that market use this token.
 
 ## Outcome
 
@@ -56,9 +56,13 @@ Market settled by verifying a real-world result against **resolution sources** w
 
 Market settled automatically by comparing an official asset price to a configured rule at resolve time.
 
-## Nad market
+## Token market
 
-Market on [Nad.fun](https://nad.fun) tokens — settled automatically from Nad.fun API data (market cap, price, or holders) at resolve time. See [Nad markets](../creating-markets/nad-markets.md).
+Market on DEX tokens via Dexscreener / GeckoTerminal pool links — settled automatically from pair stats (price or market cap) at resolve time. See [Token markets](../creating-markets/token-markets.md).
+
+## RWA (Prism) market
+
+Market on [Prism](https://prismassets.shop) catalogue assets — settled automatically from Prism data (price, market cap, or APY) at resolve time. See [RWA (Prism) markets](../creating-markets/rwa-prism-markets.md).
 
 ## Resolution sources
 
@@ -82,15 +86,15 @@ Tolerance for pool price movement between quote and execution. Protects against 
 
 ## Creator fee
 
-0.3% of each pool trade paid to the market creator.
+0.25% of each pool trade paid to the market creator (one quarter of the **1%** trade fee).
 
 ## Protocol fee
 
-1.2% of each pool trade paid to the protocol.
+0.75% of each pool trade split across platform, distribution, and treasury shares.
 
-## TVL (pool size)
+## Vol
 
-Total value of collateral locked in a market’s pool.
+Trading volume shown on market cards. (Pool size / TVL is not shown on cards.)
 
 ## Binary market
 
@@ -104,9 +108,9 @@ Market with three or more named outcomes.
 
 Network fee paid to process any transaction. Separate from Zedkr trading fees.
 
-## Wallet
+## Para / wallet
 
-Your crypto account (address) used to connect, trade, and claim on Zedkr.
+Your account is a **Para** embedded wallet (email, phone, or social sign-in). The address is used to trade and claim on Zedkr — MetaMask is not required for session identity.
 
 ## Display name
 

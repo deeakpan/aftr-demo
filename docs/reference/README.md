@@ -14,10 +14,13 @@ Quick lookup for terms, numbers, and common questions. Use this section when you
 
 | Item | Value |
 |------|-------|
-| Pool trade fee (total) | 1.5% |
-| Creator share | 0.3% |
-| Protocol share | 1.2% |
-| Collateral types | USDC, MON |
+| Pool trade fee (total) | 1.0% |
+| Creator share | 0.25% |
+| Other fee shares | 0.75% (platform / distribution / treasury) |
+| Create types | Event, Price, Token, RWA (Prism) |
+| Sign-in | Para |
+| Current network | Unichain Sepolia (`1301`) |
+| Collateral (typical) | USDC, USDG |
 
 ## Document map
 

@@ -15,7 +15,7 @@ The probability shown beside each outcome updates as other traders add collatera
 
 ## Step 3 — Enter an amount
 
-Type how much collateral you want to spend (in USDC or MON, matching the market). You can use quick-add buttons or **Max** to fill your available wallet balance.
+Type how much collateral you want to spend (matching the market — usually USDC). You can use quick-add buttons or **Max** to fill your available wallet balance.
 
 The panel estimates:
 
@@ -29,11 +29,11 @@ The panel estimates:
 
 ## Step 5 — Approve (if needed)
 
-For USDC markets, your first trade may require a separate **Approve** transaction. Confirm it in your wallet, then submit the trade.
+For ERC-20 collaterals (e.g. USDC), your first trade may require a separate **Approve** transaction. Confirm it in Para, then submit the trade.
 
 ## Step 6 — Confirm the trade
 
-Click **Buy [Outcome]** and approve the transaction in your wallet. Wait for confirmation — the app will show success or an error message.
+Click **Buy [Outcome]** and approve the transaction in Para. Wait for confirmation — the app will show success or an error message.
 
 ## What you receive
 
@@ -50,7 +50,7 @@ You cannot place a new pool trade if:
 
 - The market is not **Open**
 - Current time is past **stake end**
-- Your wallet is disconnected or on the wrong network
+- You are signed out or on the wrong network
 - Your balance is insufficient (including gas)
 
 Trading closes at **stake end**. Settlement happens later at **resolve after** — see [Market lifecycle](../markets/market-lifecycle.md).

@@ -21,7 +21,7 @@ Each card shows at a glance:
 - **Outcomes** — Yes/No for binary markets, or a list of options for multi-outcome markets
 - **Probability** — implied chance for each outcome based on current pool weights
 - **Timing** — when trading closes and when the market can settle
-- **Volume / TVL** — how much collateral is in the pool
+- **Vol** — trading volume for the market (cards do not show TVL)
 
 Tap or click a card to open the full **market detail** page.
 
@@ -42,6 +42,6 @@ Multi-outcome markets work the same way conceptually — you pick one option and
 
 ## Choosing a market
 
-Read the full description on the detail page. For **event markets**, check **resolution sources** — the public links where the official result is expected to be published. For **price markets**, check the asset, threshold, and direction (above/below/range).
+Read the full description on the detail page. For **event markets**, check **resolution sources**. For **price markets**, check the asset, threshold, and direction. For **token markets**, verify the Dexscreener / GeckoTerminal pool links. For **RWA (Prism)** markets, confirm the Prism assets and question type (price, mcap, or APY).
 
 [Placing a trade →](placing-a-trade.md)

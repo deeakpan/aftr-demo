@@ -8,7 +8,8 @@ Each market asks something answerable at a known time:
 
 - “Will candidate X win the election?”
 - “Will BTC be above $100k at noon UTC on Friday?”
-- “Which team wins the finals?”
+- “Which token has the highest market cap by resolve?”
+- “Will this Prism RWA’s APY stay above X%?”
 
 Creators write the title, description, outcomes, and timing. Traders decide which outcome they believe will win.
 
@@ -16,19 +17,19 @@ Creators write the title, description, outcomes, and timing. Traders decide whic
 
 All markets have:
 
-- **Collateral** — USDC or MON
+- **Collateral** — USDC or another supported token
 - **Outcomes** — two or more mutually exclusive results
 - **Stake end** — last moment new pool trades are accepted
 - **Resolve after** — earliest time settlement can occur
 - **Pool** — collateral backing outcome shares
 
-## Three market families
+## Four market families
 
-| | Event markets | Price markets | Nad markets |
-|---|---------------|---------------|-------------|
-| **Settles from** | Real-world / official event result | Asset price at resolve time | [Nad.fun](https://nad.fun) token stats (mcap, price, holders) |
-| **Creator provides** | Resolution sources (public URLs) | Asset, threshold, direction | Nad.fun token address(es), question template |
-| **Settlement** | Community admin review | Automated price check | Automated Nad.fun API snapshot |
+| | Event | Price | Token | RWA (Prism) |
+|---|-------|-------|-------|-------------|
+| **Settles from** | Real-world result | Oracle asset price | DEX pair stats | [Prism](https://prismassets.shop) catalogue |
+| **Creator provides** | Resolution source URLs | Asset, threshold, direction | Pool links + question | Prism assets + question |
+| **Settlement** | Admin review | Automated | Automated | Automated |
 
 Details: [Market types](market-types.md).
 

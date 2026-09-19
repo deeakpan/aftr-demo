@@ -5,7 +5,7 @@
 ## Getting started
 
 * [Overview](getting-started/README.md)
-* [Connect your wallet](getting-started/connect-wallet.md)
+* [Sign in (Para)](getting-started/connect-wallet.md)
 * [Your account & display name](getting-started/your-account.md)
 
 ## Trading
@@ -35,7 +35,8 @@
 * [Overview](creating-markets/README.md)
 * [Event markets](creating-markets/event-markets.md)
 * [Price markets](creating-markets/price-markets.md)
-* [Nad markets](creating-markets/nad-markets.md)
+* [Token markets](creating-markets/token-markets.md)
+* [RWA (Prism) markets](creating-markets/rwa-prism-markets.md)
 * [Seed liquidity](creating-markets/seed-liquidity.md)
 
 ## Reference

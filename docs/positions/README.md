@@ -1,6 +1,6 @@
 # Positions
 
-A **position** is your holding of outcome shares in a specific market. Positions are tied to your wallet — if you disconnect and reconnect with the same wallet, your shares are still there.
+A **position** is your holding of outcome shares in a specific market. Positions are tied to your Para wallet address — if you sign out and sign back in with the same account, your shares are still there.
 
 ## Where to view positions
 

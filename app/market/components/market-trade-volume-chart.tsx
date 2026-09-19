@@ -402,15 +402,23 @@ export function MarketTradeVolumeChart({
         ))}
       </div>
 
-      <div className="relative w-full" style={{ height: chartAreaHeight }}>
+      <div
+        className="relative w-full"
+        style={{
+          // Keep SVG aspect = viewBox so labels aren't stretched (preserveAspectRatio none → blur).
+          minHeight: Math.min(chartAreaHeight, 220),
+          aspectRatio: `${VB.w} / ${VB.h}`,
+          maxHeight: chartAreaHeight,
+        }}
+      >
         {loading && (
-          <div className="flex h-full items-center justify-center text-sm text-[var(--muted)]">
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-[var(--muted)]">
             Loading…
           </div>
         )}
 
         {!loading && trades.length === 0 && (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-sm text-[var(--muted)]">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center text-sm text-[var(--muted)]">
             <p>{unavailable ? "Could not load market history." : "No trade history yet."}</p>
             {fetchError ? <p className="max-w-md text-xs opacity-70">{fetchError}</p> : null}
             <button
@@ -427,11 +435,11 @@ export function MarketTradeVolumeChart({
           <svg
             viewBox={`0 0 ${VB.w} ${VB.h}`}
             className="h-full w-full"
-            preserveAspectRatio="none"
+            preserveAspectRatio="xMidYMid meet"
             onMouseLeave={() => setHoverMs(null)}
             onMouseMove={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
-              const frac = (e.clientX - rect.left) / rect.width;
+              const frac = (e.clientX - rect.left) / Math.max(rect.width, 1);
               const ms = chart.minT + chart.span * frac;
               setHoverMs(ms);
             }}
@@ -448,12 +456,14 @@ export function MarketTradeVolumeChart({
                     stroke="var(--foreground)"
                     strokeOpacity={0.06}
                     strokeWidth={1}
+                    vectorEffect="non-scaling-stroke"
                   />
                   <text
                     x={PAD.left + innerW + 8}
                     y={y + 4}
-                    className="fill-[var(--muted)] text-[11px] tabular-nums"
-                    style={{ fontSize: 11 }}
+                    fill="currentColor"
+                    className="text-[var(--muted)]"
+                    style={{ fontSize: 13, fontVariantNumeric: "tabular-nums" }}
                   >
                     {pct}%
                   </text>
@@ -467,10 +477,11 @@ export function MarketTradeVolumeChart({
                 <text
                   key={ms}
                   x={x}
-                  y={VB.h - 10}
+                  y={VB.h - 8}
                   textAnchor="middle"
-                  className="fill-[var(--muted)]"
-                  style={{ fontSize: 11 }}
+                  fill="currentColor"
+                  className="text-[var(--muted)]"
+                  style={{ fontSize: 13 }}
                 >
                   {formatAxisDate(ms)}
                 </text>
@@ -512,6 +523,7 @@ export function MarketTradeVolumeChart({
                 stroke="var(--foreground)"
                 strokeOpacity={0.12}
                 strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
               />
             )}
           </svg>

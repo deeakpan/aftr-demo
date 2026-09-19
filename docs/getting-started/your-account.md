@@ -1,6 +1,6 @@
 # Your account & display name
 
-On Zedkr, your **wallet address** is your account. The app also lets you set a **display name** so others see a readable label instead of a long hex string.
+On Zedkr, your **Para wallet address** is your account. The app also lets you set a **display name** so others see a readable label instead of a long hex string.
 
 ## Display name
 
@@ -12,16 +12,14 @@ You can think of it as a nickname for the same underlying wallet.
 
 The app shows:
 
-- **Wallet balance** — collateral available in your connected wallet (USDC, MON, or MONDO depending on context).
+- **Wallet balance** — collateral available in your Para wallet (USDC, USDG, or other tokens depending on the market).
 - **Outcome share balance** — positions you hold in specific markets (visible on market pages and the Trades page).
 
 These are separate. Trading moves collateral into outcome shares; claiming moves collateral back after settlement.
 
 ## Approvals
 
-For USDC-denominated markets, your wallet may ask you to **approve** Zedkr to spend a token before the first trade. This is a one-time permission per token (or per spending limit). Native MON markets skip this step for the collateral itself.
-
-Approvals are normal in decentralized apps. You are always shown the approval transaction in your wallet before it goes through.
+For ERC-20 collaterals (e.g. USDC), your first trade may require an **Approve** step so Zedkr can spend the token. This is a one-time permission per token (or per spending limit). Confirm it in the Para signing UI before it goes through.
 
 ## Privacy
 

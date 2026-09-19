@@ -67,14 +67,20 @@ function TokenStatsBody({
   volumeLabel,
   loading,
   externalLink,
+  prism,
 }: {
   token: NadTokenRef;
   stats: NadLiveStats | null;
   volumeLabel: string;
   loading: boolean;
   externalLink: string;
+  /** Prism RWA — no holders/volume/phase (those stay blank dashes). */
+  prism?: boolean;
 }) {
   const phase = token.isGraduated || stats?.isOnDex ? "DEX" : "Bonding curve";
+  const showVolume =
+    !prism && volumeLabel !== "—" && volumeLabel.trim() !== "";
+  const showHolders = !prism && (loading || stats?.holderCount != null);
 
   return (
     <>
@@ -109,10 +115,12 @@ function TokenStatsBody({
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
-        <div className="rounded-lg bg-[var(--surface)] px-2.5 py-2">
-          <p className="text-[var(--muted)]">Phase</p>
-          <p className="font-semibold text-[var(--foreground)]">{loading ? "…" : phase}</p>
-        </div>
+        {!prism ? (
+          <div className="rounded-lg bg-[var(--surface)] px-2.5 py-2">
+            <p className="text-[var(--muted)]">Phase</p>
+            <p className="font-semibold text-[var(--foreground)]">{loading ? "…" : phase}</p>
+          </div>
+        ) : null}
         <div className="rounded-lg bg-[var(--surface)] px-2.5 py-2">
           <p className="text-[var(--muted)]">Price (USD)</p>
           <p className="font-semibold tabular-nums text-[var(--foreground)]">
@@ -125,18 +133,20 @@ function TokenStatsBody({
             {loading ? "…" : formatNadMcapUsd(stats?.marketCapUsd ?? null)}
           </p>
         </div>
-        <div className="rounded-lg bg-[var(--surface)] px-2.5 py-2">
-          <p className="text-[var(--muted)]">Holders</p>
-          <p className="font-semibold tabular-nums text-[var(--foreground)]">
-            {loading ? "…" : formatNadHolderCount(stats?.holderCount ?? null)}
-          </p>
-        </div>
-        <div className="col-span-2 rounded-lg bg-[var(--surface)] px-2.5 py-2">
-          <p className="text-[var(--muted)]">Volume</p>
-          <p className="font-semibold tabular-nums text-[var(--foreground)]">
-            {loading ? "…" : volumeLabel}
-          </p>
-        </div>
+        {showHolders ? (
+          <div className="rounded-lg bg-[var(--surface)] px-2.5 py-2">
+            <p className="text-[var(--muted)]">Holders</p>
+            <p className="font-semibold tabular-nums text-[var(--foreground)]">
+              {loading ? "…" : formatNadHolderCount(stats?.holderCount ?? null)}
+            </p>
+          </div>
+        ) : null}
+        {showVolume ? (
+          <div className="col-span-2 rounded-lg bg-[var(--surface)] px-2.5 py-2">
+            <p className="text-[var(--muted)]">Volume</p>
+            <p className="font-semibold tabular-nums text-[var(--foreground)]">{volumeLabel}</p>
+          </div>
+        ) : null}
       </div>
     </>
   );
@@ -245,6 +255,7 @@ export function NadTokenPanel({
               volumeLabel={activeRow.volumeLabel}
               loading={loading}
               externalLink={externalLinkFor(activeRow.token)}
+              prism={prismMarket}
             />
           </div>
         </>
@@ -255,6 +266,7 @@ export function NadTokenPanel({
           volumeLabel={rows[0]?.volumeLabel ?? "—"}
           loading={loading}
           externalLink={externalLinkFor(rows[0]?.token ?? tokens[0]!)}
+          prism={prismMarket}
         />
       )}
     </div>

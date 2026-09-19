@@ -6,9 +6,9 @@ All rates below apply to **pool trades** (market buys) unless noted.
 
 | Recipient | Rate | Notes |
 |-----------|------|-------|
-| **Total** | **1.5%** | Deducted before shares are calculated |
-| Market creator | 0.3% | Paid to creator wallet on each trade |
-| Protocol | 1.2% | Routed through fee vault |
+| **Total** | **1.0%** | Deducted before shares are calculated |
+| Market creator | 0.25% | Paid to creator address on each trade |
+| Platform / distribution / treasury | 0.75% | Equal 0.25% shares (any unset recipient pays the creator) |
 
 ### Example
 
@@ -16,10 +16,10 @@ You market-buy with **1,000 USDC**:
 
 | | Amount |
 |---|--------|
-| Total fee | 15 USDC |
-| Creator receives | 3 USDC |
-| Protocol receives | 12 USDC |
-| Enters pool for shares | 985 USDC |
+| Total fee | 10 USDC |
+| Creator receives | 2.5 USDC |
+| Other fee shares | 7.5 USDC |
+| Enters pool for shares | 990 USDC |
 
 The trade panel’s share estimate uses the post-fee amount.
 
@@ -27,16 +27,16 @@ The trade panel’s share estimate uses the post-fee amount.
 
 | Action | Trading fee? |
 |--------|--------------|
-| Claiming winnings after settlement | No additional 1.5% |
+| Claiming winnings after settlement | No additional 1% |
 | Wallet gas | Network cost only — paid to validators, not Zedkr |
 
 ## Limit orders
 
-Limit order matching may involve escrow and fills at agreed prices. The **1.5% pool fee** applies specifically when collateral enters the FPMM pool via market buy. Limit order economics follow the order book rules shown in the app.
+Limit order matching may involve escrow and fills at agreed prices. The **1% pool fee** applies specifically when collateral enters the FPMM pool via market buy. Limit order economics follow the order book rules shown in the app.
 
 ## Creator earnings
 
-Creators do not need a separate claim step for the 0.3% — it is sent on each qualifying trade automatically to the creator address set at market deployment.
+Creators do not need a separate claim step for the 0.25% — it is sent on each qualifying trade automatically to the creator address set at market deployment.
 
 ## Fee changes
 

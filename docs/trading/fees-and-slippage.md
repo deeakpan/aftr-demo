@@ -2,25 +2,25 @@
 
 ## Trading fee
 
-Every **market trade** (pool buy) charges **1.5%** of the amount you deposit.
+Every **market trade** (pool buy) charges **1.0%** of the amount you deposit.
 
-That fee is split:
+That fee is split equally four ways:
 
 | Recipient | Share of trade amount |
 |-----------|----------------------|
-| Market creator | 0.3% |
-| Protocol | 1.2% |
+| Market creator | 0.25% |
+| Platform / distribution / treasury | 0.75% total (0.25% each) |
 
 The fee is deducted **before** shares are calculated. The share estimate in the trade panel already accounts for this.
 
-**Example:** You deposit 100 USDC. After the 1.5% fee, 98.5 USDC goes into the pool for share calculation. You pay 1.5 USDC total in fees.
+**Example:** You deposit 100 USDC. After the 1% fee, 99 USDC goes into the pool for share calculation. You pay 1 USDC total in fees.
 
-Limit orders may involve separate matching economics; the 1.5% pool fee applies to pool deposits specifically.
+Limit orders may involve separate matching economics; the 1% pool fee applies to pool deposits specifically.
 
 ## Why fees exist
 
 - **Creator fee** rewards people who launch markets and seed liquidity.
-- **Protocol fee** supports the platform.
+- **Other shares** support the platform and related protocol recipients.
 
 Full breakdown: [Reference — Fees](../reference/fees.md).
 
@@ -42,11 +42,11 @@ Use the slippage control in the trade panel to cycle through presets (e.g. tight
 
 ## Gas
 
-Network **gas** is paid to validators for processing your transaction. Gas is separate from Zedkr fees and varies with network congestion. You pay gas in the network’s native token.
+Network **gas** is paid to validators for processing your transaction. Gas is separate from Zedkr fees and varies with network congestion. You pay gas in the network’s native token (ETH on Unichain Sepolia).
 
 ## No hidden pool fee at settlement
 
-The 1.5% is charged on **entry** (pool deposit). Settlement redemption does not apply an additional trading fee to winners — you redeem shares for collateral according to the market’s settlement rules.
+The 1% is charged on **entry** (pool deposit). Settlement redemption does not apply an additional trading fee to winners — you redeem shares for collateral according to the market’s settlement rules.
 
 ## Next
 

@@ -37,6 +37,6 @@ For settled markets, the app may show how much collateral you put in over the li
 
 - Use Trades as your checklist before **resolve after** times — know what you still hold.
 - Open the market detail page for order books and charts on any position.
-- Disconnecting your wallet does not close positions; shares remain on-chain.
+- Signing out does not close positions; shares remain on-chain.
 
 [Claiming winnings →](claiming-winnings.md)
