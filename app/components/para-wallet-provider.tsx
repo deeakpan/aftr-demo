@@ -25,10 +25,13 @@ const paraClientConfig = {
 const paraAppConfig = { appName: "Zedkr Market" };
 
 /**
- * Solana/Cosmos stubs only. Do not pass evmConnector — Para's EVM wrapper
- * rebuilds a wagmi `config` object every render and setStates forever.
+ * No external wallets (MetaMask / WC / Phantom). Empty `wallets` overrides
+ * Para's default of ALL external types, which probed injected providers on load.
+ * Cosmos/Solana stubs kept so ParaProviderMin does not require evmConnector
+ * (evmConnector rebuilds wagmi config every render → setState loop).
  */
 const paraExternalWalletConfig = {
+  wallets: [] as [],
   cosmosConnector: {
     config: {
       chains: [
@@ -85,7 +88,7 @@ const paraModalConfig = {
   isGuestModeEnabled: false,
   twoFactorAuthEnabled: false,
   authLayout: ["AUTH:FULL"] as Array<"AUTH:FULL">,
-  hideWallets: false,
+  hideWallets: true,
   disableAddFundsPrompt: false,
   logo: "/para-logo.png",
   theme: {

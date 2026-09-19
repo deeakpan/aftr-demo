@@ -26,7 +26,18 @@ import {
   TokenMarketCreateSection,
   type TokenCreateDraft,
 } from "@/app/create/components/token-market-create-section";
+import {
+  PrismMarketCreateSection,
+  type PrismCreateDraft,
+} from "@/app/create/components/prism-market-create-section";
 import { tokenMarketForCardPreview, tokenStatsForCardPreview } from "@/lib/token-market/adapt-display";
+import { prismMarketForCardPreview, prismStatsForCardPreview } from "@/lib/prism/adapt-display";
+import { PRISM_BRAND_LOGO_PATH } from "@/lib/prism/config";
+import {
+  isPrismQuestionType,
+  validatePrismResolveAfter,
+} from "@/lib/prism/question-types";
+import type { PrismQuestionType } from "@/lib/prism/types";
 import { PolymarketImportModal } from "@/app/create/components/polymarket-import-modal";
 import { deploymentPublicClient } from "@/lib/deployment-public-client";
 import deployment, {
@@ -553,10 +564,10 @@ function DateTimePicker({
   );
 }
 
-type CreateMarketKind = "event" | "price" | "token";
+type CreateMarketKind = "event" | "price" | "token" | "rwa";
 
 function parseCreateMarketKind(raw: string | null): CreateMarketKind {
-  if (raw === "price" || raw === "event" || raw === "token" || raw === "pons") {
+  if (raw === "price" || raw === "event" || raw === "token" || raw === "pons" || raw === "rwa") {
     return raw === "pons" ? "token" : raw;
   }
   return "event";
@@ -567,12 +578,13 @@ export function CreateClient() {
   const { address, chainId, writeContract } = useSessionWallet();
   const [marketKind, setMarketKindState] = useState<CreateMarketKind>("event");
   const [tokenQuestionType, setTokenQuestionType] = useState<TokenQuestionType>("mcap_usd_above");
+  const [prismQuestionType, setPrismQuestionType] = useState<PrismQuestionType>("price_usd_above");
 
-  const writeCreateQuery = (kind: CreateMarketKind, q: TokenQuestionType) => {
+  const writeCreateQuery = (kind: CreateMarketKind, q: TokenQuestionType | PrismQuestionType) => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
     url.searchParams.set("type", kind);
-    if (kind === "token") url.searchParams.set("q", q);
+    if (kind === "token" || kind === "rwa") url.searchParams.set("q", q);
     else url.searchParams.delete("q");
     const next = `${url.pathname}${url.search}`;
     const current = `${window.location.pathname}${window.location.search}`;
@@ -584,7 +596,12 @@ export function CreateClient() {
       const params = new URLSearchParams(window.location.search);
       setMarketKindState(parseCreateMarketKind(params.get("type")));
       const q = params.get("q");
-      setTokenQuestionType(isTokenQuestionType(q) ? q : "mcap_usd_above");
+      const kind = parseCreateMarketKind(params.get("type"));
+      if (kind === "rwa") {
+        setPrismQuestionType(isPrismQuestionType(q) ? q : "price_usd_above");
+      } else {
+        setTokenQuestionType(isTokenQuestionType(q) ? q : "mcap_usd_above");
+      }
     };
     applyFromLocation();
     window.addEventListener("popstate", applyFromLocation);
@@ -593,7 +610,7 @@ export function CreateClient() {
 
   const setMarketKind = (id: CreateMarketKind) => {
     setMarketKindState(id);
-    writeCreateQuery(id, tokenQuestionType);
+    writeCreateQuery(id, id === "rwa" ? prismQuestionType : tokenQuestionType);
   };
   const [eventMode, setEventMode] = useState<"binary" | "multiple">("binary");
   const [title, setTitle] = useState("");
@@ -654,6 +671,7 @@ export function CreateClient() {
   const [createTxHash, setCreateTxHash] = useState<`0x${string}` | "">("");
   const [tokenDraft, setTokenDraft] = useState<TokenCreateDraft | null>(null);
   const [tokenDuplicateBlocked, setTokenDuplicateBlocked] = useState(false);
+  const [prismDraft, setPrismDraft] = useState<PrismCreateDraft | null>(null);
   const [polyImportOpen, setPolyImportOpen] = useState(false);
 
   useEffect(() => {
@@ -1026,9 +1044,10 @@ export function CreateClient() {
 
   const seedOutcomeCount = useMemo(() => {
     if (marketKind === "token") return (tokenDraft?.outcomes ?? []).filter((o) => o.trim()).length;
+    if (marketKind === "rwa") return (prismDraft?.outcomes ?? []).filter((o) => o.trim()).length;
     if (marketKind === "event") return outcomes.map((o) => o.trim()).filter(Boolean).length;
     return 2;
-  }, [marketKind, tokenDraft?.outcomes, outcomes]);
+  }, [marketKind, tokenDraft?.outcomes, prismDraft?.outcomes, outcomes]);
 
   const seedQuickAmounts = useMemo(
     () => buildSeedQuickAmounts(collateral.decimals, seedOutcomeCount, minSeedAmount),
@@ -1063,10 +1082,12 @@ export function CreateClient() {
     () =>
       marketKind === "token"
         ? (tokenDraft?.title ?? "")
-        : marketKind === "price"
-          ? generatedPricePrompt
-          : title,
-    [generatedPricePrompt, marketKind, title, tokenDraft?.title],
+        : marketKind === "rwa"
+          ? (prismDraft?.title ?? "")
+          : marketKind === "price"
+            ? generatedPricePrompt
+            : title,
+    [generatedPricePrompt, marketKind, title, tokenDraft?.title, prismDraft?.title],
   );
 
   // Auto-generate slug from title/prompt unless user has manually edited it
@@ -1075,11 +1096,15 @@ export function CreateClient() {
     const source =
       marketKind === "token"
         ? (tokenDraft?.title ?? "")
-        : marketKind === "price"
-          ? generatedPricePrompt
-          : title;
-    setSlug(slugify(source));
-  }, [title, generatedPricePrompt, marketKind, slugManual, tokenDraft?.title]);
+        : marketKind === "rwa"
+          ? (prismDraft?.title ?? "")
+          : marketKind === "price"
+            ? generatedPricePrompt
+            : title;
+    const next = slugify(source);
+    if (!next) return;
+    setSlug((prev) => (prev === next ? prev : next));
+  }, [title, generatedPricePrompt, marketKind, slugManual, tokenDraft?.title, prismDraft?.title]);
 
   // Duplicate / reserved slug check
   useEffect(() => {
@@ -1171,10 +1196,12 @@ export function CreateClient() {
       return false;
     }
     const nOutcomes =
-      marketKind === "event" || marketKind === "token"
+      marketKind === "event" || marketKind === "token" || marketKind === "rwa"
         ? (marketKind === "token"
             ? (tokenDraft?.outcomes ?? [])
-            : outcomes.map((o) => o.trim()).filter(Boolean)
+            : marketKind === "rwa"
+              ? (prismDraft?.outcomes ?? [])
+              : outcomes.map((o) => o.trim()).filter(Boolean)
           ).length
         : 2;
     let seedUnits: bigint;
@@ -1213,10 +1240,12 @@ export function CreateClient() {
 
     const cleanedThreshold = threshold.replaceAll(",", "").trim();
     const cleanOutcomes =
-      marketKind === "event" || marketKind === "token"
+      marketKind === "event" || marketKind === "token" || marketKind === "rwa"
         ? marketKind === "token"
           ? (tokenDraft?.outcomes ?? [])
-          : outcomes.map((o) => o.trim()).filter(Boolean)
+          : marketKind === "rwa"
+            ? (prismDraft?.outcomes ?? [])
+            : outcomes.map((o) => o.trim()).filter(Boolean)
         : ["YES", "NO"];
     if (cleanOutcomes.length < 2) {
       setSubmitStatus("Add at least 2 outcomes.");
@@ -1438,14 +1467,18 @@ export function CreateClient() {
         createHash = await writeContract(
           fpmmMarketCreateParams("createEventMarket", eventArgs, address, collateral.isNative ?? false, seedUnits, eventGas),
         );
-      } else if (marketKind === "token") {
+      } else if (marketKind === "token" || marketKind === "rwa") {
         const tokenArgs = [fpmmBaseParams] as const;
 
         await publicClient.simulateContract(
           fpmmMarketCreateParams("createTokenMarket", tokenArgs, address, collateral.isNative ?? false, seedUnits),
         );
 
-        setSubmitStatus("Creating token market and seeding liquidity...");
+        setSubmitStatus(
+          marketKind === "rwa"
+            ? "Creating RWA market and seeding liquidity..."
+            : "Creating token market and seeding liquidity...",
+        );
         const tokenGas = await estimateCreateGas(
           "createTokenMarket",
           tokenArgs,
@@ -1586,29 +1619,50 @@ export function CreateClient() {
 
   const uploadMetadata = async (imageUriForMetadata?: string) => {
     const isToken = marketKind === "token";
+    const isRwa = marketKind === "rwa";
+    const isOperatorMarket = isToken || isRwa;
     const imageToUse = isToken
       ? tokenDraft?.coverImageUrl ?? ""
-      : imageUriForMetadata || imageUri;
-    if (!imageToUse && !isToken) {
+      : isRwa
+        ? prismDraft?.coverImageUrl ?? ""
+        : imageUriForMetadata || imageUri;
+    if (!imageToUse && !isOperatorMarket) {
       throw new Error("Upload a cover image first so metadata includes image IPFS URI.");
     }
-    const tokenTitle = isToken ? tokenDraft?.title ?? "" : effectiveTitle;
-    const tokenOutcomes = isToken ? (tokenDraft?.outcomes ?? ["Yes", "No"]) : outcomes;
+    const tokenTitle = isToken
+      ? tokenDraft?.title ?? ""
+      : isRwa
+        ? prismDraft?.title ?? ""
+        : effectiveTitle;
+    const tokenOutcomes = isToken
+      ? (tokenDraft?.outcomes ?? ["Yes", "No"])
+      : isRwa
+        ? (prismDraft?.outcomes ?? ["Yes", "No"])
+        : outcomes;
     const metadata = {
       title: tokenTitle,
       description: isToken
         ? (tokenDraft?.description ?? description)
-        : marketKind === "price"
-          ? generatedPriceDescription
-          : description,
-      marketKind: isToken ? "token" : marketKind,
-      eventMode: marketKind === "event" ? eventMode : isToken ? (tokenDraft?.tokenMarket.mode === "comparison" ? "multiple" : "binary") : null,
+        : isRwa
+          ? (prismDraft?.description ?? description)
+          : marketKind === "price"
+            ? generatedPriceDescription
+            : description,
+      marketKind: isOperatorMarket ? "token" : marketKind,
+      eventMode: marketKind === "event"
+        ? eventMode
+        : isToken
+          ? (tokenDraft?.tokenMarket.mode === "comparison" ? "multiple" : "binary")
+          : isRwa
+            ? (prismDraft?.prismMarket.mode === "comparison" ? "multiple" : "binary")
+            : null,
       question: marketKind === "price" ? generatedPricePrompt : tokenTitle,
-      categories: isToken ? ["Crypto"] : selectedCategories,
-      slug: slug || (isToken ? tokenDraft?.slug : undefined) || slugify(effectiveTitle),
+      categories: isToken ? ["Crypto"] : isRwa ? ["RWA", "Finance"] : selectedCategories,
+      slug: slug || (isToken ? tokenDraft?.slug : isRwa ? prismDraft?.slug : undefined) || slugify(effectiveTitle),
       outcomes: tokenOutcomes,
       image: imageToUse || null,
       tokenMarket: isToken ? tokenDraft?.tokenMarket : undefined,
+      prismMarket: isRwa ? prismDraft?.prismMarket : undefined,
       priceConfig:
         marketKind === "price"
           ? {
@@ -1622,12 +1676,14 @@ export function CreateClient() {
               generatedPrompt: generatedPricePrompt,
             }
           : null,
-      resolution: marketKind === "event" ? "community-3-of-10-admins" : isToken ? "token-operator" : null,
+      resolution: marketKind === "event" ? "community-3-of-10-admins" : isOperatorMarket ? "token-operator" : null,
       resolutionSources: isToken
         ? tokenDraft?.resolutionSources ?? []
-        : marketKind === "event"
-          ? sanitizeResolutionSourcesForMetadata(resolutionSources)
-          : [],
+        : isRwa
+          ? prismDraft?.resolutionSources ?? []
+          : marketKind === "event"
+            ? sanitizeResolutionSourcesForMetadata(resolutionSources)
+            : [],
     };
     const fd = new FormData();
     fd.append("kind", "json");
@@ -1641,21 +1697,25 @@ export function CreateClient() {
 
   const goToSeedStep = async () => {
     const isToken = marketKind === "token";
+    const isRwa = marketKind === "rwa";
+    const isOperatorMarket = isToken || isRwa;
     const errors: string[] = [];
     if (isToken) {
       if (!tokenDraft) errors.push("Load a Dexscreener or GeckoTerminal pool link and complete the form.");
       if (tokenDuplicateBlocked) errors.push("Duplicate market exists for this question and resolve time.");
+    } else if (isRwa) {
+      if (!prismDraft) errors.push("Pick Prism asset(s) and complete the RWA question form.");
     } else if (marketKind === "event" && !title.trim()) {
       errors.push("Title is required.");
     }
     if (!factoryDeployed) errors.push(undeployedStackMessage());
-    if (!isToken && marketKind !== "price" && !description.trim()) {
+    if (!isOperatorMarket && marketKind !== "price" && !description.trim()) {
       errors.push("Description is required.");
     }
-    if (!isToken && marketKind === "price" && !generatedPriceDescription.trim()) {
+    if (!isOperatorMarket && marketKind === "price" && !generatedPriceDescription.trim()) {
       errors.push("Set asset, condition, threshold, and resolve time so the description can be generated.");
     }
-    if (!isToken && marketKind === "event") {
+    if (!isOperatorMarket && marketKind === "event") {
       const validSources = sanitizeResolutionSourcesForMetadata(resolutionSources);
       if (validSources.length === 0) {
         errors.push("Add at least one resolution source URL (https://…) for event markets.");
@@ -1663,9 +1723,11 @@ export function CreateClient() {
     }
     const filledOutcomes = isToken
       ? (tokenDraft?.outcomes ?? [])
-      : outcomes.map((o) => o.trim()).filter(Boolean);
+      : isRwa
+        ? (prismDraft?.outcomes ?? [])
+        : outcomes.map((o) => o.trim()).filter(Boolean);
     if (filledOutcomes.length < 2) errors.push("At least 2 outcome labels are required.");
-    if (!isToken && outcomes.some((o) => !o.trim())) errors.push("All outcome labels must be filled in.");
+    if (!isOperatorMarket && outcomes.some((o) => !o.trim())) errors.push("All outcome labels must be filled in.");
     if (!stakeEndAt) errors.push("Stake end time is required.");
     if (!resolveAfterAt) errors.push("Resolve after time is required.");
     if (!slug.trim()) errors.push("Vanity slug is required.");
@@ -1701,9 +1763,19 @@ export function CreateClient() {
         return;
       }
     }
+    if (isRwa && prismDraft?.prismMarket) {
+      const prismResolveErr = validatePrismResolveAfter(
+        prismDraft.prismMarket.questionType,
+        Math.floor(resolveTs / 1000),
+      );
+      if (prismResolveErr) {
+        setTimeValidationError(prismResolveErr);
+        return;
+      }
+    }
     setTimeValidationError("");
 
-    if (isToken) {
+    if (isOperatorMarket) {
       setIsNextLoading(true);
       setUploadState("");
       try {
@@ -1792,6 +1864,7 @@ export function CreateClient() {
                   { id: "event" as const, label: "Event (community)" },
                   { id: "price" as const, label: "Price (oracle)" },
                   { id: "token" as const, label: "Token market" },
+                  { id: "rwa" as const, label: "RWA (Prism)" },
                 ] as const
               ).map((opt) => {
                 const { id, label } = opt;
@@ -1815,10 +1888,13 @@ export function CreateClient() {
                     <span
                       className={
                         active
-                          ? "font-medium text-[var(--foreground)]"
-                          : "text-[var(--muted)] group-hover:text-[var(--foreground)]"
+                          ? "inline-flex items-center gap-1.5 font-medium text-[var(--foreground)]"
+                          : "inline-flex items-center gap-1.5 text-[var(--muted)] group-hover:text-[var(--foreground)]"
                       }
                     >
+                      {id === "rwa" ? (
+                        <img src={PRISM_BRAND_LOGO_PATH} alt="" className="h-4 w-4 rounded-sm" />
+                      ) : null}
                       {label}
                     </span>
                   </button>
@@ -1985,6 +2061,23 @@ export function CreateClient() {
               }}
               onDraftChange={setTokenDraft}
               onDuplicateBlock={setTokenDuplicateBlocked}
+            />
+          ) : marketKind === "rwa" ? (
+            <PrismMarketCreateSection
+              key={`prism-${prismQuestionType}`}
+              stakeEndAt={stakeEndAt}
+              resolveAfterAt={resolveAfterAt}
+              slug={slug}
+              questionType={prismQuestionType}
+              onQuestionTypeChange={(type) => {
+                setPrismQuestionType(type);
+                writeCreateQuery("rwa", type);
+              }}
+              onSlugChange={(s, manual) => {
+                setSlug(s);
+                if (manual) setSlugManual(true);
+              }}
+              onDraftChange={setPrismDraft}
             />
           ) : marketKind === "event" ? (
             <>
@@ -2216,7 +2309,7 @@ export function CreateClient() {
             </section>
           )}
 
-          {marketKind !== "token" && (
+          {marketKind !== "token" && marketKind !== "rwa" && (
           <section className="py-8">
             <label className={labelClass}>Categories</label>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -2263,7 +2356,7 @@ export function CreateClient() {
             </p>
           </section>
 
-          {marketKind !== "token" && (
+          {marketKind !== "token" && marketKind !== "rwa" && (
           <section className="py-8">
             <label className={labelClass} htmlFor="image">
               Cover image
@@ -2333,6 +2426,26 @@ export function CreateClient() {
             </section>
           )}
 
+          {marketKind === "rwa" && prismDraft && (
+            <section className="py-8">
+              <p className={`mb-2 text-xs uppercase tracking-wider text-[var(--muted)] ${brandSectionLabel}`}>
+                Card preview
+              </p>
+              <div className="max-w-sm">
+                <NadMarketListCard
+                  title={prismDraft.title}
+                  nadMarket={prismMarketForCardPreview(prismDraft.prismMarket)}
+                  outcomeLabels={prismDraft.outcomes}
+                  previewTokenStats={prismDraft.previewTokenStats?.map((s) => prismStatsForCardPreview(s))}
+                  resolveAfter={previewResolveLabel}
+                  resolveAfterTooltip={previewResolveTooltip}
+                  showNewBadge
+                  interactive={false}
+                />
+              </div>
+            </section>
+          )}
+
           <section className="py-10">
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button
@@ -2342,7 +2455,8 @@ export function CreateClient() {
                   isNextLoading ||
                   slugAvailable === false ||
                   slugCheckBusy ||
-                  (marketKind === "token" && (!tokenDraft || tokenDuplicateBlocked))
+                  (marketKind === "token" && (!tokenDraft || tokenDuplicateBlocked)) ||
+                  (marketKind === "rwa" && !prismDraft)
                 }
                 className="rounded-full bg-white py-3.5 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-60 sm:px-10 w-full sm:w-auto [html[data-theme=light]_&]:border [html[data-theme=light]_&]:border-black/15"
               >

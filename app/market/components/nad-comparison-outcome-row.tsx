@@ -15,6 +15,8 @@ type Props = {
   valueKind?: "mcap" | "price";
   chancePct: number;
   loading?: boolean;
+  /** Compact held shares label (e.g. "1.2k"), when the user holds this outcome. */
+  heldSharesLabel?: string | null;
   onClick?: () => void;
   interactive?: boolean;
   tradingClosed?: boolean;
@@ -28,6 +30,7 @@ export function NadComparisonOutcomeRow({
   valueKind = "mcap",
   chancePct,
   loading = false,
+  heldSharesLabel = null,
   onClick,
   interactive = true,
   tradingClosed = false,
@@ -55,6 +58,11 @@ export function NadComparisonOutcomeRow({
       <span className="min-w-0 flex-1 truncate text-right text-[11px] tabular-nums text-[var(--muted)]">
         {loading ? "…" : formatted}
       </span>
+      {heldSharesLabel ? (
+        <span className="shrink-0 text-[11px] font-semibold tabular-nums text-[var(--muted)]">
+          {heldSharesLabel}
+        </span>
+      ) : null}
       <span className={MARKET_CARD_MULTI_PCT_CLASS}>{formatChancePct(chancePct)}</span>
     </>
   );

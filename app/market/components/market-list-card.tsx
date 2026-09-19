@@ -3,6 +3,7 @@
 import { ArrowsClockwise, ChartBar, Clock, Flag } from "@phosphor-icons/react";
 import { MarketShareButton } from "@/app/market/components/market-share-button";
 import { formatChancePct } from "@/lib/format-chance-pct";
+import { formatCompactSharesInline } from "@/lib/format-shares";
 import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
 
 export type MarketListCardProps = {
@@ -16,6 +17,10 @@ export type MarketListCardProps = {
   poolTvl?: string;
   /** Cumulative trade volume from subgraph (buy+sell notional). */
   tradeVolume?: string;
+  /** Raw held share balances per outcome (same decimals as collateral). */
+  heldSharesByOutcome?: (bigint | undefined)[];
+  /** Decimals for formatting heldSharesByOutcome. */
+  collateralDecimals?: number;
   resolveAfter?: string;
   /** Full close timestamp shown on hover (e.g. "Closes: Jan 1, 2027, 05:59 GMT+1"). */
   resolveAfterTooltip?: string;
@@ -180,6 +185,8 @@ export function MarketListCard({
   outcomeChancePcts,
   poolTvl,
   tradeVolume,
+  heldSharesByOutcome,
+  collateralDecimals = 6,
   resolveAfter,
   resolveAfterTooltip,
   showNewBadge = false,
@@ -259,7 +266,11 @@ export function MarketListCard({
             <div className="grid grid-cols-2 gap-2">
               {displayLabels.map((label, idx) => {
                 const isNo = idx === 1;
-                const btnClass = `flex min-h-[2.5rem] items-center justify-center rounded-xl px-2 py-2.5 text-center text-sm font-bold transition ${binaryOutcomePillClass(!tradingClosed, isNo, tradingClosed)}`;
+                const shareLabel = formatCompactSharesInline(
+                  heldSharesByOutcome?.[idx] ?? 0n,
+                  collateralDecimals,
+                );
+                const btnClass = `flex min-h-[2.5rem] min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-center text-sm font-bold transition ${binaryOutcomePillClass(!tradingClosed, isNo, tradingClosed)}`;
 
                 if (onTrade && interactive && !tradingClosed) {
                   return (
@@ -272,14 +283,24 @@ export function MarketListCard({
                       }}
                       className={btnClass}
                     >
-                      {label}
+                      <span className="truncate">{label}</span>
+                      {shareLabel ? (
+                        <span className="shrink-0 text-xs font-semibold tabular-nums opacity-90">
+                          {shareLabel}
+                        </span>
+                      ) : null}
                     </button>
                   );
                 }
 
                 return (
                   <div key={`${label}-${idx}`} className={btnClass} aria-disabled={tradingClosed}>
-                    {label}
+                    <span className="truncate">{label}</span>
+                    {shareLabel ? (
+                      <span className="shrink-0 text-xs font-semibold tabular-nums opacity-90">
+                        {shareLabel}
+                      </span>
+                    ) : null}
                   </div>
                 );
               })}
@@ -289,9 +310,18 @@ export function MarketListCard({
           <div className={`${MARKET_CARD_OUTCOMES_BOX} no-scrollbar gap-0.5 overflow-y-auto`}>
             {displayLabels.map((label, idx) => {
               const pct = pcts[idx] ?? 0;
+              const shareLabel = formatCompactSharesInline(
+                heldSharesByOutcome?.[idx] ?? 0n,
+                collateralDecimals,
+              );
               const rowContent = (
                 <>
                   <span className={MARKET_CARD_MULTI_LABEL_CLASS}>{label}</span>
+                  {shareLabel ? (
+                    <span className="shrink-0 text-[11px] font-semibold tabular-nums text-[var(--muted)]">
+                      {shareLabel}
+                    </span>
+                  ) : null}
                   <span className={MARKET_CARD_MULTI_PCT_CLASS}>{formatChancePct(pct)}</span>
                 </>
               );

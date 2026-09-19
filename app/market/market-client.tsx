@@ -160,6 +160,53 @@ export function MarketClient() {
   const [tradeModalClock, setTradeModalClock] = useState(0);
   /** Bumps on an interval so expired markets disappear from the list without a manual refresh. */
   const [marketListClock, setMarketListClock] = useState(0);
+  /** Per-market outcomeIndex → held share balance for the connected wallet. */
+  const [heldSharesByMarket, setHeldSharesByMarket] = useState<
+    Record<string, Record<number, bigint>>
+  >({});
+  const [holdingsTick, setHoldingsTick] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!address) {
+      setHeldSharesByMarket({});
+      return;
+    }
+    void (async () => {
+      try {
+        const res = await fetch(`/api/trades/positions?wallet=${address}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const json = (await res.json()) as {
+          rows?: Array<{
+            marketAddress: string;
+            outcomeIndex: number;
+            balance: string;
+          }>;
+          unavailable?: boolean;
+        };
+        if (cancelled || json.unavailable) return;
+        const next: Record<string, Record<number, bigint>> = {};
+        for (const row of json.rows ?? []) {
+          let bal = 0n;
+          try {
+            bal = BigInt(row.balance || "0");
+          } catch {
+            continue;
+          }
+          if (bal <= 0n) continue;
+          const key = row.marketAddress.toLowerCase();
+          if (!next[key]) next[key] = {};
+          next[key]![row.outcomeIndex] = bal;
+        }
+        setHeldSharesByMarket(next);
+      } catch {
+        /* ignore — cards still work without holdings */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [address, holdingsTick]);
 
   useEffect(() => {
     let cancelled = false;
@@ -512,6 +559,7 @@ export function MarketClient() {
       });
       await publicClient.waitForTransactionReceipt({ hash: tx });
     }
+    setHoldingsTick((t) => t + 1);
   };
 
   const openTrade = (market: UiMarket, outcomeIndex: number) => {
@@ -646,6 +694,7 @@ export function MarketClient() {
           txHash,
           side: "sell",
         });
+        setHoldingsTick((t) => t + 1);
         setTradeStatus("");
         setTradeAmount("");
         return;
@@ -722,6 +771,7 @@ export function MarketClient() {
         txHash,
         side: "buy",
       });
+      setHoldingsTick((t) => t + 1);
       setTradeStatus("");
       setTradeAmount("");
     } catch (error) {
@@ -763,6 +813,10 @@ export function MarketClient() {
                   outcomeChancePcts={m.outcomeChancePcts}
                   poolTvl={tvlOverrides[m.address] ?? m.poolTvl}
                   tradeVolume={m.tradeVolume}
+                  heldSharesByOutcome={(m.outcomeLabels ?? []).map(
+                    (_, i) => heldSharesByMarket[m.address.toLowerCase()]?.[i],
+                  )}
+                  collateralDecimals={m.collateralDecimals}
                   resolveAfter={formatMarketCardDate(m.resolveAfterUnix * 1000) ?? "—"}
                   resolveAfterTooltip={formatMarketClosesTooltip(m.resolveAfterUnix * 1000)}
                   marketAddress={m.address}
@@ -801,6 +855,10 @@ export function MarketClient() {
                 outcomeChancePcts={m.outcomeChancePcts}
                 poolTvl={tvlOverrides[m.address] ?? m.poolTvl}
                 tradeVolume={m.tradeVolume}
+                heldSharesByOutcome={(m.outcomeLabels ?? []).map(
+                  (_, i) => heldSharesByMarket[m.address.toLowerCase()]?.[i],
+                )}
+                collateralDecimals={m.collateralDecimals}
                 resolveAfter={formatMarketCardDate(m.resolveAfterUnix * 1000) ?? "—"}
                 resolveAfterTooltip={formatMarketClosesTooltip(m.resolveAfterUnix * 1000)}
                 marketAddress={m.address}

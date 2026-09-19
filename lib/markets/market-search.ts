@@ -174,6 +174,8 @@ export function marketKindBadge(kind: string): string {
   switch (kind) {
     case "Token":
       return "Token";
+    case "Rwa":
+      return "RWA";
     case "Pons":
       return "PONS";
     case "Nad":

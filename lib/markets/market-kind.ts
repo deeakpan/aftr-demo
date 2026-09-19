@@ -1,5 +1,5 @@
-/** On-chain `MarketKind`: 0 = PRICE, 1 = EVENT, 2 = TOKEN (Dexscreener / Gecko + operator). */
-export type UiMarketKind = "Price" | "Event" | "Nad" | "Pons" | "Token";
+/** On-chain `MarketKind`: 0 = PRICE, 1 = EVENT, 2 = TOKEN (Dex / Pons / Nad / Prism RWA + operator). */
+export type UiMarketKind = "Price" | "Event" | "Nad" | "Pons" | "Token" | "Rwa";
 
 export const MARKET_KIND_PRICE = 0;
 export const MARKET_KIND_EVENT = 1;

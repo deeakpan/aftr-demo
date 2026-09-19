@@ -24,6 +24,7 @@ export type IpfsMarketMetadata = {
   nadMarket?: import("@/lib/nad/types").NadMarketConfig;
   ponsMarket?: import("@/lib/pons/types").PonsMarketConfig;
   tokenMarket?: import("@/lib/token-market/types").TokenMarketConfig;
+  prismMarket?: import("@/lib/prism/types").PrismMarketConfig;
   marketKind?: string;
 };
 

@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { formatUnits, parseAbi } from "viem";
-import { useDisconnect, useReadContract, useSignMessage } from "wagmi";
+import { useReadContract } from "wagmi";
 import { openParaModal, paraLogout } from "@/app/components/para-wallet-provider";
 import { signOutEverywhere } from "@/lib/auth-signout";
 import { useSessionAddress } from "@/lib/use-session-address";
@@ -75,10 +75,6 @@ function formatGroupedAmount(value: number, minimumFractionDigits: number, maxim
   return value.toLocaleString(undefined, { minimumFractionDigits, maximumFractionDigits });
 }
 
-function signedSessionKey(address: string) {
-  return `aftrmarket-signed:${address.toLowerCase()}`;
-}
-
 /** Profile balance uses trading USDG (mock or real via NEXT_PUBLIC_USE_MOCK_USDG). */
 const PROFILE_USDG_ADDRESS = tradingUsdgAddress() ?? undefined;
 const ERC20_ABI = parseAbi([
@@ -106,13 +102,11 @@ export function AppLayout({
   pageBackgroundClassName,
   viewportLocked = false,
 }: AppLayoutProps) {
-  const { sessionAddress, isPara, isConnected: sessionConnected } = useSessionAddress();
+  const { sessionAddress, isConnected: sessionConnected } = useSessionAddress();
   const cachedProfileName = useProfileName(sessionAddress);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { disconnect } = useDisconnect();
-  const { signMessageAsync } = useSignMessage();
   const [mounted, setMounted] = useState(false);
   const hasRunAuthRef = useRef("");
   const profileCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -186,22 +180,6 @@ export function AppLayout({
       setProfileError(null);
       setNameModalError(null);
 
-      if (!isPara) {
-        const alreadySigned = window.localStorage.getItem(signedSessionKey(sessionAddress)) === "1";
-        if (!alreadySigned) {
-          try {
-            const nonce = Math.floor(Math.random() * 1_000_000);
-            await signMessageAsync({
-              message: `Sign in to Zedkr Market\nAddress: ${sessionAddress}\nNonce: ${nonce}`,
-            });
-            window.localStorage.setItem(signedSessionKey(sessionAddress), "1");
-          } catch {
-            hasRunAuthRef.current = "";
-            return;
-          }
-        }
-      }
-
       const cachedName = getCachedProfileName(sessionAddress);
       if (cachedName) setProfileName(cachedName);
 
@@ -241,7 +219,7 @@ export function AppLayout({
       setShowNameModal(true);
     };
     void runPostConnectFlow();
-  }, [sessionAddress, isPara, mounted, signMessageAsync]);
+  }, [sessionAddress, mounted]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -745,7 +723,6 @@ export function AppLayout({
                           type="button"
                           onClick={() => {
                             void signOutEverywhere(() => paraLogout());
-                            disconnect();
                             setIsProfileOpen(false);
                             setProfileName("");
                             setShowDepositModal(false);

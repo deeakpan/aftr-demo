@@ -8,7 +8,6 @@ import {
   type Hash,
   type Hex,
 } from "viem";
-import { useAccount, useWalletClient } from "wagmi";
 import { exportParaSession } from "@/app/components/para-wallet-provider";
 import { DEPLOYMENT_CHAIN_ID } from "@/lib/deployment";
 import { useWalletAddress } from "@/lib/para-wallet";
@@ -81,30 +80,26 @@ export async function writeSessionContract(params: SessionWriteContractParams): 
   });
 }
 
-/** Signed-in identity: live Para wallet, else wagmi. */
+/** Signed-in identity: Para embedded wallet only (no MetaMask / wagmi inject). */
 export function useSessionWallet() {
   const { isConnected: paraConnected } = useParaAccount();
   const paraAddressRaw = useWalletAddress();
-  const { address: wagmiAddress, chainId: wagmiChainId } = useAccount();
-  const { data: walletClient } = useWalletClient();
   const paraAddress =
     paraConnected && paraAddressRaw && isAddress(paraAddressRaw)
       ? (getAddress(paraAddressRaw) as `0x${string}`)
       : undefined;
-  const address = paraAddress ?? wagmiAddress;
-  const isPara = Boolean(paraAddress);
 
   return {
-    address,
-    chainId: isPara ? DEPLOYMENT_CHAIN_ID : wagmiChainId,
-    isPara,
-    isConnected: Boolean(address),
-    walletClient,
+    address: paraAddress,
+    chainId: DEPLOYMENT_CHAIN_ID,
+    isPara: Boolean(paraAddress),
+    isConnected: Boolean(paraAddress),
+    walletClient: null,
     writeContract: (params: SessionWriteContractParams) =>
       writeSessionContract({
         ...params,
-        account: params.account ?? address,
-        walletClient: isPara ? null : (walletClient as SessionWriteContractParams["walletClient"]),
+        account: params.account ?? paraAddress,
+        walletClient: null,
       }),
   };
 }

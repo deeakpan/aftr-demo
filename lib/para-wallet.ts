@@ -2,15 +2,13 @@
 
 import { useAccount, useWalletState } from "@getpara/react-sdk-lite";
 
-/** Same address resolution as themarinas-app `useWalletAddress`. */
+/**
+ * Embedded Para wallet only. Never return MetaMask/injected `external.evm`
+ * — that made page visits look like a silent MetaMask sign-in.
+ */
 export function useWalletAddress() {
   const { selectedWallet } = useWalletState();
-  const { embedded, external } = useAccount();
+  const { embedded } = useAccount();
 
-  return (
-    selectedWallet.address ??
-    embedded?.wallets?.[0]?.address ??
-    external?.evm?.address ??
-    undefined
-  );
+  return selectedWallet.address ?? embedded?.wallets?.[0]?.address ?? undefined;
 }

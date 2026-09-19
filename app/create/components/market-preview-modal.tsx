@@ -58,7 +58,7 @@ export function MarketPreviewModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[var(--overlay-scrim)] p-4 backdrop-blur-sm"
+      className="styled-scroll fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[var(--overlay-scrim)] p-4 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) onBack();
       }}
