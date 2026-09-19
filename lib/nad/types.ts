@@ -15,7 +15,7 @@ export type NadTokenRef = {
   isGraduated?: boolean;
   /** Dexscreener / GeckoTerminal pool URL when this is a token-link market. */
   sourceUrl?: string;
-  source?: "dexscreener" | "geckoterminal";
+  source?: "dexscreener" | "geckoterminal" | "prism";
 };
 
 export type NadResolutionEndpoint = {

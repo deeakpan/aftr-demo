@@ -324,13 +324,15 @@ html[data-theme="light"] input[type="time"] {
   }
 }
 
-/** Market card close-date hover tip (left of date, white bubble + arrow). */
+/** Market card close-date hover tip (above date, white bubble + arrow). */
 .market-close-date-tip {
   position: absolute;
-  right: calc(100% + 10px);
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 40;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  top: auto;
+  right: auto;
+  transform: translateX(-50%);
+  z-index: 50;
   max-width: min(70vw, 280px);
   padding: 0.4rem 0.65rem;
   border-radius: 0.65rem;
@@ -350,11 +352,11 @@ html[data-theme="light"] input[type="time"] {
 .market-close-date-tip::after {
   content: "";
   position: absolute;
-  left: 100%;
-  top: 50%;
-  transform: translateY(-50%);
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
   border: 6px solid transparent;
-  border-left-color: #ffffff;
+  border-top-color: #ffffff;
 }
 
 .market-close-date:hover .market-close-date-tip,
@@ -370,5 +372,6 @@ html[data-theme="light"] .market-close-date-tip {
 }
 
 html[data-theme="light"] .market-close-date-tip::after {
-  border-left-color: #18181b;
+  border-top-color: #18181b;
+  border-left-color: transparent;
 }

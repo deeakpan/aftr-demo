@@ -72,7 +72,7 @@ export function MarketCloseDate({
       {tooltip ? (
         <span
           role="tooltip"
-          className="market-close-date-tip pointer-events-none absolute right-[calc(100%+10px)] top-1/2 z-40 max-w-[min(70vw,280px)] -translate-y-1/2 whitespace-nowrap rounded-[0.65rem] bg-white px-2.5 py-1.5 text-[11px] font-medium leading-snug text-zinc-950 opacity-0 shadow-[0_8px_24px_rgb(0_0_0_/_0.35)] invisible transition-[opacity,visibility] duration-100 group-hover:opacity-100 group-hover:visible group-focus-visible:opacity-100 group-focus-visible:visible [html[data-theme=light]_&]:bg-zinc-900 [html[data-theme=light]_&]:text-zinc-50 [html[data-theme=light]_&]:shadow-[0_8px_24px_rgb(0_0_0_/_0.18)]"
+          className="market-close-date-tip pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-50 max-w-[min(70vw,280px)] -translate-x-1/2 whitespace-nowrap rounded-[0.65rem] bg-white px-2.5 py-1.5 text-[11px] font-medium leading-snug text-zinc-950 opacity-0 shadow-[0_8px_24px_rgb(0_0_0_/_0.35)] invisible transition-[opacity,visibility] duration-100 group-hover:opacity-100 group-hover:visible group-focus-visible:opacity-100 group-focus-visible:visible [html[data-theme=light]_&]:bg-zinc-900 [html[data-theme=light]_&]:text-zinc-50 [html[data-theme=light]_&]:shadow-[0_8px_24px_rgb(0_0_0_/_0.18)]"
         >
           {tooltip}
         </span>

@@ -22,7 +22,7 @@ export function prismMarketForCardPreview(cfg: PrismMarketConfig): NadMarketConf
       imageUri: a.imageUri,
       isGraduated: true,
       sourceUrl: `${cfg.apiBaseUrl || prismApiBaseUrl()}/assets/${a.slug}`,
-      source: "dexscreener",
+      source: "prism",
     })),
     params: {
       thresholdUsd: cfg.params?.thresholdUsd ?? cfg.params?.thresholdApyPct,

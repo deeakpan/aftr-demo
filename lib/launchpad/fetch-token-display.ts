@@ -18,6 +18,11 @@ export function isPonsDisplayMarket(nadMarket: NadMarketConfig): boolean {
   return /pons/i.test(nadMarket.apiBaseUrl ?? "");
 }
 
+/** Prism RWA markets — no DexScreener pair; use trade chart only. */
+export function isPrismDisplayMarket(nadMarket: NadMarketConfig): boolean {
+  return /prismassets\.shop|prism/i.test(nadMarket.apiBaseUrl ?? "");
+}
+
 export function isTokenLinkUrl(url: string | null | undefined): boolean {
   return /dexscreener\.com|geckoterminal\.com/i.test(url ?? "");
 }

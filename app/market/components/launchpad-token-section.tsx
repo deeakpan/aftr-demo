@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { DexScreenerTokenChart } from "@/app/market/components/dexscreener-token-chart";
 import { MarketChartPanel } from "@/app/market/components/market-chart-panel";
 import { NadTokenPanel } from "@/app/market/components/nad-token-panel";
+import { isPrismDisplayMarket } from "@/lib/launchpad/fetch-token-display";
 import type { NadMarketConfig, NadTokenRef } from "@/lib/nad/types";
 import type { UiMarketKind } from "@/lib/markets/market-kind";
 
@@ -34,6 +35,7 @@ export function LaunchpadTokenSection({
   activeTokenIndex,
   onActiveTokenIndexChange,
 }: Props) {
+  const skipDexChart = isPrismDisplayMarket(nadMarket);
   const [activeToken, setActiveToken] = useState<NadTokenRef | null>(
     nadMarket.tokens[0] ?? null,
   );
@@ -48,6 +50,9 @@ export function LaunchpadTokenSection({
     setDexAvailable(available);
   }, []);
 
+  const showTradesChart =
+    !hideMarketChartFallback && (skipDexChart || !dexAvailable);
+
   return (
     <div className="space-y-4">
       <NadTokenPanel
@@ -56,7 +61,7 @@ export function LaunchpadTokenSection({
         onActiveIndexChange={onActiveTokenIndexChange}
         onActiveTokenChange={onActiveTokenChange}
       />
-      {activeToken ? (
+      {!skipDexChart && activeToken ? (
         <DexScreenerTokenChart
           key={`${activeToken.address.toLowerCase()}:${activeToken.sourceUrl ?? ""}`}
           tokenAddress={activeToken.address}
@@ -64,7 +69,7 @@ export function LaunchpadTokenSection({
           onAvailabilityChange={onDexAvailability}
         />
       ) : null}
-      {!dexAvailable && !hideMarketChartFallback ? (
+      {showTradesChart ? (
         <MarketChartPanel
           marketKind={marketKind}
           marketAddress={marketAddress}
