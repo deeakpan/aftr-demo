@@ -36,6 +36,7 @@ export function catalogueAssetToLiveStats(asset: PrismCatalogueAsset): PrismLive
 }
 
 function numOrNull(v: unknown): number | null {
+  if (v == null || v === "") return null;
   const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) ? n : null;
 }
@@ -69,8 +70,9 @@ export async function fetchPrismAssets(params: {
   if (params.q) sp.set("q", params.q);
   if (params.category) sp.set("category", params.category);
   if (params.sort) sp.set("sort", params.sort);
-  if (params.limit) sp.set("limit", String(Math.min(48, Math.max(1, params.limit))));
-  if (params.cursor != null) sp.set("cursor", String(params.cursor));
+  // Prism catalogue is large (~2k+); page size capped, callers paginate via cursor.
+  if (params.limit) sp.set("limit", String(Math.min(100, Math.max(1, params.limit))));
+  if (params.cursor != null && params.cursor !== "") sp.set("cursor", String(params.cursor));
   const qs = sp.toString();
   return prismGet(`/api/v1/assets${qs ? `?${qs}` : ""}`);
 }

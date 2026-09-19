@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CaretDown, CircleNotch, Plus, Trash, X } from "@phosphor-icons/react";
+import { CaretDown, CircleNotch, MagnifyingGlass, Plus, Trash, X } from "@phosphor-icons/react";
 import { PRISM_BRAND_LOGO_PATH, prismAssetLogoUrl } from "@/lib/prism/config";
 import {
   PRISM_QUESTION_GROUPS,
@@ -43,11 +43,14 @@ type CatalogueOption = {
   stats: PrismLiveStats;
 };
 
+const CATALOGUE_PAGE_SIZE = 48;
+
 function catalogueToOption(item: PrismCatalogueAsset): CatalogueOption {
   const primary =
     item.deployments?.find((d) => d.isPrimary && d.address) ??
     item.deployments?.find((d) => d.address);
   const n = (v: unknown) => {
+    if (v == null || v === "") return null;
     const x = typeof v === "number" ? v : Number(v);
     return Number.isFinite(x) ? x : null;
   };
@@ -65,6 +68,36 @@ function catalogueToOption(item: PrismCatalogueAsset): CatalogueOption {
       yieldApyPct: n(item.yieldApyPct),
       change24hPct: n(item.change24hPct),
     },
+  };
+}
+
+async function fetchCataloguePage(opts: {
+  cursor?: string | number | null;
+  q?: string;
+}): Promise<{
+  items: CatalogueOption[];
+  nextCursor: string | number | null;
+  total: number | null;
+}> {
+  const sp = new URLSearchParams({
+    limit: String(CATALOGUE_PAGE_SIZE),
+    sort: "marketCap",
+  });
+  if (opts.cursor != null && opts.cursor !== "") sp.set("cursor", String(opts.cursor));
+  const q = opts.q?.trim();
+  if (q) sp.set("q", q);
+  const res = await fetch(`/api/prism/assets?${sp}`, { cache: "no-store" });
+  const json = (await res.json()) as {
+    items?: PrismCatalogueAsset[];
+    nextCursor?: string | number | null;
+    total?: number;
+    error?: string;
+  };
+  if (!res.ok) throw new Error(json.error || "Could not load Prism assets");
+  return {
+    items: (json.items ?? []).map(catalogueToOption),
+    nextCursor: json.nextCursor ?? null,
+    total: typeof json.total === "number" ? json.total : null,
   };
 }
 
@@ -146,30 +179,42 @@ export function PrismMarketCreateSection({
   const [thresholdApy, setThresholdApy] = useState("4");
   const [catalogue, setCatalogue] = useState<CatalogueOption[]>([]);
   const [catalogueLoading, setCatalogueLoading] = useState(true);
+  const [catalogueLoadingMore, setCatalogueLoadingMore] = useState(false);
+  const [catalogueNextCursor, setCatalogueNextCursor] = useState<string | number | null>(null);
+  const [catalogueTotal, setCatalogueTotal] = useState<number | null>(null);
+  const [pickerQuery, setPickerQuery] = useState("");
+  const [pickerQueryDebounced, setPickerQueryDebounced] = useState("");
   const [loadingSlug, setLoadingSlug] = useState<string | null>(null);
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [questionMenuOpen, setQuestionMenuOpen] = useState(false);
   const questionMenuRef = useRef<HTMLDivElement>(null);
+  const listScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setPickerQueryDebounced(pickerQuery.trim()), 250);
+    return () => window.clearTimeout(t);
+  }, [pickerQuery]);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       setCatalogueLoading(true);
+      setCatalogue([]);
+      setCatalogueNextCursor(null);
       try {
-        const res = await fetch("/api/prism/assets?limit=48&sort=marketCap", { cache: "no-store" });
-        const json = (await res.json()) as {
-          items?: PrismCatalogueAsset[];
-          error?: string;
-        };
-        if (!res.ok) throw new Error(json.error || "Could not load Prism assets");
+        const page = await fetchCataloguePage({ q: pickerQueryDebounced || undefined });
         if (!cancelled) {
-          setCatalogue((json.items ?? []).map(catalogueToOption));
+          setCatalogue(page.items);
+          setCatalogueNextCursor(page.nextCursor);
+          setCatalogueTotal(page.total);
           setError("");
         }
       } catch (e) {
         if (!cancelled) {
           setCatalogue([]);
+          setCatalogueNextCursor(null);
+          setCatalogueTotal(null);
           setError(e instanceof Error ? e.message : "Could not load Prism assets");
         }
       } finally {
@@ -179,7 +224,53 @@ export function PrismMarketCreateSection({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [pickerQueryDebounced]);
+
+  const loadMoreCatalogue = useCallback(async () => {
+    if (catalogueLoading || catalogueLoadingMore || catalogueNextCursor == null) return;
+    setCatalogueLoadingMore(true);
+    try {
+      const page = await fetchCataloguePage({
+        cursor: catalogueNextCursor,
+        q: pickerQueryDebounced || undefined,
+      });
+      setCatalogue((prev) => {
+        const seen = new Set(prev.map((c) => c.slug));
+        const merged = [...prev];
+        for (const item of page.items) {
+          if (!seen.has(item.slug)) {
+            seen.add(item.slug);
+            merged.push(item);
+          }
+        }
+        return merged;
+      });
+      setCatalogueNextCursor(page.nextCursor);
+      if (page.total != null) setCatalogueTotal(page.total);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load more assets");
+    } finally {
+      setCatalogueLoadingMore(false);
+    }
+  }, [
+    catalogueLoading,
+    catalogueLoadingMore,
+    catalogueNextCursor,
+    pickerQueryDebounced,
+  ]);
+
+  useEffect(() => {
+    if (pickerSlot == null) return;
+    const el = listScrollRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 80) {
+        void loadMoreCatalogue();
+      }
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [pickerSlot, loadMoreCatalogue]);
 
   useEffect(() => {
     if (!questionMenuOpen) return;
@@ -259,6 +350,8 @@ export function PrismMarketCreateSection({
 
   const openPicker = useCallback((slot: number) => {
     setQuestionMenuOpen(false);
+    setPickerQuery("");
+    setPickerQueryDebounced("");
     setPickerSlot(slot);
   }, []);
 
@@ -575,6 +668,11 @@ export function PrismMarketCreateSection({
                 </p>
                 <p className="text-[11px] text-[var(--muted)]">
                   {def.mode === "binary" ? "Prism RWA" : `Outcome ${(pickerSlot ?? 0) + 1}`}
+                  {catalogueTotal != null
+                    ? ` · ${catalogue.length.toLocaleString()}${
+                        catalogueNextCursor != null ? "+" : ""
+                      } of ${catalogueTotal.toLocaleString()}`
+                    : null}
                 </p>
               </div>
               <button
@@ -587,48 +685,86 @@ export function PrismMarketCreateSection({
               </button>
             </div>
 
-            <div className="styled-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-2 md:px-3">
+            <div className="shrink-0 border-b border-[var(--border)] px-3 py-2 md:px-4">
+              <input
+                type="search"
+                value={pickerQuery}
+                onChange={(e) => setPickerQuery(e.target.value)}
+                placeholder="Search Prism assets…"
+                autoFocus
+                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
+              />
+            </div>
+
+            <div
+              ref={listScrollRef}
+              className="styled-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-2 md:px-3"
+            >
               {catalogueLoading ? (
                 <div className="flex items-center justify-center gap-2 py-12 text-xs text-[var(--muted)]">
                   <CircleNotch size={16} className="animate-spin" />
                   Loading assets…
                 </div>
               ) : optionsForSlot(pickerSlot).length === 0 ? (
-                <p className="px-3 py-10 text-center text-xs text-[var(--muted)]">No assets left to pick.</p>
+                <p className="px-3 py-10 text-center text-xs text-[var(--muted)]">
+                  {pickerQueryDebounced ? "No assets match that search." : "No assets left to pick."}
+                </p>
               ) : (
-                <ul role="listbox">
-                  {optionsForSlot(pickerSlot).map((opt) => {
-                    const selected = assets[pickerSlot]?.slug === opt.slug;
-                    return (
-                      <li key={opt.slug} role="option" aria-selected={selected}>
-                        <button
-                          type="button"
-                          disabled={loadingSlug === opt.slug}
-                          onClick={() => pickAsset(opt, pickerSlot)}
-                          className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition disabled:opacity-50 ${
-                            selected
-                              ? "bg-[var(--accent)]/15 text-[var(--foreground)]"
-                              : "text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
-                          }`}
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={opt.imageUri}
-                            alt=""
-                            className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-[var(--border)]"
-                          />
-                          <span className="min-w-0 flex-1 truncate">
-                            <span className="font-semibold">{opt.symbol}</span>
-                            <span className="ml-1.5 text-[var(--muted)]">{opt.name}</span>
-                          </span>
-                          <span className="shrink-0 text-[11px] tabular-nums text-[var(--muted)]">
-                            {formatUsd(opt.stats.priceUsd)}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <>
+                  <ul role="listbox">
+                    {optionsForSlot(pickerSlot).map((opt) => {
+                      const selected = assets[pickerSlot]?.slug === opt.slug;
+                      return (
+                        <li key={opt.slug} role="option" aria-selected={selected}>
+                          <button
+                            type="button"
+                            disabled={loadingSlug === opt.slug}
+                            onClick={() => pickAsset(opt, pickerSlot)}
+                            className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition disabled:opacity-50 ${
+                              selected
+                                ? "bg-[var(--accent)]/15 text-[var(--foreground)]"
+                                : "text-[var(--foreground)] hover:bg-[var(--surface-hover)]"
+                            }`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={opt.imageUri}
+                              alt=""
+                              className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-[var(--border)]"
+                            />
+                            <span className="min-w-0 flex-1 truncate">
+                              <span className="font-semibold">{opt.symbol}</span>
+                              <span className="ml-1.5 text-[var(--muted)]">{opt.name}</span>
+                            </span>
+                            <span className="shrink-0 text-[11px] tabular-nums text-[var(--muted)]">
+                              {formatUsd(opt.stats.priceUsd)}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {catalogueNextCursor != null ? (
+                    <div className="flex justify-center py-3">
+                      <button
+                        type="button"
+                        disabled={catalogueLoadingMore}
+                        onClick={() => void loadMoreCatalogue()}
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--muted)] transition hover:border-[var(--accent)]/40 hover:text-[var(--foreground)] disabled:opacity-50"
+                      >
+                        {catalogueLoadingMore ? (
+                          <>
+                            <CircleNotch size={12} className="animate-spin" /> Loading…
+                          </>
+                        ) : (
+                          "Load more"
+                        )}
+                      </button>
+                    </div>
+                  ) : catalogue.length > 0 ? (
+                    <p className="py-3 text-center text-[11px] text-[var(--muted)]">End of list</p>
+                  ) : null}
+                </>
               )}
             </div>
           </div>
