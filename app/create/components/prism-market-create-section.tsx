@@ -686,14 +686,38 @@ export function PrismMarketCreateSection({
             </div>
 
             <div className="shrink-0 border-b border-[var(--border)] px-3 py-2 md:px-4">
-              <input
-                type="search"
-                value={pickerQuery}
-                onChange={(e) => setPickerQuery(e.target.value)}
-                placeholder="Search Prism assets…"
-                autoFocus
-                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
-              />
+              <label className="relative block">
+                <MagnifyingGlass
+                  size={16}
+                  weight="bold"
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]"
+                  aria-hidden
+                />
+                <input
+                  type="search"
+                  value={pickerQuery}
+                  onChange={(e) => setPickerQuery(e.target.value)}
+                  placeholder="Search ticker, name, or category…"
+                  autoFocus
+                  autoComplete="off"
+                  enterKeyHint="search"
+                  aria-label="Search Prism RWA catalogue"
+                  className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2.5 pl-9 pr-9 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
+                />
+                {pickerQuery ? (
+                  <button
+                    type="button"
+                    aria-label="Clear search"
+                    onClick={() => {
+                      setPickerQuery("");
+                      setPickerQueryDebounced("");
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                  >
+                    <X size={14} weight="bold" />
+                  </button>
+                ) : null}
+              </label>
             </div>
 
             <div
