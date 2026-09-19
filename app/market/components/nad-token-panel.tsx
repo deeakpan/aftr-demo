@@ -14,6 +14,7 @@ import {
 import {
   fetchLaunchpadTokenDisplay,
   isPonsDisplayMarket,
+  isPrismDisplayMarket,
   isTokenLinkDisplayMarket,
   isTokenLinkUrl,
 } from "@/lib/launchpad/fetch-token-display";
@@ -29,8 +30,10 @@ type Props = {
 
 function TokenTicker({ symbol, address }: { symbol: string; address: string }) {
   const [copied, setCopied] = useState(false);
+  const canCopy = /^0x[a-fA-F0-9]{40}$/.test(address);
 
   async function copyAddress() {
+    if (!canCopy) return;
     try {
       await navigator.clipboard.writeText(address);
       setCopied(true);
@@ -43,15 +46,17 @@ function TokenTicker({ symbol, address }: { symbol: string; address: string }) {
   return (
     <span className="group/ticker inline-flex items-center gap-1">
       <span className="font-bold text-[var(--foreground)]">${symbol}</span>
-      <button
-        type="button"
-        onClick={() => void copyAddress()}
-        className="inline-flex opacity-0 transition group-hover/ticker:opacity-100 text-[var(--muted)] hover:text-[var(--foreground)]"
-        aria-label={copied ? "Copied" : `Copy ${symbol} contract address`}
-        title={copied ? "Copied" : address}
-      >
-        <CopySimple size={13} weight="bold" />
-      </button>
+      {canCopy ? (
+        <button
+          type="button"
+          onClick={() => void copyAddress()}
+          className="inline-flex opacity-0 transition group-hover/ticker:opacity-100 text-[var(--muted)] hover:text-[var(--foreground)]"
+          aria-label={copied ? "Copied" : `Copy ${symbol} contract address`}
+          title={copied ? "Copied" : address}
+        >
+          <CopySimple size={13} weight="bold" />
+        </button>
+      ) : null}
     </span>
   );
 }
@@ -203,9 +208,12 @@ export function NadTokenPanel({
   if (tokens.length === 0) return null;
 
   const tokenLinkMarket = isTokenLinkDisplayMarket(nadMarket);
+  const prismMarket = isPrismDisplayMarket(nadMarket);
   const externalLinkFor = (token: NadTokenRef) => {
-    if (token.sourceUrl && isTokenLinkUrl(token.sourceUrl)) return token.sourceUrl;
-    if (tokenLinkMarket && isTokenLinkUrl(nadMarket.apiBaseUrl)) return nadMarket.apiBaseUrl;
+    if (token.sourceUrl && (isTokenLinkUrl(token.sourceUrl) || token.source === "prism" || prismMarket)) {
+      return token.sourceUrl;
+    }
+    if (tokenLinkMarket && isTokenLinkUrl(nadMarket.apiBaseUrl)) return nadMarket.apiBaseUrl!;
     if (preferPons) return ponsTokenPageUrl(token.address);
     return `https://testnet.nad.fun/tokens/${token.address}`;
   };

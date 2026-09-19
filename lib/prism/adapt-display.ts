@@ -40,7 +40,7 @@ export function prismStatsForCardPreview(stats: PrismLiveStats | null | undefine
   if (!stats) return null;
   return {
     priceUsd: stats.priceUsd,
-    marketCapUsd: stats.marketCapUsd ?? stats.yieldApyPct,
+    marketCapUsd: stats.marketCapUsd,
     holderCount: null,
     marketType: "dex",
     isOnDex: true,
