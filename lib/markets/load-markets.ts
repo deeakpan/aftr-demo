@@ -65,6 +65,8 @@ export type MarketListItem = {
   collateralDecimals: number;
   priceBinByOutcome?: string[];
   outcomeChancePcts: number[];
+  /** Set when marketState === 2. */
+  winningOutcomeIndex?: number | null;
   slug?: string;
   categories?: string[];
   nadMarket?: import("@/lib/nad/types").NadMarketConfig;
@@ -375,6 +377,8 @@ function buildMarketListItem(
     }),
     chancePct: leftPct,
     outcomeChancePcts,
+    winningOutcomeIndex:
+      slice.state === 2 && winIdx != null && winIdx >= 0 && winIdx < outcomeCount ? winIdx : null,
     categories:
       md?.categories
         ?.filter((x): x is string => typeof x === "string")

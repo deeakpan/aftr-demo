@@ -6,7 +6,7 @@ import { formatUnits, parseAbi, parseUnits, zeroAddress } from "viem";
 import { useSessionWallet } from "@/lib/session-wallet";
 import { AppLayout } from "@/app/components/app-layout";
 import { MarketListCard, MarketListCardSkeleton, MARKET_CARD_GRID_CLASS } from "@/app/market/components/market-list-card";
-import { NadMarketListCard } from "@/app/market/components/nad-market-list-card";
+import { NadMarketListCard, nadOutcomeDisplayLabel } from "@/app/market/components/nad-market-list-card";
 import type { NadMarketConfig } from "@/lib/nad/types";
 import { LimitOrderParams, TradeModal, type TradeSuccessResult } from "@/app/market/components/trade-modal";
 import {
@@ -75,6 +75,8 @@ type UiMarket = {
   priceBinByOutcome?: string[];
   /** Implied probability % per outcome (from `priceOf`, 18-dec WAD → same order as outcomeLabels). */
   outcomeChancePcts: number[];
+  /** Settled markets only. */
+  winningOutcomeIndex?: number | null;
   slug?: string;
   categories?: string[];
   nadMarket?: NadMarketConfig;
@@ -787,8 +789,22 @@ export function MarketClient() {
         )}
         {!isLoading && visibleMarkets.length > 0 && (
           <div className={MARKET_CARD_GRID_CLASS}>
-            {visibleMarkets.map((m) =>
-              m.nadMarket ? (
+            {visibleMarkets.map((m) => {
+              const winnerLabel =
+                m.marketState === 2 &&
+                m.winningOutcomeIndex != null &&
+                m.winningOutcomeIndex >= 0
+                  ? m.nadMarket
+                    ? nadOutcomeDisplayLabel(
+                        m.nadMarket,
+                        m.outcomeLabels[m.winningOutcomeIndex] ??
+                          `Outcome ${m.winningOutcomeIndex + 1}`,
+                      )
+                    : (m.outcomeLabels[m.winningOutcomeIndex] ??
+                      `Outcome ${m.winningOutcomeIndex + 1}`)
+                  : null;
+
+              return m.nadMarket ? (
                 <NadMarketListCard
                   key={m.address}
                   title={m.title}
@@ -804,6 +820,7 @@ export function MarketClient() {
                   resolveAfterTooltip={formatMarketClosesTooltip(m.resolveAfterUnix * 1000)}
                   marketAddress={m.address}
                   slug={m.slug}
+                  winningOutcomeLabel={winnerLabel}
                   showNewBadge={
                     (() => {
                       const v = Number(m.poolTvl.replace(/,/g, ""));
@@ -843,6 +860,7 @@ export function MarketClient() {
                 resolveAfterTooltip={formatMarketClosesTooltip(m.resolveAfterUnix * 1000)}
                 marketAddress={m.address}
                 slug={m.slug}
+                winningOutcomeLabel={winnerLabel}
                 showNewBadge={
                   (() => {
                     const v = Number(m.poolTvl.replace(/,/g, ""));
@@ -866,8 +884,8 @@ export function MarketClient() {
                   Math.floor(Date.now() / 1000) >= m.stakeEndUnix
                 }
               />
-              ),
-            )}
+              );
+            })}
           </div>
         )}
       </section>

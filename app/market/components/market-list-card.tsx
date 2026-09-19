@@ -6,6 +6,20 @@ import { formatChancePct } from "@/lib/format-chance-pct";
 import { formatCompactSharesInline } from "@/lib/format-shares";
 import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
 
+/** Winner pill on settled market cover images (trades + browse). */
+export function MarketCoverWinnerBadge({ label }: { label: string | null | undefined }) {
+  const text = label?.trim();
+  if (!text) return null;
+  return (
+    <span
+      className="pointer-events-none absolute right-2 top-2 z-10 max-w-[min(70%,11rem)] truncate rounded-md bg-[var(--outcome-yes)] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-md"
+      title={`Winner: ${text}`}
+    >
+      {text}
+    </span>
+  );
+}
+
 export type MarketListCardProps = {
   title: string;
   imageUrl?: string;
@@ -35,6 +49,8 @@ export type MarketListCardProps = {
   interactive?: boolean;
   /** Muted pill colors when staking/trading has closed. */
   tradingClosed?: boolean;
+  /** Settled markets — winning outcome label shown on the cover. */
+  winningOutcomeLabel?: string | null;
   className?: string;
   /** Market address for share links (required for share button). */
   marketAddress?: string;
@@ -194,6 +210,7 @@ export function MarketListCard({
   onTrade,
   interactive = true,
   tradingClosed = false,
+  winningOutcomeLabel = null,
   className = "",
   marketAddress,
   slug,
@@ -223,7 +240,7 @@ export function MarketListCard({
           : ""
       } ${className}`}
     >
-      <div className={`${MARKET_COVER_ASPECT_CLASS} w-full shrink-0 overflow-hidden bg-[var(--surface)]`}>
+      <div className={`${MARKET_COVER_ASPECT_CLASS} relative w-full shrink-0 overflow-hidden bg-[var(--surface)]`}>
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -235,6 +252,7 @@ export function MarketListCard({
             No cover image
           </div>
         )}
+        <MarketCoverWinnerBadge label={winningOutcomeLabel} />
       </div>
 
       <div className={MARKET_CARD_BODY_CLASS}>

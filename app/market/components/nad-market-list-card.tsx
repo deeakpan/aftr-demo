@@ -23,6 +23,7 @@ import {
   MARKET_CARD_HOVER_CLASS,
   MARKET_CARD_TITLE_CLASS,
   MarketCloseDate,
+  MarketCoverWinnerBadge,
 } from "@/app/market/components/market-list-card";
 import { MARKET_COVER_ASPECT_CLASS } from "@/lib/market-cover";
 
@@ -46,6 +47,8 @@ export type NadMarketListCardProps = {
   tvlRefreshing?: boolean;
   interactive?: boolean;
   tradingClosed?: boolean;
+  /** Settled markets — winning outcome on the cover. */
+  winningOutcomeLabel?: string | null;
   className?: string;
   /** Live mcap for preview (create flow); otherwise fetched on mount. */
   previewTokenStats?: (NadLiveStats | null)[];
@@ -99,7 +102,13 @@ function coverBadgeLabel(nadMarket: NadMarketConfig): string {
   return "Token";
 }
 
-export function NadMarketCardCover({ nadMarket }: { nadMarket: NadMarketConfig }) {
+export function NadMarketCardCover({
+  nadMarket,
+  winningOutcomeLabel,
+}: {
+  nadMarket: NadMarketConfig;
+  winningOutcomeLabel?: string | null;
+}) {
   const bg = cardBackgroundFromSeed(nadMarket.cardBackgroundSeed);
   const headerTokens = uniqueTokensForCover(
     nadMarket.tokens,
@@ -136,6 +145,7 @@ export function NadMarketCardCover({ nadMarket }: { nadMarket: NadMarketConfig }
           ))}
         </div>
       </div>
+      <MarketCoverWinnerBadge label={winningOutcomeLabel} />
     </div>
   );
 }
@@ -155,6 +165,7 @@ export function NadMarketListCard({
   onTrade,
   interactive = true,
   tradingClosed = false,
+  winningOutcomeLabel = null,
   className = "",
   previewTokenStats,
   marketAddress,
@@ -203,7 +214,7 @@ export function NadMarketListCard({
           : ""
       } ${className}`}
     >
-      <NadMarketCardCover nadMarket={nadMarket} />
+      <NadMarketCardCover nadMarket={nadMarket} winningOutcomeLabel={winningOutcomeLabel} />
 
       <div className={MARKET_CARD_BODY_CLASS}>
         {onTitleClick ? (

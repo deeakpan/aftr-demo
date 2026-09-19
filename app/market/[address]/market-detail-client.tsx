@@ -18,7 +18,8 @@ import { useSidebarOpen } from "@/app/components/sidebar-context";
 import { MarketChartPanel } from "@/app/market/components/market-chart-panel";
 import { MarketShareButton } from "@/app/market/components/market-share-button";
 import { LaunchpadTokenSection } from "@/app/market/components/launchpad-token-section";
-import { NadMarketCardCover } from "@/app/market/components/nad-market-list-card";
+import { NadMarketCardCover, nadOutcomeDisplayLabel } from "@/app/market/components/nad-market-list-card";
+import { MarketCoverWinnerBadge } from "@/app/market/components/market-list-card";
 import { MultiOutcomeMarketSection } from "@/app/market/components/multi-outcome-market-section";
 import { OutcomeOrderBook } from "@/app/market/components/outcome-order-book";
 import { LimitOrderParams, TradeModal, type TradeSuccessResult } from "@/app/market/components/trade-modal";
@@ -1208,7 +1209,18 @@ export function MarketDetailClient({
 
               {market.nadMarket ? (
                 <div className="mt-3 w-full max-w-2xl overflow-hidden rounded-2xl">
-                  <NadMarketCardCover nadMarket={market.nadMarket} />
+                  <NadMarketCardCover
+                    nadMarket={market.nadMarket}
+                    winningOutcomeLabel={
+                      market.marketState === 2 && market.winningOutcomeIndex != null
+                        ? nadOutcomeDisplayLabel(
+                            market.nadMarket,
+                            market.outcomeLabels[market.winningOutcomeIndex] ??
+                              `Outcome ${market.winningOutcomeIndex + 1}`,
+                          )
+                        : null
+                    }
+                  />
                 </div>
               ) : market.imageUrl ? (
                 <div className="relative isolate mt-3 h-[132px] w-full max-w-2xl overflow-hidden rounded-2xl bg-[var(--surface)] sm:h-[148px]">
@@ -1220,6 +1232,14 @@ export function MarketDetailClient({
                   <div
                     className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent"
                     aria-hidden
+                  />
+                  <MarketCoverWinnerBadge
+                    label={
+                      market.marketState === 2 && market.winningOutcomeIndex != null
+                        ? (market.outcomeLabels[market.winningOutcomeIndex] ??
+                          `Outcome ${market.winningOutcomeIndex + 1}`)
+                        : null
+                    }
                   />
                 </div>
               ) : null}

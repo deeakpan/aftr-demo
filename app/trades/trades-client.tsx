@@ -23,6 +23,7 @@ import {
   MARKET_CARD_TRADES_SHELL_CLASS,
   MARKET_CARD_HOVER_CLASS,
   MARKET_CARD_TRADES_TITLE_CLASS,
+  MarketCoverWinnerBadge,
 } from "@/app/market/components/market-list-card";
 import { MarketShareButton } from "@/app/market/components/market-share-button";
 import {
@@ -841,6 +842,15 @@ export function TradesClient() {
               const nadMarket =
                 g.nadMarket ?? nadMarketByAddress[g.marketAddress.toLowerCase()] ?? null;
               const closeLabel = formatCardCloseLabel(g.stakeEndUnix, g.stakeEndsLabel);
+              const winnerLabel =
+                g.marketState === 2 && winIdx != null
+                  ? nadMarket
+                    ? nadOutcomeDisplayLabel(
+                        nadMarket,
+                        g.outcomeLabels[winIdx] ?? `Outcome ${winIdx + 1}`,
+                      )
+                    : (g.outcomeLabels[winIdx] ?? `Outcome ${winIdx + 1}`)
+                  : null;
 
               return (
                 <article
@@ -848,9 +858,12 @@ export function TradesClient() {
                   className={`${MARKET_CARD_TRADES_SHELL_CLASS} transition duration-200 ${MARKET_CARD_HOVER_CLASS}`}
                 >
                   {nadMarket ? (
-                    <NadMarketCardCover nadMarket={nadMarket} />
+                    <NadMarketCardCover
+                      nadMarket={nadMarket}
+                      winningOutcomeLabel={winnerLabel}
+                    />
                   ) : (
-                  <div className={`${MARKET_COVER_ASPECT_CLASS} w-full shrink-0 overflow-hidden bg-[var(--surface)]`}>
+                  <div className={`${MARKET_COVER_ASPECT_CLASS} relative w-full shrink-0 overflow-hidden bg-[var(--surface)]`}>
                     {g.imageUrl ? (
                       <img
                         src={g.imageUrl}
@@ -862,6 +875,7 @@ export function TradesClient() {
                         No cover image
                       </div>
                     )}
+                    <MarketCoverWinnerBadge label={winnerLabel} />
                   </div>
                   )}
 
