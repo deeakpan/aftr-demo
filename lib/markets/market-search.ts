@@ -10,6 +10,7 @@ export type MarketSearchRecord = {
   outcomeLabels: string[];
   nadMarket?: NadMarketConfig;
   poolTvl?: string;
+  tradeVolume?: string;
   imageUrl?: string;
   stakeEndUnix?: number;
 };
@@ -166,7 +167,7 @@ export function marketSearchSubtitle(market: MarketSearchRecord): string {
   if (market.outcomeLabels.length > 0 && market.outcomeLabels.length <= 4) {
     return market.outcomeLabels.join(" · ");
   }
-  if (market.poolTvl) return `TVL ${market.poolTvl}`;
+  if (market.tradeVolume) return `Vol ${market.tradeVolume}`;
   return market.kind;
 }
 

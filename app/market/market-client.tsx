@@ -28,7 +28,6 @@ import {
   MARKET_READ_ABI,
   marketBuyCall,
   marketSellCall,
-  readMarketPoolTotal,
 } from "@/lib/market-abi";
 import {
   DEFAULT_SLIPPAGE_BPS,
@@ -124,21 +123,6 @@ export function MarketClient() {
   const publicClient = deploymentPublicClient;
   const { address, chainId, writeContract } = useSessionWallet();
   const [markets, setMarkets] = useState<UiMarket[]>([]);
-  const [tvlOverrides, setTvlOverrides] = useState<Record<string, string>>({});
-  const [tvlRefreshing, setTvlRefreshing] = useState<Record<string, boolean>>({});
-
-  const refreshTvl = async (m: UiMarket) => {
-    if (!publicClient || tvlRefreshing[m.address]) return;
-    setTvlRefreshing((p) => ({ ...p, [m.address]: true }));
-    try {
-      const isFpmm = await isFpmmMarket(publicClient, m.address);
-      const total = await readMarketPoolTotal(publicClient, m.address, m.outcomes, isFpmm);
-      const formatted = Number(formatUnits(total, m.collateralDecimals)).toLocaleString(undefined, { maximumFractionDigits: 2 });
-      setTvlOverrides((p) => ({ ...p, [m.address]: formatted }));
-    } catch { /* ignore */ } finally {
-      setTvlRefreshing((p) => ({ ...p, [m.address]: false }));
-    }
-  };
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [selectedMarket, setSelectedMarket] = useState<UiMarket | null>(null);
@@ -421,7 +405,7 @@ export function MarketClient() {
     }
 
     const tvlValue = (m: UiMarket) => {
-      const v = Number((tvlOverrides[m.address] ?? m.poolTvl).replace(/,/g, ""));
+      const v = Number(m.poolTvl.replace(/,/g, ""));
       return Number.isFinite(v) ? v : 0;
     };
 
@@ -440,7 +424,7 @@ export function MarketClient() {
     });
 
     return rows;
-  }, [markets, marketListClock, searchParams, tvlOverrides]);
+  }, [markets, marketListClock, searchParams]);
 
   const empty = useMemo(
     () => !isLoading && !loadError && visibleMarkets.length === 0,
@@ -811,7 +795,6 @@ export function MarketClient() {
                   nadMarket={m.nadMarket}
                   outcomeLabels={m.outcomeLabels ?? []}
                   outcomeChancePcts={m.outcomeChancePcts}
-                  poolTvl={tvlOverrides[m.address] ?? m.poolTvl}
                   tradeVolume={m.tradeVolume}
                   heldSharesByOutcome={(m.outcomeLabels ?? []).map(
                     (_, i) => heldSharesByMarket[m.address.toLowerCase()]?.[i],
@@ -823,7 +806,7 @@ export function MarketClient() {
                   slug={m.slug}
                   showNewBadge={
                     (() => {
-                      const v = Number((tvlOverrides[m.address] ?? m.poolTvl).replace(/,/g, ""));
+                      const v = Number(m.poolTvl.replace(/,/g, ""));
                       return !Number.isFinite(v) || v <= 0;
                     })()
                   }
@@ -839,8 +822,6 @@ export function MarketClient() {
                     router.push(marketPath({ slug: m.slug, address: m.address }));
                   }}
                   onTrade={(idx) => openTrade(m, idx)}
-                  onRefreshTvl={() => void refreshTvl(m)}
-                  tvlRefreshing={Boolean(tvlRefreshing[m.address])}
                   tradingClosed={
                     m.marketState !== 0 ||
                     Math.floor(Date.now() / 1000) >= m.stakeEndUnix
@@ -853,7 +834,6 @@ export function MarketClient() {
                 imageUrl={m.imageUrl}
                 outcomeLabels={m.outcomeLabels ?? []}
                 outcomeChancePcts={m.outcomeChancePcts}
-                poolTvl={tvlOverrides[m.address] ?? m.poolTvl}
                 tradeVolume={m.tradeVolume}
                 heldSharesByOutcome={(m.outcomeLabels ?? []).map(
                   (_, i) => heldSharesByMarket[m.address.toLowerCase()]?.[i],
@@ -865,7 +845,7 @@ export function MarketClient() {
                 slug={m.slug}
                 showNewBadge={
                   (() => {
-                    const v = Number((tvlOverrides[m.address] ?? m.poolTvl).replace(/,/g, ""));
+                    const v = Number(m.poolTvl.replace(/,/g, ""));
                     return !Number.isFinite(v) || v <= 0;
                   })()
                 }
@@ -881,8 +861,6 @@ export function MarketClient() {
                   router.push(marketPath({ slug: m.slug, address: m.address }));
                 }}
                 onTrade={(idx) => openTrade(m, idx)}
-                onRefreshTvl={() => void refreshTvl(m)}
-                tvlRefreshing={Boolean(tvlRefreshing[m.address])}
                 tradingClosed={
                   m.marketState !== 0 ||
                   Math.floor(Date.now() / 1000) >= m.stakeEndUnix

@@ -370,6 +370,7 @@ function buildMarketListItem(
       maximumFractionDigits: 2,
     }),
     tradeVolume: Number(formatUnits(tradeVolumeRaw, slice.dec)).toLocaleString(undefined, {
+      minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     }),
     chancePct: leftPct,

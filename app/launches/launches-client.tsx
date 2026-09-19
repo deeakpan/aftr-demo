@@ -153,13 +153,9 @@ function LaunchBrowseCard({
               </span>
               ${market.tradeVolume}
             </span>
-          ) : null}
-          <span className="inline-flex items-center gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
-              TVL
-            </span>
-            ${market.poolTvl || "0"}
-          </span>
+          ) : (
+            <span />
+          )}
         </span>
         <div className="flex items-center gap-2">
           <MarketShareButton address={market.address} slug={market.slug} title={market.title} iconSize={13} />

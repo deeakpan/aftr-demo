@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowsClockwise, ChartBar, Flag } from "@phosphor-icons/react";
+import { ChartBar, Flag } from "@phosphor-icons/react";
 import { useMemo } from "react";
 import type { NadMarketConfig } from "@/lib/nad/types";
 import type { NadLiveStats } from "@/lib/nad/market-stats";
@@ -145,7 +145,6 @@ export function NadMarketListCard({
   nadMarket,
   outcomeLabels,
   outcomeChancePcts,
-  poolTvl,
   tradeVolume,
   heldSharesByOutcome,
   collateralDecimals = 6,
@@ -154,8 +153,6 @@ export function NadMarketListCard({
   showNewBadge = false,
   onTitleClick,
   onTrade,
-  onRefreshTvl,
-  tvlRefreshing = false,
   interactive = true,
   tradingClosed = false,
   className = "",
@@ -191,15 +188,12 @@ export function NadMarketListCard({
 
   const isBinary = nadMarket.mode === "binary";
 
-  const showTvl =
-    !showNewBadge && poolTvl !== undefined && poolTvl !== "" && poolTvl !== "0" && poolTvl !== "0.00";
   const showVol =
     !showNewBadge &&
     tradeVolume !== undefined &&
     tradeVolume !== "" &&
     tradeVolume !== "0" &&
     tradeVolume !== "0.00";
-  const showStats = showTvl || showVol;
 
   return (
     <article
@@ -365,50 +359,26 @@ export function NadMarketListCard({
       </div>
 
       <div className="flex shrink-0 items-center justify-between border-t border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] text-[var(--muted)]">
-        {showStats ? (
-          <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-0.5 font-semibold text-[var(--foreground)]">
-            {showVol ? (
-              <span className="inline-flex items-center gap-1">
-                <ChartBar size={14} weight="bold" className="text-[var(--muted)]" />
-                <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
-                  Vol
-                </span>
-                ${tradeVolume}
-              </span>
-            ) : null}
-            {showTvl ? (
-              <span className="inline-flex items-center gap-1">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
-                  TVL
-                </span>
-                ${poolTvl}
-              </span>
-            ) : null}
+        {showVol ? (
+          <span className="inline-flex items-center gap-1 font-semibold text-[var(--foreground)]">
+            <ChartBar size={14} weight="bold" className="text-[var(--muted)]" />
+            <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
+              Vol
+            </span>
+            ${tradeVolume}
           </span>
-        ) : (
+        ) : showNewBadge ? (
           <span className="inline-flex items-center gap-1 font-bold uppercase tracking-wide text-amber-400 [html[data-theme=light]_&]:text-amber-600">
             <Flag size={13} weight="fill" />
             New
           </span>
+        ) : (
+          <span />
         )}
         <div className="flex shrink-0 items-center gap-2">
           {marketAddress ? (
             <MarketShareButton address={marketAddress} slug={slug} title={title} iconSize={13} />
           ) : null}
-          {onRefreshTvl && (
-            <button
-              type="button"
-              aria-label="Refresh TVL"
-              disabled={tvlRefreshing}
-              onClick={(e) => {
-                e.stopPropagation();
-                onRefreshTvl();
-              }}
-              className="rounded p-0.5 transition hover:text-[var(--foreground)] disabled:opacity-40"
-            >
-              <ArrowsClockwise size={14} className={tvlRefreshing ? "animate-spin" : ""} />
-            </button>
-          )}
           {resolveAfter && (
             <MarketCloseDate label={resolveAfter} tooltip={resolveAfterTooltip} iconSize={13} />
           )}

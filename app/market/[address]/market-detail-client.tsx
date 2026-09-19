@@ -1160,29 +1160,16 @@ export function MarketDetailClient({
                     <p className="mt-1 font-mono text-[11px] text-[var(--muted)]">/{market.slug}</p>
                   ) : null}
                   <MarketDescription text={market.description} />
-                  {(market.tradeVolume &&
-                    market.tradeVolume !== "0" &&
-                    market.tradeVolume !== "0.00") ||
-                  (market.poolTvl && market.poolTvl !== "0" && market.poolTvl !== "0.00") ? (
+                  {market.tradeVolume &&
+                  market.tradeVolume !== "0" &&
+                  market.tradeVolume !== "0.00" ? (
                     <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                      {market.tradeVolume &&
-                      market.tradeVolume !== "0" &&
-                      market.tradeVolume !== "0.00" ? (
-                        <span className="inline-flex items-center gap-1.5 font-semibold text-[var(--foreground)]">
-                          <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
-                            Vol
-                          </span>
-                          ${market.tradeVolume}
+                      <span className="inline-flex items-center gap-1.5 font-semibold text-[var(--foreground)]">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
+                          Vol
                         </span>
-                      ) : null}
-                      {market.poolTvl && market.poolTvl !== "0" && market.poolTvl !== "0.00" ? (
-                        <span className="inline-flex items-center gap-1.5 font-semibold text-[var(--foreground)]">
-                          <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
-                            TVL
-                          </span>
-                          ${market.poolTvl}
-                        </span>
-                      ) : null}
+                        ${market.tradeVolume}
+                      </span>
                     </div>
                   ) : null}
                   {(market.resolutionSources?.length ?? 0) > 0 ? (
