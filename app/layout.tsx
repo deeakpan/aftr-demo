@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Orbitron } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { PRODUCT_DESCRIPTION, PRODUCT_NAME, PRODUCT_TAGLINE } from "@/lib/product";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,9 +21,8 @@ const orbitron = Orbitron({
 });
 
 export const metadata: Metadata = {
-  title: "Zedkr Market | Prediction markets on Robinhood Chain",
-  description:
-    "Zedkr Market is a Zedkr product for creating and trading prediction markets on Robinhood Chain.",
+  title: `${PRODUCT_NAME} | ${PRODUCT_TAGLINE}`,
+  description: PRODUCT_DESCRIPTION,
   icons: {
     icon: [
       { url: "/favicon.png", type: "image/png", sizes: "512x512" },

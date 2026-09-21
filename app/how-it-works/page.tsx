@@ -5,7 +5,7 @@ import { AppLayout } from "@/app/components/app-layout";
 import { brandWord } from "@/lib/brand-font";
 import { ETH_COINGECKO_LOGO, USDC_COINGECKO_LOGO } from "@/lib/brand-assets";
 import { COMPANY_NAME, COMPANY_URL, PRODUCT_NAME } from "@/lib/product";
-import { NATIVE_CURRENCY_SYMBOL } from "@/lib/chain";
+import { DEPLOYMENT_NETWORK_LABEL, NATIVE_CURRENCY_SYMBOL } from "@/lib/chain";
 
 const brand = brandWord;
 
@@ -76,8 +76,8 @@ export default function HowItWorksPage() {
                 >
                   {COMPANY_NAME}
                 </a>
-                , built for Robinhood Chain. Create and trade markets on oracle prices, real-world
-                events, and token pairs from Dexscreener or GeckoTerminal. Pools, trades, and settlement are onchain.
+                . Create and trade markets on oracle prices, real-world events, DEX tokens, and Prism
+                RWAs. Pools, trades, and settlement run on {DEPLOYMENT_NETWORK_LABEL}.
               </p>
               <p className="text-sm text-[var(--muted)] md:text-base">
                 Fees from trading accrue to market creators and the protocol. Explore the rest of
@@ -112,7 +112,10 @@ export default function HowItWorksPage() {
             <section id="traders" className="scroll-mt-24 space-y-3">
               <h2 className="text-xl font-semibold text-[var(--foreground)]">For traders</h2>
               <ol className="space-y-2 text-sm text-[var(--foreground)] md:text-base">
-                <li>1. Connect a wallet on Robinhood Chain and fund collateral (USDC or {NATIVE_CURRENCY_SYMBOL}).</li>
+                <li>
+                  1. Sign in with Para on {DEPLOYMENT_NETWORK_LABEL} and fund collateral (USDC or{" "}
+                  {NATIVE_CURRENCY_SYMBOL}).
+                </li>
                 <li>2. Open a market and select an outcome (Yes / No, or a multi-outcome set).</li>
                 <li>3. Place a market trade, or a limit order where the book is available.</li>
                 <li>4. Watch probability and position as pool balances update.</li>
@@ -130,8 +133,8 @@ export default function HowItWorksPage() {
               <ol className="space-y-2 text-sm text-[var(--foreground)] md:text-base">
                 <li>1. Create a market with title, outcomes, cover, and schedule.</li>
                 <li>
-                  2. Choose a type: Price (Chainlink), Event (community resolution), or Token
-                  (Dexscreener / GeckoTerminal pool link; operator settles).
+                  2. Choose a type: Price (oracle), Event (community resolution), Token (DEX pool
+                  link), or RWA (Prism catalogue).
                 </li>
                 <li>3. Set stake-close and resolve-after times.</li>
                 <li>4. Seed initial liquidity so the market can open.</li>
@@ -151,11 +154,13 @@ export default function HowItWorksPage() {
                   sources and confirm the winning outcome.
                 </li>
                 <li>
-                  - Token markets settle when the operator reads Dexscreener or GeckoTerminal at
-                  resolve time (market cap or token price, per the question).
+                  - Token / RWA markets settle when the resolver reads Dexscreener, GeckoTerminal, or
+                  Prism at resolve time (price, market cap, or APY, per the question).
                 </li>
                 <li>- Winners redeem outcome shares for collateral after settlement.</li>
-                <li>- Trades and pool updates are publicly verifiable on Robinhood Chain.</li>
+                <li>
+                  - Trades and pool updates are publicly verifiable on {DEPLOYMENT_NETWORK_LABEL}.
+                </li>
               </ul>
             </section>
 
