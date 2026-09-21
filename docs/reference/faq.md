@@ -104,7 +104,7 @@ Choose events where the winner can be verified from **public, official records**
 
 ### Can I import a Polymarket market?
 
-Yes, on Create → **Event**, use **Import from Polymarket** and paste a Polymarket URL. Title, description, cover, outcomes, and schedule are prefilled. Review and edit before submitting. The Zedkr Market market still settles through protocol admins - it is not linked to Polymarket settlement. Details: [Event markets](../creating-markets/event-markets.md#import-from-polymarket-optional).
+Yes, on Create → **Event**, use **Import from Polymarket** and paste a Polymarket URL. Title, description, cover, outcomes, and schedule are prefilled. Review and edit before submitting. The Zedkr Market listing still settles through protocol admins - it is not linked to Polymarket settlement. Details: [Event markets](../creating-markets/event-markets.md#import-from-polymarket-optional).
 
 ### Can I get help before creating a market?
 
