@@ -408,22 +408,22 @@ export function AppLayout({
           className={`flex min-w-0 flex-1 flex-col ${viewportLocked ? "relative min-h-0 overflow-hidden" : ""}`}
         >
         <header
-          className={`z-30 w-full shrink-0 px-3 md:px-6 ${
+          className={`z-30 w-full min-w-0 shrink-0 px-2.5 sm:px-3 md:px-6 ${
             viewportLocked
               ? "sticky top-0 mb-0 bg-[var(--background)]/95 py-3 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--background)]/80"
               : "mb-1 py-3"
           }`}
         >
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2 md:gap-3">
             <button
               type="button"
               aria-label="Open menu"
               onClick={() => setIsSidebarOpen(true)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center text-[var(--foreground)]"
+              className="flex h-9 w-9 shrink-0 items-center justify-center text-[var(--foreground)] sm:h-10 sm:w-10"
             >
-              <List size={24} weight="bold" />
+              <List size={22} weight="bold" className="sm:size-6" />
             </button>
-            <Link href="/" className="relative block h-9 w-9 shrink-0">
+            <Link href="/" className="relative block h-8 w-8 shrink-0 sm:h-9 sm:w-9">
               <Image
                 src={theme === "light" ? "/light.png" : "/logo.png"}
                 alt="Zedkr Market home"
@@ -437,29 +437,30 @@ export function AppLayout({
               <button
                 type="button"
                 onClick={() => setIsSearchOpen(true)}
-                className="flex h-11 w-[min(100%,26rem)] max-w-[26rem] items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 text-left text-sm text-[var(--muted)] transition hover:border-white/15"
+                className="flex h-9 min-w-0 flex-1 items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-2.5 text-left text-xs text-[var(--muted)] transition hover:border-white/15 sm:h-11 sm:gap-2 sm:px-4 sm:text-sm md:max-w-[26rem]"
               >
                 <MagnifyingGlass size={16} weight="bold" className="shrink-0" />
                 <span className="min-w-0 flex-1 truncate">Search markets</span>
                 <span className="hidden shrink-0 text-xs text-[var(--muted)] sm:inline">/</span>
               </button>
-            ) : null}
-            <div className="min-w-0 flex-1" />
-            <div className="flex shrink-0 items-center justify-end gap-2 md:gap-3">
+            ) : (
+              <div className="min-w-0 flex-1" />
+            )}
+            <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2 md:gap-3">
               {isWalletConnected ? (
                 <>
                   <button
                     type="button"
                     onClick={() => setShowDepositModal(true)}
-                    className="inline-flex h-9 cursor-pointer select-none items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold text-white caret-transparent hover:brightness-110"
+                    className="inline-flex h-8 max-w-full cursor-pointer select-none items-center gap-1 rounded-full px-2.5 text-xs font-semibold text-white caret-transparent hover:brightness-110 sm:h-9 sm:gap-1.5 sm:px-3.5 sm:text-sm"
                     style={{
                       background: "linear-gradient(180deg, #3a3a3a 0%, #111111 48%, #000000 100%)",
                       boxShadow:
                         "inset 0 1px 0 rgba(255,255,255,0.28), 0 0 0 1px rgba(196, 210, 224, 0.55), 0 1px 2px rgba(0,0,0,0.45)",
                     }}
                   >
-                    <Coins size={14} weight="fill" />
-                    Deposit
+                    <Coins size={14} weight="fill" className="shrink-0" />
+                    <span className="truncate">Deposit</span>
                   </button>
                   <div
                     className="relative flex items-center gap-2"
@@ -480,7 +481,7 @@ export function AppLayout({
                         backgroundImage: walletGradient,
                         borderColor: theme === "light" ? "rgba(11, 12, 14, 0.2)" : "rgba(255, 255, 255, 0.7)",
                       }}
-                      className="h-9 w-9 shrink-0 cursor-pointer select-none rounded-full border-2 shadow-sm caret-transparent outline-none focus-visible:ring-2 focus-visible:ring-white/25 md:h-10 md:w-10"
+                      className="h-8 w-8 shrink-0 cursor-pointer select-none rounded-full border-2 shadow-sm caret-transparent outline-none focus-visible:ring-2 focus-visible:ring-white/25 sm:h-9 sm:w-9 md:h-10 md:w-10"
                     >
                       <span className="sr-only">Open profile</span>
                     </button>
@@ -741,7 +742,7 @@ export function AppLayout({
                 <button
                   type="button"
                   onClick={() => openParaModal()}
-                  className="inline-flex h-11 cursor-pointer select-none items-center rounded-full bg-[var(--foreground)] px-5 text-sm font-semibold text-[var(--background)] caret-transparent hover:opacity-90"
+                  className="inline-flex h-9 cursor-pointer select-none items-center rounded-full bg-[var(--foreground)] px-3.5 text-xs font-semibold text-[var(--background)] caret-transparent hover:opacity-90 sm:h-11 sm:px-5 sm:text-sm"
                 >
                   Sign in
                 </button>
