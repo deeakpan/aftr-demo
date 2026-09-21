@@ -1,13 +1,50 @@
 /**
  * Starts Next resolver + Telegram subscriber bot together.
  */
-const { spawn, execSync } = require("child_process");
+const { spawn, spawnSync, execSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 
 const root = path.join(__dirname, "..");
 const repoRoot = path.join(root, "..");
 const RESOLVER_PORT = Number(process.env.PORT || 3002) || 3002;
+
+function nextBin() {
+  return path.join(root, "node_modules", "next", "dist", "bin", "next");
+}
+
+function hasProductionBuild() {
+  return fs.existsSync(path.join(root, ".next", "BUILD_ID"));
+}
+
+/** Hosted containers often only run start; build the resolver if .next is missing. */
+function ensureProductionBuild() {
+  if (hasProductionBuild()) return;
+  console.warn("[start-resolver] no production build — running next build…");
+  // Production installs omit devDeps; TypeScript is required for next build.
+  const install = spawnSync(
+    "npm",
+    ["install", "--include=dev", "--no-audit", "--no-fund"],
+    { cwd: root, stdio: "inherit", env: process.env, shell: true }
+  );
+  if (install.status !== 0) {
+    console.error("[start-resolver] npm install --include=dev failed");
+    process.exit(install.status || 1);
+  }
+  const build = spawnSync(process.execPath, [nextBin(), "build", "--webpack"], {
+    cwd: root,
+    stdio: "inherit",
+    env: process.env,
+  });
+  if (build.status !== 0) {
+    console.error("[start-resolver] next build failed");
+    process.exit(build.status || 1);
+  }
+  if (!hasProductionBuild()) {
+    console.error("[start-resolver] next build finished but .next/BUILD_ID is still missing");
+    process.exit(1);
+  }
+}
 
 /** Free the resolver port so relaunch does not hit EADDRINUSE. */
 function freePort(port) {
@@ -107,8 +144,12 @@ const isProd =
   Boolean(process.env.FLY_APP_NAME);
 
 if (isProd) {
-  // Container / hosted: serve the built app (build step must run `npm run build` in resolver/).
-  run("npx", ["next", "start", "--port", String(RESOLVER_PORT)], "resolver", { shell: true });
+  ensureProductionBuild();
+  run(process.execPath, [nextBin(), "start", "--port", String(RESOLVER_PORT)], "resolver", {
+    shell: false,
+  });
 } else {
-  run("npx", ["next", "dev", "--port", String(RESOLVER_PORT), "--webpack"], "resolver", { shell: true });
+  run(process.execPath, [nextBin(), "dev", "--port", String(RESOLVER_PORT), "--webpack"], "resolver", {
+    shell: false,
+  });
 }
