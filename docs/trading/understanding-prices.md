@@ -1,13 +1,13 @@
 # Understanding prices & probability
 
-Zedkr markets use a **parimutuel pool** model. There is no traditional order-book mid price for pool trades — instead, everyone’s collateral sits in shared pools per outcome, and shares are minted based on the pool’s current weights.
+Zedkr markets use a **parimutuel pool** model. There is no traditional order-book mid price for pool trades - instead, everyone’s collateral sits in shared pools per outcome, and shares are minted based on the pool’s current weights.
 
 ## Probability percentage
 
 The percentage shown next to each outcome is an **implied probability** derived from how much collateral sits on that side relative to all outcomes.
 
 - If Yes shows **70%** and No shows **30%**, the pool collectively prices Yes as the more likely result.
-- Percentages are not guarantees — they reflect trader sentiment and capital at this moment.
+- Percentages are not guarantees - they reflect trader sentiment and capital at this moment.
 - When someone buys Yes, Yes’s share of the pool grows and its displayed probability typically increases.
 
 ## Price per share
@@ -37,8 +37,8 @@ Limit orders use a **price you specify** in collateral per share (or equivalent 
 
 ## What probability is not
 
-- Not a forecast from Zedkr — it is crowd-priced.
-- Not fixed — it updates with every pool trade.
-- Not what you will necessarily receive at settlement — losers receive nothing; winners split the redeemable pool per share mechanics.
+- Not a forecast from Zedkr - it is crowd-priced.
+- Not fixed - it updates with every pool trade.
+- Not what you will necessarily receive at settlement - losers receive nothing; winners split the redeemable pool per share mechanics.
 
 [Fees & slippage →](fees-and-slippage.md)

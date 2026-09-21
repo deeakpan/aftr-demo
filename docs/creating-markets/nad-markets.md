@@ -2,7 +2,7 @@
 
 > **Not in Create.** New markets use **[Token markets](token-markets.md)** (DEX pool links) or **[RWA (Prism)](rwa-prism-markets.md)**. This page describes older **Nad.fun**-backed markets that may still exist on-chain.
 
-**Nad markets** resolved from live stats on tokens from **[Nad.fun](https://nad.fun)** — Monad’s bonding-curve launchpad. Traders bet on live token stats; settlement read Nad.fun at resolve time.
+**Nad markets** resolved from live stats on tokens from **[Nad.fun](https://nad.fun)** - Monad’s bonding-curve launchpad. Traders bet on live token stats; settlement read Nad.fun at resolve time.
 
 ## What they were for
 

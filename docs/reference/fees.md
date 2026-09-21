@@ -28,7 +28,7 @@ The trade panel’s share estimate uses the post-fee amount.
 | Action | Trading fee? |
 |--------|--------------|
 | Claiming winnings after settlement | No additional 1% |
-| Wallet gas | Network cost only — paid to validators, not Zedkr |
+| Wallet gas | Network cost only - paid to validators, not Zedkr |
 
 ## Limit orders
 
@@ -36,7 +36,7 @@ Limit order matching may involve escrow and fills at agreed prices. The **1% poo
 
 ## Creator earnings
 
-Creators do not need a separate claim step for the 0.25% — it is sent on each qualifying trade automatically to the creator address set at market deployment.
+Creators do not need a separate claim step for the 0.25% - it is sent on each qualifying trade automatically to the creator address set at market deployment.
 
 ## Fee changes
 

@@ -8,7 +8,7 @@ Create a token market when the question is about **traded token metrics** on a p
 
 - Token **USD price** above a threshold
 - **Market cap** above a threshold
-- **Head-to-head** — which token has the highest price or market cap at resolve
+- **Head-to-head**  -  which token has the highest price or market cap at resolve
 
 Use **RWA (Prism)** instead for tokenized real-world assets on [Prism](https://prismassets.shop). Use **Price (oracle)** for Chainlink-style assets (ETH, BTC, gold feeds).
 
@@ -24,19 +24,19 @@ Use **RWA (Prism)** instead for tokenized real-world assets on [Prism](https://p
 
 | Style | What you’re betting on |
 |-------|------------------------|
-| **Threshold** | Yes/No on one token — price or mcap above a USD target |
-| **Comparison** | Two to four tokens — highest price or highest mcap at resolve |
+| **Threshold** | Yes/No on one token  -  price or mcap above a USD target |
+| **Comparison** | Two to four tokens  -  highest price or highest mcap at resolve |
 
 ## Resolution
 
-Settlement is **automatic**. Market metadata stores the pool links and question rules; the resolver fetches pair stats at resolve time and settles on-chain. No admin vote.
+Settlement is **automatic**. The market uses the pool links and question rules; at resolve time the pair stats decide the winner. No admin vote.
 
 On the market page, Zedkr shows live pair stats and a Dex chart when available, plus the shared **trades / chance** chart.
 
 ## Creator tips
 
 - Prefer liquid pools so price/mcap at resolve is meaningful.
-- Use clear tickers in the title (`$A` vs `$B` — highest mcap by …).
+- Use clear tickers in the title (`$A` vs `$B`  -  highest mcap by …).
 - Seed enough liquidity so opening odds aren’t extreme.
 
 ## Related

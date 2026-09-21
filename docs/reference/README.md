@@ -4,11 +4,11 @@ Quick lookup for terms, numbers, and common questions. Use this section when you
 
 ## Contents
 
-- [Glossary](glossary.md) — definitions of every important term
-- [Fees](fees.md) — all fee rates in one table
-- [Deployments](deployments.md) — networks, chain IDs, and contract addresses
-- [Timelines & key dates](timelines.md) — stake end vs resolve after
-- [FAQ](faq.md) — frequent questions
+- [Glossary](glossary.md) - definitions of every important term
+- [Fees](fees.md) - all fee rates in one table
+- [Deployments](deployments.md) - networks, chain IDs, and contract addresses
+- [Timelines & key dates](timelines.md) - stake end vs resolve after
+- [FAQ](faq.md) - frequent questions
 
 ## Key numbers at a glance
 

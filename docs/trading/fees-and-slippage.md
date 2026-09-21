@@ -22,7 +22,7 @@ Limit orders may involve separate matching economics; the 1% pool fee applies to
 - **Creator fee** rewards people who launch markets and seed liquidity.
 - **Other shares** support the platform and related protocol recipients.
 
-Full breakdown: [Reference — Fees](../reference/fees.md).
+Full breakdown: [Reference - Fees](../reference/fees.md).
 
 ## Slippage
 
@@ -46,7 +46,7 @@ Network **gas** is paid to validators for processing your transaction. Gas is se
 
 ## No hidden pool fee at settlement
 
-The 1% is charged on **entry** (pool deposit). Settlement redemption does not apply an additional trading fee to winners — you redeem shares for collateral according to the market’s settlement rules.
+The 1% is charged on **entry** (pool deposit). Settlement redemption does not apply an additional trading fee to winners - you redeem shares for collateral according to the market’s settlement rules.
 
 ## Next
 

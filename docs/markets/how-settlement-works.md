@@ -1,78 +1,63 @@
 # How settlement works
 
-Settlement is the moment a market picks a single winning outcome and enables redemption. Until then, shares are bets in flux.
+Settlement is when a market picks a winning outcome so winners can claim. Until then, your shares are still open positions.
 
 ## After settlement
 
-- One outcome is marked **winner**
-- Winning shares become redeemable for collateral
-- Losing shares have zero value
-- No further trading on the pool
+- One outcome is marked the **winner**
+- Winning shares can be claimed for collateral
+- Losing shares are worth nothing
+- Pool trading on that market stops
 
-## Price market settlement
+## Who decides the winner?
 
-1. **Resolve after** time passes.
-2. The system reads the configured **official price** for the asset.
-3. The outcome that matches the price rule (above/below/range) wins.
-4. Anyone can trigger finalization once conditions are met; the market updates to settled within seconds.
+It depends on the market type.
 
-Price markets do not rely on human judgment for the outcome — the rule and the price at resolve time decide.
+### Event markets (admin review)
 
-## Token market settlement
+Event markets are about real-world results (elections, sports, announcements).
 
-1. **Resolve after** time passes.
-2. The resolver fetches **DEX pair stats** (USD price / market cap) for each pool link stored in market metadata.
-3. The outcome that matches the rule (threshold met, highest price/mcap, etc.) wins.
-4. Settlement finalizes on-chain automatically — no admin signatures.
+1. Trading closes at **stake end**. Settlement can start after **resolve after**.
+2. Protocol **admins** check the **resolution sources** the creator listed (official sites, results pages, and similar public links).
+3. More than one admin must agree on the same winner.
+4. When enough admins agree, the market settles and winners can claim.
 
-Traders can open the Dexscreener / GeckoTerminal links on the market page before entering a position.
+**What you should know as a trader**
 
-## RWA (Prism) settlement
+- The creator does **not** settle the market alone.
+- Read the description and open every resolution source before you trade.
+- If the question is vague or sources are weak, settlement can be slow or contested. Size your trade accordingly.
+- Importing a Polymarket template does **not** mean Polymarket settles the Zedkr market. Admins still decide from the listed sources.
 
-1. **Resolve after** time passes.
-2. The resolver fetches a **Prism catalogue snapshot** for each asset slug (price, market cap, or APY — depending on the question).
-3. The outcome that matches the rule wins.
-4. Settlement finalizes on-chain automatically — no admin signatures.
+**What creators should know**
 
-Asset pages on [Prism](https://prismassets.shop) are linked from the market for verification.
+- Only create event markets when a clear public record will exist.
+- Add solid resolution source links. Weak or missing sources stall settlement.
 
-## Event market settlement
+### Price markets
 
-1. **Resolve after** time passes.
-2. **Protocol admins** review **resolution sources** the creator listed (official websites, results pages, etc.).
-3. Admins confirm which outcome won.
-4. Once enough admins agree, settlement finalizes on-chain.
-5. Winners can claim.
+After **resolve after**, the market uses the configured asset price rule (above, below, or range). No admin vote. Anyone can finish settlement once the time and price rule are met.
 
-Event markets are **resolved through protocol admins** using the creator’s public sources — not a price oracle and not Polymarket’s own settlement (even if you imported a Polymarket template).
+### Token markets
 
-### What traders should do
+After **resolve after**, the market uses live DEX pool stats from the Dexscreener or GeckoTerminal links on the market. No admin vote.
 
-Before trading an event market:
+### RWA (Prism) markets
 
-- Read the market description carefully
-- Open each **resolution source** link and understand what “official” means for this question
-- Be comfortable that admins can verify the result from those sources
+After **resolve after**, the market uses Prism catalogue stats (price, market cap, or APY, depending on the question). No admin vote.
 
-Ambiguous questions or missing sources increase dispute risk.
+## Claiming
 
-## Redemption mechanics
+After settlement, go to **Trades**, open the market, and claim if you hold the winning outcome. Payout depends on how many winning shares you hold and how the pool was filled. It is not a fixed $1 per share.
 
-Winners submit a **claim** that burns winning shares and returns collateral. The per-share value is determined at settlement based on the pool — not a fixed $1 per share.
+## Can the result be wrong?
 
-Parimutuel math means:
+- **Price, token, and RWA:** the published rule and data source at resolve time decide. Read the market text carefully.
+- **Event:** admins follow the resolution sources. Contested real-world events still carry risk.
 
-- Winners split the redeemable collateral pool
-- Your payout scales with how many winning shares you hold relative to other winners
+## What if nobody presses settle?
 
-## Can settlement be wrong?
-
-- **Price / token / RWA markets:** Outcome follows the configured rule and data source at resolve time. If the feed or API is delayed or the rule ambiguous, edge cases are possible — read the market text.
-- **Event markets:** Admins aim to match resolution sources. Contested real-world events carry inherent risk. Trade size accordingly.
-
-## What if nobody settles?
-
-Settlement can be triggered by any participant once conditions are met. Markets do not require the creator or original traders to finalize.
+For automated types (price, token, RWA), anyone can trigger settlement once conditions are met. Event markets wait on admin agreement. Neither requires the original creator or traders to be the ones who finalize.
 
 ## Related
 

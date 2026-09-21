@@ -4,7 +4,7 @@ On Zedkr, your **Para wallet address** is your account. The app also lets you se
 
 ## Display name
 
-When you first participate in market activity, you may be prompted to choose a display name. This name appears in activity feeds and social context around markets. It is cosmetic — it does not change your wallet address or on-chain identity.
+When you first participate in market activity, you may be prompted to choose a display name. This name appears in activity feeds and social context around markets. It is cosmetic - it does not change your wallet address or on-chain identity.
 
 You can think of it as a nickname for the same underlying wallet.
 
@@ -12,8 +12,8 @@ You can think of it as a nickname for the same underlying wallet.
 
 The app shows:
 
-- **Wallet balance** — collateral available in your Para wallet (USDC, USDG, or other tokens depending on the market).
-- **Outcome share balance** — positions you hold in specific markets (visible on market pages and the Trades page).
+- **Wallet balance** - collateral available in your Para wallet (USDC, USDG, or other tokens depending on the market).
+- **Outcome share balance** - positions you hold in specific markets (visible on market pages and the Trades page).
 
 These are separate. Trading moves collateral into outcome shares; claiming moves collateral back after settlement.
 

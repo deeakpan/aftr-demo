@@ -17,11 +17,11 @@ Creators write the title, description, outcomes, and timing. Traders decide whic
 
 All markets have:
 
-- **Collateral** — USDC or another supported token
-- **Outcomes** — two or more mutually exclusive results
-- **Stake end** — last moment new pool trades are accepted
-- **Resolve after** — earliest time settlement can occur
-- **Pool** — collateral backing outcome shares
+- **Collateral** - USDC or another supported token
+- **Outcomes** - two or more mutually exclusive results
+- **Stake end** - last moment new pool trades are accepted
+- **Resolve after** - earliest time settlement can occur
+- **Pool** - collateral backing outcome shares
 
 ## Four market families
 

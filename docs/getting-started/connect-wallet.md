@@ -1,16 +1,16 @@
 # Connect / sign in
 
-Zedkr uses **Para** for sign-in. Your account is a Para wallet (email, phone, or social) that holds funds and signs trades — not a MetaMask / WalletConnect “connect every visit” flow.
+Zedkr uses **Para** for sign-in. Your account is a Para wallet (email, phone, or social) that holds funds and signs trades - not a MetaMask / WalletConnect “connect every visit” flow.
 
 ## How to sign in
 
 1. Click **Sign in** in the header (or when a trade requires it).
-2. Complete Para login — email, phone, or supported social (Google, Apple, X, etc.).
+2. Complete Para login - email, phone, or supported social (Google, Apple, X, etc.).
 3. Para creates or unlocks an **embedded wallet** for this app.
 
 You do **not** need MetaMask installed. Injected wallets are not used for session identity on Zedkr.
 
-## What signing in does — and does not do
+## What signing in does - and does not do
 
 **Signing in does:**
 
@@ -24,7 +24,7 @@ You do **not** need MetaMask installed. Injected wallets are not used for sessio
 
 ## Display name
 
-After you are signed in, you may be prompted to choose a **display name** (nickname). That is separate from Para auth — see [Your account & display name](your-account.md).
+After you are signed in, you may be prompted to choose a **display name** (nickname). That is separate from Para auth - see [Your account & display name](your-account.md).
 
 ## Wrong network
 

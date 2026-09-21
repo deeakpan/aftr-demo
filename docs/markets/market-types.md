@@ -15,13 +15,13 @@ Examples:
 
 ### Resolution sources
 
-Creators must attach at least one **resolution source** — a public HTTPS link where the official result will be published (election commission, league site, company press release, etc.). These links guide independent reviewers when the market settles.
+Creators must attach at least one **resolution source**: a public link where the official result will be published (election commission, league site, company press release, etc.). Admins use those links when the market settles.
 
 ### Settlement
 
-After **resolve after**, a panel of **factory resolution admins** reviews evidence against the resolution sources and signs off on the winning outcome. Settlement requires multiple independent signatures agreeing on the same result — not a single person’s decision.
+After **resolve after**, protocol **admins** check the resolution sources and confirm the winner. More than one admin must agree. The creator alone cannot settle.
 
-If you trade event markets, read the description and resolution sources before entering. Your payout depends on admins confirming the outcome that matches those sources.
+If you trade event markets, read the description and resolution sources first. Your payout depends on admins confirming the outcome that matches those sources.
 
 ## Price markets
 
@@ -36,9 +36,9 @@ Examples:
 
 The creator selects:
 
-- **Asset** — which price feed to use
-- **Direction** — above, below, or in a range
-- **Threshold(s)** — the price level(s) that define each outcome
+- **Asset** - which price feed to use
+- **Direction** - above, below, or in a range
+- **Threshold(s)** - the price level(s) that define each outcome
 
 ### Settlement
 
@@ -57,18 +57,18 @@ Examples:
 
 | Style | What you’re betting on |
 |-------|------------------------|
-| **Threshold** | Yes/No on one token — price or mcap above a USD target |
-| **Comparison** | Two to four tokens — highest price or highest mcap at resolve |
+| **Threshold** | Yes/No on one token - price or mcap above a USD target |
+| **Comparison** | Two to four tokens - highest price or highest mcap at resolve |
 
 ### Settlement
 
-After **resolve after**, a resolver bot fetches pair stats and settles on-chain automatically — no admin signatures.
+After **resolve after**, a resolver reads pair stats and settles automatically. No admin vote.
 
 See [Token markets](../creating-markets/token-markets.md).
 
 ## RWA (Prism) markets
 
-**RWA (Prism)** markets resolve from verified tokenized assets on **[Prism](https://prismassets.shop)** — gold, treasuries, yield products, and similar catalogue assets.
+**RWA (Prism)** markets resolve from verified tokenized assets on **[Prism](https://prismassets.shop)** - gold, treasuries, yield products, and similar catalogue assets.
 
 Examples:
 
@@ -79,14 +79,14 @@ Examples:
 
 | Style | What you’re betting on |
 |-------|------------------------|
-| **Linear** | Yes/No on one asset — price, mcap, or APY above a target |
-| **Vs** | Two to four assets — highest price, mcap, or yield at resolve |
+| **Linear** | Yes/No on one asset - price, mcap, or APY above a target |
+| **Vs** | Two to four assets - highest price, mcap, or yield at resolve |
 
 Market cards show a **Prism RWA** badge. Detail pages use Prism API stats and the trades/chance chart (no Dex embed).
 
 ### Settlement
 
-After **resolve after**, settlement reads a Prism snapshot and settles on-chain automatically.
+After **resolve after**, settlement reads a Prism snapshot and settles automatically.
 
 See [RWA (Prism) markets](../creating-markets/rwa-prism-markets.md).
 
@@ -94,8 +94,8 @@ See [RWA (Prism) markets](../creating-markets/rwa-prism-markets.md).
 
 Either market type can be:
 
-- **Binary** — two outcomes (Yes/No or custom labels)
-- **Multi-outcome** — three or more named options
+- **Binary** - two outcomes (Yes/No or custom labels)
+- **Multi-outcome** - three or more named options
 
 Price markets can use multiple buckets (e.g. price ranges). Event markets can list every candidate or team.
 
@@ -103,9 +103,9 @@ Price markets can use multiple buckets (e.g. price ranges). Event markets can li
 
 | Prefer… | When… |
 |---------|--------|
-| **Event** | News, sports, politics — you trust published resolution sources |
-| **Price** | Pure oracle price (ETH, BTC, etc.) — automated settlement |
-| **Token** | DEX token price or mcap from a pool link — automated |
-| **RWA (Prism)** | Prism catalogue assets (price, mcap, APY) — automated |
+| **Event** | News, sports, politics - you trust published resolution sources |
+| **Price** | Pure oracle price (ETH, BTC, etc.) - automated settlement |
+| **Token** | DEX token price or mcap from a pool link - automated |
+| **RWA (Prism)** | Prism catalogue assets (price, mcap, APY) - automated |
 
 [Market lifecycle →](market-lifecycle.md)

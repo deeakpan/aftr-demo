@@ -1,6 +1,6 @@
 # Positions
 
-A **position** is your holding of outcome shares in a specific market. Positions are tied to your Para wallet address — if you sign out and sign back in with the same account, your shares are still there.
+A **position** is your holding of outcome shares in a specific market. Positions are tied to your Para wallet address - if you sign out and sign back in with the same account, your shares are still there.
 
 ## Where to view positions
 
@@ -18,10 +18,10 @@ You can also see per-outcome balances on individual market pages.
 
 ## Position lifecycle
 
-1. **Open** — you bought shares; market still accepting new pool trades (before stake end).
-2. **Closed** — stake period ended; you still hold shares until settlement.
-3. **Settled** — winning outcome decided.
-4. **Claimed** — you redeemed winning shares for collateral.
+1. **Open** - you bought shares; market still accepting new pool trades (before stake end).
+2. **Closed** - stake period ended; you still hold shares until settlement.
+3. **Settled** - winning outcome decided.
+4. **Claimed** - you redeemed winning shares for collateral.
 
 ## Winning vs losing
 

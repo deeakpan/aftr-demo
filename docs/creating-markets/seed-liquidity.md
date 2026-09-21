@@ -1,6 +1,6 @@
 # Seed liquidity
 
-When you create a market, you can deposit **seed liquidity** — an initial amount of collateral split across outcomes. This shapes opening odds and makes the market more attractive to the first traders.
+When you create a market, you can deposit **seed liquidity** - an initial amount of collateral split across outcomes. This shapes opening odds and makes the market more attractive to the first traders.
 
 ## Why seed?
 
@@ -9,8 +9,8 @@ Empty pools produce extreme or meaningless probabilities. A seed:
 - Establishes credible starting prices
 - Signals skin in the game from the creator
 - Helps the first traders get reasonable fills
-- **Supports early price discovery** — real collateral in the pool gives the first trades a meaningful starting odds curve instead of a blank slate
-- **Reduces low-quality spam** — the minimum seed and trade fee at creation cost gas and collateral, so duplicate or joke markets on the same topic are more expensive to flood than they are to ignore
+- **Supports early price discovery** - real collateral in the pool gives the first trades a meaningful starting odds curve instead of a blank slate
+- **Reduces low-quality spam** - the minimum seed and trade fee at creation cost gas and collateral, so duplicate or joke markets on the same topic are more expensive to flood than they are to ignore
 
 Permissionless creation stays open to everyone; seed requirements are the main economic filter against empty or repetitive markets (for example many copies predicting the same token with no liquidity).
 
@@ -19,7 +19,7 @@ Permissionless creation stays open to everyone; seed requirements are the main e
 1. After filling market details, you proceed to the **seed** step.
 2. Enter an amount in the market’s collateral (usually USDC).
 3. The creation flow splits seed across outcomes according to protocol rules (including virtual reserve and outcome count).
-4. You receive **outcome shares** for your seeded sides — you are the first trader.
+4. You receive **outcome shares** for your seeded sides - you are the first trader.
 
 ## Minimum seed
 
@@ -33,7 +33,7 @@ The app enforces a **minimum seed amount**. Below the minimum, creation is block
 | More serious signal to traders | Cheaper to experiment |
 | You hold more initial shares | Pool moves faster with first outsiders |
 
-There is no single right answer — match your conviction and audience size.
+There is no single right answer - match your conviction and audience size.
 
 ## What you receive
 
@@ -43,7 +43,7 @@ If that outcome wins, you redeem like any other winner. If it loses, seeded coll
 
 ## Share recipient
 
-By default shares go to your Para wallet. Advanced flows may designate another recipient — only change this if you intend to.
+By default shares go to your Para wallet. Advanced flows may designate another recipient - only change this if you intend to.
 
 ## One-time bootstrap
 
@@ -51,7 +51,7 @@ Seed happens **once at creation**. After the market is live, additional liquidit
 
 ## Tips
 
-- Seed the side you believe is **underpriced** if you want to offer value to contrarian traders — or balance evenly for neutral opening odds.
+- Seed the side you believe is **underpriced** if you want to offer value to contrarian traders - or balance evenly for neutral opening odds.
 - Do not seed more than you can afford to lose.
 - Pair seed size with a clear title and timeline.
 

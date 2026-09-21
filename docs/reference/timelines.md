@@ -33,13 +33,13 @@ Market created
     ↓
 Trading open (before stake end)
     ↓
-Stake end — pool buys close
+Stake end - pool buys close
     ↓
 Waiting period (stake end → resolve after)
     ↓
-Resolve after — settlement eligible
+Resolve after - settlement eligible
     ↓
-Settled — winners claim
+Settled - winners claim
 ```
 
 **Stake end** is always **before or equal to** resolve after in well-designed markets. Usually stake end is earlier so trading closes before the result is known.
@@ -60,7 +60,7 @@ Settled — winners claim
 
 ## Breaking markets
 
-The **Breaking** filter shows markets whose **resolve after** is within the next 24 hours — useful for last-minute position checks and claims.
+The **Breaking** filter shows markets whose **resolve after** is within the next 24 hours - useful for last-minute position checks and claims.
 
 ## Time zones
 
@@ -68,6 +68,6 @@ The create flow accepts times in **your local timezone** and converts them for o
 
 ## Limit orders after stake end
 
-Pool market buys respect stake end strictly. Limit order behavior may depend on market state — if unsure, assume you should complete important entries before stake end.
+Pool market buys respect stake end strictly. Limit order behavior may depend on market state - if unsure, assume you should complete important entries before stake end.
 
 [Market lifecycle →](../markets/market-lifecycle.md)

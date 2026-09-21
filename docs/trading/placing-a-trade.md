@@ -1,21 +1,21 @@
 # Placing a trade
 
-This walkthrough covers a **market trade** — the fastest way to open a position.
+This walkthrough covers a **market trade** - the fastest way to open a position.
 
-## Step 1 — Open a market
+## Step 1 - Open a market
 
 From the Markets list, select a market. On the detail page you will see the question, chart, outcomes, and trade panel.
 
-## Step 2 — Choose an outcome
+## Step 2 - Choose an outcome
 
 - **Binary markets:** tap **Yes** or **No** (or the custom labels the creator set).
 - **Multi-outcome markets:** select one option from the list.
 
 The probability shown beside each outcome updates as other traders add collateral.
 
-## Step 3 — Enter an amount
+## Step 3 - Enter an amount
 
-Type how much collateral you want to spend (matching the market — usually USDC). You can use quick-add buttons or **Max** to fill your available wallet balance.
+Type how much collateral you want to spend (matching the market - usually USDC). You can use quick-add buttons or **Max** to fill your available wallet balance.
 
 The panel estimates:
 
@@ -23,17 +23,17 @@ The panel estimates:
 - **Effective price** per share
 - **Fee** deducted from your input
 
-## Step 4 — Review slippage
+## Step 4 - Review slippage
 
 **Slippage** is a safety buffer. If the pool price moves between when you submit and when the transaction confirms, slippage prevents you from receiving far fewer shares than expected. Tap the slippage control to cycle through preset tolerances if you are comfortable with more or less protection.
 
-## Step 5 — Approve (if needed)
+## Step 5 - Approve (if needed)
 
 For ERC-20 collaterals (e.g. USDC), your first trade may require a separate **Approve** transaction. Confirm it in Para, then submit the trade.
 
-## Step 6 — Confirm the trade
+## Step 6 - Confirm the trade
 
-Click **Buy [Outcome]** and approve the transaction in Para. Wait for confirmation — the app will show success or an error message.
+Click **Buy [Outcome]** and approve the transaction in Para. Wait for confirmation - the app will show success or an error message.
 
 ## What you receive
 
@@ -53,7 +53,7 @@ You cannot place a new pool trade if:
 - You are signed out or on the wrong network
 - Your balance is insufficient (including gas)
 
-Trading closes at **stake end**. Settlement happens later at **resolve after** — see [Market lifecycle](../markets/market-lifecycle.md).
+Trading closes at **stake end**. Settlement happens later at **resolve after** - see [Market lifecycle](../markets/market-lifecycle.md).
 
 ## Selling before settlement
 

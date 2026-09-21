@@ -1,23 +1,23 @@
 # Zedkr Docs
 
-Welcome to the Zedkr user guide. These docs explain how prediction markets on Zedkr work, how to trade, manage positions, and create markets — in plain language, without assuming any technical background.
+How prediction markets on Zedkr work: trading, positions, settlement, and creating markets.
 
 ## What is Zedkr?
 
-Zedkr is a prediction market platform. You use it to take positions on real-world questions: who wins an election, whether a price crosses a level, which team advances, and similar outcomes.
+Zedkr is a prediction market platform. You take positions on real-world questions: who wins an election, whether a price crosses a level, which team advances, and similar outcomes.
 
-When you trade, you receive **outcome shares** tied to a specific result. If that result wins when the market settles, your shares can be redeemed for payout. Shares can also be sold to other traders before settlement, so you are not locked in until the market closes.
+When you trade, you receive **outcome shares** for a specific result. If that result wins when the market settles, you can claim a payout. You can also sell shares to other traders before settlement.
 
 ## Who these docs are for
 
-- **Traders** — browse markets, buy and sell positions, claim winnings
-- **Creators** — launch new markets and earn from trading activity
+- **Traders:** browse markets, buy and sell positions, claim winnings
+- **Creators:** launch new markets and earn from trading activity
 
 ## How to read this guide
 
 Start with [Getting started](getting-started/README.md) if you are new. Jump to [Trading](trading/README.md) if you already signed in with Para and want to place your first trade.
 
-The [Reference](reference/README.md) section collects definitions, fee tables, timelines, and common questions in one place.
+[Reference](reference/README.md) has definitions, fees, timelines, and FAQ.
 
 ## Quick links
 

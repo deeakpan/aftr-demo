@@ -26,7 +26,7 @@ This is the main window for building a position.
 
 At **stake end**:
 
-- **New pool deposits stop** — you cannot market-buy into the pool after this timestamp
+- **New pool deposits stop** - you cannot market-buy into the pool after this timestamp
 - Existing share holders still own their positions
 - Limit orders may still operate depending on market rules and timing
 
@@ -56,7 +56,7 @@ Winners redeem shares for collateral on the **Trades** page. Losers need take no
 
 ## Breaking filter
 
-Markets appearing under **Breaking** are those with **resolve after** within the next 24 hours — useful if you want action nearing finalization.
+Markets appearing under **Breaking** are those with **resolve after** within the next 24 hours - useful if you want action nearing finalization.
 
 ## Creator vs trader view
 

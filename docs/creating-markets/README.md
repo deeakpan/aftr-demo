@@ -10,12 +10,12 @@ Anyone can launch a market on Zedkr. Creators define the question, outcomes, sch
 
 ## Creation flow (overview)
 
-1. **Details** — title, description, image, category, market type  
+1. **Details** - title, description, image, category, market type  
    (Event markets: optional **Import from Polymarket** to prefill from a Polymarket URL)
-2. **Outcomes** — Yes/No, custom binary labels, multiple options, or type-specific asset pickers (Token / RWA)
-3. **Schedule** — stake end and resolve after (local time converted to UTC)
-4. **Seed liquidity** — optional but recommended initial collateral
-5. **Submit** — confirm with Para; market goes live
+2. **Outcomes** - Yes/No, custom binary labels, multiple options, or type-specific asset pickers (Token / RWA)
+3. **Schedule** - stake end and resolve after (local time converted to UTC)
+4. **Seed liquidity** - optional but recommended initial collateral
+5. **Submit** - confirm with Para; market goes live
 
 ## Market type choice
 
@@ -30,7 +30,7 @@ See [Event markets](event-markets.md), [Price markets](price-markets.md), [Token
 
 ## Permissions
 
-Market creation is **permissionless** — no allowlist application. You need:
+Market creation is **permissionless** - no allowlist application. You need:
 
 - Signed in with **Para** on the correct network
 - Enough collateral for seed liquidity (if seeding)
@@ -50,7 +50,7 @@ Poorly written markets are harder to settle and attract fewer traders.
 
 ## Event markets: choose questions with public outcomes
 
-Event markets only work well when the result can be checked against **open, authoritative records** — election commissions, league scoreboards, regulatory filings, official company announcements, and similar sources anyone can verify.
+Event markets only work well when the result can be checked against **open, authoritative records** - election commissions, league scoreboards, regulatory filings, official company announcements, and similar sources anyone can verify.
 
 Avoid creating markets when:
 
@@ -63,7 +63,7 @@ If resolution admins cannot confirm a result from the links you provide, settlem
 
 ## Get in touch on Telegram
 
-Use the Zedkr Telegram community — [@zedkrcommunity](https://t.me/zedkrcommunity) — when you want help before or after creating a market. Useful situations include:
+Use the Zedkr Telegram community - [@zedkrcommunity](https://t.me/zedkrcommunity) - when you want help before or after creating a market. Useful situations include:
 
 - Checking whether your event idea has strong enough public data for settlement
 - Reviewing wording, outcomes, or resolution sources for edge cases
@@ -87,6 +87,6 @@ Confirm you are on the correct chain before creating. See [Deployments](../refer
 
 ## Fees you earn
 
-Each pool trade on your market pays you **0.25%** of the traded amount automatically (creator share of the **1%** fee). You do not need to claim creator fees separately in most cases — they are sent to your address on each trade.
+Each pool trade on your market pays you **0.25%** of the traded amount automatically (creator share of the **1%** fee). You do not need to claim creator fees separately in most cases - they are sent to your address on each trade.
 
-Full fee table: [Reference — Fees](../reference/fees.md).
+Full fee table: [Reference - Fees](../reference/fees.md).

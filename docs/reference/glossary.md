@@ -2,7 +2,7 @@
 
 ## Collateral
 
-The token used in a market — typically **USDC** (or another supported token such as **USDG**). All trades and payouts in that market use this token.
+The token used in a market - typically **USDC** (or another supported token such as **USDG**). All trades and payouts in that market use this token.
 
 ## Outcome
 
@@ -22,7 +22,7 @@ A shared pool of collateral split across outcomes. New buys mint shares based on
 
 ## Market trade
 
-An immediate pool buy — you deposit collateral and receive shares at the current pool price.
+An immediate pool buy - you deposit collateral and receive shares at the current pool price.
 
 ## Limit order
 
@@ -50,7 +50,7 @@ Burning winning outcome shares to receive collateral after settlement.
 
 ## Event market
 
-Market settled by verifying a real-world result against **resolution sources** with admin signatures.
+Market settled by verifying a real-world result against **resolution sources** with protocol admins.
 
 ## Price market
 
@@ -58,11 +58,11 @@ Market settled automatically by comparing an official asset price to a configure
 
 ## Token market
 
-Market on DEX tokens via Dexscreener / GeckoTerminal pool links — settled automatically from pair stats (price or market cap) at resolve time. See [Token markets](../creating-markets/token-markets.md).
+Market on DEX tokens via Dexscreener / GeckoTerminal pool links - settled automatically from pair stats (price or market cap) at resolve time. See [Token markets](../creating-markets/token-markets.md).
 
 ## RWA (Prism) market
 
-Market on [Prism](https://prismassets.shop) catalogue assets — settled automatically from Prism data (price, market cap, or APY) at resolve time. See [RWA (Prism) markets](../creating-markets/rwa-prism-markets.md).
+Market on [Prism](https://prismassets.shop) catalogue assets - settled automatically from Prism data (price, market cap, or APY) at resolve time. See [RWA (Prism) markets](../creating-markets/rwa-prism-markets.md).
 
 ## Resolution sources
 
@@ -110,7 +110,7 @@ Network fee paid to process any transaction. Separate from Zedkr trading fees.
 
 ## Para / wallet
 
-Your account is a **Para** embedded wallet (email, phone, or social sign-in). The address is used to trade and claim on Zedkr — MetaMask is not required for session identity.
+Your account is a **Para** embedded wallet (email, phone, or social sign-in). The address is used to trade and claim on Zedkr - MetaMask is not required for session identity.
 
 ## Display name
 

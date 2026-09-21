@@ -101,7 +101,7 @@ Indexer: Goldsky subgraph `zedkr-unichain` (used by the app for market lists and
 
 ## Other networks
 
-Deployments may also exist on **Robinhood Chain** or other targets for production. Addresses and chain IDs are configured per environment (`NEXT_PUBLIC_DEPLOYMENT_CHAIN_ID`). When the public app moves, this page will be updated — or ask [@zedkrcommunity](https://t.me/zedkrcommunity).
+Deployments may also exist on **Robinhood Chain** or other targets for production. Addresses and chain IDs are configured per environment (`NEXT_PUBLIC_DEPLOYMENT_CHAIN_ID`). When the public app moves, this page will be updated - or ask [@zedkrcommunity](https://t.me/zedkrcommunity).
 
 ---
 
@@ -113,4 +113,4 @@ Deployments may also exist on **Robinhood Chain** or other targets for productio
 
 ## Need help?
 
-Wrong network, missing contract, or questions before production launch — message [@zedkrcommunity](https://t.me/zedkrcommunity) on Telegram.
+Wrong network, missing contract, or questions before production launch - message [@zedkrcommunity](https://t.me/zedkrcommunity) on Telegram.

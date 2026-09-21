@@ -33,7 +33,7 @@ No. Probability is crowd-implied odds, not a payout guarantee. If you lose, you 
 
 ### What is the minimum trade size?
 
-Very small trades may fail because fees and rounding leave zero shares. Use the amount shown in the trade panel — if shares estimate to zero, increase the amount.
+Very small trades may fail because fees and rounding leave zero shares. Use the amount shown in the trade panel - if shares estimate to zero, increase the amount.
 
 ---
 
@@ -63,24 +63,24 @@ Confirm settlement finished, you hold the winning outcome (not a losing one), an
 
 | Type | Settles from |
 |------|----------------|
-| **Event** | Real-world results via resolution sources + admin signatures |
-| **Price** | Oracle asset price at resolve (automated) |
-| **Token** | DEX pair stats from pool links (automated) |
-| **RWA (Prism)** | [Prism](https://prismassets.shop) catalogue stats (automated) |
+| **Event** | Real-world results, checked by admins against the creator's resolution sources |
+| **Price** | Asset price rule at resolve (automatic) |
+| **Token** | DEX pool stats from the market's pool links (automatic) |
+| **RWA (Prism)** | Prism catalogue stats (automatic) |
 
-See [Market types](../markets/market-types.md).
+See [Market types](../markets/market-types.md) and [How settlement works](../markets/how-settlement-works.md).
 
 ### Who decides event market outcomes?
 
-**Protocol admins** review the creator’s resolution sources and confirm the winning outcome. Multiple admin confirmations are required — the creator alone cannot settle.
+**Protocol admins.** They review the creator's resolution sources and confirm the winner. Several admins must agree. The creator alone cannot settle.
 
 ### Can the creator settle their own market alone?
 
-No. Event settlement requires the admin threshold, not the creator alone.
+No.
 
 ### What if the real-world result is disputed?
 
-Trade carefully on ambiguous questions. Settlement follows on-chain rules and admin review of listed sources — not social media consensus.
+Trade carefully on ambiguous questions. Settlement follows the listed resolution sources and admin review, not social media consensus.
 
 ---
 
@@ -100,15 +100,15 @@ You receive **0.25%** of every pool trade on your market automatically (creator 
 
 ### What kinds of events should I create?
 
-Choose events where the winner can be verified from **public, official records** — government results, league scoreboards, regulatory filings, and similar. Skip subjective questions or outcomes that will never appear on a credible public page.
+Choose events where the winner can be verified from **public, official records** - government results, league scoreboards, regulatory filings, and similar. Skip subjective questions or outcomes that will never appear on a credible public page.
 
 ### Can I import a Polymarket market?
 
-Yes, on Create → **Event**, use **Import from Polymarket** and paste a Polymarket URL. Title, description, cover, outcomes, and schedule are prefilled. Review and edit before submitting. The Zedkr market still settles through protocol admins — it is not linked to Polymarket settlement. Details: [Event markets](../creating-markets/event-markets.md#import-from-polymarket-optional).
+Yes, on Create → **Event**, use **Import from Polymarket** and paste a Polymarket URL. Title, description, cover, outcomes, and schedule are prefilled. Review and edit before submitting. The Zedkr market still settles through protocol admins - it is not linked to Polymarket settlement. Details: [Event markets](../creating-markets/event-markets.md#import-from-polymarket-optional).
 
 ### Can I get help before creating a market?
 
-Yes. Reach out on Telegram — [@zedkrcommunity](https://t.me/zedkrcommunity) — to sanity-check your question, resolution sources, timing, or an unusual situation before you publish.
+Yes. Reach out on Telegram - [@zedkrcommunity](https://t.me/zedkrcommunity) - to sanity-check your question, resolution sources, timing, or an unusual situation before you publish.
 
 ### Where are the contract addresses?
 

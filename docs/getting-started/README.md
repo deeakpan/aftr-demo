@@ -1,12 +1,12 @@
 # Getting started
 
-Zedkr uses **Para** for sign-in. Your Para wallet is your identity, holds funds, and signs every trade — no MetaMask required for the session.
+Zedkr uses **Para** for sign-in. Your Para wallet is your identity, holds funds, and signs every trade - no MetaMask required for the session.
 
 ## What you need
 
-1. **Para sign-in** — email, phone, or social (Google, Apple, X, etc.). Para provides an embedded wallet for this app.
-2. **Collateral** — USDC (or other supported collaterals such as USDG) in that wallet, matching the market you want to trade.
-3. **A small amount of network gas** — ETH on Unichain Sepolia (test) — to approve transactions (trades, claims).
+1. **Para sign-in** - email, phone, or social (Google, Apple, X, etc.). Para provides an embedded wallet for this app.
+2. **Collateral** - USDC (or other supported collaterals such as USDG) in that wallet, matching the market you want to trade.
+3. **A small amount of network gas** - ETH on Unichain Sepolia (test) - to approve transactions (trades, claims).
 
 ## The basic flow
 
@@ -20,8 +20,8 @@ Zedkr uses **Para** for sign-in. Your Para wallet is your identity, holds funds,
 
 Markets settle in the collateral chosen at creation. On the current test deployment that commonly includes:
 
-- **USDC** — stable dollar-pegged collateral; amounts are easy to read as familiar dollar values.
-- **USDG** / other listed tokens — when the market card shows them.
+- **USDC** - stable dollar-pegged collateral; amounts are easy to read as familiar dollar values.
+- **USDG** / other listed tokens - when the market card shows them.
 
 Always check which collateral a market uses before trading. You cannot mix collaterals within a single market.
 

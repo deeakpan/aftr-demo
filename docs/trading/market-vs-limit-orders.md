@@ -11,7 +11,7 @@ Zedkr supports two order styles. They serve different goals.
 | **Speed** | Fills as soon as your transaction confirms |
 | **Best for** | Entering a position quickly |
 
-A market trade adds collateral to the pool for your chosen outcome. The pool’s internal pricing formula determines how many shares you mint. As more people buy the same outcome, its implied probability rises and new buyers receive fewer shares per dollar — classic parimutuel behavior.
+A market trade adds collateral to the pool for your chosen outcome. The pool’s internal pricing formula determines how many shares you mint. As more people buy the same outcome, its implied probability rises and new buyers receive fewer shares per dollar - classic parimutuel behavior.
 
 You can only **buy** via market trade (pool deposit). You cannot market-sell back into the pool.
 
@@ -32,7 +32,7 @@ You offer to buy outcome shares at or below your limit price. Your collateral is
 
 You offer to sell outcome shares you already own at or above your limit price. Your shares are held in escrow until filled or cancelled.
 
-Limit orders appear in the **order book** on the market page — bids on one side, asks on the other.
+Limit orders appear in the **order book** on the market page - bids on one side, asks on the other.
 
 ## Which should I use?
 

@@ -4,12 +4,12 @@ The **Trades** page aggregates all your market exposure in one place.
 
 ## What each card shows
 
-- **Market title** — click to open the full market page
-- **Type** — Event or Price
-- **Status** — whether trading is open, closed, or settled
-- **Your outcomes** — which sides you hold and how many shares
-- **Chance** — current implied probability for your outcome(s)
-- **Pool size** — total value locked in the market
+- **Market title** - click to open the full market page
+- **Type** - Event or Price
+- **Status** - whether trading is open, closed, or settled
+- **Your outcomes** - which sides you hold and how many shares
+- **Chance** - current implied probability for your outcome(s)
+- **Pool size** - total value locked in the market
 
 ## Multiple outcomes in one market
 
@@ -35,7 +35,7 @@ For settled markets, the app may show how much collateral you put in over the li
 
 ## Tips
 
-- Use Trades as your checklist before **resolve after** times — know what you still hold.
+- Use Trades as your checklist before **resolve after** times - know what you still hold.
 - Open the market detail page for order books and charts on any position.
 - Signing out does not close positions; shares remain on-chain.
 

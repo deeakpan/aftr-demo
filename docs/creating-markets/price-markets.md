@@ -1,6 +1,6 @@
 # Price markets
 
-Price markets settle automatically from an **official asset price** at resolve time — no manual outcome vote.
+Price markets settle automatically from an **official asset price** at resolve time  -  no manual outcome vote.
 
 ## What to prepare
 
@@ -39,7 +39,7 @@ The detail page shows the asset, threshold, direction, and resolve time. Traders
 
 ## Settlement
 
-After **resolve after**, the winning outcome is determined by comparing the official price to your rule. Settlement is fast and does not wait on admin signatures.
+After **resolve after**, the winning outcome is determined by comparing the official price to your rule. Settlement is fast and does not wait on admins.
 
 ## When to use price markets
 

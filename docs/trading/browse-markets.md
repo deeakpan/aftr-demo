@@ -6,10 +6,10 @@ The **Markets** page is the home screen for discovery. Markets are grouped and f
 
 Use the category strip to narrow markets:
 
-- **Trending** — high activity or attention
-- **Newest** — recently created
-- **Crypto, Politics, Finance, Tech, Economy, Sports, Gaming, Entertainment, Culture** — topic tags chosen when the market was created
-- **Breaking** — markets resolving within the next 24 hours
+- **Trending** - high activity or attention
+- **Newest** - recently created
+- **Crypto, Politics, Finance, Tech, Economy, Sports, Gaming, Entertainment, Culture** - topic tags chosen when the market was created
+- **Breaking** - markets resolving within the next 24 hours
 
 You can also search by title or keywords if search is available in the header.
 
@@ -17,11 +17,11 @@ You can also search by title or keywords if search is available in the header.
 
 Each card shows at a glance:
 
-- **Title** — the question being traded
-- **Outcomes** — Yes/No for binary markets, or a list of options for multi-outcome markets
-- **Probability** — implied chance for each outcome based on current pool weights
-- **Timing** — when trading closes and when the market can settle
-- **Vol** — trading volume for the market (cards do not show TVL)
+- **Title** - the question being traded
+- **Outcomes** - Yes/No for binary markets, or a list of options for multi-outcome markets
+- **Probability** - implied chance for each outcome based on current pool weights
+- **Timing** - when trading closes and when the market can settle
+- **Vol** - trading volume for the market (cards do not show TVL)
 
 Tap or click a card to open the full **market detail** page.
 
@@ -32,13 +32,13 @@ Tap or click a card to open the full **market detail** page.
 | **Binary** | Two sides (typically Yes and No) |
 | **Multi-outcome** | Three or more named options (e.g. candidates, teams, price buckets) |
 
-Multi-outcome markets work the same way conceptually — you pick one option and receive shares for that option only.
+Multi-outcome markets work the same way conceptually - you pick one option and receive shares for that option only.
 
 ## Market state labels
 
-- **Open** — trading is active (before stake end).
-- **Closed** — stake period ended; no new pool deposits, but limit orders may still apply depending on timing.
-- **Settled** — winning outcome decided; winners can claim.
+- **Open** - trading is active (before stake end).
+- **Closed** - stake period ended; no new pool deposits, but limit orders may still apply depending on timing.
+- **Settled** - winning outcome decided; winners can claim.
 
 ## Choosing a market
 

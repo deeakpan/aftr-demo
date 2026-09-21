@@ -4,7 +4,7 @@ After a market **settles**, holders of the **winning outcome shares** can redeem
 
 ## When you can claim
 
-1. The market must be **settled** — the winning outcome has been finalized.
+1. The market must be **settled** - the winning outcome has been finalized.
 2. You must hold **winning outcome shares** with a balance greater than zero.
 3. You must be signed in with Para on the correct network.
 
@@ -36,7 +36,7 @@ Losing shares are worth nothing at settlement. There is no claim button and no r
 
 ## If you sold early
 
-If you sold all your shares via limit orders before settlement, you have nothing to claim — you already exited for whatever the buyer paid.
+If you sold all your shares via limit orders before settlement, you have nothing to claim - you already exited for whatever the buyer paid.
 
 ## Unclaimed winnings
 
@@ -44,7 +44,7 @@ Winning shares do not expire immediately after settlement, but you should claim 
 
 ## All market types
 
-Claiming works the same for Event, Price, Token, and RWA markets. Only the path **to** settlement differs — see [How settlement works](../markets/how-settlement-works.md).
+Claiming works the same for Event, Price, Token, and RWA markets. Only the path **to** settlement differs - see [How settlement works](../markets/how-settlement-works.md).
 
 ## Troubleshooting
 

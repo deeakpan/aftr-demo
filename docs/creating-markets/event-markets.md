@@ -15,15 +15,15 @@ Zedkr pulls what it can from Polymarket’s public catalog and prefills your for
 | **Outcomes** | Binary Yes/No for a single market, or multi-option labels when the event has several child markets |
 | **Resolution source** | The Polymarket link itself (you should still add primary official sources) |
 | **Resolve after** | Polymarket’s end date |
-| **Stake ends** | Derived (~24h before resolve) — Polymarket has no stake-end field |
+| **Stake ends** | Derived (~24h before resolve) - Polymarket has no stake-end field |
 | **Slug** | Suggested from the Polymarket slug |
 
-After import, review everything. Adjust wording, outcomes, sources, and times before you seed and submit. Import is a **template only** — the Zedkr market is separate and is **resolved through protocol admins**, not Polymarket’s own resolution.
+After import, review everything. Adjust wording, outcomes, sources, and times before you seed and submit. Import is a **template only** - the Zedkr market is separate and is **resolved through protocol admins**, not Polymarket’s own resolution.
 
 Tips:
 
 - Multi-child Polymarket events (e.g. “next team” with many options) become a **multi-outcome** Zedkr market using those option labels as listed
-- We do **not** invent an “Other” option — only keep a catch-all if Polymarket already has one
+- We do **not** invent an “Other” option - only keep a catch-all if Polymarket already has one
 - Always confirm stake end / resolve after still make sense for when official results will publish
 
 ## The public-data rule
@@ -59,9 +59,9 @@ Vague wording leads to settlement disputes.
 
 ### Outcomes
 
-**Binary** — two options (default Yes/No or custom labels like “Team A” / “Team B”).
+**Binary** - two options (default Yes/No or custom labels like “Team A” / “Team B”).
 
-**Multi-outcome** — three or more named options. Every realistic winner should be listed, plus an explicit catch-all if needed (e.g. “Other”).
+**Multi-outcome** - three or more named options. Every realistic winner should be listed, plus an explicit catch-all if needed (e.g. “Other”).
 
 ### Resolution sources (required)
 
@@ -83,13 +83,13 @@ Prefer primary sources (the organization running the event) over blogs or social
 | Field | Meaning |
 |-------|---------|
 | **Stake ends** | Last moment traders can market-buy into the pool |
-| **Resolve after** | Earliest settlement time — should be after the real-world result is expected |
+| **Resolve after** | Earliest settlement time - should be after the real-world result is expected |
 
 Leave buffer after the event for official results to publish.
 
 ## Settlement model
 
-Event markets are **resolved through protocol admins** — reviewers who check your resolution sources and confirm the winning outcome. Settlement is not automatic from a price feed.
+Event markets are **resolved through protocol admins** - reviewers who check your resolution sources and confirm the winning outcome. Settlement is not automatic from a price feed.
 
 Traders see resolution sources on the market page. Read them before trading.
 
