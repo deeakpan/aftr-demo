@@ -774,7 +774,8 @@ export function CreateClient() {
         const { feeWei } = results[1] as { feeWei: bigint };
         setEthBalanceLabel(formatEthShort(ethBal));
         setGasEstimateLabel(formatEthShort(feeWei));
-        setEthGasShortfall(ethBal < feeWei);
+        // Network gas is sponsored on create via /api/para/send — never block the confirm CTA.
+        setEthGasShortfall(false);
         if (!collateral.isNative) {
           const tokenBal = results[2] as bigint;
           setCollateralBalanceWei(tokenBal);
@@ -1373,14 +1374,7 @@ export function CreateClient() {
               account: address,
             }));
           const approveGasLimit = baseApproveGas + baseApproveGas / BigInt(5);
-          const { feeWei: approveFee } = await estimateFeeWei(publicClient, approveGasLimit);
-          const monBalance = await publicClient.getBalance({ address });
-          if (monBalance < approveFee) {
-            setSubmitStatus(
-              `Insufficient ${NATIVE_CURRENCY_SYMBOL} for approval gas. Est. ~${formatEthShort(approveFee)} ${NATIVE_CURRENCY_SYMBOL}, you have ${formatEthShort(monBalance)} ${NATIVE_CURRENCY_SYMBOL} on ${DEPLOYMENT_NETWORK_LABEL}.`,
-            );
-            return;
-          }
+          // Gas is topped up server-side via /api/para/send — do not block on ETH balance here.
 
           const approveHash = await writeContract({
             address: collateral.address,
@@ -1433,21 +1427,6 @@ export function CreateClient() {
         return createGasBuffer(estimated);
       };
 
-      const assertGasAffordable = async (gasLimit: bigint, extraValue = BigInt(0)): Promise<boolean> => {
-        const { feeWei } = await estimateFeeWei(publicClient, gasLimit);
-        const totalNeeded = feeWei + extraValue;
-        const monBalance = await publicClient.getBalance({ address });
-        if (monBalance >= totalNeeded) return true;
-        const parts =
-          extraValue > BigInt(0)
-            ? ` (~${formatEthShort(extraValue)} seed + ~${formatEthShort(feeWei)} gas)`
-            : ` (~${formatEthShort(feeWei)} gas)`;
-        setSubmitStatus(
-          `Insufficient ${NATIVE_CURRENCY_SYMBOL} on ${DEPLOYMENT_NETWORK_LABEL}. Need ~${formatEthShort(totalNeeded)} ${NATIVE_CURRENCY_SYMBOL}${parts}. You have ${formatEthShort(monBalance)} ${NATIVE_CURRENCY_SYMBOL}.`,
-        );
-        return false;
-      };
-
       if (marketKind === "event") {
         const eventArgs = [fpmmBaseParams] as const;
 
@@ -1461,9 +1440,6 @@ export function CreateClient() {
           eventArgs,
           collateral.isNative ? seedUnits : undefined,
         );
-        if (!(await assertGasAffordable(eventGas, collateral.isNative ? seedUnits : BigInt(0)))) {
-          return;
-        }
         createHash = await writeContract(
           fpmmMarketCreateParams("createEventMarket", eventArgs, address, collateral.isNative ?? false, seedUnits, eventGas),
         );
@@ -1484,9 +1460,6 @@ export function CreateClient() {
           tokenArgs,
           collateral.isNative ? seedUnits : undefined,
         );
-        if (!(await assertGasAffordable(tokenGas, collateral.isNative ? seedUnits : BigInt(0)))) {
-          return;
-        }
         createHash = await writeContract(
           fpmmMarketCreateParams("createTokenMarket", tokenArgs, address, collateral.isNative ?? false, seedUnits, tokenGas),
         );
@@ -1518,9 +1491,6 @@ export function CreateClient() {
           priceArgs,
           collateral.isNative ? seedUnits : undefined,
         );
-        if (!(await assertGasAffordable(priceGas, collateral.isNative ? seedUnits : BigInt(0)))) {
-          return;
-        }
         createHash = await writeContract(
           fpmmMarketCreateParams("createPriceMarket", priceArgs, address, collateral.isNative ?? false, seedUnits, priceGas),
         );

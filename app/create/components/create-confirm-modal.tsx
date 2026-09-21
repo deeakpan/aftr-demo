@@ -229,9 +229,13 @@ export function CreateConfirmModal({
                 </p>
               </div>
             </div>
-            {ethGasShortfall && (
+            {ethGasShortfall ? (
               <p className="mt-3 text-xs leading-relaxed text-red-400">
                 Insufficient {NATIVE_CURRENCY_SYMBOL} to cover the network fee.
+              </p>
+            ) : (
+              <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
+                Network gas is covered for market creation.
               </p>
             )}
           </div>
@@ -258,7 +262,6 @@ export function CreateConfirmModal({
             disabled={
               confirming ||
               seedShortfall ||
-              ethGasShortfall ||
               !gasEstimateLabel ||
               !balancesReady
             }
