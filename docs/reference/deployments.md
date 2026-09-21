@@ -1,6 +1,6 @@
 # Deployments
 
-The live Zedkr app currently runs on **Unichain Sepolia** (testnet). Confirm the network after you **sign in with Para** before trading or creating.
+The live Zedkr Market app currently runs on **Unichain Sepolia** (testnet). Confirm the network after you **sign in with Para** before trading or creating.
 
 Each market also has its own contract address (created by the factory). You will see that address on the market detail page.
 
@@ -41,7 +41,7 @@ Each market also has its own contract address (created by the factory). You will
 | | Unichain Sepolia | Production |
 |---|------------------|------------|
 | **Native gas token** | ETH | Depends on target chain |
-| **Zedkr app** | Live (test) | Follow Telegram for announcements |
+| **Zedkr Market app** | Live (test) | Follow Telegram for announcements |
 
 ---
 

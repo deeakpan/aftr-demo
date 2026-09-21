@@ -1,6 +1,6 @@
 # Market vs limit orders
 
-Zedkr supports two order styles. They serve different goals.
+Zedkr Market supports two order styles. They serve different goals.
 
 ## Market trade (buy)
 

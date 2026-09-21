@@ -106,11 +106,11 @@ Market with three or more named outcomes.
 
 ## Gas
 
-Network fee paid to process any transaction. Separate from Zedkr trading fees.
+Network fee paid to process any transaction. Separate from Zedkr Market trading fees.
 
 ## Para / wallet
 
-Your account is a **Para** embedded wallet (email, phone, or social sign-in). The address is used to trade and claim on Zedkr - MetaMask is not required for session identity.
+Your account is a **Para** embedded wallet (email, phone, or social sign-in). The address is used to trade and claim on Zedkr Market - MetaMask is not required for session identity.
 
 ## Display name
 

@@ -1,10 +1,12 @@
-# Zedkr Docs
+# Zedkr Market Docs
 
-How prediction markets on Zedkr work: trading, positions, settlement, and creating markets.
+How Zedkr Market works: trading, positions, settlement, and creating markets.
 
-## What is Zedkr?
+**Zedkr Market** is a Zedkr product. Zedkr is the parent company; Zedkr Market is the prediction-market app.
 
-Zedkr is a prediction market platform. You take positions on real-world questions: who wins an election, whether a price crosses a level, which team advances, and similar outcomes.
+## What is Zedkr Market?
+
+Zedkr Market is a prediction market platform. You take positions on real-world questions: who wins an election, whether a price crosses a level, which team advances, and similar outcomes.
 
 When you trade, you receive **outcome shares** for a specific result. If that result wins when the market settles, you can claim a payout. You can also sell shares to other traders before settlement.
 

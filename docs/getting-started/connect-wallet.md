@@ -1,6 +1,6 @@
 # Connect / sign in
 
-Zedkr uses **Para** for sign-in. Your account is a Para wallet (email, phone, or social) that holds funds and signs trades - not a MetaMask / WalletConnect “connect every visit” flow.
+Zedkr Market uses **Para** for sign-in. Your account is a Para wallet (email, phone, or social) that holds funds and signs trades - not a MetaMask / WalletConnect “connect every visit” flow.
 
 ## How to sign in
 
@@ -8,7 +8,7 @@ Zedkr uses **Para** for sign-in. Your account is a Para wallet (email, phone, or
 2. Complete Para login - email, phone, or supported social (Google, Apple, X, etc.).
 3. Para creates or unlocks an **embedded wallet** for this app.
 
-You do **not** need MetaMask installed. Injected wallets are not used for session identity on Zedkr.
+You do **not** need MetaMask installed. Injected wallets are not used for session identity on Zedkr Market.
 
 ## What signing in does - and does not do
 
@@ -19,7 +19,7 @@ You do **not** need MetaMask installed. Injected wallets are not used for sessio
 
 **Signing in does not:**
 
-- Give Zedkr custody of your funds outside normal on-chain approvals/transactions.
+- Give Zedkr Market custody of your funds outside normal on-chain approvals/transactions.
 - Automatically prompt MetaMask or other browser extensions on page load.
 
 ## Display name
@@ -28,11 +28,11 @@ After you are signed in, you may be prompted to choose a **display name** (nickn
 
 ## Wrong network
 
-Trades run on Zedkr’s deployed chain. If a transaction fails with a network error, confirm Para / the app is set to the network listed in [Deployments](../reference/deployments.md).
+Trades run on Zedkr Market’s deployed chain. If a transaction fails with a network error, confirm Para / the app is set to the network listed in [Deployments](../reference/deployments.md).
 
 ## Security tips
 
-- Only sign in on the official Zedkr site.
+- Only sign in on the official Zedkr Market site.
 - Review every transaction Para presents before approving.
 - Never share recovery secrets or seed phrases with anyone claiming to be support.
 

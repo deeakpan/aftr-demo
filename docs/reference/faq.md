@@ -13,7 +13,7 @@ No. Sign in with **Para** (email, phone, or social). Para provides the wallet us
 
 ### Why is a transaction failing with a network error?
 
-Zedkr only runs on its deployed network (currently **Unichain Sepolia**, chain ID `1301`). Confirm Para / the app is on that network. See [Deployments](deployments.md).
+Zedkr Market only runs on its deployed network (currently **Unichain Sepolia**, chain ID `1301`). Confirm Para / the app is on that network. See [Deployments](deployments.md).
 
 ---
 
@@ -104,7 +104,7 @@ Choose events where the winner can be verified from **public, official records**
 
 ### Can I import a Polymarket market?
 
-Yes, on Create → **Event**, use **Import from Polymarket** and paste a Polymarket URL. Title, description, cover, outcomes, and schedule are prefilled. Review and edit before submitting. The Zedkr market still settles through protocol admins - it is not linked to Polymarket settlement. Details: [Event markets](../creating-markets/event-markets.md#import-from-polymarket-optional).
+Yes, on Create → **Event**, use **Import from Polymarket** and paste a Polymarket URL. Title, description, cover, outcomes, and schedule are prefilled. Review and edit before submitting. The Zedkr Market market still settles through protocol admins - it is not linked to Polymarket settlement. Details: [Event markets](../creating-markets/event-markets.md#import-from-polymarket-optional).
 
 ### Can I get help before creating a market?
 
@@ -118,7 +118,7 @@ See [Deployments](deployments.md) for Unichain Sepolia chain ID and contract add
 
 ## Safety
 
-### Does Zedkr hold my funds?
+### Does Zedkr Market hold my funds?
 
 No. Funds stay in your Para wallet until you approve a transaction. Smart contracts hold pool collateral according to market rules.
 

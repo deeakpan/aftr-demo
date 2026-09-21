@@ -1,6 +1,6 @@
 # Trading
 
-Trading on Zedkr means buying **outcome shares** - tokens that represent a bet on one specific result of a market question.
+Trading on Zedkr Market means buying **outcome shares** - tokens that represent a bet on one specific result of a market question.
 
 ## Two ways to trade
 

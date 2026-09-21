@@ -27,7 +27,7 @@ Event markets are about real-world results (elections, sports, announcements).
 - The creator does **not** settle the market alone.
 - Read the description and open every resolution source before you trade.
 - If the question is vague or sources are weak, settlement can be slow or contested. Size your trade accordingly.
-- Importing a Polymarket template does **not** mean Polymarket settles the Zedkr market. Admins still decide from the listed sources.
+- Importing a Polymarket template does **not** mean Polymarket settles the Zedkr Market listing. Admins still decide from the listed sources.
 
 **What creators should know**
 

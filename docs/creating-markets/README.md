@@ -1,6 +1,6 @@
 # Creating markets
 
-Anyone can launch a market on Zedkr. Creators define the question, outcomes, schedule, and initial liquidity. As traders participate, creators earn a share of trading fees.
+Anyone can launch a market on Zedkr Market. Creators define the question, outcomes, schedule, and initial liquidity. As traders participate, creators earn a share of trading fees.
 
 ## Why create a market?
 

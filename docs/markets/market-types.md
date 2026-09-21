@@ -1,6 +1,6 @@
 # Market types
 
-Zedkr supports four kinds of markets in Create. The trading experience is the same; settlement differs.
+Zedkr Market supports four kinds of markets in Create. The trading experience is the same; settlement differs.
 
 ## Event markets
 
@@ -46,7 +46,7 @@ Once **resolve after** passes, settlement reads the price feed and determines th
 
 ## Token markets
 
-**Token markets** resolve from live **DEX pair stats** for tokens you pick via a **Dexscreener** or **GeckoTerminal** pool link. Zedkr reads USD price and market cap at resolve time.
+**Token markets** resolve from live **DEX pair stats** for tokens you pick via a **Dexscreener** or **GeckoTerminal** pool link. Zedkr Market reads USD price and market cap at resolve time.
 
 Examples:
 

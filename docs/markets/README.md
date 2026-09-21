@@ -1,6 +1,6 @@
 # Markets
 
-Every Zedkr market is a self-contained question with defined outcomes, trading windows, and settlement rules. Understanding how markets are structured helps you trade and create with confidence.
+Every market on Zedkr Market is a self-contained question with defined outcomes, trading windows, and settlement rules. Understanding how markets are structured helps you trade and create with confidence.
 
 ## The core question
 

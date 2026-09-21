@@ -6,7 +6,7 @@ Event markets resolve from **real-world outcomes** verified against public sourc
 
 On Create → **Event**, you can tap **Import from Polymarket** and paste a Polymarket event or market URL (for example `https://polymarket.com/event/…`).
 
-Zedkr pulls what it can from Polymarket’s public catalog and prefills your form:
+Zedkr Market pulls what it can from Polymarket’s public catalog and prefills your form:
 
 | Field | What we import |
 |-------|----------------|
@@ -18,11 +18,11 @@ Zedkr pulls what it can from Polymarket’s public catalog and prefills your for
 | **Stake ends** | Derived (~24h before resolve) - Polymarket has no stake-end field |
 | **Slug** | Suggested from the Polymarket slug |
 
-After import, review everything. Adjust wording, outcomes, sources, and times before you seed and submit. Import is a **template only** - the Zedkr market is separate and is **resolved through protocol admins**, not Polymarket’s own resolution.
+After import, review everything. Adjust wording, outcomes, sources, and times before you seed and submit. Import is a **template only** - the Zedkr Market listing is separate and is **resolved through protocol admins**, not Polymarket’s own resolution.
 
 Tips:
 
-- Multi-child Polymarket events (e.g. “next team” with many options) become a **multi-outcome** Zedkr market using those option labels as listed
+- Multi-child Polymarket events (e.g. “next team” with many options) become a **multi-outcome** market on Zedkr Market using those option labels as listed
 - We do **not** invent an “Other” option - only keep a catch-all if Polymarket already has one
 - Always confirm stake end / resolve after still make sense for when official results will publish
 

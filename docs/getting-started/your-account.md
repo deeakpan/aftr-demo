@@ -1,6 +1,6 @@
 # Your account & display name
 
-On Zedkr, your **Para wallet address** is your account. The app also lets you set a **display name** so others see a readable label instead of a long hex string.
+On Zedkr Market, your **Para wallet address** is your account. The app also lets you set a **display name** so others see a readable label instead of a long hex string.
 
 ## Display name
 
@@ -19,7 +19,7 @@ These are separate. Trading moves collateral into outcome shares; claiming moves
 
 ## Approvals
 
-For ERC-20 collaterals (e.g. USDC), your first trade may require an **Approve** step so Zedkr can spend the token. This is a one-time permission per token (or per spending limit). Confirm it in the Para signing UI before it goes through.
+For ERC-20 collaterals (e.g. USDC), your first trade may require an **Approve** step so Zedkr Market can spend the token. This is a one-time permission per token (or per spending limit). Confirm it in the Para signing UI before it goes through.
 
 ## Privacy
 

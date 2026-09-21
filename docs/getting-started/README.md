@@ -1,6 +1,6 @@
 # Getting started
 
-Zedkr uses **Para** for sign-in. Your Para wallet is your identity, holds funds, and signs every trade - no MetaMask required for the session.
+Zedkr Market uses **Para** for sign-in. Your Para wallet is your identity, holds funds, and signs every trade - no MetaMask required for the session.
 
 ## What you need
 
@@ -10,7 +10,7 @@ Zedkr uses **Para** for sign-in. Your Para wallet is your identity, holds funds,
 
 ## The basic flow
 
-1. Open Zedkr and **Sign in** with Para.
+1. Open Zedkr Market and **Sign in** with Para.
 2. Set a **display name** so your activity is recognizable in the app.
 3. Browse markets, pick an outcome, and trade.
 4. Track open positions on the **Trades** page.

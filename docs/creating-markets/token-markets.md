@@ -31,7 +31,7 @@ Use **RWA (Prism)** instead for tokenized real-world assets on [Prism](https://p
 
 Settlement is **automatic**. The market uses the pool links and question rules; at resolve time the pair stats decide the winner. No admin vote.
 
-On the market page, Zedkr shows live pair stats and a Dex chart when available, plus the shared **trades / chance** chart.
+On the market page, Zedkr Market shows live pair stats and a Dex chart when available, plus the shared **trades / chance** chart.
 
 ## Creator tips
 
