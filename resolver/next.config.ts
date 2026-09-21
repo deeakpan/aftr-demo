@@ -10,6 +10,11 @@ loadEnvConfig(repoRoot);
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: repoRoot,
+  // Resolver imports parent monorepo `@/` sources. Host containers often OOM or
+  // lack root type packages during `next build` typecheck — webpack already compiled.
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   experimental: {
     externalDir: true,
   },

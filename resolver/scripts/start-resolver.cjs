@@ -31,13 +31,21 @@ function ensureProductionBuild() {
     console.error("[start-resolver] npm install --include=dev failed");
     process.exit(install.status || 1);
   }
+  const buildEnv = {
+    ...process.env,
+    NODE_OPTIONS: [process.env.NODE_OPTIONS, "--max-old-space-size=2048"]
+      .filter(Boolean)
+      .join(" "),
+  };
   const build = spawnSync(process.execPath, [nextBin(), "build", "--webpack"], {
     cwd: root,
     stdio: "inherit",
-    env: process.env,
+    env: buildEnv,
   });
   if (build.status !== 0) {
-    console.error("[start-resolver] next build failed");
+    console.error(
+      `[start-resolver] next build failed status=${build.status} signal=${build.signal}`
+    );
     process.exit(build.status || 1);
   }
   if (!hasProductionBuild()) {

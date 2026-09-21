@@ -2,35 +2,30 @@
 
 The resolver lives in `resolver/` inside [aftr-demo](https://github.com/deeakpan/aftr-demo).
 
-## Option A — root directory = repo root (recommended)
+## What to set on the host
 
-**Build command**
-```bash
-npm run build:bot
-```
+You are **not** deploying a separate resolver-only git repo. The host clones **aftr-demo** and runs the resolver app inside it.
 
-**Start command**
-```bash
-npm run bot
-```
+### Recommended (Root Directory = repo root)
 
-(`bot` at the repo root proxies to `resolver`. If the host skips build, `start-resolver` will run `next build` on first start.)
+| Setting | Value |
+| --- | --- |
+| Root Directory | *(empty / `.`)* |
+| Build command | `npm run build:bot` |
+| Start command | `npm run bot` |
 
-## Option B — root directory = `resolver`
+### Alternative (Root Directory = `resolver`)
 
-**Build command**
-```bash
-npm install --include=dev && npm run build
-```
+| Setting | Value |
+| --- | --- |
+| Root Directory | `resolver` |
+| Build command | `npm install --include=dev && npm run build` |
+| Start command | `npm run bot` |
 
-**Start command**
-```bash
-npm run bot
-```
+If Build is left empty, start will try to build on boot (slower; first boot can take a few minutes).
 
 ## Notes
 
 - Do **not** use the root app’s `npm run build` for this service — that builds the market UI, not the resolver.
-- `npm run bot` starts the Next resolver app + Telegram alert bot (if `TELEGRAM_BOT_TOKEN` is set).
-- Settlement ticks also run via Next instrumentation / `/api/tick` (see `vercel.json` crons).
-- Do not commit `.env`. Set secrets in the host dashboard.
+- `npm run bot` starts Next + the Telegram alert bot (if `TELEGRAM_BOT_TOKEN` is set).
+- Set secrets in the host dashboard; do not commit `.env`.
