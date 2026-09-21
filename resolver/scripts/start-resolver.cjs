@@ -100,4 +100,15 @@ if (token) {
   console.warn("[start-resolver] TELEGRAM_BOT_TOKEN not set — Telegram alerts off");
 }
 
-run("npx", ["next", "dev", "--port", String(RESOLVER_PORT), "--webpack"], "resolver", { shell: true });
+const isProd =
+  process.env.NODE_ENV === "production" ||
+  Boolean(process.env.RAILWAY_ENVIRONMENT) ||
+  Boolean(process.env.RENDER) ||
+  Boolean(process.env.FLY_APP_NAME);
+
+if (isProd) {
+  // Container / hosted: serve the built app (build step must run `npm run build` in resolver/).
+  run("npx", ["next", "start", "--port", String(RESOLVER_PORT)], "resolver", { shell: true });
+} else {
+  run("npx", ["next", "dev", "--port", String(RESOLVER_PORT), "--webpack"], "resolver", { shell: true });
+}
